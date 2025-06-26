@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "vite --host --port 3001",
     "build": "vite build",
