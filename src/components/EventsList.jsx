@@ -11,7 +11,7 @@ function EventsList({ sections, onEventSelect, onBack }) {
 
   useEffect(() => {
     loadEvents();
-  }, [sections]);
+  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEvents = async () => {
     try {

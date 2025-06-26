@@ -5,7 +5,7 @@ import databaseService from './database.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 
-const BACKEND_URL = process.env.VITE_API_URL || 'https://vikings-osm-event-manager.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-event-manager.onrender.com';
 
 console.log('Using Backend URL:', BACKEND_URL);
 
@@ -139,7 +139,7 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
         const data = await response.json();
         logRateLimitInfo(data, apiName);
         return data;
-    } catch (_jsonError) {
+    } catch {
         console.error(`❌ ${apiName} returned invalid JSON`);
         throw new Error(`${apiName} returned invalid response`);
     }

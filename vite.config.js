@@ -10,9 +10,7 @@ export default defineConfig({
     open: true
   },
   define: {
-    'process.env.VITE_API_URL': JSON.stringify(
-      process.env.VITE_API_URL || 'https://vikings-osm-event-manager.onrender.com'
-    )
+    // No need to define process.env since we're using import.meta.env
   },
   build: {
     outDir: 'dist',

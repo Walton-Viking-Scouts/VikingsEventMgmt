@@ -27,7 +27,7 @@ Cypress.Commands.add('login', (options = {}) => {
     
     if (!skipUI) {
       cy.reload();
-      cy.wait(1000); // Wait for auth state to update
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
     }
   } else {
     // Real login flow (requires actual OSM credentials)

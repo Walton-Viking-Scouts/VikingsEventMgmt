@@ -29,7 +29,7 @@ if (!app.document.head.querySelector('[data-hide-command-log-request]')) {
 }
 
 // Global error handling
-Cypress.on('uncaught:exception', (err, runnable) => {
+Cypress.on('uncaught:exception', (err, _runnable) => {
   // Returning false here prevents Cypress from failing the test
   // for certain expected errors in the application
   

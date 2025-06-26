@@ -2,7 +2,7 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   // Cypress Cloud configuration
-  projectId: 'qqogix', // Your actual project ID
+  projectId: 'ehjysh', // Your actual project ID
   
   e2e: {
     baseUrl: 'http://localhost:3001',

@@ -3,7 +3,7 @@ import { getEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 
-function AttendanceView({ sections, events, onBack }) {
+function AttendanceView({ events, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +11,7 @@ function AttendanceView({ sections, events, onBack }) {
 
   useEffect(() => {
     loadAttendance();
-  }, [events]);
+  }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {
