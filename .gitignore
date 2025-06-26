@@ -64,3 +64,6 @@ cypress/videos/
 cypress/screenshots/
 cypress/downloads/
 cypress.env.json
+
+# Sentry Config File
+.env.sentry-build-plugin
