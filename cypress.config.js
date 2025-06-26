@@ -1,6 +1,9 @@
 import { defineConfig } from 'cypress';
 
 export default defineConfig({
+  // Cypress Cloud configuration
+  projectId: process.env.CYPRESS_PROJECT_ID || 'your-project-id-here',
+  
   e2e: {
     baseUrl: 'http://localhost:3001',
     viewportWidth: 1280,
@@ -11,6 +14,10 @@ export default defineConfig({
     requestTimeout: 10000,
     responseTimeout: 10000,
     pageLoadTimeout: 30000,
+    
+    // Cypress Cloud specific settings
+    experimentalStudio: true,
+    experimentalRunAllSpecs: true,
     
     // Test file patterns
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',

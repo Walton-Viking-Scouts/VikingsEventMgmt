@@ -72,13 +72,28 @@ npx cap open ios
 - `npm run preview` - Preview production build
 
 ### Testing
+
+#### Unit Tests
 - `npm test` - Run unit tests with Vitest
 - `npm run test:ui` - Run unit tests with UI
 - `npm run test:run` - Run unit tests once
+
+#### E2E Tests (Local)
 - `npm run cypress:open` - Open Cypress Test Runner
 - `npm run cypress:run` - Run e2e tests headlessly
 - `npm run test:e2e` - Run e2e tests with dev server
 - `npm run test:e2e:open` - Start dev server and open Cypress
+
+#### E2E Tests (Cypress Cloud)
+- `npm run cypress:cloud` - Run tests and record to Cypress Cloud
+- `npm run cypress:cloud:parallel` - Run tests in parallel on Cypress Cloud
+- `npm run test:e2e:cloud` - Run full e2e suite with Cloud recording
+- `npm run test:ci` - Full CI test suite (unit + e2e with recording)
+
+#### Cross-Browser Testing
+- `npm run cypress:run:chrome` - Run tests in Chrome
+- `npm run cypress:run:firefox` - Run tests in Firefox
+- `npm run cypress:run:edge` - Run tests in Edge
 - `npm run test:all` - Run all tests (unit + e2e)
 
 ### Code Quality
@@ -231,6 +246,45 @@ Network Restored → Fetch Latest Data → Update Local Storage → Sync Status 
 - **Responsive Layout**: Mobile/desktop layout switching
 - **Offline Functionality**: Network detection and data caching
 - **User Workflows**: Complete feature interactions
+
+#### Cypress Cloud Setup
+
+1. **Create Cypress Cloud Account**:
+   - Sign up at [cloud.cypress.io](https://cloud.cypress.io)
+   - Create a new project for "Vikings Event Management"
+
+2. **Configure Environment Variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your Cypress Cloud credentials:
+   ```env
+   CYPRESS_PROJECT_ID=your-project-id
+   CYPRESS_RECORD_KEY=your-record-key
+   ```
+
+3. **GitHub Secrets** (for CI/CD):
+   - Add `CYPRESS_PROJECT_ID` to GitHub repository secrets
+   - Add `CYPRESS_RECORD_KEY` to GitHub repository secrets
+
+4. **Run Cloud Tests**:
+   ```bash
+   npm run cypress:cloud              # Record test run
+   npm run cypress:cloud:parallel     # Parallel execution
+   npm run test:e2e:cloud            # Full suite with recording
+   ```
+
+#### CI/CD Pipeline
+
+The project includes a complete GitHub Actions workflow:
+- **Unit tests** on every push/PR
+- **Build verification** 
+- **Cross-browser e2e tests** with Cypress Cloud
+- **Parallel test execution** for faster results
+- **Mobile build testing** on macOS runners
+- **Automatic deployment** on main branch
+
+View test results, videos, and screenshots in the Cypress Cloud dashboard.
 
 ### Adding New Features
 
