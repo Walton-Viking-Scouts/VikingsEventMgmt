@@ -2,6 +2,7 @@
 // React version of the original auth module
 
 import { getUserRoles, getStartupData } from './api.js';
+import { sentryUtils, logger } from './sentry.js';
 
 const clientId = 'x7hx1M0NExVdSiksH1gUBPxkSTn8besx';
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
@@ -13,11 +14,23 @@ export function getToken() {
 
 export function setToken(token) {
     sessionStorage.setItem('access_token', token);
+    
+    // Set user context in Sentry when token is set
+    sentryUtils.setUser({
+        id: 'authenticated-user',
+        segment: 'mobile-app-users',
+    });
+    
+    logger.info('User authenticated successfully');
 }
 
 export function clearToken() {
     sessionStorage.removeItem('access_token');
-    console.log('Authentication token cleared');
+    
+    // Clear user context in Sentry when logging out
+    sentryUtils.setUser(null);
+    
+    logger.info('User logged out - token cleared');
 }
 
 export function isAuthenticated() {

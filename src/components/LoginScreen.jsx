@@ -1,6 +1,23 @@
 import React from 'react';
+import * as Sentry from '@sentry/react';
 
 function LoginScreen({ onLogin }) {
+  const handleLoginClick = () => {
+    // Create a span to measure login button performance
+    Sentry.startSpan(
+      {
+        op: "ui.click",
+        name: "Login Button Click",
+      },
+      (span) => {
+        span.setAttribute("component", "LoginScreen");
+        span.setAttribute("action", "login_initiated");
+        
+        onLogin();
+      },
+    );
+  };
+
   return (
     <div className="login-container" data-testid="login-screen">
       <div className="login-card">
@@ -10,7 +27,7 @@ function LoginScreen({ onLogin }) {
         </p>
         <button 
           className="login-btn"
-          onClick={onLogin}
+          onClick={handleLoginClick}
           type="button"
           data-testid="login-button"
         >

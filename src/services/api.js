@@ -4,6 +4,7 @@
 import databaseService from './database.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
+import { sentryUtils, logger } from './sentry.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-event-manager.onrender.com';
 
@@ -90,10 +91,29 @@ function logRateLimitInfo(responseData, apiName) {
     }
 }
 
-// Enhanced API response handler
+// Enhanced API response handler with Sentry monitoring
 async function handleAPIResponseWithRateLimit(response, apiName) {
+    // Add breadcrumb for API call
+    sentryUtils.addBreadcrumb({
+        type: 'http',
+        level: 'info',
+        message: `API call: ${apiName}`,
+        data: {
+            method: response.request?.method || 'GET',
+            url: response.url,
+            status_code: response.status,
+        },
+    });
+
     if (response.status === 429) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Log rate limiting to Sentry
+        logger.warn(logger.fmt`Rate limit hit for API: ${apiName}`, {
+            api: apiName,
+            status: response.status,
+            retryAfter: errorData.rateLimitInfo?.retryAfter,
+        });
         
         if (errorData.rateLimitInfo) {
             const retryAfter = errorData.rateLimitInfo.retryAfter || 'unknown time';
@@ -198,71 +218,111 @@ export async function getMostRecentTermId(sectionId, token) {
 }
 
 export async function getUserRoles(token) {
-    try {
-        // Check network status first
-        await checkNetworkStatus();
-        
-        // If offline, try to get from local database
-        if (!isOnline) {
-            console.log('Offline - getting sections from local database');
-            const sections = await databaseService.getSections();
-            return sections;
-        }
-
-        if (!token) {
-            throw new Error('No authentication token');
-        }
-
-        const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        const data = await handleAPIResponseWithRateLimit(response, 'getUserRoles');
-
-        if (!data || typeof data !== 'object') {
-            return [];
-        }
-
-        const sections = Object.keys(data)
-            .filter(key => !isNaN(key))
-            .map(key => data[key])
-            .filter(item => item && typeof item === 'object')
-            .map(item => ({
-                sectionid: item.sectionid,
-                sectionname: item.sectionname,
-                section: item.section,
-                sectiontype: item.section, // Map section to sectiontype for database
-                isDefault: item.isDefault === "1",
-                permissions: item.permissions
-            }));
-
-        // Save to local database when online
-        if (sections.length > 0) {
-            await databaseService.saveSections(sections);
-        }
-
-        return sections;
-
-    } catch (error) {
-        console.error('Error fetching user roles:', error);
-        
-        // If online request fails, try local database as fallback
-        if (isOnline) {
-            console.log('Online request failed - trying local database as fallback');
+    return sentryUtils.startSpan(
+        {
+            op: "http.client",
+            name: "GET /api/ext/members/contact/grid/?action=getUserRoles",
+        },
+        async (span) => {
             try {
-                const sections = await databaseService.getSections();
+                // Add context to span
+                span.setAttribute("api.endpoint", "getUserRoles");
+                span.setAttribute("offline_capable", true);
+                
+                logger.debug("Fetching user roles", { hasToken: !!token });
+                
+                // Check network status first
+                await checkNetworkStatus();
+                span.setAttribute("network.online", isOnline);
+                
+                // If offline, try to get from local database
+                if (!isOnline) {
+                    logger.info("Offline mode - retrieving sections from local database");
+                    span.setAttribute("data.source", "local_database");
+                    
+                    const sections = await databaseService.getSections();
+                    return sections;
+                }
+
+                if (!token) {
+                    throw new Error('No authentication token');
+                }
+
+                span.setAttribute("data.source", "api");
+                logger.debug("Making API request for user roles");
+
+                const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await handleAPIResponseWithRateLimit(response, 'getUserRoles');
+
+                if (!data || typeof data !== 'object') {
+                    logger.warn("Invalid data received from getUserRoles API");
+                    return [];
+                }
+
+                const sections = Object.keys(data)
+                    .filter(key => !isNaN(key))
+                    .map(key => data[key])
+                    .filter(item => item && typeof item === 'object')
+                    .map(item => ({
+                        sectionid: item.sectionid,
+                        sectionname: item.sectionname,
+                        section: item.section,
+                        sectiontype: item.section, // Map section to sectiontype for database
+                        isDefault: item.isDefault === "1",
+                        permissions: item.permissions
+                    }));
+
+                // Save to local database when online
+                if (sections.length > 0) {
+                    await databaseService.saveSections(sections);
+                    logger.info(logger.fmt`Saved ${sections.length} sections to local database`);
+                }
+
+                span.setAttribute("sections.count", sections.length);
                 return sections;
-            } catch (dbError) {
-                console.error('Database fallback also failed:', dbError);
+
+            } catch (error) {
+                logger.error('Error fetching user roles', { 
+                    error: error.message,
+                    isOnline,
+                    hasToken: !!token 
+                });
+                
+                // Capture exception with context
+                sentryUtils.captureException(error, {
+                    api: {
+                        endpoint: 'getUserRoles',
+                        online: isOnline,
+                        hasToken: !!token,
+                    },
+                });
+                
+                // If online request fails, try local database as fallback
+                if (isOnline) {
+                    logger.info('Online request failed - trying local database as fallback');
+                    span.setAttribute("fallback.used", true);
+                    
+                    try {
+                        const sections = await databaseService.getSections();
+                        span.setAttribute("fallback.successful", true);
+                        return sections;
+                    } catch (dbError) {
+                        logger.error('Database fallback also failed', { error: dbError.message });
+                        span.setAttribute("fallback.successful", false);
+                    }
+                }
+                
+                throw error;
             }
         }
-        
-        return [];
-    }
+    );
 }
 
 export async function getEvents(sectionId, termId, token) {
