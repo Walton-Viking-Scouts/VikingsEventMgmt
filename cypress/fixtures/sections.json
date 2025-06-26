@@ -1,0 +1,38 @@
+{
+  "1": {
+    "sectionid": 123,
+    "sectionname": "1st Walton Scouts",
+    "section": "Scouts",
+    "sectiontype": "Scouts",
+    "isDefault": "1",
+    "permissions": {
+      "member": 100,
+      "programme": 100,
+      "events": 100
+    }
+  },
+  "2": {
+    "sectionid": 124,
+    "sectionname": "1st Walton Cubs", 
+    "section": "Cubs",
+    "sectiontype": "Cubs",
+    "isDefault": "0",
+    "permissions": {
+      "member": 100,
+      "programme": 100,
+      "events": 100
+    }
+  },
+  "3": {
+    "sectionid": 125,
+    "sectionname": "1st Walton Beavers",
+    "section": "Beavers", 
+    "sectiontype": "Beavers",
+    "isDefault": "0",
+    "permissions": {
+      "member": 100,
+      "programme": 50,
+      "events": 100
+    }
+  }
+}

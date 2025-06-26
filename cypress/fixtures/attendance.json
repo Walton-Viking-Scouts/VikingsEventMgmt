@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "scoutid": 101,
+      "firstname": "Alice",
+      "lastname": "Johnson",
+      "attending": "1",
+      "patrol": "Eagles",
+      "notes": ""
+    },
+    {
+      "scoutid": 102,
+      "firstname": "Bob",
+      "lastname": "Smith", 
+      "attending": "1",
+      "patrol": "Hawks",
+      "notes": ""
+    },
+    {
+      "scoutid": 103,
+      "firstname": "Charlie",
+      "lastname": "Brown",
+      "attending": "0",
+      "patrol": "Eagles", 
+      "notes": "Sick"
+    },
+    {
+      "scoutid": 104,
+      "firstname": "Diana",
+      "lastname": "Wilson",
+      "attending": "1",
+      "patrol": "Falcons",
+      "notes": ""
+    },
+    {
+      "scoutid": 105,
+      "firstname": "Eve",
+      "lastname": "Davis",
+      "attending": "0",
+      "patrol": "Hawks",
+      "notes": "Family holiday"
+    }
+  ]
+}

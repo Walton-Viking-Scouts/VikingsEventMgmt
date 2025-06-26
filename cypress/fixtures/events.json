@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "eventid": 501,
+      "name": "Summer Camp 2024",
+      "startdate": "2024-07-15",
+      "enddate": "2024-07-22",
+      "location": "Scout Camp Site",
+      "notes": "Week-long summer camp"
+    },
+    {
+      "eventid": 502,
+      "name": "Group Meeting",
+      "startdate": "2024-06-01",
+      "enddate": "2024-06-01", 
+      "location": "Scout Hut",
+      "notes": "Weekly meeting"
+    },
+    {
+      "eventid": 503,
+      "name": "Hiking Day",
+      "startdate": "2024-05-15",
+      "enddate": "2024-05-15",
+      "location": "Local Hills",
+      "notes": "Day hike activity"
+    }
+  ]
+}

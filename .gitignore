@@ -58,3 +58,8 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/

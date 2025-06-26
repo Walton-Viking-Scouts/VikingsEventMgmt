@@ -12,7 +12,15 @@
     "preview": "vite preview --port 3001",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "cypress:run:chrome": "cypress run --browser chrome",
+    "cypress:run:firefox": "cypress run --browser firefox",
+    "test:e2e": "start-server-and-test dev http://localhost:3001 cypress:run",
+    "test:e2e:open": "start-server-and-test dev http://localhost:3001 cypress:open",
+    "test:e2e:chrome": "start-server-and-test dev http://localhost:3001 cypress:run:chrome",
+    "test:all": "npm run test:run && npm run test:e2e"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",
@@ -31,14 +39,17 @@
     "vitest": "^3.2.4"
   },
   "devDependencies": {
+    "@cypress/vite-dev-server": "^6.0.3",
     "@eslint/js": "^9.29.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
+    "cypress": "^14.5.0",
     "eslint": "^9.29.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
+    "start-server-and-test": "^2.0.12",
     "vite": "^7.0.0"
   }
 }

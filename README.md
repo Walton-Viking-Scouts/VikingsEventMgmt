@@ -72,9 +72,14 @@ npx cap open ios
 - `npm run preview` - Preview production build
 
 ### Testing
-- `npm test` - Run tests with Vitest
-- `npm run test:ui` - Run tests with UI
-- `npm run test:run` - Run tests once
+- `npm test` - Run unit tests with Vitest
+- `npm run test:ui` - Run unit tests with UI
+- `npm run test:run` - Run unit tests once
+- `npm run cypress:open` - Open Cypress Test Runner
+- `npm run cypress:run` - Run e2e tests headlessly
+- `npm run test:e2e` - Run e2e tests with dev server
+- `npm run test:e2e:open` - Start dev server and open Cypress
+- `npm run test:all` - Run all tests (unit + e2e)
 
 ### Code Quality
 - `npm run lint` - Run ESLint
@@ -207,10 +212,25 @@ Network Restored → Fetch Latest Data → Update Local Storage → Sync Status 
 
 ### Testing Strategy
 
-- **Unit Tests**: Component logic and utilities
-- **Integration Tests**: API and database operations
-- **Platform Tests**: Mobile vs desktop behavior
-- **Offline Tests**: Network disconnection scenarios
+#### Unit Tests (Vitest)
+- **Component logic** and utilities
+- **API layer** and database operations  
+- **Platform detection** functionality
+- **Offline/online** state management
+
+#### End-to-End Tests (Cypress)
+- **Complete user workflows** from login to attendance viewing
+- **Responsive behavior** across different screen sizes
+- **Offline functionality** and data caching
+- **Authentication flows** and error handling
+- **Cross-browser compatibility** testing
+
+#### Test Categories
+- **App Loading**: Initial state and performance
+- **Authentication**: Login/logout flows and token management
+- **Responsive Layout**: Mobile/desktop layout switching
+- **Offline Functionality**: Network detection and data caching
+- **User Workflows**: Complete feature interactions
 
 ### Adding New Features
 
