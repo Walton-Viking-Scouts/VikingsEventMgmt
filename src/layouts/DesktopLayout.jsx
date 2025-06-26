@@ -7,7 +7,7 @@ function DesktopLayout({ children, user, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   return (
-    <div className="desktop-layout">
+    <div className="desktop-layout" data-testid="desktop-layout">
       <OfflineIndicator />
       
       <DesktopHeader 
@@ -22,7 +22,7 @@ function DesktopLayout({ children, user, onLogout }) {
           onClose={() => setSidebarOpen(false)}
         />
         
-        <main className={`desktop-main ${sidebarOpen ? 'with-sidebar' : 'full-width'}`}>
+        <main className={`desktop-main ${sidebarOpen ? 'with-sidebar' : 'full-width'}`} data-testid="desktop-main">
           <div className="desktop-container">
             {children}
           </div>

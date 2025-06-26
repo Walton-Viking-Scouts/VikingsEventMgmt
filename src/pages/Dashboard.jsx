@@ -86,13 +86,14 @@ function Dashboard() {
   }
 
   return (
-    <div>
+    <div data-testid="dashboard">
       {/* Navigation breadcrumb */}
-      <nav className="nav-tabs">
+      <nav className="nav-tabs" data-testid="navigation-tabs">
         <button 
           className={`nav-tab ${currentView === 'sections' ? 'active' : ''}`}
           onClick={handleBackToSections}
           type="button"
+          data-testid="sections-tab"
         >
           Sections
         </button>

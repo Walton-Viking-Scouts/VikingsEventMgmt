@@ -2,7 +2,7 @@ import { defineConfig } from 'cypress';
 
 export default defineConfig({
   // Cypress Cloud configuration
-  projectId: process.env.CYPRESS_PROJECT_ID || 'your-project-id-here',
+  projectId: 'qqogix', // Your actual project ID
   
   e2e: {
     baseUrl: 'http://localhost:3001',
@@ -10,10 +10,11 @@ export default defineConfig({
     viewportHeight: 720,
     video: true,
     screenshotOnRunFailure: true,
-    defaultCommandTimeout: 10000,
-    requestTimeout: 10000,
-    responseTimeout: 10000,
-    pageLoadTimeout: 30000,
+    defaultCommandTimeout: 8000,
+    requestTimeout: 8000,
+    responseTimeout: 8000,
+    pageLoadTimeout: 15000,
+    taskTimeout: 10000,
     
     // Cypress Cloud specific settings
     experimentalStudio: true,
@@ -79,11 +80,5 @@ export default defineConfig({
   downloadsFolder: 'cypress/downloads',
   fixturesFolder: 'cypress/fixtures',
   screenshotsFolder: 'cypress/screenshots',
-  videosFolder: 'cypress/videos',
-  
-  // Exclude patterns
-  excludeSpecPattern: [
-    '**/node_modules/**',
-    '**/dist/**'
-  ]
+  videosFolder: 'cypress/videos'
 });
