@@ -4,8 +4,14 @@
 import { getUserRoles, getStartupData } from './api.js';
 import { sentryUtils, logger } from './sentry.js';
 
-const clientId = 'x7hx1M0NExVdSiksH1gUBPxkSTn8besx';
+const clientId = import.meta.env.VITE_OAUTH_CLIENT_ID;
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
+
+// Validate client ID is provided
+if (!clientId) {
+  console.error('⚠️ VITE_OAUTH_CLIENT_ID environment variable not set');
+  throw new Error('OAuth client ID not configured. Please set VITE_OAUTH_CLIENT_ID environment variable.');
+}
 
 // Token management
 export function getToken() {
