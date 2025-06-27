@@ -16,6 +16,9 @@
 // Import commands.js using ES2015 syntax:
 import './commands';
 
+// Import and initialize API mocking system
+import { initializeAPIMocks } from './api-mocks';
+
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
 
@@ -52,6 +55,12 @@ Cypress.on('uncaught:exception', (err, _runnable) => {
   return true;
 });
 
+// Initialize API mocking system for all tests
+before(() => {
+  console.log('🛡️ Initializing API mocking system...');
+  initializeAPIMocks();
+});
+
 // Global before hook for all tests
 beforeEach(() => {
   // Clear browser storage before each test
@@ -64,4 +73,7 @@ beforeEach(() => {
   
   // Wait for app to be ready
   cy.intercept('GET', '/src/**').as('appAssets');
+  
+  // Ensure API mocks are active for each test
+  initializeAPIMocks();
 });

@@ -98,6 +98,12 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CYPRESS_PROJECT_ID: ${{ secrets.CYPRESS_PROJECT_ID }}
+          # Force API mocking in CI/CD to prevent real API calls
+          CYPRESS_ENABLE_API_MOCKING: 'true'
+          CYPRESS_CI: 'true'
+          # Use test environment variables to prevent real API access
+          VITE_API_URL: 'http://localhost:3001/mock-api'
+          NODE_ENV: 'test'
 
   # Mobile Build Test (iOS)
   mobile-build:

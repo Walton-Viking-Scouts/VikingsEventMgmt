@@ -1,44 +1,78 @@
 {
-  "items": [
-    {
-      "scoutid": 101,
+  "identifier": "getEventAttendance",
+  "data": {
+    "member1": {
+      "scoutid": "member1",
       "firstname": "Alice",
       "lastname": "Johnson",
-      "attending": "1",
+      "fullname": "Alice Johnson",
+      "attending": "Yes",
       "patrol": "Eagles",
-      "notes": ""
+      "notes": "",
+      "columns": {
+        "payment": "Paid",
+        "medical": "Up to date"
+      }
     },
-    {
-      "scoutid": 102,
+    "member2": {
+      "scoutid": "member2", 
       "firstname": "Bob",
-      "lastname": "Smith", 
-      "attending": "1",
+      "lastname": "Smith",
+      "fullname": "Bob Smith",
+      "attending": "Yes",
       "patrol": "Hawks",
-      "notes": ""
+      "notes": "",
+      "columns": {
+        "payment": "Paid",
+        "medical": "Up to date"
+      }
     },
-    {
-      "scoutid": 103,
+    "member3": {
+      "scoutid": "member3",
       "firstname": "Charlie",
       "lastname": "Brown",
-      "attending": "0",
-      "patrol": "Eagles", 
-      "notes": "Sick"
+      "fullname": "Charlie Brown",
+      "attending": "No",
+      "patrol": "Eagles",
+      "notes": "Unwell",
+      "columns": {
+        "payment": "N/A",
+        "medical": "Up to date"
+      }
     },
-    {
-      "scoutid": 104,
+    "member4": {
+      "scoutid": "member4",
       "firstname": "Diana",
-      "lastname": "Wilson",
-      "attending": "1",
+      "lastname": "Wilson", 
+      "fullname": "Diana Wilson",
+      "attending": "Yes",
       "patrol": "Falcons",
-      "notes": ""
+      "notes": "",
+      "columns": {
+        "payment": "Outstanding",
+        "medical": "Up to date"
+      }
     },
-    {
-      "scoutid": 105,
+    "member5": {
+      "scoutid": "member5",
       "firstname": "Eve",
       "lastname": "Davis",
-      "attending": "0",
+      "fullname": "Eve Davis", 
+      "attending": "No",
       "patrol": "Hawks",
-      "notes": "Family holiday"
+      "notes": "Family holiday",
+      "columns": {
+        "payment": "N/A",
+        "medical": "Up to date"
+      }
     }
-  ]
+  },
+  "meta": {
+    "structure": {},
+    "permissions": {},
+    "_rateLimitInfo": {
+      "remaining": 93,
+      "reset": 1640995200
+    }
+  }
 }

@@ -7,12 +7,6 @@ export default defineConfig({
   plugins: [react(), sentryVitePlugin({
     org: "walton-vikings",
     project: "viking-event-mgmt"
-  }), sentryVitePlugin({
-    org: "walton-vikings",
-    project: "viking-event-mgmt"
-  }), sentryVitePlugin({
-    org: "walton-vikings",
-    project: "viking-event-mgmt"
   })],
   server: {
     port: 3001,

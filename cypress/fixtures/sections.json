@@ -1,38 +1,49 @@
 {
-  "1": {
-    "sectionid": 123,
-    "sectionname": "1st Walton Scouts",
-    "section": "Scouts",
-    "sectiontype": "Scouts",
-    "isDefault": "1",
-    "permissions": {
-      "member": 100,
-      "programme": 100,
-      "events": 100
+  "identifier": "getUserRoles",
+  "data": {
+    "123": {
+      "sectionid": "123",
+      "sectionname": "1st Test Scout Group - Scouts",
+      "section": "scouts",
+      "sectionType": "Troop",
+      "level": "READ",
+      "permissions": {
+        "member": 100,
+        "programme": 100,
+        "events": 100
+      }
+    },
+    "124": {
+      "sectionid": "124", 
+      "sectionname": "1st Test Scout Group - Cubs",
+      "section": "cubs",
+      "sectionType": "Pack",
+      "level": "READ",
+      "permissions": {
+        "member": 100,
+        "programme": 100,
+        "events": 100
+      }
+    },
+    "125": {
+      "sectionid": "125",
+      "sectionname": "1st Test Scout Group - Beavers",
+      "section": "beavers",
+      "sectionType": "Colony", 
+      "level": "READ",
+      "permissions": {
+        "member": 100,
+        "programme": 50,
+        "events": 100
+      }
     }
   },
-  "2": {
-    "sectionid": 124,
-    "sectionname": "1st Walton Cubs", 
-    "section": "Cubs",
-    "sectiontype": "Cubs",
-    "isDefault": "0",
-    "permissions": {
-      "member": 100,
-      "programme": 100,
-      "events": 100
-    }
-  },
-  "3": {
-    "sectionid": 125,
-    "sectionname": "1st Walton Beavers",
-    "section": "Beavers", 
-    "sectiontype": "Beavers",
-    "isDefault": "0",
-    "permissions": {
-      "member": 100,
-      "programme": 50,
-      "events": 100
+  "meta": {
+    "structure": {},
+    "permissions": {},
+    "_rateLimitInfo": {
+      "remaining": 95,
+      "reset": 1640995200
     }
   }
 }

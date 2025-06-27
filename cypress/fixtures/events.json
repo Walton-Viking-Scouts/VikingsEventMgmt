@@ -1,28 +1,55 @@
 {
-  "items": [
-    {
-      "eventid": 501,
+  "identifier": "getEvents",
+  "data": {
+    "event1": {
+      "eventid": "event1",
+      "name": "Weekly Meeting",
+      "startdate": "2024-06-27",
+      "starttime": "19:00:00",
+      "enddate": "2024-06-27",
+      "endtime": "20:30:00",
+      "location": "Scout Hut",
+      "notes": "Regular weekly meeting",
+      "columns": {
+        "attendees": 25,
+        "cost": "0.00"
+      }
+    },
+    "event2": {
+      "eventid": "event2",
       "name": "Summer Camp 2024",
       "startdate": "2024-07-15",
+      "starttime": "09:00:00", 
       "enddate": "2024-07-22",
+      "endtime": "16:00:00",
       "location": "Scout Camp Site",
-      "notes": "Week-long summer camp"
+      "notes": "Week-long summer camp adventure",
+      "columns": {
+        "attendees": 15,
+        "cost": "85.00"
+      }
     },
-    {
-      "eventid": 502,
-      "name": "Group Meeting",
-      "startdate": "2024-06-01",
-      "enddate": "2024-06-01", 
-      "location": "Scout Hut",
-      "notes": "Weekly meeting"
-    },
-    {
-      "eventid": 503,
+    "event3": {
+      "eventid": "event3",
       "name": "Hiking Day",
-      "startdate": "2024-05-15",
-      "enddate": "2024-05-15",
+      "startdate": "2024-07-01",
+      "starttime": "09:30:00",
+      "enddate": "2024-07-01", 
+      "endtime": "15:00:00",
       "location": "Local Hills",
-      "notes": "Day hike activity"
+      "notes": "Day hike activity with lunch",
+      "columns": {
+        "attendees": 18,
+        "cost": "12.50"
+      }
     }
-  ]
+  },
+  "meta": {
+    "structure": {},
+    "permissions": {},
+    "_rateLimitInfo": {
+      "remaining": 94,
+      "reset": 1640995200
+    }
+  }
 }

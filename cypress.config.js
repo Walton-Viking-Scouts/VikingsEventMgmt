@@ -27,7 +27,11 @@ export default defineConfig({
     env: {
       apiUrl: 'https://vikings-osm-event-manager.onrender.com',
       mobileBreakpoint: 768,
-      tabletBreakpoint: 1024
+      tabletBreakpoint: 1024,
+      // API mocking configuration
+      ENABLE_API_MOCKING: true, // Set to false only for local development with real API
+      CI: false, // Will be overridden in CI/CD pipeline
+      mockApiWarnings: true // Show warnings when API calls are blocked
     },
     
     setupNodeEvents(on, config) {
