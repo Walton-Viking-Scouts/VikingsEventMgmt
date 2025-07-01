@@ -21,7 +21,7 @@ Cypress.Commands.add('login', (options = {}) => {
       win.sessionStorage.setItem('user_info', JSON.stringify({
         firstname: 'Test',
         lastname: 'User',
-        fullname: 'Test User'
+        fullname: 'Test User',
       }));
     });
     
@@ -104,7 +104,7 @@ Cypress.Commands.add('mockApiSuccess', (endpoint, fixture) => {
 Cypress.Commands.add('mockApiError', (endpoint, statusCode = 500) => {
   cy.intercept('GET', `**/api/${endpoint}`, {
     statusCode,
-    body: { error: 'Mock API Error' }
+    body: { error: 'Mock API Error' },
   }).as(`mockError${endpoint}`);
 });
 
@@ -114,22 +114,22 @@ Cypress.Commands.add('mockOSMBlocked', () => {
     statusCode: 429,
     body: { 
       error: 'OSM API BLOCKED',
-      message: 'API access temporarily blocked'
-    }
+      message: 'API access temporarily blocked',
+    },
   }).as('mockOSMBlocked');
 });
 
 Cypress.Commands.add('mockOSMSuccess', () => {
   cy.intercept('GET', '**/get-user-roles', {
-    fixture: 'sections.json'
+    fixture: 'sections.json',
   }).as('mockSections');
   
   cy.intercept('GET', '**/get-events*', {
-    fixture: 'events.json'
+    fixture: 'events.json',
   }).as('mockEvents');
   
   cy.intercept('GET', '**/get-event-attendance*', {
-    fixture: 'attendance.json'
+    fixture: 'attendance.json',
   }).as('mockAttendance');
 });
 

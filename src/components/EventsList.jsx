@@ -32,7 +32,7 @@ function EventsList({ sections, onEventSelect, onBack }) {
               ...event,
               sectionid: section.sectionid,
               sectionname: section.sectionname,
-              termid: termId
+              termid: termId,
             }));
             allEvents.push(...eventsWithSection);
           }

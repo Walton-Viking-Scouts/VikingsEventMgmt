@@ -6,7 +6,7 @@ import {
   usePerformanceLogger, 
   useFormLogger, 
   useAuthLogger,
-  useLogger
+  useLogger,
 } from '../hooks/useLogger.js';
 
 function LoggingTestPanel() {
@@ -84,7 +84,7 @@ function LoggingTestPanel() {
   const testUserActionLogging = () => {
     componentLogger.logUserAction('button-click', { 
       buttonName: 'test-button',
-      timestamp: Date.now() 
+      timestamp: Date.now(), 
     });
     addResult('User action logging test completed');
   };
@@ -96,7 +96,7 @@ function LoggingTestPanel() {
     } catch (error) {
       componentLogger.logError(error, { 
         action: 'testing-error-logging',
-        userId: 'test-user' 
+        userId: 'test-user', 
       });
       addResult('Error logging test completed');
     }
@@ -132,7 +132,7 @@ function LoggingTestPanel() {
       padding: '16px',
       zIndex: 10000,
       overflow: 'auto',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     }}>
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>
         📊 Logging Test Panel
@@ -185,7 +185,7 @@ function LoggingTestPanel() {
         padding: '8px',
         maxHeight: '200px',
         overflow: 'auto',
-        fontSize: '12px'
+        fontSize: '12px',
       }}>
         <strong>Test Results:</strong>
         {testResults.length === 0 ? (
@@ -209,7 +209,7 @@ function LoggingTestPanel() {
         marginTop: '8px',
         padding: '8px',
         backgroundColor: '#e9ecef',
-        borderRadius: '4px'
+        borderRadius: '4px',
       }}>
         <strong>💡 Check the browser console for detailed logging output.</strong>
         <br />
@@ -227,7 +227,7 @@ const buttonStyle = {
   borderRadius: '4px',
   cursor: 'pointer',
   fontSize: '12px',
-  fontWeight: '500'
+  fontWeight: '500',
 };
 
 export default LoggingTestPanel;

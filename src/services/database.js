@@ -27,12 +27,12 @@ class DatabaseService {
       
       // Create database
       const ret = await this.sqlite.checkConnectionsConsistency();
-      const isConn = (await this.sqlite.isConnection("vikings_db", false)).result;
+      const isConn = (await this.sqlite.isConnection('vikings_db', false)).result;
       
       if (ret.result && isConn) {
-        this.db = await this.sqlite.retrieveConnection("vikings_db", false);
+        this.db = await this.sqlite.retrieveConnection('vikings_db', false);
       } else {
-        this.db = await this.sqlite.createConnection("vikings_db", false, "no-encryption", 1, false);
+        this.db = await this.sqlite.createConnection('vikings_db', false, 'no-encryption', 1, false);
       }
       
       await this.db.open();
@@ -113,7 +113,7 @@ class DatabaseService {
       return;
     }
     
-    const deleteOld = `DELETE FROM sections`;
+    const deleteOld = 'DELETE FROM sections';
     await this.db.execute(deleteOld);
 
     for (const section of sections) {
@@ -136,7 +136,7 @@ class DatabaseService {
       return sections ? JSON.parse(sections) : [];
     }
     
-    const query = `SELECT * FROM sections ORDER BY sectionname`;
+    const query = 'SELECT * FROM sections ORDER BY sectionname';
     const result = await this.db.query(query);
     return result.values || [];
   }
@@ -153,7 +153,7 @@ class DatabaseService {
     }
     
     // Delete existing events for this section
-    const deleteOld = `DELETE FROM events WHERE sectionid = ?`;
+    const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
     await this.db.run(deleteOld, [sectionId]);
 
     for (const event of events) {
@@ -168,7 +168,7 @@ class DatabaseService {
         event.startdate, 
         event.enddate, 
         event.location, 
-        event.notes
+        event.notes,
       ]);
     }
 
@@ -185,7 +185,7 @@ class DatabaseService {
       return events ? JSON.parse(events) : [];
     }
     
-    const query = `SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC`;
+    const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';
     const result = await this.db.query(query, [sectionId]);
     return result.values || [];
   }
@@ -202,7 +202,7 @@ class DatabaseService {
     }
     
     // Delete existing attendance for this event
-    const deleteOld = `DELETE FROM attendance WHERE eventid = ?`;
+    const deleteOld = 'DELETE FROM attendance WHERE eventid = ?';
     await this.db.run(deleteOld, [eventId]);
 
     for (const person of attendanceData) {
@@ -217,7 +217,7 @@ class DatabaseService {
         person.lastname,
         person.attending,
         person.patrol,
-        person.notes
+        person.notes,
       ]);
     }
 
@@ -234,7 +234,7 @@ class DatabaseService {
       return attendance ? JSON.parse(attendance) : [];
     }
     
-    const query = `SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname`;
+    const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname';
     const result = await this.db.query(query, [eventId]);
     return result.values || [];
   }
@@ -253,7 +253,7 @@ class DatabaseService {
   async needsSync(tableName) {
     if (!this.isNative || !this.db) return false; // Skip for localStorage fallback
     
-    const query = `SELECT needs_sync FROM sync_status WHERE table_name = ?`;
+    const query = 'SELECT needs_sync FROM sync_status WHERE table_name = ?';
     const result = await this.db.query(query, [tableName]);
     return result.values?.[0]?.needs_sync === 1;
   }
@@ -268,7 +268,7 @@ class DatabaseService {
       return !!(sections && JSON.parse(sections).length > 0);
     }
     
-    const sectionsQuery = `SELECT COUNT(*) as count FROM sections`;
+    const sectionsQuery = 'SELECT COUNT(*) as count FROM sections';
     const result = await this.db.query(sectionsQuery);
     return result.values?.[0]?.count > 0;
   }
@@ -276,7 +276,7 @@ class DatabaseService {
   async close() {
     if (this.db) {
       await this.db.close();
-      await this.sqlite.closeConnection("vikings_db", false);
+      await this.sqlite.closeConnection('vikings_db', false);
       this.db = null;
       this.isInitialized = false;
     }

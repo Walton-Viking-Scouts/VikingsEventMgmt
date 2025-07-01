@@ -13,7 +13,7 @@ const enableMocking = Cypress.env('ENABLE_API_MOCKING') !== 'false'; // Default 
 console.log('🛡️ API Mocking Configuration:', {
   isCI,
   enableMocking,
-  environment: Cypress.env('NODE_ENV')
+  environment: Cypress.env('NODE_ENV'),
 });
 
 /**
@@ -53,7 +53,7 @@ export function initializeAPIMocks() {
       console.warn('🚫 Blocked external API call:', req.url);
       req.reply({
         statusCode: 200,
-        body: { error: 'External API blocked during testing', url: req.url }
+        body: { error: 'External API blocked during testing', url: req.url },
       });
     }
   }).as('blockExternal');
@@ -72,8 +72,8 @@ function mockAuthEndpoints(req) {
         access_token: 'mock_access_token_for_testing',
         token_type: 'Bearer',
         expires_in: 3600,
-        scope: 'read'
-      }
+        scope: 'read',
+      },
     });
   }
   
@@ -85,14 +85,14 @@ function mockAuthEndpoints(req) {
         firstname: 'Test',
         lastname: 'User',
         fullname: 'Test User',
-        email: 'test@example.com'
-      }
+        email: 'test@example.com',
+      },
     });
   }
   
   return req.reply({
     statusCode: 200,
-    body: { message: 'Mocked auth response' }
+    body: { message: 'Mocked auth response' },
   });
 }
 
@@ -105,35 +105,35 @@ function mockUserRoles(req) {
   return req.reply({
     statusCode: 200,
     body: {
-      identifier: "getUserRoles",
+      identifier: 'getUserRoles',
       data: {
-        "123": {
-          "sectionid": "123",
-          "sectionname": "1st Test Scout Group - Beavers",
-          "section": "beavers",
-          "sectionType": "Colony",
-          "level": "READ"
+        '123': {
+          'sectionid': '123',
+          'sectionname': '1st Test Scout Group - Beavers',
+          'section': 'beavers',
+          'sectionType': 'Colony',
+          'level': 'READ',
         },
-        "456": {
-          "sectionid": "456", 
-          "sectionname": "1st Test Scout Group - Cubs",
-          "section": "cubs",
-          "sectionType": "Pack",
-          "level": "READ"
+        '456': {
+          'sectionid': '456', 
+          'sectionname': '1st Test Scout Group - Cubs',
+          'section': 'cubs',
+          'sectionType': 'Pack',
+          'level': 'READ',
         },
-        "789": {
-          "sectionid": "789",
-          "sectionname": "1st Test Scout Group - Scouts", 
-          "section": "scouts",
-          "sectionType": "Troop",
-          "level": "READ"
-        }
+        '789': {
+          'sectionid': '789',
+          'sectionname': '1st Test Scout Group - Scouts', 
+          'section': 'scouts',
+          'sectionType': 'Troop',
+          'level': 'READ',
+        },
       },
       meta: {
         structure: {},
-        permissions: {}
-      }
-    }
+        permissions: {},
+      },
+    },
   });
 }
 
@@ -146,34 +146,34 @@ function mockEvents(req) {
   return req.reply({
     statusCode: 200,
     body: {
-      identifier: "getEvents",
+      identifier: 'getEvents',
       data: {
-        "event1": {
-          "eventid": "event1",
-          "name": "Weekly Meeting",
-          "startdate": "2024-01-15",
-          "starttime": "19:00:00",
-          "enddate": "2024-01-15", 
-          "endtime": "20:30:00",
-          "location": "Scout Hut",
-          "notes": "Regular weekly meeting"
+        'event1': {
+          'eventid': 'event1',
+          'name': 'Weekly Meeting',
+          'startdate': '2024-01-15',
+          'starttime': '19:00:00',
+          'enddate': '2024-01-15', 
+          'endtime': '20:30:00',
+          'location': 'Scout Hut',
+          'notes': 'Regular weekly meeting',
         },
-        "event2": {
-          "eventid": "event2", 
-          "name": "Camping Weekend",
-          "startdate": "2024-01-20",
-          "starttime": "18:00:00",
-          "enddate": "2024-01-21",
-          "endtime": "16:00:00", 
-          "location": "Camp Site",
-          "notes": "Annual camping trip"
-        }
+        'event2': {
+          'eventid': 'event2', 
+          'name': 'Camping Weekend',
+          'startdate': '2024-01-20',
+          'starttime': '18:00:00',
+          'enddate': '2024-01-21',
+          'endtime': '16:00:00', 
+          'location': 'Camp Site',
+          'notes': 'Annual camping trip',
+        },
       },
       meta: {
         structure: {},
-        permissions: {}
-      }
-    }
+        permissions: {},
+      },
+    },
   });
 }
 
@@ -186,20 +186,20 @@ function mockSections(req) {
   return req.reply({
     statusCode: 200,
     body: {
-      identifier: "getSections",
+      identifier: 'getSections',
       data: {
-        "123": {
-          "sectionid": "123",
-          "sectionname": "1st Test Scout Group - Beavers",
-          "section": "beavers"
+        '123': {
+          'sectionid': '123',
+          'sectionname': '1st Test Scout Group - Beavers',
+          'section': 'beavers',
         },
-        "456": {
-          "sectionid": "456",
-          "sectionname": "1st Test Scout Group - Cubs", 
-          "section": "cubs"
-        }
-      }
-    }
+        '456': {
+          'sectionid': '456',
+          'sectionname': '1st Test Scout Group - Cubs', 
+          'section': 'cubs',
+        },
+      },
+    },
   });
 }
 
@@ -215,8 +215,8 @@ function mockGenericAPI(req) {
       message: 'Mocked API response',
       endpoint: req.url,
       method: req.method,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   });
 }
 
@@ -232,8 +232,8 @@ function blockDirectOSMCalls(req) {
     body: {
       error: 'Direct OSM API calls are blocked during testing',
       url: req.url,
-      message: 'All API calls should go through the backend proxy'
-    }
+      message: 'All API calls should go through the backend proxy',
+    },
   });
 }
 
@@ -248,9 +248,9 @@ export function mockRateLimitedResponse(req) {
       message: 'API access temporarily blocked (mocked)',
       _rateLimitInfo: {
         remaining: 0,
-        reset: Math.floor(Date.now() / 1000) + 3600
-      }
-    }
+        reset: Math.floor(Date.now() / 1000) + 3600,
+      },
+    },
   });
 }
 
@@ -260,7 +260,7 @@ export function mockRateLimitedResponse(req) {
 export function mockOfflineResponse(req) {
   return req.reply({
     statusCode: 0, // Network error
-    forceNetworkError: true
+    forceNetworkError: true,
   });
 }
 

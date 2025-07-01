@@ -8,7 +8,8 @@ import {
   authLogger, 
   performanceLogger,
   errorLogger,
-  LOG_CATEGORIES 
+  offlineLogger,
+  LOG_CATEGORIES, 
 } from '../services/loggerUtils.js';
 
 // Hook for component lifecycle logging
@@ -28,7 +29,7 @@ export function useComponentLogger(componentName, props = {}) {
         performanceLogger.memoryUsage(`${componentName} unmount after ${mountDuration}ms`);
       }
     };
-  }, [componentName]);
+  }, [componentName, props]);
   
   // Return logger functions scoped to this component
   return {
@@ -46,7 +47,7 @@ export function useComponentLogger(componentName, props = {}) {
     
     logDebug: useCallback((message, data = {}) => {
       logger.debug(`${componentName}: ${message}`, { component: componentName, ...data }, LOG_CATEGORIES.COMPONENT);
-    }, [componentName])
+    }, [componentName]),
   };
 }
 
@@ -67,7 +68,7 @@ export function useApiLogger() {
     
     logRateLimit: useCallback((endpoint, requestId, rateLimitInfo) => {
       apiLogger.rateLimited(endpoint, requestId, rateLimitInfo);
-    }, [])
+    }, []),
   };
 }
 
@@ -93,8 +94,9 @@ export function usePerformanceLogger() {
   
   // Cleanup timings on unmount
   useEffect(() => {
+    const currentTimingsRef = timingsRef.current;
     return () => {
-      timingsRef.current.clear();
+      currentTimingsRef.clear();
     };
   }, []);
   
@@ -103,7 +105,7 @@ export function usePerformanceLogger() {
     endTiming,
     logMemoryUsage: useCallback((context) => {
       performanceLogger.memoryUsage(context);
-    }, [])
+    }, []),
   };
 }
 
@@ -127,7 +129,7 @@ export function useNavigationLogger() {
     
     logPageLoad: useCallback((page, loadTime) => {
       navigationLogger.pageLoad(page, loadTime);
-    }, [])
+    }, []),
   };
 }
 
@@ -147,9 +149,9 @@ export function useFormLogger(formName) {
         formName,
         fieldName,
         hasValue: !!value,
-        valueLength: value ? value.toString().length : 0
+        valueLength: value ? value.toString().length : 0,
       }, LOG_CATEGORIES.USER_ACTION);
-    }, [formName])
+    }, [formName]),
   };
 }
 
@@ -174,7 +176,7 @@ export function useAuthLogger() {
     
     logTokenRefresh: useCallback((success, error = null) => {
       authLogger.tokenRefresh(success, error);
-    }, [])
+    }, []),
   };
 }
 
@@ -195,7 +197,7 @@ export function useOfflineLogger() {
     
     logSyncError: useCallback((dataType, error) => {
       offlineLogger.syncError(dataType, error);
-    }, [])
+    }, []),
   };
 }
 
@@ -212,7 +214,7 @@ export function useErrorLogger() {
     
     logHookError: useCallback((hookName, error) => {
       errorLogger.hookError(hookName, error);
-    }, [])
+    }, []),
   };
 }
 
@@ -241,6 +243,6 @@ export function useLogger(context = {}) {
     
     fatal: useCallback((message, data = {}) => {
       logger.fatal(message, { ...context, ...data });
-    }, [context])
+    }, [context]),
   };
 }

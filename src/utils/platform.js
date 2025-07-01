@@ -43,7 +43,7 @@ export const canPrint = () => {
 export const breakpoints = {
   mobile: 768,
   tablet: 1024,
-  desktop: 1200
+  desktop: 1200,
 };
 
 // Hook for responsive behavior
@@ -60,7 +60,7 @@ export const useResponsive = () => {
     isMobile: screenSize < breakpoints.mobile,
     isTablet: screenSize >= breakpoints.mobile && screenSize < breakpoints.desktop,
     isDesktop: screenSize >= breakpoints.desktop,
-    screenSize
+    screenSize,
   };
 };
 
@@ -73,5 +73,5 @@ export default {
   isBrowser,
   canPrint,
   breakpoints,
-  useResponsive
+  useResponsive,
 };

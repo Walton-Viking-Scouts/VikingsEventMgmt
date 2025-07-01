@@ -1,5 +1,5 @@
 // Sentry configuration for Vikings Event Management Mobile
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 import packageJson from '../../package.json';
 import { config } from '../config/env.js';
 
@@ -40,7 +40,7 @@ export function initSentry() {
       
       // Console logging integration
       Sentry.consoleLoggingIntegration({ 
-        levels: ["log", "error", "warn", "info"] 
+        levels: ['log', 'error', 'warn', 'info'], 
       }),
       
       // Replay integration for debugging (only in production)
@@ -48,7 +48,7 @@ export function initSentry() {
         Sentry.replayIntegration({
           maskAllText: true,
           blockAllMedia: true,
-        })
+        }),
       ] : []),
     ],
     

@@ -12,7 +12,7 @@ export const apiLogger = {
       endpoint,
       method: options.method || 'GET',
       hasAuth: !!options.headers?.Authorization,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.API);
     
     return requestId;
@@ -27,7 +27,7 @@ export const apiLogger = {
       responseSize: JSON.stringify(responseData || {}).length,
       duration: Date.now() - parseInt(requestId.split('_')[1]),
       hasData: !!responseData,
-      dataKeys: responseData ? Object.keys(responseData) : []
+      dataKeys: responseData ? Object.keys(responseData) : [],
     }, LOG_CATEGORIES.API);
   },
   
@@ -40,7 +40,7 @@ export const apiLogger = {
       status: response?.status,
       statusText: response?.statusText,
       duration: Date.now() - parseInt(requestId.split('_')[1]),
-      stack: error.stack
+      stack: error.stack,
     }, LOG_CATEGORIES.API);
   },
   
@@ -49,9 +49,9 @@ export const apiLogger = {
     logger.warn(`API Rate Limited: ${endpoint}`, {
       requestId,
       endpoint,
-      rateLimitInfo
+      rateLimitInfo,
     }, LOG_CATEGORIES.API);
-  }
+  },
 };
 
 // User Action Logging
@@ -61,7 +61,7 @@ export const userLogger = {
     logger.info(`User clicked: ${element}`, {
       element,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.USER_ACTION);
   },
   
@@ -70,7 +70,7 @@ export const userLogger = {
     logger.info(`Form submitted: ${formName}`, {
       formName,
       fieldCount: Object.keys(formData).length,
-      fields: Object.keys(formData)
+      fields: Object.keys(formData),
     }, LOG_CATEGORIES.USER_ACTION);
   },
   
@@ -78,7 +78,7 @@ export const userLogger = {
     logger.warn(`Form validation errors: ${formName}`, {
       formName,
       errors,
-      errorCount: Array.isArray(errors) ? errors.length : Object.keys(errors).length
+      errorCount: Array.isArray(errors) ? errors.length : Object.keys(errors).length,
     }, LOG_CATEGORIES.USER_ACTION);
   },
   
@@ -88,9 +88,9 @@ export const userLogger = {
       query,
       filters,
       queryLength: query.length,
-      hasFilters: Object.keys(filters).length > 0
+      hasFilters: Object.keys(filters).length > 0,
     }, LOG_CATEGORIES.USER_ACTION);
-  }
+  },
 };
 
 // Navigation Logging
@@ -101,7 +101,7 @@ export const navigationLogger = {
       from,
       to,
       method, // 'link', 'button', 'programmatic', 'back', 'forward'
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.NAVIGATION);
   },
   
@@ -110,7 +110,7 @@ export const navigationLogger = {
     logger.info(`Page loaded: ${page}`, {
       page,
       loadTime,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.PERFORMANCE);
   },
   
@@ -119,15 +119,15 @@ export const navigationLogger = {
     logger.debug(`Component mounted: ${componentName}`, {
       componentName,
       propCount: Object.keys(props).length,
-      props: isDevelopment() ? props : {}
+      props: isDevelopment() ? props : {},
     }, LOG_CATEGORIES.COMPONENT);
   },
   
   componentUnmount: (componentName) => {
     logger.debug(`Component unmounted: ${componentName}`, {
-      componentName
+      componentName,
     }, LOG_CATEGORIES.COMPONENT);
-  }
+  },
 };
 
 // Authentication Logging
@@ -136,7 +136,7 @@ export const authLogger = {
   loginAttempt: (method) => {
     logger.info(`Login attempt: ${method}`, {
       method,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.AUTH);
   },
   
@@ -144,7 +144,7 @@ export const authLogger = {
     logger.info(`Login successful: ${method}`, {
       method,
       hasUserInfo: !!userInfo,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.AUTH);
   },
   
@@ -152,14 +152,14 @@ export const authLogger = {
     logger.warn(`Login failed: ${method}`, {
       method,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.AUTH);
   },
   
   logout: (method = 'manual') => {
     logger.info(`User logout: ${method}`, {
       method,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.AUTH);
   },
   
@@ -168,10 +168,10 @@ export const authLogger = {
       logger.debug('Token refreshed successfully', {}, LOG_CATEGORIES.AUTH);
     } else {
       logger.warn('Token refresh failed', {
-        error: error?.message
+        error: error?.message,
       }, LOG_CATEGORIES.AUTH);
     }
-  }
+  },
 };
 
 // Performance Logging
@@ -179,49 +179,56 @@ export const performanceLogger = {
   // Timing measurements
   startTiming: (operation) => {
     const timingId = `timing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    performance.mark(`${operation}_start`);
+    
+    if (typeof performance !== 'undefined' && performance.mark) {
+      performance.mark(`${operation}_start`);
+    }
     
     logger.debug(`Performance timing started: ${operation}`, {
       timingId,
-      operation
+      operation,
     }, LOG_CATEGORIES.PERFORMANCE);
     
     return timingId;
   },
   
   endTiming: (operation, timingId) => {
-    performance.mark(`${operation}_end`);
-    performance.measure(operation, `${operation}_start`, `${operation}_end`);
+    let duration = 0;
     
-    const measure = performance.getEntriesByName(operation)[0];
-    const duration = measure ? measure.duration : 0;
+    if (typeof performance !== 'undefined' && performance.mark && performance.measure) {
+      performance.mark(`${operation}_end`);
+      performance.measure(operation, `${operation}_start`, `${operation}_end`);
+      
+      const measure = performance.getEntriesByName(operation)[0];
+      duration = measure ? measure.duration : 0;
+      
+      // Clean up performance marks
+      performance.clearMarks(`${operation}_start`);
+      performance.clearMarks(`${operation}_end`);
+      performance.clearMeasures(operation);
+    }
     
     logger.info(`Performance timing: ${operation}`, {
       timingId,
       operation,
       duration: Math.round(duration),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.PERFORMANCE);
-    
-    // Clean up performance marks
-    performance.clearMarks(`${operation}_start`);
-    performance.clearMarks(`${operation}_end`);
-    performance.clearMeasures(operation);
     
     return duration;
   },
   
   // Memory usage
   memoryUsage: (context = '') => {
-    if (performance.memory) {
+    if (typeof performance !== 'undefined' && performance.memory) {
       logger.debug(`Memory usage${context ? `: ${context}` : ''}`, {
         context,
         usedJSHeapSize: performance.memory.usedJSHeapSize,
         totalJSHeapSize: performance.memory.totalJSHeapSize,
-        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
       }, LOG_CATEGORIES.PERFORMANCE);
     }
-  }
+  },
 };
 
 // Offline/Sync Logging
@@ -230,7 +237,7 @@ export const offlineLogger = {
   networkStatusChange: (isOnline) => {
     logger.info(`Network status: ${isOnline ? 'online' : 'offline'}`, {
       isOnline,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.OFFLINE);
   },
   
@@ -238,7 +245,7 @@ export const offlineLogger = {
   syncStart: (dataType) => {
     logger.info(`Sync started: ${dataType}`, {
       dataType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.SYNC);
   },
   
@@ -246,7 +253,7 @@ export const offlineLogger = {
     logger.info(`Sync successful: ${dataType}`, {
       dataType,
       recordCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.SYNC);
   },
   
@@ -255,9 +262,9 @@ export const offlineLogger = {
       dataType,
       error: error.message,
       stack: error.stack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.SYNC);
-  }
+  },
 };
 
 // Error Logging
@@ -269,7 +276,7 @@ export const errorLogger = {
       error: error.message,
       stack: error.stack,
       errorInfo,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.ERROR);
   },
   
@@ -279,7 +286,7 @@ export const errorLogger = {
       hookName,
       error: error.message,
       stack: error.stack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.HOOK);
   },
   
@@ -290,9 +297,9 @@ export const errorLogger = {
       error: error.message,
       stack: error.stack,
       errorInfo,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }, LOG_CATEGORIES.ERROR);
-  }
+  },
 };
 
 // Utility functions
@@ -303,5 +310,5 @@ function isDevelopment() {
 // Export all utilities
 export {
   logger as default,
-  LOG_CATEGORIES
+  LOG_CATEGORIES,
 } from './logger.js';

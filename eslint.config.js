@@ -9,7 +9,7 @@ export default [
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
-      ecmaVersion: 2020,
+      ecmaVersion: 2022, // Updated to match backend
       sourceType: 'module',
       parserOptions: {
         ecmaFeatures: {
@@ -37,6 +37,7 @@ export default [
         alert: 'readonly',
         confirm: 'readonly',
         Event: 'readonly',
+        performance: 'readonly', // Added for browser performance API
       },
     },
     plugins: {
@@ -55,7 +56,21 @@ export default [
       'no-unused-vars': ['error', { 
         varsIgnorePattern: '^_',
         argsIgnorePattern: '^_',
+        caughtErrors: 'none', // Consistent with backend
       }],
+      
+      // Code style - align with CLAUDE.md guidelines
+      'indent': ['error', 2], // 2 spaces per CLAUDE.md
+      'quotes': ['error', 'single'],
+      'semi': ['error', 'always'],
+      'comma-dangle': ['error', 'always-multiline'], // Trailing commas per CLAUDE.md
+      
+      // Best practices
+      'eqeqeq': 'error',
+      'no-var': 'error',
+      'prefer-const': 'error',
+      
+      // React specific
       'react-hooks/exhaustive-deps': 'warn',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off', // We're using TypeScript-style props without PropTypes

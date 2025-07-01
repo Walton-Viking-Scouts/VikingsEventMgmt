@@ -12,7 +12,7 @@ export const LOG_LEVELS = {
   INFO: 'info',
   WARN: 'warn',
   ERROR: 'error',
-  FATAL: 'fatal'
+  FATAL: 'fatal',
 };
 
 // Log categories for filtering and organization
@@ -27,7 +27,7 @@ export const LOG_CATEGORIES = {
   SYNC: 'sync',
   COMPONENT: 'component',
   HOOK: 'hook',
-  ERROR: 'error'
+  ERROR: 'error',
 };
 
 // Create structured log entry
@@ -42,7 +42,7 @@ function createLogEntry(level, message, data = {}, category = LOG_CATEGORIES.APP
     url: window.location.href,
     userAgent: navigator.userAgent,
     platform: getPlatformInfo(),
-    ...data
+    ...data,
   };
 }
 
@@ -70,8 +70,8 @@ function getPlatformInfo() {
     platform: navigator.platform,
     viewport: {
       width: window.innerWidth,
-      height: window.innerHeight
-    }
+      height: window.innerHeight,
+    },
   };
 }
 
@@ -101,7 +101,7 @@ function outputToConsole(entry) {
     [LOG_LEVELS.INFO]: 'color: #green',
     [LOG_LEVELS.WARN]: 'color: #orange',
     [LOG_LEVELS.ERROR]: 'color: #red',
-    [LOG_LEVELS.FATAL]: 'color: #red; font-weight: bold'
+    [LOG_LEVELS.FATAL]: 'color: #red; font-weight: bold',
   };
   
   const categoryEmojis = {
@@ -115,7 +115,7 @@ function outputToConsole(entry) {
     [LOG_CATEGORIES.SYNC]: '🔄',
     [LOG_CATEGORIES.COMPONENT]: '🧩',
     [LOG_CATEGORIES.HOOK]: '🪝',
-    [LOG_CATEGORIES.ERROR]: '❌'
+    [LOG_CATEGORIES.ERROR]: '❌',
   };
   
   const emoji = categoryEmojis[entry.category] || '📝';
@@ -142,7 +142,7 @@ function sendToSentry(entry) {
         scope.setContext('error_details', {
           message: context.error.message,
           stack: context.error.stack,
-          name: context.error.name
+          name: context.error.name,
         });
         Sentry.captureException(context.error);
       } else {
@@ -198,7 +198,7 @@ export const logger = {
     log(LOG_LEVELS.FATAL, messageTemplate, data, category, ...args),
     
   // Convenience methods for common patterns
-  fmt: (template, ...args) => formatMessage(template, ...args)
+  fmt: (template, ...args) => formatMessage(template, ...args),
 };
 
 export default logger;

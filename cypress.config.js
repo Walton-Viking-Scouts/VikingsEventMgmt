@@ -31,7 +31,7 @@ export default defineConfig({
       // API mocking configuration
       ENABLE_API_MOCKING: true, // Set to false only for local development with real API
       CI: false, // Will be overridden in CI/CD pipeline
-      mockApiWarnings: true // Show warnings when API calls are blocked
+      mockApiWarnings: true, // Show warnings when API calls are blocked
     },
     
     setupNodeEvents(on, config) {
@@ -53,7 +53,7 @@ export default defineConfig({
         setOnline() {
           // This will be used with custom commands
           return null;
-        }
+        },
       });
       
       return config;
@@ -84,5 +84,5 @@ export default defineConfig({
   downloadsFolder: 'cypress/downloads',
   fixturesFolder: 'cypress/fixtures',
   screenshotsFolder: 'cypress/screenshots',
-  videosFolder: 'cypress/videos'
+  videosFolder: 'cypress/videos',
 });

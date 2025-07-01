@@ -8,16 +8,16 @@ function SentryTestButton() {
     // Create a transaction/span to measure performance
     Sentry.startSpan(
       {
-        op: "ui.click",
-        name: "Test Button Click",
+        op: 'ui.click',
+        name: 'Test Button Click',
       },
       (span) => {
-        const value = "test config";
+        const value = 'test config';
         const metric = Math.random();
 
         // Metrics can be added to the span
-        span.setAttribute("config", value);
-        span.setAttribute("metric", metric);
+        span.setAttribute('config', value);
+        span.setAttribute('metric', metric);
 
         // Test various Sentry features
         logger.info('Test button clicked', { metric, timestamp: Date.now() });
@@ -62,7 +62,7 @@ function SentryTestButton() {
       zIndex: 9999,
       display: 'flex',
       flexDirection: 'column',
-      gap: '10px'
+      gap: '10px',
     }}>
       <button 
         type="button" 
@@ -74,7 +74,7 @@ function SentryTestButton() {
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
-          fontSize: '12px'
+          fontSize: '12px',
         }}
       >
         Test Sentry Span
@@ -90,7 +90,7 @@ function SentryTestButton() {
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
-          fontSize: '12px'
+          fontSize: '12px',
         }}
       >
         Test Sentry Error

@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 // Mock sessionStorage
 const sessionStorageMock = {
@@ -6,8 +6,8 @@ const sessionStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
-}
-global.sessionStorage = sessionStorageMock
+};
+global.sessionStorage = sessionStorageMock;
 
 // Mock localStorage
 const localStorageMock = {
@@ -15,8 +15,8 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
-}
-global.localStorage = localStorageMock
+};
+global.localStorage = localStorageMock;
 
 // Mock window.location
 Object.defineProperty(window, 'location', {
@@ -30,4 +30,4 @@ Object.defineProperty(window, 'location', {
     assign: vi.fn(),
   },
   writable: true,
-})
+});

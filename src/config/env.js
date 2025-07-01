@@ -4,13 +4,13 @@
 // Required environment variables for basic functionality
 const requiredVars = [
   'VITE_API_URL',
-  'VITE_OAUTH_CLIENT_ID'
+  'VITE_OAUTH_CLIENT_ID',
 ];
 
 // Optional environment variables with defaults
-const optionalVars = {
-  VITE_SENTRY_DSN: null // Error tracking (optional)
-};
+// const optionalVars = {
+//   VITE_SENTRY_DSN: null // Error tracking (optional)
+// };
 
 // Validate required environment variables
 const missingVars = requiredVars.filter(key => !import.meta.env[key]);
@@ -59,7 +59,7 @@ export const config = {
   
   // Computed Values
   isApiUrlLocal: apiUrl?.includes('localhost'),
-  isApiUrlSecure: apiUrl?.startsWith('https://')
+  isApiUrlSecure: apiUrl?.startsWith('https://'),
 };
 
 // Log configuration in development

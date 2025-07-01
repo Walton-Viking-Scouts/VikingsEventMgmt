@@ -76,7 +76,7 @@ class SyncService {
       this.notifyListeners({ 
         status: 'completed', 
         message: 'Sync completed successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
     } catch (error) {
@@ -84,7 +84,7 @@ class SyncService {
       this.notifyListeners({ 
         status: 'error', 
         message: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       throw error;
     } finally {
@@ -163,14 +163,14 @@ class SyncService {
       return {
         hasOfflineData,
         online,
-        syncing: this.isSyncing
+        syncing: this.isSyncing,
       };
     } catch (error) {
       console.error('Error getting sync status:', error);
       return {
         hasOfflineData: false,
         online: false,
-        syncing: false
+        syncing: false,
       };
     }
   }

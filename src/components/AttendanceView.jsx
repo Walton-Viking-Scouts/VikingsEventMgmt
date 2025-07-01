@@ -29,7 +29,7 @@ function AttendanceView({ events, onBack }) {
             event.sectionid, 
             event.eventid, 
             event.termid, 
-            token
+            token,
           );
           
           if (attendance && attendance.items) {
@@ -40,7 +40,7 @@ function AttendanceView({ events, onBack }) {
               eventname: event.name,
               eventdate: event.startdate,
               sectionid: event.sectionid,
-              sectionname: event.sectionname
+              sectionname: event.sectionname,
             }));
             allAttendance.push(...attendanceWithEvent);
           }
@@ -78,7 +78,7 @@ function AttendanceView({ events, onBack }) {
           scoutid: record.scoutid,
           attended: 0,
           total: 0,
-          events: []
+          events: [],
         };
       }
       
@@ -89,7 +89,7 @@ function AttendanceView({ events, onBack }) {
       memberStats[memberKey].events.push({
         name: record.eventname,
         date: record.eventdate,
-        attended: record.attending === '1' || record.attending === 'Yes'
+        attended: record.attending === '1' || record.attending === 'Yes',
       });
     });
     
@@ -109,34 +109,34 @@ function AttendanceView({ events, onBack }) {
       let aValue, bValue;
       
       switch (key) {
-        case 'member':
-          if (viewMode === 'summary') {
-            aValue = a.name?.toLowerCase() || '';
-            bValue = b.name?.toLowerCase() || '';
-          } else {
-            aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
-            bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
-          }
-          break;
-        case 'attendance':
-          if (viewMode === 'summary') {
-            aValue = a.attended || 0;
-            bValue = b.attended || 0;
-          } else {
-            aValue = (a.attending === '1' || a.attending === 'Yes') ? 1 : 0;
-            bValue = (b.attending === '1' || b.attending === 'Yes') ? 1 : 0;
-          }
-          break;
-        case 'event':
-          aValue = a.eventname?.toLowerCase() || '';
-          bValue = b.eventname?.toLowerCase() || '';
-          break;
-        case 'date':
-          aValue = new Date(a.eventdate || '1900-01-01');
-          bValue = new Date(b.eventdate || '1900-01-01');
-          break;
-        default:
-          return 0;
+      case 'member':
+        if (viewMode === 'summary') {
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+        } else {
+          aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
+          bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
+        }
+        break;
+      case 'attendance':
+        if (viewMode === 'summary') {
+          aValue = a.attended || 0;
+          bValue = b.attended || 0;
+        } else {
+          aValue = (a.attending === '1' || a.attending === 'Yes') ? 1 : 0;
+          bValue = (b.attending === '1' || b.attending === 'Yes') ? 1 : 0;
+        }
+        break;
+      case 'event':
+        aValue = a.eventname?.toLowerCase() || '';
+        bValue = b.eventname?.toLowerCase() || '';
+        break;
+      case 'date':
+        aValue = new Date(a.eventdate || '1900-01-01');
+        bValue = new Date(b.eventdate || '1900-01-01');
+        break;
+      default:
+        return 0;
       }
       
       if (aValue < bValue) return direction === 'asc' ? -1 : 1;

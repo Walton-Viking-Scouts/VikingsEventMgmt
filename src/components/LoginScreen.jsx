@@ -6,12 +6,12 @@ function LoginScreen({ onLogin }) {
     // Create a span to measure login button performance
     Sentry.startSpan(
       {
-        op: "ui.click",
-        name: "Login Button Click",
+        op: 'ui.click',
+        name: 'Login Button Click',
       },
       (span) => {
-        span.setAttribute("component", "LoginScreen");
-        span.setAttribute("action", "login_initiated");
+        span.setAttribute('component', 'LoginScreen');
+        span.setAttribute('action', 'login_initiated');
         
         onLogin();
       },
