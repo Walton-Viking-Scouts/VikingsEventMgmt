@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(node:*)",
+      "Bash(gh repo list:*)",
+      "Bash(gh api:*)",
+      "Bash(gh browse:*)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend add middleware/rateLimiting.js)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend commit -m \"$(cat <<'EOF'\nFix rate limiting Sentry logging bug\n\n- Fix undefined 'identifier' variable in rate limit exceeded logging\n- Replace with 'sessionId' variable that is properly defined\n- Enables proper Sentry log entries when backend rate limits are exceeded\n- Allows monitoring of rate limit violations in production\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend checkout main)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend pull origin main)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend checkout -b update/backend-url-references)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend add .)",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend commit -m \"$(cat <<'EOF'\nUpdate backend URL references across documentation\n\n- Update all references from vikings-osm-event-manager.onrender.com \n  to vikings-osm-backend.onrender.com\n- Affects documentation, OAuth configuration, and example URLs\n- Aligns with repository rename and new deployment URL\n- No functional changes to API behavior\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend push -u origin update/backend-url-references)",
+      "Bash(GITHUB_REPOSITORY=\"Walton-Vikings/vikings-osm-backend\" gh pr create --repo \"Walton-Vikings/vikings-osm-backend\" --head \"update/backend-url-references\" --title \"Update backend URL references across documentation\" --body \"## Summary\n- Update all references from \\`vikings-osm-event-manager.onrender.com\\` to \\`vikings-osm-backend.onrender.com\\`\n- Affects documentation, OAuth configuration, and example URLs\n- Aligns with repository rename and new deployment URL\n\n## Changes\n- \\`docs/api/auth.md\\` - Updated API examples\n- \\`docs/api/other_endpoints.md\\` - Updated endpoint references  \n- \\`docs/dynamic-redirect.md\\` - Updated redirect documentation\n- \\`docs/oauth-flow-updated.md\\` - Updated OAuth flow examples\n- \\`server.js\\` - Updated default backend URL fallback\n\n## Test plan\n- [x] No functional changes to API behavior\n- [x] Documentation now reflects correct deployment URL\n- [ ] Verify OAuth flows still work with new URLs\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\")",
+      "Bash(git -C /Users/simon/vsCodeProjects/VikingEventMgmt/vikings-osm-backend status)"
+    ],
+    "deny": []
+  }
+}

@@ -29,12 +29,6 @@ function Dashboard() {
       
       setSections(sectionsData);
       
-      // Auto-select default section if available
-      const defaultSection = sectionsData.find(s => s.isDefault);
-      if (defaultSection) {
-        setSelectedSections([defaultSection]);
-      }
-      
     } catch (err) {
       console.error('Error loading sections:', err);
       setError(err.message);
@@ -43,10 +37,28 @@ function Dashboard() {
     }
   };
 
-  const handleSectionSelect = (section) => {
-    setSelectedSections([section]);
-    setCurrentView('events');
-    setSelectedEvents([]); // Clear selected events when changing sections
+  const handleSectionToggle = (section) => {
+    setSelectedSections(prevSelected => {
+      const isAlreadySelected = prevSelected.some(s => s.sectionid === section.sectionid);
+      
+      if (isAlreadySelected) {
+        // Remove section from selection
+        return prevSelected.filter(s => s.sectionid !== section.sectionid);
+      } else {
+        // Add section to selection
+        return [...prevSelected, section];
+      }
+    });
+    
+    // Clear selected events when sections change
+    setSelectedEvents([]);
+  };
+
+  const handleContinueToEvents = () => {
+    if (selectedSections.length > 0) {
+      setCurrentView('events');
+      setSelectedEvents([]); // Clear selected events when going to events
+    }
   };
 
   const handleEventSelect = (events) => {
@@ -119,8 +131,10 @@ function Dashboard() {
       {/* View content */}
       {currentView === 'sections' && (
         <SectionsList 
-          sections={sections} 
-          onSectionSelect={handleSectionSelect}
+          sections={sections}
+          selectedSections={selectedSections}
+          onSectionToggle={handleSectionToggle}
+          onContinueToEvents={handleContinueToEvents}
         />
       )}
 

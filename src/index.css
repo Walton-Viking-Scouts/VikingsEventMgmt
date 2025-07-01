@@ -11,6 +11,31 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Official Scout Colours */
+  --scout-red: #ed3f23;
+  --scout-blue: #006ddf;
+  --scout-orange: #ff912a;
+  --scout-green: #25b755;
+  --scout-pink: #ffb4e5;
+  --scout-yellow: #ffe627;
+  --scout-forest-green: #205b41;
+  
+  /* Scout colour variations */
+  --scout-red-light: #f16749;
+  --scout-red-dark: #c4321d;
+  --scout-blue-light: #3387e5;
+  --scout-blue-dark: #004fb3;
+  --scout-orange-light: #ffad5a;
+  --scout-orange-dark: #e67e1f;
+  --scout-green-light: #4fc470;
+  --scout-green-dark: #1e9544;
+  --scout-pink-light: #ffcbec;
+  --scout-pink-dark: #e591c9;
+  --scout-yellow-light: #ffef5a;
+  --scout-yellow-dark: #e6c61f;
+  --scout-forest-green-light: #3d7863;
+  --scout-forest-green-dark: #1a4a35;
 }
 
 a {
@@ -192,18 +217,6 @@ button:focus-visible {
   gap: 16px;
 }
 
-.sidebar-toggle {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-}
-
-.sidebar-toggle:hover {
-  background-color: #f5f5f5;
-}
 
 .desktop-title {
   font-size: 20px;
@@ -212,24 +225,6 @@ button:focus-visible {
   color: #333;
 }
 
-.desktop-nav {
-  display: flex;
-  gap: 24px;
-}
-
-.nav-link {
-  text-decoration: none;
-  color: #666;
-  font-weight: 500;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.nav-link:hover {
-  color: #007bff;
-  background-color: #f8f9fa;
-}
 
 .print-btn {
   background: #007bff;
@@ -277,96 +272,11 @@ button:focus-visible {
   min-height: calc(100vh - 60px);
 }
 
-.desktop-sidebar {
-  width: 250px;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 60px;
-  left: 0;
-  bottom: 0;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  z-index: 999;
-}
 
-.desktop-sidebar.open {
-  transform: translateX(0);
-}
-
-.sidebar-header {
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.sidebar-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  display: none;
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 16px 0;
-}
-
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  text-decoration: none;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.sidebar-link:hover {
-  background-color: #e9ecef;
-  color: #007bff;
-}
-
-.sidebar-link.active {
-  background-color: #007bff;
-  color: white;
-}
-
-.sidebar-icon {
-  font-size: 16px;
-}
-
-.sidebar-label {
-  font-weight: 500;
-}
-
-.sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid #e0e0e0;
-  text-align: center;
-}
 
 .desktop-main {
   flex: 1;
   padding: 24px;
-  margin-left: 0;
-  transition: margin-left 0.3s ease;
-}
-
-.desktop-main.with-sidebar {
-  margin-left: 250px;
 }
 
 .desktop-container {
@@ -374,17 +284,6 @@ button:focus-visible {
   margin: 0 auto;
 }
 
-/* Sidebar overlay for mobile */
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 998;
-  display: none;
-}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
@@ -396,23 +295,11 @@ button:focus-visible {
     font-size: 16px;
   }
   
-  .sidebar-overlay {
-    display: block;
-  }
-  
-  .sidebar-close {
-    display: block;
-  }
-  
-  .desktop-main.with-sidebar {
-    margin-left: 0;
-  }
 }
 
 /* Print styles */
 @media print {
   .desktop-header,
-  .desktop-sidebar,
   .offline-indicator,
   .print-btn {
     display: none !important;
@@ -439,4 +326,211 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* Sections grid layout */
+.sections-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px;
+}
+
+.section-button {
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  padding: 32px 16px;
+  text-align: left;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-size: 18px;
+  min-height: 80px;
+}
+
+.section-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.section-button.btn-primary {
+  background-color: var(--scout-blue);
+  border-color: var(--scout-blue);
+  color: white;
+}
+
+.section-button.btn-primary:hover {
+  background-color: var(--scout-blue-dark);
+  border-color: var(--scout-blue-dark);
+}
+
+.section-button.btn-outline-primary {
+  background-color: white;
+  border-color: var(--scout-blue);
+  color: var(--scout-blue);
+}
+
+.section-button.btn-outline-primary:hover {
+  background-color: var(--scout-blue-light);
+  border-color: var(--scout-blue-light);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .section-button {
+    min-width: 100%;
+  }
+}
+
+/* Scout themed buttons */
+.btn-scout-blue {
+  background-color: var(--scout-blue);
+  border-color: var(--scout-blue);
+  color: white;
+}
+
+.btn-scout-blue:hover {
+  background-color: var(--scout-blue-dark);
+  border-color: var(--scout-blue-dark);
+  color: white;
+}
+
+.btn-scout-green {
+  background-color: var(--scout-green);
+  border-color: var(--scout-green);
+  color: white;
+}
+
+.btn-scout-green:hover {
+  background-color: var(--scout-green-dark);
+  border-color: var(--scout-green-dark);
+  color: white;
+}
+
+.btn-scout-red {
+  background-color: var(--scout-red);
+  border-color: var(--scout-red);
+  color: white;
+}
+
+.btn-scout-red:hover {
+  background-color: var(--scout-red-dark);
+  border-color: var(--scout-red-dark);
+  color: white;
+}
+
+.btn-scout-orange {
+  background-color: var(--scout-orange);
+  border-color: var(--scout-orange);
+  color: white;
+}
+
+.btn-scout-orange:hover {
+  background-color: var(--scout-orange-dark);
+  border-color: var(--scout-orange-dark);
+  color: white;
+}
+
+.btn-scout-pink {
+  background-color: var(--scout-pink);
+  border-color: var(--scout-pink);
+  color: #333;
+}
+
+.btn-scout-pink:hover {
+  background-color: var(--scout-pink-dark);
+  border-color: var(--scout-pink-dark);
+  color: #333;
+}
+
+.btn-scout-yellow {
+  background-color: var(--scout-yellow);
+  border-color: var(--scout-yellow);
+  color: #333;
+}
+
+.btn-scout-yellow:hover {
+  background-color: var(--scout-yellow-dark);
+  border-color: var(--scout-yellow-dark);
+  color: #333;
+}
+
+.btn-scout-forest-green {
+  background-color: var(--scout-forest-green);
+  border-color: var(--scout-forest-green);
+  color: white;
+}
+
+.btn-scout-forest-green:hover {
+  background-color: var(--scout-forest-green-dark);
+  border-color: var(--scout-forest-green-dark);
+  color: white;
+}
+
+/* Outline versions of Scout buttons */
+.btn-outline-scout-red {
+  background-color: white;
+  border-color: var(--scout-red);
+  color: var(--scout-red);
+}
+
+.btn-outline-scout-red:hover {
+  background-color: var(--scout-red);
+  border-color: var(--scout-red);
+  color: white;
+}
+
+.btn-outline-scout-blue {
+  background-color: white;
+  border-color: var(--scout-blue);
+  color: var(--scout-blue);
+}
+
+.btn-outline-scout-blue:hover {
+  background-color: var(--scout-blue);
+  border-color: var(--scout-blue);
+  color: white;
+}
+
+.btn-outline-scout-blue-dark {
+  background-color: white;
+  border-color: var(--scout-blue-dark);
+  color: var(--scout-blue-dark);
+}
+
+.btn-outline-scout-blue-dark:hover {
+  background-color: var(--scout-blue-dark);
+  border-color: var(--scout-blue-dark);
+  color: white;
+}
+
+.btn-outline-scout-forest-green {
+  background-color: white;
+  border-color: var(--scout-forest-green);
+  color: var(--scout-forest-green);
+}
+
+.btn-outline-scout-forest-green:hover {
+  background-color: var(--scout-forest-green);
+  border-color: var(--scout-forest-green);
+  color: white;
+}
+
+/* Sortable table headers */
+.sortable-header {
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable-header:hover {
+  background-color: #f8f9fa;
+}
+
+.sortable-header i {
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
+.sortable-header:hover i {
+  opacity: 1;
 }

@@ -1,10 +1,12 @@
 // Sentry configuration for Vikings Event Management Mobile
 import * as Sentry from "@sentry/react";
+import packageJson from '../../package.json';
+import { config } from '../config/env.js';
 
 // Environment configuration
 const environment = import.meta.env.NODE_ENV || 'development';
-const release = import.meta.env.VITE_APP_VERSION || '1.0.0';
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+const release = packageJson.version;
+const sentryDsn = config.sentryDsn;
 
 // Initialize Sentry
 export function initSentry() {
@@ -13,6 +15,9 @@ export function initSentry() {
     console.warn('Sentry DSN not provided, skipping initialization');
     return;
   }
+
+  console.log('🔧 Initializing Sentry with DSN:', sentryDsn ? 'Present' : 'Missing');
+  console.log('🔧 Environment:', environment);
 
   Sentry.init({
     dsn: sentryDsn,
@@ -58,6 +63,7 @@ export function initSentry() {
         console.group('🔍 Sentry Event');
         console.log('Event:', event);
         console.log('Hint:', hint);
+        console.log('📤 Sending to Sentry...');
         console.groupEnd();
       }
       
@@ -88,6 +94,8 @@ export function initSentry() {
       },
     },
   });
+  
+  console.log('✅ Sentry initialized successfully');
   
   // Configure user context if available
   const token = sessionStorage.getItem('access_token');

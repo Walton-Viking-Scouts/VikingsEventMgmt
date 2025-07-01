@@ -14,6 +14,28 @@ function App() {
   const { isAuthenticated, isLoading, user, isBlocked, login, logout } = useAuth();
 
   useEffect(() => {
+    // Check for OAuth callback parameters in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access_token');
+    const tokenType = urlParams.get('token_type');
+    
+    if (accessToken) {
+      // Store the token and clean up URL
+      sessionStorage.setItem('access_token', accessToken);
+      if (tokenType) {
+        sessionStorage.setItem('token_type', tokenType);
+      }
+      
+      // Clean the URL without reloading
+      const url = new URL(window.location);
+      url.searchParams.delete('access_token');
+      url.searchParams.delete('token_type');
+      window.history.replaceState({}, '', url);
+      
+      // Trigger auth check
+      window.location.reload();
+    }
+
     // Setup auto-sync when app loads
     syncService.setupAutoSync();
   }, []);

@@ -3,8 +3,9 @@
 
 import { getUserRoles, getStartupData } from './api.js';
 import { sentryUtils, logger } from './sentry.js';
+import { config } from '../config/env.js';
 
-const clientId = import.meta.env.VITE_OAUTH_CLIENT_ID;
+const clientId = config.oauthClientId;
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
 
 // Validate client ID is provided
@@ -71,7 +72,7 @@ export function handleTokenExpiration() {
 
 // OAuth URL generation
 export function generateOAuthUrl() {
-    const BACKEND_URL = 'https://vikings-osm-event-manager.onrender.com';
+    const BACKEND_URL = config.apiUrl;
     const redirectUri = `${BACKEND_URL}/oauth/callback`;
     
     // Determine environment based on hostname

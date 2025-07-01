@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { sentryUtils, logger } from './sentry.js';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-event-manager.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
 console.log('Using Backend URL:', BACKEND_URL);
 

@@ -70,7 +70,7 @@ if (!clientId) {
 ### **.env** (Local Development)
 ```env
 VITE_OAUTH_CLIENT_ID=your_actual_client_id
-VITE_API_URL=https://vikings-osm-event-manager.onrender.com
+VITE_API_URL=https://vikings-osm-backend.onrender.com
 VITE_SENTRY_DSN=your_sentry_dsn
 CYPRESS_ENABLE_API_MOCKING=true
 ```
@@ -78,7 +78,7 @@ CYPRESS_ENABLE_API_MOCKING=true
 ### **Production Environment (Render.com)**
 **Environment variables should be set in Render.com dashboard, NOT in files:**
 - `VITE_OAUTH_CLIENT_ID=your_production_client_id`
-- `VITE_API_URL=https://vikings-osm-event-manager.onrender.com`  
+- `VITE_API_URL=https://vikings-osm-backend.onrender.com`  
 - `VITE_NODE_ENV=production`
 
 ## 🚀 Deployment Checklist

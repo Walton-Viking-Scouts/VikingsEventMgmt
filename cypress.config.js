@@ -25,7 +25,7 @@ export default defineConfig({
     
     // Environment variables
     env: {
-      apiUrl: 'https://vikings-osm-event-manager.onrender.com',
+      apiUrl: 'https://vikings-osm-backend.onrender.com',
       mobileBreakpoint: 768,
       tabletBreakpoint: 1024,
       // API mocking configuration

@@ -1,7 +1,7 @@
 import React from 'react';
 import { canPrint } from '../../utils/platform.js';
 
-function DesktopHeader({ user, onLogout, onToggleSidebar }) {
+function DesktopHeader({ user, onLogout }) {
   const handlePrint = () => {
     window.print();
   };
@@ -15,23 +15,7 @@ function DesktopHeader({ user, onLogout, onToggleSidebar }) {
   return (
     <header className="desktop-header">
       <div className="desktop-header-left">
-        <button 
-          className="sidebar-toggle"
-          onClick={onToggleSidebar}
-          type="button"
-          aria-label="Toggle sidebar"
-        >
-          ☰
-        </button>
         <h1 className="desktop-title">Vikings Event Management</h1>
-      </div>
-      
-      <div className="desktop-header-center">
-        <nav className="desktop-nav">
-          <a href="/" className="nav-link">Dashboard</a>
-          <a href="/events" className="nav-link">Events</a>
-          <a href="/reports" className="nav-link">Reports</a>
-        </nav>
       </div>
       
       <div className="desktop-header-right">

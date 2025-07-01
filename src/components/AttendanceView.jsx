@@ -8,6 +8,7 @@ function AttendanceView({ events, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('summary'); // summary, detailed
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     loadAttendance();
@@ -95,6 +96,64 @@ function AttendanceView({ events, onBack }) {
     return Object.values(memberStats);
   };
 
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortData = (data, key, direction) => {
+    return [...data].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (key) {
+        case 'member':
+          if (viewMode === 'summary') {
+            aValue = a.name?.toLowerCase() || '';
+            bValue = b.name?.toLowerCase() || '';
+          } else {
+            aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
+            bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
+          }
+          break;
+        case 'attendance':
+          if (viewMode === 'summary') {
+            aValue = a.attended || 0;
+            bValue = b.attended || 0;
+          } else {
+            aValue = (a.attending === '1' || a.attending === 'Yes') ? 1 : 0;
+            bValue = (b.attending === '1' || b.attending === 'Yes') ? 1 : 0;
+          }
+          break;
+        case 'event':
+          aValue = a.eventname?.toLowerCase() || '';
+          bValue = b.eventname?.toLowerCase() || '';
+          break;
+        case 'date':
+          aValue = new Date(a.eventdate || '1900-01-01');
+          bValue = new Date(b.eventdate || '1900-01-01');
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <i className="fas fa-sort text-muted ms-1"></i>;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <i className="fas fa-sort-up ms-1"></i>
+      : <i className="fas fa-sort-down ms-1"></i>;
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading attendance..." />;
   }
@@ -178,15 +237,24 @@ function AttendanceView({ events, onBack }) {
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Attended</th>
-                <th>Rate</th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('member')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Member {getSortIcon('member')}
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('attendance')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Attendance {getSortIcon('attendance')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {summaryStats.map((member, index) => {
-                const rate = member.total > 0 ? (member.attended / member.total * 100).toFixed(0) : 0;
-                
+              {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
                 return (
                   <tr key={index}>
                     <td>
@@ -194,11 +262,6 @@ function AttendanceView({ events, onBack }) {
                     </td>
                     <td>
                       {member.attended} / {member.total}
-                    </td>
-                    <td>
-                      <span className={`badge ${rate >= 80 ? 'badge-success' : rate >= 60 ? 'badge-primary' : 'badge-danger'}`}>
-                        {rate}%
-                      </span>
                     </td>
                   </tr>
                 );
@@ -213,14 +276,38 @@ function AttendanceView({ events, onBack }) {
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Attended</th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('member')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Member {getSortIcon('member')}
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('event')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Event {getSortIcon('event')}
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('date')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Date {getSortIcon('date')}
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('attendance')}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Attendance {getSortIcon('attendance')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {attendanceData.map((record, index) => {
+              {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
                 const attended = record.attending === '1' || record.attending === 'Yes';
                 
                 return (
