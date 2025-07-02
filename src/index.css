@@ -1,41 +1,58 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* Tailwind CSS imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* Custom CSS layers for parallel approach */
+@layer base {
+  :root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    color-scheme: light dark;
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #242424;
 
-  /* Official Scout Colours */
-  --scout-red: #ed3f23;
-  --scout-blue: #006ddf;
-  --scout-orange: #ff912a;
-  --scout-green: #25b755;
-  --scout-pink: #ffb4e5;
-  --scout-yellow: #ffe627;
-  --scout-forest-green: #205b41;
-  
-  /* Scout colour variations */
-  --scout-red-light: #f16749;
-  --scout-red-dark: #c4321d;
-  --scout-blue-light: #3387e5;
-  --scout-blue-dark: #004fb3;
-  --scout-orange-light: #ffad5a;
-  --scout-orange-dark: #e67e1f;
-  --scout-green-light: #4fc470;
-  --scout-green-dark: #1e9544;
-  --scout-pink-light: #ffcbec;
-  --scout-pink-dark: #e591c9;
-  --scout-yellow-light: #ffef5a;
-  --scout-yellow-dark: #e6c61f;
-  --scout-forest-green-light: #3d7863;
-  --scout-forest-green-dark: #1a4a35;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Official Scout Colours - Available as CSS variables and Tailwind classes */
+    --scout-red: #ed3f23;
+    --scout-blue: #006ddf;
+    --scout-orange: #ff912a;
+    --scout-green: #25b755;
+    --scout-pink: #ffb4e5;
+    --scout-yellow: #ffe627;
+    --scout-forest-green: #205b41;
+    --scout-purple: #7413dc;
+    --scout-teal: #088486;
+    --scout-navy: #003f8f;
+    
+    /* Scout colour variations */
+    --scout-red-light: #f16749;
+    --scout-red-dark: #c4321d;
+    --scout-blue-light: #3387e5;
+    --scout-blue-dark: #004fb3;
+    --scout-orange-light: #ffad5a;
+    --scout-orange-dark: #e67e1f;
+    --scout-green-light: #4fc470;
+    --scout-green-dark: #1e9544;
+    --scout-pink-light: #ffcbec;
+    --scout-pink-dark: #e591c9;
+    --scout-yellow-light: #ffef5a;
+    --scout-yellow-dark: #e6c61f;
+    --scout-forest-green-light: #3d7863;
+    --scout-forest-green-dark: #1a4a35;
+    --scout-purple-light: #8f47e3;
+    --scout-purple-dark: #5e0fb5;
+    --scout-teal-light: #2da5a7;
+    --scout-teal-dark: #066769;
+    --scout-navy-light: #004fb3;
+    --scout-navy-dark: #002f6f;
+  }
 }
 
 a {
@@ -47,36 +64,11 @@ a:hover {
   color: #535bf2;
 }
 
+/* Minimal body styles - Tailwind handles most styling */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
 /* Offline Indicator Styles */
@@ -156,162 +148,21 @@ button:focus-visible {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive Layout Styles */
-
-/* Mobile Layout */
-.mobile-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.mobile-main {
-  flex: 1;
-  padding: 16px;
-  padding-top: 80px; /* Account for fixed header */
-}
-
-.mobile-container {
-  max-width: 100%;
-  margin: 0 auto;
-}
-
-/* Desktop Layout */
-.desktop-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.desktop-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.desktop-header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.desktop-header-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.desktop-header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-
-.desktop-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  color: #333;
-}
-
-
-.print-btn {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.print-btn:hover {
-  background: #0056b3;
-}
-
-.user-menu {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-greeting {
-  color: #666;
-  font-weight: 500;
-}
-
-.logout-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.logout-btn:hover {
-  background: #c82333;
-}
-
-/* Desktop Content */
-.desktop-content {
-  display: flex;
-  margin-top: 60px;
-  min-height: calc(100vh - 60px);
-}
-
-
-
-.desktop-main {
-  flex: 1;
-  padding: 24px;
-}
-
-.desktop-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .desktop-header-center {
-    display: none;
-  }
-  
-  .desktop-title {
-    font-size: 16px;
-  }
-  
-}
+/* 
+ * Layout styles removed - now handled by Tailwind components!
+ * Mobile and Desktop layouts use proper Tailwind classes.
+ */
 
 /* Print styles */
 @media print {
-  .desktop-header,
   .offline-indicator,
-  .print-btn {
+  header {
     display: none !important;
   }
   
-  .desktop-main {
-    margin-left: 0 !important;
+  main {
+    margin: 0 !important;
     padding: 0 !important;
-  }
-  
-  .desktop-container {
-    max-width: none !important;
   }
 }
 
@@ -328,209 +179,8 @@ button:focus-visible {
   }
 }
 
-/* Sections grid layout */
-.sections-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 16px;
-}
-
-.section-button {
-  flex: 1;
-  min-width: 200px;
-  max-width: 300px;
-  padding: 32px 16px;
-  text-align: left;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-size: 18px;
-  min-height: 80px;
-}
-
-.section-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.section-button.btn-primary {
-  background-color: var(--scout-blue);
-  border-color: var(--scout-blue);
-  color: white;
-}
-
-.section-button.btn-primary:hover {
-  background-color: var(--scout-blue-dark);
-  border-color: var(--scout-blue-dark);
-}
-
-.section-button.btn-outline-primary {
-  background-color: white;
-  border-color: var(--scout-blue);
-  color: var(--scout-blue);
-}
-
-.section-button.btn-outline-primary:hover {
-  background-color: var(--scout-blue-light);
-  border-color: var(--scout-blue-light);
-  color: white;
-}
-
-@media (max-width: 768px) {
-  .section-button {
-    min-width: 100%;
-  }
-}
-
-/* Scout themed buttons */
-.btn-scout-blue {
-  background-color: var(--scout-blue);
-  border-color: var(--scout-blue);
-  color: white;
-}
-
-.btn-scout-blue:hover {
-  background-color: var(--scout-blue-dark);
-  border-color: var(--scout-blue-dark);
-  color: white;
-}
-
-.btn-scout-green {
-  background-color: var(--scout-green);
-  border-color: var(--scout-green);
-  color: white;
-}
-
-.btn-scout-green:hover {
-  background-color: var(--scout-green-dark);
-  border-color: var(--scout-green-dark);
-  color: white;
-}
-
-.btn-scout-red {
-  background-color: var(--scout-red);
-  border-color: var(--scout-red);
-  color: white;
-}
-
-.btn-scout-red:hover {
-  background-color: var(--scout-red-dark);
-  border-color: var(--scout-red-dark);
-  color: white;
-}
-
-.btn-scout-orange {
-  background-color: var(--scout-orange);
-  border-color: var(--scout-orange);
-  color: white;
-}
-
-.btn-scout-orange:hover {
-  background-color: var(--scout-orange-dark);
-  border-color: var(--scout-orange-dark);
-  color: white;
-}
-
-.btn-scout-pink {
-  background-color: var(--scout-pink);
-  border-color: var(--scout-pink);
-  color: #333;
-}
-
-.btn-scout-pink:hover {
-  background-color: var(--scout-pink-dark);
-  border-color: var(--scout-pink-dark);
-  color: #333;
-}
-
-.btn-scout-yellow {
-  background-color: var(--scout-yellow);
-  border-color: var(--scout-yellow);
-  color: #333;
-}
-
-.btn-scout-yellow:hover {
-  background-color: var(--scout-yellow-dark);
-  border-color: var(--scout-yellow-dark);
-  color: #333;
-}
-
-.btn-scout-forest-green {
-  background-color: var(--scout-forest-green);
-  border-color: var(--scout-forest-green);
-  color: white;
-}
-
-.btn-scout-forest-green:hover {
-  background-color: var(--scout-forest-green-dark);
-  border-color: var(--scout-forest-green-dark);
-  color: white;
-}
-
-/* Outline versions of Scout buttons */
-.btn-outline-scout-red {
-  background-color: white;
-  border-color: var(--scout-red);
-  color: var(--scout-red);
-}
-
-.btn-outline-scout-red:hover {
-  background-color: var(--scout-red);
-  border-color: var(--scout-red);
-  color: white;
-}
-
-.btn-outline-scout-blue {
-  background-color: white;
-  border-color: var(--scout-blue);
-  color: var(--scout-blue);
-}
-
-.btn-outline-scout-blue:hover {
-  background-color: var(--scout-blue);
-  border-color: var(--scout-blue);
-  color: white;
-}
-
-.btn-outline-scout-blue-dark {
-  background-color: white;
-  border-color: var(--scout-blue-dark);
-  color: var(--scout-blue-dark);
-}
-
-.btn-outline-scout-blue-dark:hover {
-  background-color: var(--scout-blue-dark);
-  border-color: var(--scout-blue-dark);
-  color: white;
-}
-
-.btn-outline-scout-forest-green {
-  background-color: white;
-  border-color: var(--scout-forest-green);
-  color: var(--scout-forest-green);
-}
-
-.btn-outline-scout-forest-green:hover {
-  background-color: var(--scout-forest-green);
-  border-color: var(--scout-forest-green);
-  color: white;
-}
-
-/* Sortable table headers */
-.sortable-header {
-  user-select: none;
-  transition: background-color 0.2s ease;
-}
-
-.sortable-header:hover {
-  background-color: #f8f9fa;
-}
-
-.sortable-header i {
-  opacity: 0.7;
-  font-size: 0.9em;
-}
-
-.sortable-header:hover i {
-  opacity: 1;
-}
+/* 
+ * Redundant Scout button styles removed!
+ * Scout theming is now handled by Tailwind components.
+ * Only keeping essential layout-specific styles.
+ */

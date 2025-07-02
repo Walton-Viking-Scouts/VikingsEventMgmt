@@ -4,12 +4,12 @@ import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
 function MobileLayout({ children, user, onLogout }) {
   return (
-    <div className="mobile-layout" data-testid="mobile-layout">
+    <div className="min-h-screen bg-gray-50 flex flex-col" data-testid="mobile-layout">
       <OfflineIndicator />
       <Header user={user} onLogout={onLogout} />
       
-      <main className="mobile-main" data-testid="mobile-main">
-        <div className="mobile-container">
+      <main className="flex-1" data-testid="mobile-main">
+        <div className="h-full">
           {children}
         </div>
       </main>

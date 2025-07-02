@@ -1,5 +1,6 @@
 import React from 'react';
 import { canPrint } from '../../utils/platform.js';
+import { Button } from '../ui';
 
 function DesktopHeader({ user, onLogout }) {
   const handlePrint = () => {
@@ -13,35 +14,47 @@ function DesktopHeader({ user, onLogout }) {
   };
 
   return (
-    <header className="desktop-header">
-      <div className="desktop-header-left">
-        <h1 className="desktop-title">Vikings Event Management</h1>
-      </div>
-      
-      <div className="desktop-header-right">
-        {canPrint() && (
-          <button 
-            className="print-btn"
-            onClick={handlePrint}
-            type="button"
-            title="Print current page"
-          >
-            🖨️ Print
-          </button>
-        )}
+    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+      <div className="flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold text-scout-blue">Vikings Event Management</h1>
+        </div>
         
-        {user && (
-          <div className="user-menu">
-            <span className="user-greeting">Hi, {user.firstname}</span>
-            <button 
-              className="logout-btn"
-              onClick={handleLogout}
+        <div className="flex items-center space-x-4">
+          {canPrint() && (
+            <Button
+              variant="outline-scout-blue"
+              size="sm"
+              onClick={handlePrint}
               type="button"
+              title="Print current page"
             >
-              Logout
-            </button>
-          </div>
-        )}
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" />
+              </svg>
+              Print
+            </Button>
+          )}
+          
+          {user && (
+            <div className="flex items-center space-x-3">
+              <span className="text-gray-700 font-medium">
+                Hi, {user.firstname}
+              </span>
+              <Button
+                variant="outline-scout-red"
+                size="sm"
+                onClick={handleLogout}
+                type="button"
+              >
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 001-1h10.586l-2.293 2.293a1 1 0 001.414 1.414l4-4a1 1 0 000-1.414l-4-4a1 1 0 10-1.414 1.414L15.586 3H4z" clipRule="evenodd" />
+                </svg>
+                Logout
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

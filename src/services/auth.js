@@ -33,6 +33,7 @@ export function setToken(token) {
 
 export function clearToken() {
   sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('token_invalid');
     
   // Clear user context in Sentry when logging out
   sentryUtils.setUser(null);
@@ -41,7 +42,21 @@ export function clearToken() {
 }
 
 export function isAuthenticated() {
-  return !!getToken();
+  const token = getToken();
+  if (!token) {
+    return false;
+  }
+  
+  // Check if we've previously determined this token is invalid
+  const tokenInvalid = sessionStorage.getItem('token_invalid');
+  if (tokenInvalid === 'true') {
+    // Clear the invalid token and flags
+    clearToken();
+    sessionStorage.removeItem('token_invalid');
+    return false;
+  }
+  
+  return true;
 }
 
 // Token validation
@@ -127,6 +142,7 @@ export async function validateToken() {
   try {
     const token = getToken();
     if (!token) {
+      console.log('No token found - user needs to login');
       return false;
     }
 
@@ -165,6 +181,8 @@ export async function validateToken() {
   } catch (error) {
     console.error('Token validation failed:', error);
     if (error.status === 401 || error.status === 403) {
+      // Mark token as invalid for quick future checks
+      sessionStorage.setItem('token_invalid', 'true');
       clearToken();
     }
     return false;
@@ -176,6 +194,7 @@ export function logout() {
   clearToken();
   localStorage.removeItem('viking_sections_cache');
   sessionStorage.removeItem('user_info');
+  sessionStorage.removeItem('token_invalid');
   console.log('User logged out');
 }
 

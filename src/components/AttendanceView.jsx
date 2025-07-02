@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
+import { Card, Button, Badge, Alert } from './ui';
 
 function AttendanceView({ events, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -147,11 +148,28 @@ function AttendanceView({ events, onBack }) {
 
   const getSortIcon = (columnKey) => {
     if (sortConfig.key !== columnKey) {
-      return <i className="fas fa-sort text-muted ms-1"></i>;
+      return (
+        <span className="ml-1 text-gray-400">
+          <svg className="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M5 12l5-5 5 5H5z"/>
+            <path d="M5 8l5 5 5-5H5z"/>
+          </svg>
+        </span>
+      );
     }
-    return sortConfig.direction === 'asc' 
-      ? <i className="fas fa-sort-up ms-1"></i>
-      : <i className="fas fa-sort-down ms-1"></i>;
+    return sortConfig.direction === 'asc' ? (
+      <span className="ml-1 text-scout-blue">
+        <svg className="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M5 12l5-5 5 5H5z"/>
+        </svg>
+      </span>
+    ) : (
+      <span className="ml-1 text-scout-blue">
+        <svg className="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M5 8l5 5 5-5H5z"/>
+        </svg>
+      </span>
+    );
   };
 
   if (loading) {
@@ -160,107 +178,124 @@ function AttendanceView({ events, onBack }) {
 
   if (error) {
     return (
-      <div className="error-container">
-        <h3>Error Loading Attendance</h3>
-        <p>{error}</p>
-        <button 
-          className="btn btn-primary mt-2"
-          onClick={loadAttendance}
-          type="button"
-        >
-          Retry
-        </button>
-      </div>
+      <Alert variant="danger" className="m-4">
+        <Alert.Title>Error Loading Attendance</Alert.Title>
+        <Alert.Description>{error}</Alert.Description>
+        <Alert.Actions>
+          <Button 
+            variant="scout-blue"
+            onClick={loadAttendance}
+            type="button"
+          >
+            Retry
+          </Button>
+        </Alert.Actions>
+      </Alert>
     );
   }
 
   if (!attendanceData || attendanceData.length === 0) {
     return (
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">No Attendance Data</h2>
-          <button 
-            className="btn btn-secondary"
+      <Card className="m-4">
+        <Card.Header>
+          <Card.Title>No Attendance Data</Card.Title>
+          <Button 
+            variant="outline-scout-blue"
             onClick={onBack}
             type="button"
           >
             Back to Events
-          </button>
-        </div>
-        <p className="text-muted">
-          No attendance data found for the selected event(s).
-        </p>
-      </div>
+          </Button>
+        </Card.Header>
+        <Card.Body>
+          <p className="text-gray-600">
+            No attendance data found for the selected event(s).
+          </p>
+        </Card.Body>
+      </Card>
     );
   }
 
   const summaryStats = getSummaryStats();
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h2 className="card-title">Attendance Data</h2>
-        <div className="d-flex gap-2">
-          <div className="badge badge-primary">
+    <Card className="m-4">
+      <Card.Header>
+        <Card.Title>Attendance Data</Card.Title>
+        <div className="flex gap-2 items-center">
+          <Badge variant="scout-blue">
             {events.length} event{events.length !== 1 ? 's' : ''}
-          </div>
-          <button 
-            className="btn btn-secondary"
+          </Badge>
+          <Button 
+            variant="outline-scout-blue"
             onClick={onBack}
             type="button"
           >
             Back
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card.Header>
 
-      {/* View toggle */}
-      <div className="nav-tabs mb-3">
-        <button 
-          className={`nav-tab ${viewMode === 'summary' ? 'active' : ''}`}
-          onClick={() => setViewMode('summary')}
-          type="button"
-        >
-          Summary
-        </button>
-        <button 
-          className={`nav-tab ${viewMode === 'detailed' ? 'active' : ''}`}
-          onClick={() => setViewMode('detailed')}
-          type="button"
-        >
-          Detailed
-        </button>
-      </div>
+      <Card.Body>
+        {/* View toggle */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            <button 
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                viewMode === 'summary' 
+                  ? 'border-scout-blue text-scout-blue' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              onClick={() => setViewMode('summary')}
+              type="button"
+            >
+              Summary
+            </button>
+            <button 
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                viewMode === 'detailed' 
+                  ? 'border-scout-blue text-scout-blue' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              onClick={() => setViewMode('detailed')}
+              type="button"
+            >
+              Detailed
+            </button>
+          </nav>
+        </div>
 
       {viewMode === 'summary' && (
-        <div className="table-container">
-          <table className="table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('member')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Member {getSortIcon('member')}
+                  <div className="flex items-center">
+                    Member {getSortIcon('member')}
+                  </div>
                 </th>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('attendance')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Attendance {getSortIcon('attendance')}
+                  <div className="flex items-center">
+                    Attendance {getSortIcon('attendance')}
+                  </div>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
                 return (
-                  <tr key={index}>
-                    <td>
-                      <div className="fw-bold">{member.name}</div>
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-semibold text-gray-900">{member.name}</div>
                     </td>
-                    <td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
                       {member.attended} / {member.total}
                     </td>
                   </tr>
@@ -272,56 +307,64 @@ function AttendanceView({ events, onBack }) {
       )}
 
       {viewMode === 'detailed' && (
-        <div className="table-container">
-          <table className="table">
-            <thead>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('member')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Member {getSortIcon('member')}
+                  <div className="flex items-center">
+                    Member {getSortIcon('member')}
+                  </div>
                 </th>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('event')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Event {getSortIcon('event')}
+                  <div className="flex items-center">
+                    Event {getSortIcon('event')}
+                  </div>
                 </th>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('date')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Date {getSortIcon('date')}
+                  <div className="flex items-center">
+                    Date {getSortIcon('date')}
+                  </div>
                 </th>
                 <th 
-                  className="sortable-header" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                   onClick={() => handleSort('attendance')}
-                  style={{ cursor: 'pointer' }}
                 >
-                  Attendance {getSortIcon('attendance')}
+                  <div className="flex items-center">
+                    Attendance {getSortIcon('attendance')}
+                  </div>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
                 const attended = record.attending === '1' || record.attending === 'Yes';
                 
                 return (
-                  <tr key={index}>
-                    <td>
-                      <div className="fw-bold">{record.firstname} {record.lastname}</div>
-                      <div className="text-muted">{record.sectionname}</div>
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
+                      <div className="text-gray-500 text-sm">{record.sectionname}</div>
                     </td>
-                    <td>{record.eventname}</td>
-                    <td>{formatDate(record.eventdate)}</td>
-                    <td>
-                      <span className={`badge ${attended ? 'badge-success' : 'badge-danger'}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                      {record.eventname}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                      {formatDate(record.eventdate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={attended ? 'scout-green' : 'scout-red'}>
                         {attended ? 'Yes' : 'No'}
-                      </span>
+                      </Badge>
                     </td>
                   </tr>
                 );
@@ -330,7 +373,8 @@ function AttendanceView({ events, onBack }) {
           </table>
         </div>
       )}
-    </div>
+      </Card.Body>
+    </Card>
   );
 }
 

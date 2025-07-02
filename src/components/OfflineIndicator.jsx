@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
+import { Alert, Button } from './ui';
 import syncService from '../services/sync.js';
 
 function OfflineIndicator() {
@@ -85,50 +86,62 @@ function OfflineIndicator() {
 
   // Don't show anything if online and no sync status
   if (isOnline && !syncStatus) {
-    return null;
-  }
-
-  return (
-    <div className="offline-indicator">
-      {!isOnline && (
-        <div className="offline-banner">
-          <span className="offline-icon">📱</span>
-          <span>Offline Mode - Using cached data</span>
-        </div>
-      )}
-      
-      {syncStatus && (
-        <div className={`sync-status ${syncStatus.status}`}>
-          {syncStatus.status === 'syncing' && (
-            <>
-              <span className="sync-spinner">⏳</span>
-              <span>{syncStatus.message}</span>
-            </>
-          )}
-          {syncStatus.status === 'completed' && (
-            <>
-              <span className="sync-success">✅</span>
-              <span>Sync completed</span>
-            </>
-          )}
-          {syncStatus.status === 'error' && (
-            <>
-              <span className="sync-error">⚠️</span>
-              <span>Sync failed: {syncStatus.message}</span>
-            </>
-          )}
-        </div>
-      )}
-      
-      {isOnline && !syncStatus && (
-        <button 
-          className="sync-button"
+    return (
+      <div className="fixed top-4 right-4 z-50">
+        <Button
+          variant="scout-blue"
+          size="sm"
           onClick={handleSyncClick}
-          type="button"
+          className="shadow-lg"
           title="Sync data"
         >
           🔄 Sync
-        </button>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50">
+      {!isOnline && (
+        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
+          <div className="flex items-center justify-center gap-2">
+            <span>📱</span>
+            <span>Offline Mode - Using cached data</span>
+          </div>
+        </Alert>
+      )}
+      
+      {syncStatus && (
+        <Alert 
+          variant={
+            syncStatus.status === 'syncing' ? 'info' : 
+            syncStatus.status === 'completed' ? 'success' : 
+            'error'
+          }
+          className="rounded-none border-x-0 border-t-0"
+        >
+          <div className="flex items-center justify-center gap-2">
+            {syncStatus.status === 'syncing' && (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>{syncStatus.message}</span>
+              </>
+            )}
+            {syncStatus.status === 'completed' && (
+              <>
+                <span>✅</span>
+                <span>Sync completed</span>
+              </>
+            )}
+            {syncStatus.status === 'error' && (
+              <>
+                <span>⚠️</span>
+                <span>Sync failed: {syncStatus.message}</span>
+              </>
+            )}
+          </div>
+        </Alert>
       )}
     </div>
   );

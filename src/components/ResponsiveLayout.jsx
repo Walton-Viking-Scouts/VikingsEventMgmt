@@ -18,7 +18,7 @@ function ResponsiveLayout({ children, user, onLogout }) {
   const LayoutComponent = isMobile ? MobileLayout : DesktopLayout;
 
   return (
-    <div data-testid="responsive-layout" className={isMobile ? 'mobile-layout' : 'desktop-layout'}>
+    <div data-testid="responsive-layout" className="h-full">
       <LayoutComponent user={user} onLogout={onLogout}>
         {children}
       </LayoutComponent>

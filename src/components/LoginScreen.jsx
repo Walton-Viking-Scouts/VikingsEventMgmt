@@ -1,5 +1,6 @@
 import React from 'react';
 import * as Sentry from '@sentry/react';
+import { Button, Card } from './ui';
 
 function LoginScreen({ onLogin }) {
   const handleLoginClick = () => {
@@ -19,21 +20,24 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div className="login-container" data-testid="login-screen">
-      <div className="login-card">
-        <h1 className="login-title">Vikings Event Management</h1>
-        <p className="text-muted mb-3">
-          Please log in with your Online Scout Manager account to continue.
-        </p>
-        <button 
-          className="login-btn"
-          onClick={handleLoginClick}
-          type="button"
-          data-testid="login-button"
-        >
-          Login with Online Scout Manager (OSM)
-        </button>
-      </div>
+    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50" data-testid="login-screen">
+      <Card className="w-full max-w-md">
+        <Card.Body className="p-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Vikings Event Management</h1>
+          <p className="text-gray-600 mb-6">
+            Please log in with your Online Scout Manager account to continue.
+          </p>
+          <Button 
+            variant="scout-blue"
+            size="lg"
+            onClick={handleLoginClick}
+            className="w-full"
+            data-testid="login-button"
+          >
+            Login with Online Scout Manager (OSM)
+          </Button>
+        </Card.Body>
+      </Card>
     </div>
   );
 }
