@@ -565,21 +565,21 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   }
 }
 
-export async function getListOfMembers(sectionIds, token) {
+export async function getListOfMembers(sections, token) {
   return sentryUtils.startSpan(
     {
       op: 'http.client',
-      name: 'GET /get-list-of-members',
+      name: 'GET /api/ext/members/contact/',
     },
     async (span) => {
       try {
         // Add context to span
         span.setAttribute('api.endpoint', 'getListOfMembers');
         span.setAttribute('offline_capable', true);
-        span.setAttribute('sections.count', sectionIds.length);
+        span.setAttribute('sections.count', sections.length);
                 
         logger.debug('Fetching members list', { 
-          sectionIds,
+          sections,
           hasToken: !!token,
         });
                 
@@ -592,6 +592,7 @@ export async function getListOfMembers(sectionIds, token) {
           logger.info('Offline mode - retrieving members from local database');
           span.setAttribute('data.source', 'local_database');
                     
+          const sectionIds = sections.map(s => s.sectionid);
           const members = await databaseService.getMembers(sectionIds);
           return members;
         }
@@ -606,9 +607,25 @@ export async function getListOfMembers(sectionIds, token) {
         // Fetch members for each section and combine results
         const memberMap = new Map(); // For deduplication
 
-        for (const sectionId of sectionIds) {
+        for (const section of sections) {
           try {
-            const response = await fetch(`${BACKEND_URL}/get-list-of-members?sectionid=${sectionId}`, {
+            // Get the most recent term for this section
+            const termId = await getMostRecentTermId(section.sectionid, token);
+            
+            if (!termId) {
+              logger.warn(`No term found for section ${section.sectionid}, skipping`);
+              continue;
+            }
+
+            const params = new URLSearchParams({
+              action: 'getListOfMembers',
+              sort: 'lastname',
+              sectionid: section.sectionid,
+              termid: termId,
+              section: section.sectiontype || section.sectionname.toLowerCase(),
+            });
+
+            const response = await fetch(`${BACKEND_URL}/api/ext/members/contact/?${params}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -619,32 +636,35 @@ export async function getListOfMembers(sectionIds, token) {
             const data = await handleAPIResponseWithRateLimit(response, 'getListOfMembers');
 
             if (data && typeof data === 'object') {
+              // Handle OSM response format - data has 'items' array
+              const members = data.items || Object.values(data);
+              
               // Process members data and handle deduplication
-              Object.values(data).forEach(member => {
+              members.forEach(member => {
                 if (member && typeof member === 'object' && member.scoutid) {
                   const scoutId = member.scoutid;
                   
                   if (memberMap.has(scoutId)) {
                     // Member already exists, add section to their section list
                     const existingMember = memberMap.get(scoutId);
-                    if (!existingMember.sections.includes(member.sectionname || `Section ${sectionId}`)) {
-                      existingMember.sections.push(member.sectionname || `Section ${sectionId}`);
+                    if (!existingMember.sections.includes(section.sectionname)) {
+                      existingMember.sections.push(section.sectionname);
                     }
                   } else {
                     // New member, add to map
                     memberMap.set(scoutId, {
                       ...member,
-                      sections: [member.sectionname || `Section ${sectionId}`],
-                      originalSectionId: sectionId,
+                      sections: [section.sectionname],
+                      originalSectionId: section.sectionid,
                     });
                   }
                 }
               });
             }
           } catch (sectionError) {
-            logger.warn(logger.fmt`Failed to fetch members for section ${sectionId}`, {
+            logger.warn(logger.fmt`Failed to fetch members for section ${section.sectionid}`, {
               error: sectionError.message,
-              sectionId,
+              section,
             });
             // Continue with other sections
           }
@@ -655,6 +675,7 @@ export async function getListOfMembers(sectionIds, token) {
 
         // Save to local database when online
         if (members.length > 0) {
+          const sectionIds = sections.map(s => s.sectionid);
           await databaseService.saveMembers(sectionIds, members);
           logger.info(logger.fmt`Saved ${members.length} members to local database`);
         }
@@ -667,7 +688,7 @@ export async function getListOfMembers(sectionIds, token) {
           error: error.message,
           isOnline,
           hasToken: !!token,
-          sectionIds,
+          sections,
         });
                 
         // Capture exception with context
@@ -676,7 +697,7 @@ export async function getListOfMembers(sectionIds, token) {
             endpoint: 'getListOfMembers',
             online: isOnline,
             hasToken: !!token,
-            sectionIds,
+            sections,
           },
         });
                 
@@ -686,6 +707,7 @@ export async function getListOfMembers(sectionIds, token) {
           span.setAttribute('fallback.used', true);
                     
           try {
+            const sectionIds = sections.map(s => s.sectionid);
             const members = await databaseService.getMembers(sectionIds);
             span.setAttribute('fallback.successful', true);
             return members;

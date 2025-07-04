@@ -35,7 +35,7 @@ function MembersList({ sections, onBack }) {
       setError(null);
       
       const token = getToken();
-      const membersData = await getListOfMembers(sectionIds, token);
+      const membersData = await getListOfMembers(sections, token);
       
       setMembers(membersData);
       

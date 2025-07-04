@@ -19,8 +19,8 @@ vi.mock('../../utils/platform.js', () => ({
 
 describe('MembersList', () => {
   const mockSections = [
-    { sectionid: 1, sectionname: 'Beavers' },
-    { sectionid: 2, sectionname: 'Cubs' },
+    { sectionid: 1, sectionname: 'Beavers', sectiontype: 'beavers' },
+    { sectionid: 2, sectionname: 'Cubs', sectiontype: 'cubs' },
   ];
 
   const mockMembers = [
