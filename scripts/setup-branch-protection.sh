@@ -12,9 +12,8 @@ echo "🛡️  Setting up GitHub branch protection rules for Viking Event Manage
 
 # Repository list
 REPOS=(
-    "Walton-Vikings/VikingEventMgmt"           # React mobile frontend
-    "Walton-Vikings/vikings-eventmgmt"         # Vanilla JS frontend  
-    "Walton-Vikings/vikings-osm-backend"       # Backend API
+    "Walton-Viking-Scouts/VikingsEventMgmt"    # React mobile frontend
+    "Walton-Viking-Scouts/VikingsEventMgmtAPI" # Backend API
 )
 
 # Function to set up branch protection for a repository

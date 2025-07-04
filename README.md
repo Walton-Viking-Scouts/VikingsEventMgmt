@@ -37,7 +37,7 @@ A responsive React application for Scout event management with full offline capa
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Walton-Vikings/VikingEventMgmt.git
+git clone https://github.com/Walton-Viking-Scouts/VikingsEventMgmt.git
 cd VikingEventMgmt
 ```
 
@@ -357,7 +357,7 @@ export async function getMyData(token) {
 
 ## Related Projects
 
-- **vikings-osm-backend** - Node.js backend API proxy
+- **VikingsEventMgmtAPI** - Node.js backend API proxy
 - **patrolplanner** - Vue.js patrol planning tool
 
 ## License
