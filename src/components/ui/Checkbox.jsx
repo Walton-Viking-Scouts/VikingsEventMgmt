@@ -33,7 +33,7 @@ const Checkbox = forwardRef(({
     variants[variant],
     sizes[size],
     error && 'border-red-500 focus:ring-red-500/20',
-    className
+    className,
   );
   
   const CheckboxElement = (
@@ -62,14 +62,14 @@ const Checkbox = forwardRef(({
           <label className={cn(
             'text-sm font-medium',
             error ? 'text-red-700' : 'text-gray-700',
-            disabled ? 'text-gray-400' : 'cursor-pointer'
+            disabled ? 'text-gray-400' : 'cursor-pointer',
           )}>
             {label}
           </label>
           {description && (
             <p className={cn(
               'text-sm',
-              error ? 'text-red-600' : 'text-gray-500'
+              error ? 'text-red-600' : 'text-gray-500',
             )}>
               {description}
             </p>

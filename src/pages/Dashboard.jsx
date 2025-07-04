@@ -5,10 +5,11 @@ import LoadingScreen from '../components/LoadingScreen.jsx';
 import SectionsList from '../components/SectionsList.jsx';
 import EventsList from '../components/EventsList.jsx';
 import AttendanceView from '../components/AttendanceView.jsx';
+import MembersList from '../components/MembersList.jsx';
 import { Button, Alert } from '../components/ui';
 
 function Dashboard() {
-  const [currentView, setCurrentView] = useState('sections'); // sections, events, attendance
+  const [currentView, setCurrentView] = useState('sections'); // sections, events, members, attendance
   const [sections, setSections] = useState([]);
   const [selectedSections, setSelectedSections] = useState([]);
   const [selectedEvents, setSelectedEvents] = useState([]);
@@ -67,6 +68,10 @@ function Dashboard() {
     setCurrentView('attendance');
   };
 
+  const handleViewMembers = () => {
+    setCurrentView('members');
+  };
+
   const handleBackToSections = () => {
     setCurrentView('sections');
     setSelectedSections([]);
@@ -76,6 +81,10 @@ function Dashboard() {
   const handleBackToEvents = () => {
     setCurrentView('events');
     setSelectedEvents([]);
+  };
+
+  const handleBackToEventsFromMembers = () => {
+    setCurrentView('events');
   };
 
   if (loading) {
@@ -110,9 +119,9 @@ function Dashboard() {
               className={`
                 py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
                 ${currentView === 'sections' 
-                  ? 'border-scout-blue text-scout-blue' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
+      ? 'border-scout-blue text-scout-blue' 
+      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }
               `}
               onClick={handleBackToSections}
               type="button"
@@ -130,9 +139,9 @@ function Dashboard() {
                 className={`
                   py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
                   ${currentView === 'events' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
+                ? 'border-scout-blue text-scout-blue' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
                 `}
                 onClick={handleBackToEvents}
                 type="button"
@@ -145,14 +154,34 @@ function Dashboard() {
                 </div>
               </button>
             )}
+            {selectedSections.length > 0 && (
+              <button 
+                className={`
+                  py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
+                  ${currentView === 'members' 
+                ? 'border-scout-blue text-scout-blue' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+                `}
+                onClick={handleViewMembers}
+                type="button"
+              >
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                  </svg>
+                  Members
+                </div>
+              </button>
+            )}
             {selectedEvents.length > 0 && (
               <button 
                 className={`
                   py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
                   ${currentView === 'attendance' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
+                ? 'border-scout-blue text-scout-blue' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
                 `}
                 type="button"
               >
@@ -185,6 +214,13 @@ function Dashboard() {
             sections={selectedSections}
             onEventSelect={handleEventSelect}
             onBack={handleBackToSections}
+          />
+        )}
+
+        {currentView === 'members' && selectedSections.length > 0 && (
+          <MembersList 
+            sections={selectedSections}
+            onBack={handleBackToEventsFromMembers}
           />
         )}
 

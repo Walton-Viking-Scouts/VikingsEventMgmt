@@ -45,7 +45,7 @@ const Select = forwardRef(({
     baseClasses,
     stateClasses,
     sizes[size],
-    className
+    className,
   );
   
   const chevronIcon = (
@@ -83,7 +83,7 @@ const Select = forwardRef(({
         {(helperText || errorText) && (
           <p className={cn(
             'mt-1 text-sm',
-            error ? 'text-red-600' : 'text-gray-600'
+            error ? 'text-red-600' : 'text-gray-600',
           )}>
             {error ? errorText : helperText}
           </p>
@@ -102,7 +102,7 @@ const Select = forwardRef(({
       {(helperText || errorText) && (
         <p className={cn(
           'mt-1 text-sm',
-          error ? 'text-red-600' : 'text-gray-600'
+          error ? 'text-red-600' : 'text-gray-600',
         )}>
           {error ? errorText : helperText}
         </p>

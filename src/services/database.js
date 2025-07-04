@@ -89,6 +89,34 @@ class DatabaseService {
       );
     `;
 
+    const createMembersTable = `
+      CREATE TABLE IF NOT EXISTS members (
+        scoutid INTEGER PRIMARY KEY,
+        firstname TEXT,
+        lastname TEXT,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        postcode TEXT,
+        date_of_birth TEXT,
+        gender TEXT,
+        patrol TEXT,
+        rank TEXT,
+        membership_number TEXT,
+        joined_date TEXT,
+        started_section TEXT,
+        sections TEXT,
+        emergency_contact_name TEXT,
+        emergency_contact_phone TEXT,
+        medical_notes TEXT,
+        dietary_requirements TEXT,
+        photo_permission TEXT,
+        data_raw TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
     const createSyncStatusTable = `
       CREATE TABLE IF NOT EXISTS sync_status (
         table_name TEXT PRIMARY KEY,
@@ -100,6 +128,7 @@ class DatabaseService {
     await this.db.execute(createSectionsTable);
     await this.db.execute(createEventsTable);
     await this.db.execute(createAttendanceTable);
+    await this.db.execute(createMembersTable);
     await this.db.execute(createSyncStatusTable);
   }
 
@@ -237,6 +266,98 @@ class DatabaseService {
     const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname';
     const result = await this.db.query(query, [eventId]);
     return result.values || [];
+  }
+
+  // Members
+  async saveMembers(sectionIds, members) {
+    await this.initialize();
+    
+    if (!this.isNative || !this.db) {
+      // localStorage fallback
+      const key = `viking_members_${sectionIds.join('_')}_offline`;
+      localStorage.setItem(key, JSON.stringify(members));
+      return;
+    }
+    
+    // Clear existing members for these sections (if any)
+    const deleteOld = 'DELETE FROM members WHERE scoutid IN (' + 
+                     members.map(m => m.scoutid).join(',') + ')';
+    await this.db.execute(deleteOld);
+
+    for (const member of members) {
+      const insert = `
+        INSERT INTO members (
+          scoutid, firstname, lastname, email, phone, address, postcode,
+          date_of_birth, gender, patrol, rank, membership_number, joined_date,
+          started_section, sections, emergency_contact_name, emergency_contact_phone,
+          medical_notes, dietary_requirements, photo_permission, data_raw
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      await this.db.run(insert, [
+        member.scoutid,
+        member.firstname || '',
+        member.lastname || '',
+        member.email || '',
+        member.phone || '',
+        member.address || '',
+        member.postcode || '',
+        member.date_of_birth || '',
+        member.gender || '',
+        member.patrol || '',
+        member.rank || '',
+        member.membership_number || '',
+        member.joined_date || '',
+        member.started_section || '',
+        JSON.stringify(member.sections || []),
+        member.emergency_contact_name || '',
+        member.emergency_contact_phone || '',
+        member.medical_notes || '',
+        member.dietary_requirements || '',
+        member.photo_permission || '',
+        JSON.stringify(member), // Store full raw data for unknown fields
+      ]);
+    }
+
+    await this.updateSyncStatus('members');
+  }
+
+  async getMembers(sectionIds) {
+    await this.initialize();
+    
+    if (!this.isNative || !this.db) {
+      // localStorage fallback
+      const key = `viking_members_${sectionIds.join('_')}_offline`;
+      const members = localStorage.getItem(key);
+      return members ? JSON.parse(members) : [];
+    }
+    
+    const query = 'SELECT * FROM members ORDER BY lastname, firstname';
+    const result = await this.db.query(query);
+    
+    // Parse the sections and data_raw fields back to objects
+    return (result.values || []).map(member => {
+      try {
+        const parsedMember = {
+          ...member,
+          sections: JSON.parse(member.sections || '[]'),
+        };
+        
+        // If we have raw data, merge it in to preserve unknown fields
+        if (member.data_raw) {
+          const rawData = JSON.parse(member.data_raw);
+          return { ...rawData, ...parsedMember };
+        }
+        
+        return parsedMember;
+      } catch (error) {
+        console.warn('Error parsing member data:', error);
+        return {
+          ...member,
+          sections: [],
+        };
+      }
+    });
   }
 
   // Sync status

@@ -52,7 +52,7 @@ const FormActions = ({ children, align = 'right', className = '', ...props }) =>
       className={cn(
         'flex gap-3 pt-4 border-t border-gray-200',
         alignClasses[align],
-        className
+        className,
       )} 
       {...props}
     >
@@ -80,7 +80,7 @@ const HelperText = ({ children, error = false, className = '', ...props }) => {
       className={cn(
         'text-sm',
         error ? 'text-red-600' : 'text-gray-600',
-        className
+        className,
       )} 
       {...props}
     >

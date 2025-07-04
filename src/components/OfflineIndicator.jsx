@@ -116,8 +116,8 @@ function OfflineIndicator() {
         <Alert 
           variant={
             syncStatus.status === 'syncing' ? 'info' : 
-            syncStatus.status === 'completed' ? 'success' : 
-            'error'
+              syncStatus.status === 'completed' ? 'success' : 
+                'error'
           }
           className="rounded-none border-x-0 border-t-0"
         >

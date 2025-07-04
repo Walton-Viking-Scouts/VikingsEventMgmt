@@ -4,7 +4,7 @@ import {
   FormSection, FormRow, FormActions, Dropdown, Nav, NavItem, Menu,
   CardHeader, CardTitle, CardBody, CardFooter,
   ModalHeader, ModalTitle, ModalBody, ModalFooter,
-  AlertTitle, AlertDescription, AlertActions
+  AlertTitle, AlertDescription, AlertActions,
 } from './index';
 
 /**

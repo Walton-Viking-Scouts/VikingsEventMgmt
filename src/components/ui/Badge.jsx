@@ -68,7 +68,7 @@ const Badge = ({
         baseClasses,
         variants[variant],
         sizes[size],
-        className
+        className,
       )}
       {...props}
     >
@@ -115,7 +115,7 @@ const DotBadge = ({
         'inline-block rounded-full',
         variants[variant],
         sizes[size],
-        className
+        className,
       )}
       {...props}
     />
@@ -150,7 +150,7 @@ const NumberBadge = ({
       className={cn(
         'justify-center leading-none',
         sizes[size],
-        className
+        className,
       )}
       {...props}
     >
