@@ -90,17 +90,30 @@ export function generateOAuthUrl() {
   const BACKEND_URL = config.apiUrl;
   const redirectUri = `${BACKEND_URL}/oauth/callback`;
     
-  // Determine environment based on hostname
+  // More robust environment detection
   const hostname = window.location.hostname;
-  const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikings-eventmgmt-mobile.onrender.com';
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const isDeployedFrontend = hostname.includes('.onrender.com') || hostname === 'vikings-eventmgmt-mobile.onrender.com';
+  const isUsingDeployedBackend = BACKEND_URL.includes('.onrender.com');
     
-  const baseState = isDeployedServer ? 'prod' : 'dev';
+  // Determine the appropriate state based on frontend/backend combination
+  let baseState;
+  if (isLocalhost && isUsingDeployedBackend) {
+    baseState = 'dev-to-prod'; // Local frontend connecting to deployed backend
+  } else if (isLocalhost) {
+    baseState = 'dev'; // Local frontend connecting to local backend
+  } else {
+    baseState = 'prod'; // Deployed frontend
+  }
+  
   const frontendUrl = window.location.origin;
   const stateParam = `${baseState}&frontend_url=${encodeURIComponent(frontendUrl)}`;
     
   console.log('🔧 Mobile OAuth Config:', {
     hostname,
-    isDeployedServer,
+    isLocalhost,
+    isDeployedFrontend,
+    isUsingDeployedBackend,
     baseState,
     frontendUrl,
     stateParam,
