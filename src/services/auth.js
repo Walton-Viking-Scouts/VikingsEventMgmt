@@ -111,7 +111,7 @@ export function generateOAuthUrl() {
   const authUrl = 'https://www.onlinescoutmanager.co.uk/oauth/authorize?' +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `state=${encodeURIComponent(stateParam)}&` +
+        `state=${encodeURIComponent(stateParam)}&` +  // Re-enable state parameter
         `scope=${encodeURIComponent(scope)}&` +
         'response_type=code';
     
