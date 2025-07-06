@@ -18,33 +18,23 @@ function EventsList({ sections, onEventSelect, onBack }) {
     try {
       setLoading(true);
       setError(null);
-      
       const token = getToken();
       const allEvents = [];
-      
-      // Load events for each selected section
       for (const section of sections) {
         const termId = await getMostRecentTermId(section.sectionid, token);
-        if (termId) {
-          const sectionEvents = await getEvents(section.sectionid, termId, token);
-          if (sectionEvents && sectionEvents.items) {
-            // Add section info to each event
-            const eventsWithSection = sectionEvents.items.map(event => ({
-              ...event,
-              sectionid: section.sectionid,
-              sectionname: section.sectionname,
-              termid: termId,
-            }));
-            allEvents.push(...eventsWithSection);
-          }
+        if (!termId) continue;
+        const sectionEvents = await getEvents(section.sectionid, termId, token);
+        if (sectionEvents && sectionEvents.items) {
+          allEvents.push(...sectionEvents.items.map(event => ({
+            ...event,
+            sectionid: section.sectionid,
+            sectionname: section.sectionname,
+            termid: termId,
+          })));
         }
       }
-      
-      // Sort events by date (most recent first)
       allEvents.sort((a, b) => new Date(b.startdate) - new Date(a.startdate));
-      
       setEvents(allEvents);
-      
     } catch (err) {
       console.error('Error loading events:', err);
       setError(err.message);

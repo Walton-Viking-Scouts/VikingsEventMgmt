@@ -26,26 +26,20 @@ function MembersList({ sections, onBack }) {
   const sectionIds = sections.map(s => s.sectionid);
 
   useEffect(() => {
-    loadMembers();
-  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadMembers = async () => {
-    try {
+    async function load() {
       setLoading(true);
-      setError(null);
-      
-      const token = getToken();
-      const membersData = await getListOfMembers(sections, token);
-      
-      setMembers(membersData);
-      
-    } catch (err) {
-      console.error('Error loading members:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      try {
+        const token = getToken();
+        const members = await getListOfMembers(sections, token);
+        setMembers(members);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+    load();
+  }, [sections]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
@@ -200,7 +194,9 @@ function MembersList({ sections, onBack }) {
         <Alert.Title>Error Loading Members</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button variant="scout-blue" onClick={loadMembers} type="button">
+          <Button variant="scout-blue" onClick={async () => {
+            await load();
+          }} type="button">
             Retry
           </Button>
           <Button variant="outline" onClick={onBack} type="button">
