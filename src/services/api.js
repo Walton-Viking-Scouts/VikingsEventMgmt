@@ -566,33 +566,68 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
 }
 
 export async function getListOfMembers(sections, token) {
-  const allMembers = [];
+  const memberMap = new Map(); // For deduplication by scoutid
+  
   for (const section of sections) {
     const termId = await getMostRecentTermId(section.sectionid, token);
     if (!termId) continue;
+    
     const response = await fetch(
       `${BACKEND_URL}/get-list-of-members?sectionid=${section.sectionid}&termid=${termId}&section=${section.section}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },
     );
+    
     if (response.status === 400) {
       const error = new Error('Bad Request: ' + (await response.text()));
-      if (typeof sentryUtils !== 'undefined') sentryUtils.captureException(error, { extra: { endpoint: '/get-list-of-members', params: { sectionid: section.sectionid, termid: termId, section: section.section } } });
+      sentryUtils.captureException(error, { 
+        extra: { 
+          endpoint: '/get-list-of-members', 
+          params: { sectionid: section.sectionid, termid: termId, section: section.section }, 
+        }, 
+      });
       throw error;
     }
-    if (!response.ok) continue;
+    
+    if (!response.ok) {
+      logger.warn(`Failed to fetch members for section ${section.sectionid}: ${response.status} ${response.statusText}`);
+      continue;
+    }
+    
     const data = await response.json();
     if (data.items) {
-      allMembers.push(...data.items.map(m => ({
-        ...m,
-        sectionid: section.sectionid,
-        sectionname: section.sectionname,
-        section: section.section,
-      })));
+      // Process members and handle deduplication
+      data.items.forEach(member => {
+        if (member && member.scoutid) {
+          const scoutId = member.scoutid;
+          
+          if (memberMap.has(scoutId)) {
+            // Member already exists, add section to their sections list
+            const existingMember = memberMap.get(scoutId);
+            if (!existingMember.sections) {
+              existingMember.sections = [existingMember.sectionname];
+            }
+            if (!existingMember.sections.includes(section.sectionname)) {
+              existingMember.sections.push(section.sectionname);
+            }
+          } else {
+            // New member, add to map
+            memberMap.set(scoutId, {
+              ...member,
+              sectionid: section.sectionid,
+              sectionname: section.sectionname,
+              section: section.section,
+              sections: [section.sectionname], // Track all sections this member belongs to
+            });
+          }
+        }
+      });
     }
   }
-  return allMembers;
+  
+  // Convert map back to array and return deduplicated members
+  return Array.from(memberMap.values());
 }
 
 export async function testBackendConnection() {
