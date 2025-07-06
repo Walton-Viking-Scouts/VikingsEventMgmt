@@ -2,66 +2,66 @@ import { describe, it, expect } from 'vitest';
 
 // Real OSM production data from osm_examples/Members/getListofMembers.json
 const realOSMResponse = {
-  "identifier": "scoutid",
-  "photos": true,
-  "items": [
+  'identifier': 'scoutid',
+  'photos': true,
+  'items': [
     {
-      "firstname": "Winter",
-      "lastname": "Barr",
-      "photo_guid": "5bb3d0d4-b3c0-48e5-8434-2c1af99213a3",
-      "patrolid": 119078,
-      "patrol": "White Lodge",
-      "sectionid": 49097,
-      "enddate": null,
-      "age": "6 / 7",
-      "patrol_role_level_label": "",
-      "active": true,
-      "scoutid": 2486157,
-      "full_name": "Winter Barr"
+      'firstname': 'Winter',
+      'lastname': 'Barr',
+      'photo_guid': '5bb3d0d4-b3c0-48e5-8434-2c1af99213a3',
+      'patrolid': 119078,
+      'patrol': 'White Lodge',
+      'sectionid': 49097,
+      'enddate': null,
+      'age': '6 / 7',
+      'patrol_role_level_label': '',
+      'active': true,
+      'scoutid': 2486157,
+      'full_name': 'Winter Barr',
     },
     {
-      "firstname": "Beatrice",
-      "lastname": "Belcher",
-      "photo_guid": null,
-      "patrolid": 119076,
-      "patrol": "Purple Lodge",
-      "sectionid": 49097,
-      "enddate": null,
-      "age": "6 / 6",
-      "patrol_role_level_label": "",
-      "active": true,
-      "scoutid": 2400045,
-      "full_name": "Beatrice Belcher"
+      'firstname': 'Beatrice',
+      'lastname': 'Belcher',
+      'photo_guid': null,
+      'patrolid': 119076,
+      'patrol': 'Purple Lodge',
+      'sectionid': 49097,
+      'enddate': null,
+      'age': '6 / 6',
+      'patrol_role_level_label': '',
+      'active': true,
+      'scoutid': 2400045,
+      'full_name': 'Beatrice Belcher',
     },
     {
-      "firstname": "Oliver",
-      "lastname": "Malone",
-      "photo_guid": "6f51dbe7-a93a-4ff7-a018-43a336c61e28",
-      "patrolid": 119078,
-      "patrol": "White Lodge LL",
-      "sectionid": 49097,
-      "enddate": null,
-      "age": "7 / 9",
-      "patrol_role_level_label": "Lodge Leader",
-      "active": true,
-      "scoutid": 2111241,
-      "full_name": "Oliver Malone"
+      'firstname': 'Oliver',
+      'lastname': 'Malone',
+      'photo_guid': '6f51dbe7-a93a-4ff7-a018-43a336c61e28',
+      'patrolid': 119078,
+      'patrol': 'White Lodge LL',
+      'sectionid': 49097,
+      'enddate': null,
+      'age': '7 / 9',
+      'patrol_role_level_label': 'Lodge Leader',
+      'active': true,
+      'scoutid': 2111241,
+      'full_name': 'Oliver Malone',
     },
     {
-      "firstname": "Simon",
-      "lastname": "Clark",
-      "photo_guid": "d09075a3-5a48-4203-8387-a8d579ace0b1",
-      "patrolid": -2,
-      "patrol": "Leaders",
-      "sectionid": 49097,
-      "enddate": null,
-      "age": "48 / 5",
-      "patrol_role_level_label": "",
-      "active": true,
-      "scoutid": 1919278,
-      "full_name": "Simon Clark"
-    }
-  ]
+      'firstname': 'Simon',
+      'lastname': 'Clark',
+      'photo_guid': 'd09075a3-5a48-4203-8387-a8d579ace0b1',
+      'patrolid': -2,
+      'patrol': 'Leaders',
+      'sectionid': 49097,
+      'enddate': null,
+      'age': '48 / 5',
+      'patrol_role_level_label': '',
+      'active': true,
+      'scoutid': 1919278,
+      'full_name': 'Simon Clark',
+    },
+  ],
 };
 
 // Simulate the processing logic from getListOfMembers function
@@ -244,7 +244,7 @@ describe('MembersList OSM Data Validation', () => {
         sort: 'lastname',
         sectionid: '49097',
         termid: '12345',
-        section: 'beavers'
+        section: 'beavers',
       };
       
       const urlParams = new URLSearchParams(expectedParams);
@@ -262,7 +262,7 @@ describe('MembersList OSM Data Validation', () => {
           sort: 'lastname',
           sectionid: '12345',
           termid: '67890',
-          section: sectionType
+          section: sectionType,
         });
         
         expect(params.get('section')).toBe(sectionType);

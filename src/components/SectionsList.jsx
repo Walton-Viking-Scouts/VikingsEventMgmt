@@ -19,7 +19,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
     return selectedSections.some(s => s.sectionid === sectionId);
   };
 
-  const getSectionVariant = (sectionType) => {
+  const _getSectionVariant = (sectionType) => {
     const type = sectionType.toLowerCase();
     if (type.includes('earlyyears')) return 'scout-red';         // Early Years/Squirrels - Scout Red
     if (type.includes('beavers')) return 'scout-blue';           // Beavers - Scout Blue  
@@ -121,7 +121,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
                   opacity: isSelected ? 1 : 0.8,
                   transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                   boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.backgroundColor = hoverBgColor;

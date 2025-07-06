@@ -141,9 +141,9 @@ function EventsList({ sections, onEventSelect, onBack }) {
                 className={`
                   p-4 rounded-lg border cursor-pointer transition-all duration-200
                   ${isSelected 
-                    ? 'bg-scout-blue-light border-scout-blue shadow-md' 
-                    : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }
+                ? 'bg-scout-blue-light border-scout-blue shadow-md' 
+                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }
                 `}
                 onClick={() => handleEventToggle(event)}
               >

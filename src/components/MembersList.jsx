@@ -25,21 +25,22 @@ function MembersList({ sections, onBack }) {
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const token = getToken();
-        const members = await getListOfMembers(sections, token);
-        setMembers(members);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+  const loadMembers = async () => {
+    setLoading(true);
+    try {
+      const token = getToken();
+      const members = await getListOfMembers(sections, token);
+      setMembers(members);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, [sections]);
+  };
+
+  useEffect(() => {
+    loadMembers();
+  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
@@ -162,7 +163,7 @@ function MembersList({ sections, onBack }) {
 
     // Create and download CSV file
     const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new globalThis.Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -194,9 +195,7 @@ function MembersList({ sections, onBack }) {
         <Alert.Title>Error Loading Members</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button variant="scout-blue" onClick={async () => {
-            await load();
-          }} type="button">
+          <Button variant="scout-blue" onClick={loadMembers} type="button">
             Retry
           </Button>
           <Button variant="outline" onClick={onBack} type="button">

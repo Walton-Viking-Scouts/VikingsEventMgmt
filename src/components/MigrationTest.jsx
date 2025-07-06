@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Button, Card, Input, Select, Alert, Badge, Modal,
-  FormSection, FormRow
+  FormSection, FormRow,
 } from './ui';
 import Header from './Header';
 import LoginScreen from './LoginScreen';
@@ -27,7 +27,7 @@ const MigrationTest = () => {
   const mockUser = {
     firstname: 'John',
     lastname: 'Doe',
-    userid: '123'
+    userid: '123',
   };
 
   const mockSections = [

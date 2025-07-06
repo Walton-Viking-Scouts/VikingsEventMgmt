@@ -21,7 +21,7 @@ export function initSentry() {
 
   Sentry.init({
     dsn: sentryDsn,
-    environment: process.env.NODE_ENV,
+    environment: import.meta.env.NODE_ENV || import.meta.env.MODE || 'development',
     release: `vikings-eventmgmt-mobile@${release}`,
     
     // Performance monitoring

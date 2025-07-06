@@ -49,7 +49,7 @@ const Input = forwardRef(({
     sizes[size],
     leftIcon && 'pl-10',
     rightIcon && 'pr-10',
-    className
+    className,
   );
   
   const InputElement = (
@@ -84,7 +84,7 @@ const Input = forwardRef(({
         {(helperText || errorText) && (
           <p className={cn(
             'mt-1 text-sm',
-            error ? 'text-red-600' : 'text-gray-600'
+            error ? 'text-red-600' : 'text-gray-600',
           )}>
             {error ? errorText : helperText}
           </p>
@@ -103,7 +103,7 @@ const Input = forwardRef(({
       {(helperText || errorText) && (
         <p className={cn(
           'mt-1 text-sm',
-          error ? 'text-red-600' : 'text-gray-600'
+          error ? 'text-red-600' : 'text-gray-600',
         )}>
           {error ? errorText : helperText}
         </p>

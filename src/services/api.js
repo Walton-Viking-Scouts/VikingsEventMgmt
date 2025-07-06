@@ -573,8 +573,8 @@ export async function getListOfMembers(sections, token) {
     const response = await fetch(
       `${BACKEND_URL}/get-list-of-members?sectionid=${section.sectionid}&termid=${termId}&section=${section.section}`,
       {
-        headers: { Authorization: `Bearer ${token}` }
-      }
+        headers: { Authorization: `Bearer ${token}` },
+      },
     );
     if (response.status === 400) {
       const error = new Error('Bad Request: ' + (await response.text()));
@@ -588,7 +588,7 @@ export async function getListOfMembers(sections, token) {
         ...m,
         sectionid: section.sectionid,
         sectionname: section.sectionname,
-        section: section.section
+        section: section.section,
       })));
     }
   }
