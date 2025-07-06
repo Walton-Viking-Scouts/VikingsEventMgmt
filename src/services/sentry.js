@@ -21,8 +21,7 @@ export function initSentry() {
 
   Sentry.init({
     dsn: sentryDsn,
-    
-    environment,
+    environment: environment,
     release: `vikings-eventmgmt-mobile@${release}`,
     
     // Performance monitoring

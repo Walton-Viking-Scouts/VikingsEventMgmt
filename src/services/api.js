@@ -566,161 +566,98 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
 }
 
 export async function getListOfMembers(sections, token) {
-  return sentryUtils.startSpan(
-    {
-      op: 'http.client',
-      name: 'GET /api/ext/members/contact/',
-    },
-    async (span) => {
-      try {
-        // Add context to span
-        span.setAttribute('api.endpoint', 'getListOfMembers');
-        span.setAttribute('offline_capable', true);
-        span.setAttribute('sections.count', sections.length);
-                
-        logger.debug('Fetching members list', { 
-          sections,
-          hasToken: !!token,
-        });
-                
-        // Check network status first
-        await checkNetworkStatus();
-        span.setAttribute('network.online', isOnline);
-                
-        // If offline, try to get from local database
-        if (!isOnline) {
-          logger.info('Offline mode - retrieving members from local database');
-          span.setAttribute('data.source', 'local_database');
-                    
-          const sectionIds = sections.map(s => s.sectionid);
-          const members = await databaseService.getMembers(sectionIds);
-          return members;
-        }
+  // Check network status first
+  await checkNetworkStatus();
+  const sectionIds = sections.map(s => s.sectionid);
+  
+  // If offline, return cached members
+  if (!isOnline) {
+    logger.info('Offline mode - retrieving members from local database');
+    try {
+      const cachedMembers = await databaseService.getMembers(sectionIds);
+      return cachedMembers;
+    } catch (error) {
+      logger.error('Failed to get cached members:', error);
+      throw new Error('Unable to retrieve members while offline');
+    }
+  }
 
-        if (!token) {
-          throw new Error('No authentication token');
-        }
-
-        span.setAttribute('data.source', 'api');
-        logger.debug('Making API request for members list');
-
-        // Fetch members for each section and combine results
-        const memberMap = new Map(); // For deduplication
-
-        for (const section of sections) {
-          try {
-            // Get the most recent term for this section
-            const termId = await getMostRecentTermId(section.sectionid, token);
-            
-            if (!termId) {
-              logger.warn(`No term found for section ${section.sectionid}, skipping`);
-              continue;
+  // Online mode - fetch from network
+  const memberMap = new Map(); // For deduplication by scoutid
+  
+  for (const section of sections) {
+    const termId = await getMostRecentTermId(section.sectionid, token);
+    if (!termId) continue;
+    
+    const response = await fetch(
+      `${BACKEND_URL}/get-list-of-members?sectionid=${section.sectionid}&termid=${termId}&section=${section.section}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    
+    if (response.status === 400) {
+      const error = new Error('Bad Request: ' + (await response.text()));
+      sentryUtils.captureException(error, { 
+        extra: { 
+          endpoint: '/get-list-of-members', 
+          params: { sectionid: section.sectionid, termid: termId, section: section.section }, 
+        }, 
+      });
+      throw error;
+    }
+    
+    if (!response.ok) {
+      logger.warn(`Failed to fetch members for section ${section.sectionid}: ${response.status} ${response.statusText}`);
+      continue;
+    }
+    
+    const data = await response.json();
+    if (data.items) {
+      // Process members and handle deduplication
+      data.items.forEach(member => {
+        if (member && member.scoutid) {
+          const scoutId = member.scoutid;
+          
+          if (memberMap.has(scoutId)) {
+            // Member already exists, add section to their sections list
+            const existingMember = memberMap.get(scoutId);
+            if (!existingMember.sections) {
+              existingMember.sections = [existingMember.sectionname];
             }
-
-            const params = new URLSearchParams({
-              action: 'getListOfMembers',
-              sort: 'lastname',
+            if (!existingMember.sections.includes(section.sectionname)) {
+              existingMember.sections.push(section.sectionname);
+            }
+          } else {
+            // New member, add to map
+            memberMap.set(scoutId, {
+              ...member,
               sectionid: section.sectionid,
-              termid: termId,
-              section: section.sectiontype || section.sectionname.toLowerCase(),
+              sectionname: section.sectionname,
+              section: section.section,
+              sections: [section.sectionname], // Track all sections this member belongs to
             });
-
-            const response = await fetch(`${BACKEND_URL}/api/ext/members/contact/?${params}`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-            });
-
-            const data = await handleAPIResponseWithRateLimit(response, 'getListOfMembers');
-
-            if (data && typeof data === 'object') {
-              // Handle OSM response format - data has 'items' array
-              const members = data.items || Object.values(data);
-              
-              // Process members data and handle deduplication
-              members.forEach(member => {
-                if (member && typeof member === 'object' && member.scoutid) {
-                  const scoutId = member.scoutid;
-                  
-                  if (memberMap.has(scoutId)) {
-                    // Member already exists, add section to their section list
-                    const existingMember = memberMap.get(scoutId);
-                    if (!existingMember.sections.includes(section.sectionname)) {
-                      existingMember.sections.push(section.sectionname);
-                    }
-                  } else {
-                    // New member, add to map
-                    memberMap.set(scoutId, {
-                      ...member,
-                      sections: [section.sectionname],
-                      originalSectionId: section.sectionid,
-                    });
-                  }
-                }
-              });
-            }
-          } catch (sectionError) {
-            logger.warn(logger.fmt`Failed to fetch members for section ${section.sectionid}`, {
-              error: sectionError.message,
-              section,
-            });
-            // Continue with other sections
           }
         }
-
-        // Convert map back to array
-        const members = Array.from(memberMap.values());
-
-        // Save to local database when online
-        if (members.length > 0) {
-          const sectionIds = sections.map(s => s.sectionid);
-          await databaseService.saveMembers(sectionIds, members);
-          logger.info(logger.fmt`Saved ${members.length} members to local database`);
-        }
-
-        span.setAttribute('members.count', members.length);
-        return members;
-
-      } catch (error) {
-        logger.error('Error fetching members list', { 
-          error: error.message,
-          isOnline,
-          hasToken: !!token,
-          sections,
-        });
-                
-        // Capture exception with context
-        sentryUtils.captureException(error, {
-          api: {
-            endpoint: 'getListOfMembers',
-            online: isOnline,
-            hasToken: !!token,
-            sections,
-          },
-        });
-                
-        // If online request fails, try local database as fallback
-        if (isOnline) {
-          logger.info('Online request failed - trying local database as fallback');
-          span.setAttribute('fallback.used', true);
-                    
-          try {
-            const sectionIds = sections.map(s => s.sectionid);
-            const members = await databaseService.getMembers(sectionIds);
-            span.setAttribute('fallback.successful', true);
-            return members;
-          } catch (dbError) {
-            logger.error('Database fallback also failed', { error: dbError.message });
-            span.setAttribute('fallback.successful', false);
-          }
-        }
-                
-        throw error;
-      }
-    },
-  );
+      });
+    }
+  }
+  
+  // Convert map back to array
+  const members = Array.from(memberMap.values());
+  
+  // Cache the members for offline use
+  if (members.length > 0) {
+    try {
+      await databaseService.saveMembers(sectionIds, members);
+      logger.info(`Cached ${members.length} members for offline use`);
+    } catch (error) {
+      logger.warn('Failed to cache members:', error);
+      // Don't throw error - this is not critical for the main flow
+    }
+  }
+  
+  return members;
 }
 
 export async function testBackendConnection() {

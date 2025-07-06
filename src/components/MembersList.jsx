@@ -25,27 +25,22 @@ function MembersList({ sections, onBack }) {
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
-  useEffect(() => {
-    loadMembers();
-  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const loadMembers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      
       const token = getToken();
-      const membersData = await getListOfMembers(sections, token);
-      
-      setMembers(membersData);
-      
-    } catch (err) {
-      console.error('Error loading members:', err);
-      setError(err.message);
+      const members = await getListOfMembers(sections, token);
+      setMembers(members);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadMembers();
+  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
@@ -168,7 +163,7 @@ function MembersList({ sections, onBack }) {
 
     // Create and download CSV file
     const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new globalThis.Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);

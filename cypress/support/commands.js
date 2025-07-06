@@ -131,6 +131,24 @@ Cypress.Commands.add('mockOSMSuccess', () => {
   cy.intercept('GET', '**/get-event-attendance*', {
     fixture: 'attendance.json',
   }).as('mockAttendance');
+  
+  cy.intercept('GET', '**/get-list-of-members*', {
+    fixture: 'members.json',
+  }).as('mockMembers');
+});
+
+// Members API specific mocks
+Cypress.Commands.add('mockMembersSuccess', () => {
+  cy.intercept('GET', '**/get-list-of-members*', {
+    fixture: 'members.json',
+  }).as('mockMembersSuccess');
+});
+
+Cypress.Commands.add('mockMembersError', (statusCode = 500) => {
+  cy.intercept('GET', '**/get-list-of-members*', {
+    statusCode,
+    body: { error: 'Mock Members API Error' },
+  }).as('mockMembersError');
 });
 
 // Form testing helpers
@@ -161,11 +179,73 @@ Cypress.Commands.add('checkOfflineData', (dataType) => {
   });
 });
 
+// Members offline testing
+Cypress.Commands.add('checkOfflineMembers', (sectionIds) => {
+  cy.window().then((win) => {
+    const key = `viking_members_${sectionIds.join('_')}_offline`;
+    const data = win.localStorage.getItem(key);
+    expect(data).to.not.be.null;
+    const members = JSON.parse(data);
+    expect(members).to.have.length.greaterThan(0);
+    expect(members[0]).to.have.property('scoutid');
+    expect(members[0]).to.have.property('firstname');
+    expect(members[0]).to.have.property('lastname');
+  });
+});
+
+Cypress.Commands.add('seedOfflineMembers', (sectionIds, membersData) => {
+  cy.window().then((win) => {
+    const key = `viking_members_${sectionIds.join('_')}_offline`;
+    win.localStorage.setItem(key, JSON.stringify(membersData));
+  });
+});
+
 // SQLite testing (for Capacitor)
 Cypress.Commands.add('checkSQLiteData', (tableName) => {
   // This would need to be implemented with Capacitor-specific testing
   // For now, we'll check localStorage fallback
   cy.checkOfflineData(tableName);
+});
+
+// Combined offline test for members workflow
+Cypress.Commands.add('testMembersOfflineWorkflow', (sectionIds) => {
+  // First seed some offline data
+  const mockMembers = [
+    {
+      scoutid: 1,
+      firstname: 'John',
+      lastname: 'Doe',
+      sectionid: sectionIds[0],
+      sectionname: 'Beavers',
+      section: 'beavers',
+      sections: ['Beavers'],
+    },
+    {
+      scoutid: 2,
+      firstname: 'Jane',
+      lastname: 'Smith',
+      sectionid: sectionIds[0],
+      sectionname: 'Beavers',
+      section: 'beavers',
+      sections: ['Beavers'],
+    },
+  ];
+  
+  cy.seedOfflineMembers(sectionIds, mockMembers);
+  
+  // Go offline
+  cy.goOffline();
+  
+  // Navigate to members
+  cy.get('[data-testid="members-button"]').click();
+  
+  // Verify cached members are displayed
+  cy.get('[data-testid="member-item"]').should('have.length', 2);
+  cy.get('[data-testid="member-item"]').first().should('contain', 'John Doe');
+  cy.get('[data-testid="member-item"]').last().should('contain', 'Jane Smith');
+  
+  // Verify offline data is being used
+  cy.checkOfflineMembers(sectionIds);
 });
 
 // Accessibility testing helpers

@@ -24,7 +24,7 @@ const Header = ({
         'w-full z-40',
         fixed && 'fixed top-0 left-0 right-0',
         variants[variant],
-        className
+        className,
       )}
       {...props}
     >
@@ -38,7 +38,7 @@ const HeaderContainer = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8',
-        className
+        className,
       )}
       {...props}
     >
@@ -52,7 +52,7 @@ const HeaderContent = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'flex items-center justify-between h-16',
-        className
+        className,
       )}
       {...props}
     >
@@ -66,7 +66,7 @@ const HeaderLeft = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'flex items-center space-x-4',
-        className
+        className,
       )}
       {...props}
     >
@@ -80,7 +80,7 @@ const HeaderCenter = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'flex-1 flex items-center justify-center px-4',
-        className
+        className,
       )}
       {...props}
     >
@@ -94,7 +94,7 @@ const HeaderRight = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'flex items-center space-x-4',
-        className
+        className,
       )}
       {...props}
     >
@@ -108,7 +108,7 @@ const HeaderTitle = ({ children, className = '', as: Component = 'h1', ...props 
     <Component 
       className={cn(
         'text-xl font-semibold',
-        className
+        className,
       )}
       {...props}
     >
@@ -124,7 +124,7 @@ const HeaderLogo = ({ src, alt = 'Logo', className = '', ...props }) => {
       alt={alt}
       className={cn(
         'h-8 w-auto',
-        className
+        className,
       )}
       {...props}
     />
@@ -148,5 +148,5 @@ export {
   HeaderCenter, 
   HeaderRight, 
   HeaderTitle, 
-  HeaderLogo 
+  HeaderLogo, 
 };

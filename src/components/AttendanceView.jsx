@@ -265,114 +265,114 @@ function AttendanceView({ events, onBack }) {
           </nav>
         </div>
 
-      {viewMode === 'summary' && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('member')}
-                >
-                  <div className="flex items-center">
+        {viewMode === 'summary' && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('member')}
+                  >
+                    <div className="flex items-center">
                     Member {getSortIcon('member')}
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('attendance')}
-                >
-                  <div className="flex items-center">
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('attendance')}
+                  >
+                    <div className="flex items-center">
                     Attendance {getSortIcon('attendance')}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
-                return (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-gray-900">{member.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {member.attended} / {member.total}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
+                  return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-semibold text-gray-900">{member.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                        {member.attended} / {member.total}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {viewMode === 'detailed' && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('member')}
-                >
-                  <div className="flex items-center">
+        {viewMode === 'detailed' && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('member')}
+                  >
+                    <div className="flex items-center">
                     Member {getSortIcon('member')}
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('event')}
-                >
-                  <div className="flex items-center">
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('event')}
+                  >
+                    <div className="flex items-center">
                     Event {getSortIcon('event')}
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('date')}
-                >
-                  <div className="flex items-center">
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('date')}
+                  >
+                    <div className="flex items-center">
                     Date {getSortIcon('date')}
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                  onClick={() => handleSort('attendance')}
-                >
-                  <div className="flex items-center">
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                    onClick={() => handleSort('attendance')}
+                  >
+                    <div className="flex items-center">
                     Attendance {getSortIcon('attendance')}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
-                const attended = record.attending === '1' || record.attending === 'Yes';
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
+                  const attended = record.attending === '1' || record.attending === 'Yes';
                 
-                return (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
-                      <div className="text-gray-500 text-sm">{record.sectionname}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {record.eventname}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                      {formatDate(record.eventdate)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={attended ? 'scout-green' : 'scout-red'}>
-                        {attended ? 'Yes' : 'No'}
-                      </Badge>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
+                        <div className="text-gray-500 text-sm">{record.sectionname}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                        {record.eventname}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                        {formatDate(record.eventdate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge variant={attended ? 'scout-green' : 'scout-red'}>
+                          {attended ? 'Yes' : 'No'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card.Body>
     </Card>
   );

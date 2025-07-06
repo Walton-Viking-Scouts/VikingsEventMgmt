@@ -9,7 +9,7 @@ const Card = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'bg-white rounded-lg border border-gray-200 shadow-sm',
-        className
+        className,
       )}
       {...props}
     >
@@ -23,7 +23,7 @@ const CardHeader = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg',
-        className
+        className,
       )}
       {...props}
     >
@@ -37,7 +37,7 @@ const CardTitle = ({ children, className = '', as: Component = 'h3', ...props })
     <Component 
       className={cn(
         'text-lg font-semibold text-gray-900 m-0',
-        className
+        className,
       )}
       {...props}
     >
@@ -51,7 +51,7 @@ const CardBody = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'p-4',
-        className
+        className,
       )}
       {...props}
     >
@@ -65,7 +65,7 @@ const CardFooter = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg',
-        className
+        className,
       )}
       {...props}
     >

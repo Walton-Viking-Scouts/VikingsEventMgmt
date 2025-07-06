@@ -100,7 +100,7 @@ const Alert = ({
         baseClasses,
         variants[variant],
         sizes[size],
-        className
+        className,
       )}
       role="alert"
       {...props}

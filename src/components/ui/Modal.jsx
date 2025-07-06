@@ -92,7 +92,7 @@ const Modal = ({
           className={cn(
             'relative bg-white rounded-lg shadow-xl transform transition-all w-full',
             sizes[size],
-            className
+            className,
           )}
           {...props}
         >
@@ -123,7 +123,7 @@ const ModalHeader = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'px-6 py-4 border-b border-gray-200',
-        className
+        className,
       )} 
       {...props}
     >
@@ -137,7 +137,7 @@ const ModalTitle = ({ children, className = '', as: Component = 'h2', ...props }
     <Component 
       className={cn(
         'text-xl font-semibold text-gray-900 pr-8',
-        className
+        className,
       )} 
       {...props}
     >
@@ -151,7 +151,7 @@ const ModalBody = ({ children, className = '', ...props }) => {
     <div 
       className={cn(
         'px-6 py-4',
-        className
+        className,
       )} 
       {...props}
     >
@@ -173,7 +173,7 @@ const ModalFooter = ({ children, align = 'right', className = '', ...props }) =>
       className={cn(
         'px-6 py-4 border-t border-gray-200 flex gap-3',
         alignClasses[align],
-        className
+        className,
       )} 
       {...props}
     >

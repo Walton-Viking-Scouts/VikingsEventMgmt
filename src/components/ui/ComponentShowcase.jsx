@@ -4,7 +4,7 @@ import {
   FormSection, FormRow, FormActions, Dropdown, Nav, NavItem, Menu,
   CardHeader, CardTitle, CardBody, CardFooter,
   ModalHeader, ModalTitle, ModalBody, ModalFooter,
-  AlertTitle, AlertDescription, AlertActions
+  AlertTitle, AlertDescription, AlertActions,
 } from './index';
 
 /**
@@ -291,18 +291,18 @@ const ComponentShowcase = () => {
                 <div className="bg-gray-50 p-4 rounded-lg space-y-3 text-sm">
                   <div>
                     <strong>Button:</strong><br />
-                    <span className="text-red-600">Bootstrap:</span> <code>&lt;button class="btn btn-primary"&gt;</code><br />
-                    <span className="text-green-600">Tailwind:</span> <code>&lt;Button variant="scout-blue"&gt;</code>
+                    <span className="text-red-600">Bootstrap:</span> <code>&lt;button class=&quot;btn btn-primary&quot;&gt;</code><br />
+                    <span className="text-green-600">Tailwind:</span> <code>&lt;Button variant=&quot;scout-blue&quot;&gt;</code>
                   </div>
                   <div>
                     <strong>Card:</strong><br />
-                    <span className="text-red-600">Bootstrap:</span> <code>&lt;div class="card"&gt;&lt;div class="card-body"&gt;</code><br />
+                    <span className="text-red-600">Bootstrap:</span> <code>&lt;div class=&quot;card&quot;&gt;&lt;div class=&quot;card-body&quot;&gt;</code><br />
                     <span className="text-green-600">Tailwind:</span> <code>&lt;Card&gt;&lt;Card.Body&gt;</code>
                   </div>
                   <div>
                     <strong>Form:</strong><br />
-                    <span className="text-red-600">Bootstrap:</span> <code>&lt;div class="form-group"&gt;&lt;input class="form-control"&gt;</code><br />
-                    <span className="text-green-600">Tailwind:</span> <code>&lt;Input label="Name" placeholder="..."&gt;</code>
+                    <span className="text-red-600">Bootstrap:</span> <code>&lt;div class=&quot;form-group&quot;&gt;&lt;input class=&quot;form-control&quot;&gt;</code><br />
+                    <span className="text-green-600">Tailwind:</span> <code>&lt;Input label=&quot;Name&quot; placeholder=&quot;...&quot;&gt;</code>
                   </div>
                 </div>
               </div>

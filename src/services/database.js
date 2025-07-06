@@ -89,6 +89,23 @@ class DatabaseService {
       );
     `;
 
+    const createMembersTable = `
+      CREATE TABLE IF NOT EXISTS members (
+        scoutid INTEGER PRIMARY KEY,
+        firstname TEXT,
+        lastname TEXT,
+        email TEXT,
+        sectionid INTEGER,
+        sectionname TEXT,
+        section TEXT,
+        sections TEXT,
+        patrol TEXT,
+        dateofbirth TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
     const createSyncStatusTable = `
       CREATE TABLE IF NOT EXISTS sync_status (
         table_name TEXT PRIMARY KEY,
@@ -100,6 +117,7 @@ class DatabaseService {
     await this.db.execute(createSectionsTable);
     await this.db.execute(createEventsTable);
     await this.db.execute(createAttendanceTable);
+    await this.db.execute(createMembersTable);
     await this.db.execute(createSyncStatusTable);
   }
 
@@ -256,6 +274,65 @@ class DatabaseService {
     const query = 'SELECT needs_sync FROM sync_status WHERE table_name = ?';
     const result = await this.db.query(query, [tableName]);
     return result.values?.[0]?.needs_sync === 1;
+  }
+
+  // Members
+  async saveMembers(sectionIds, members) {
+    await this.initialize();
+    
+    if (!this.isNative || !this.db) {
+      // localStorage fallback
+      const key = `viking_members_${sectionIds.join('_')}_offline`;
+      localStorage.setItem(key, JSON.stringify(members));
+      return;
+    }
+    
+    // Delete existing members for these sections
+    const placeholders = sectionIds.map(() => '?').join(',');
+    const deleteOld = `DELETE FROM members WHERE sectionid IN (${placeholders})`;
+    await this.db.run(deleteOld, sectionIds);
+
+    for (const member of members) {
+      const insert = `
+        INSERT INTO members (scoutid, firstname, lastname, email, sectionid, sectionname, section, sections, patrol, dateofbirth)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      await this.db.run(insert, [
+        member.scoutid,
+        member.firstname,
+        member.lastname,
+        member.email,
+        member.sectionid,
+        member.sectionname,
+        member.section,
+        JSON.stringify(member.sections || []),
+        member.patrol,
+        member.dateofbirth,
+      ]);
+    }
+
+    await this.updateSyncStatus('members');
+  }
+
+  async getMembers(sectionIds) {
+    await this.initialize();
+    
+    if (!this.isNative || !this.db) {
+      // localStorage fallback
+      const key = `viking_members_${sectionIds.join('_')}_offline`;
+      const members = localStorage.getItem(key);
+      return members ? JSON.parse(members) : [];
+    }
+    
+    const placeholders = sectionIds.map(() => '?').join(',');
+    const query = `SELECT * FROM members WHERE sectionid IN (${placeholders}) ORDER BY lastname, firstname`;
+    const result = await this.db.query(query, sectionIds);
+    
+    // Parse sections JSON back to array
+    return (result.values || []).map(member => ({
+      ...member,
+      sections: member.sections ? JSON.parse(member.sections) : [],
+    }));
   }
 
   // Check if we have offline data
