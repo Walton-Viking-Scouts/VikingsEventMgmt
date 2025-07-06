@@ -566,6 +566,23 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
 }
 
 export async function getListOfMembers(sections, token) {
+  // Check network status first
+  await checkNetworkStatus();
+  const sectionIds = sections.map(s => s.sectionid);
+  
+  // If offline, return cached members
+  if (!isOnline) {
+    logger.info('Offline mode - retrieving members from local database');
+    try {
+      const cachedMembers = await databaseService.getMembers(sectionIds);
+      return cachedMembers;
+    } catch (error) {
+      logger.error('Failed to get cached members:', error);
+      throw new Error('Unable to retrieve members while offline');
+    }
+  }
+
+  // Online mode - fetch from network
   const memberMap = new Map(); // For deduplication by scoutid
   
   for (const section of sections) {
@@ -626,8 +643,21 @@ export async function getListOfMembers(sections, token) {
     }
   }
   
-  // Convert map back to array and return deduplicated members
-  return Array.from(memberMap.values());
+  // Convert map back to array
+  const members = Array.from(memberMap.values());
+  
+  // Cache the members for offline use
+  if (members.length > 0) {
+    try {
+      await databaseService.saveMembers(sectionIds, members);
+      logger.info(`Cached ${members.length} members for offline use`);
+    } catch (error) {
+      logger.warn('Failed to cache members:', error);
+      // Don't throw error - this is not critical for the main flow
+    }
+  }
+  
+  return members;
 }
 
 export async function testBackendConnection() {

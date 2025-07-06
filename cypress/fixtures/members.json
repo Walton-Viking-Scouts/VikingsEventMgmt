@@ -1,0 +1,80 @@
+{
+  "identifier": "getListOfMembers",
+  "items": [
+    {
+      "scoutid": "12345",
+      "firstname": "Alice",
+      "lastname": "Johnson",
+      "email": "alice.johnson@example.com",
+      "dateofbirth": "2010-05-15",
+      "patrol": "Eagles",
+      "section": "scouts",
+      "sectionname": "1st Walton Scouts"
+    },
+    {
+      "scoutid": "12346",
+      "firstname": "Bob",
+      "lastname": "Wilson",
+      "email": "bob.wilson@example.com",
+      "dateofbirth": "2011-03-22",
+      "patrol": "Hawks",
+      "section": "scouts",
+      "sectionname": "1st Walton Scouts"
+    },
+    {
+      "scoutid": "12347",
+      "firstname": "Charlie",
+      "lastname": "Brown",
+      "email": "charlie.brown@example.com",
+      "dateofbirth": "2012-08-10",
+      "patrol": "Eagles",
+      "section": "cubs",
+      "sectionname": "1st Walton Cubs"
+    },
+    {
+      "scoutid": "12348",
+      "firstname": "Diana",
+      "lastname": "Smith",
+      "email": "diana.smith@example.com",
+      "dateofbirth": "2013-12-05",
+      "patrol": "Otters",
+      "section": "cubs",
+      "sectionname": "1st Walton Cubs"
+    }
+  ],
+  "meta": {
+    "total": 4,
+    "structure": [
+      {
+        "identifier": "scoutid",
+        "label": "Scout ID",
+        "type": "text"
+      },
+      {
+        "identifier": "firstname",
+        "label": "First Name",
+        "type": "text"
+      },
+      {
+        "identifier": "lastname", 
+        "label": "Last Name",
+        "type": "text"
+      },
+      {
+        "identifier": "email",
+        "label": "Email",
+        "type": "email"
+      },
+      {
+        "identifier": "dateofbirth",
+        "label": "Date of Birth",
+        "type": "date"
+      },
+      {
+        "identifier": "patrol",
+        "label": "Patrol",
+        "type": "text"
+      }
+    ]
+  }
+}
