@@ -4,7 +4,7 @@ import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 
-function EventsList({ sections, onEventSelect, onBack }) {
+function EventsList({ sections, members, loadingMembers, onEventSelect, onBack }) {
   const [events, setEvents] = useState([]);
   const [selectedEvents, setSelectedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,8 +118,18 @@ function EventsList({ sections, onEventSelect, onBack }) {
         <Card.Title>Select Events</Card.Title>
         <div className="flex gap-2 items-center">
           <Badge variant="scout-blue">
-            {selectedEvents.length} selected
+            {selectedEvents.length} events selected
           </Badge>
+          {members && !loadingMembers && (
+            <Badge variant="secondary">
+              {members.length} members loaded
+            </Badge>
+          )}
+          {loadingMembers && (
+            <Badge variant="secondary">
+              Loading members...
+            </Badge>
+          )}
           <Button 
             variant="outline-scout-blue"
             onClick={onBack}

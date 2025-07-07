@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getUserRoles } from '../services/api.js';
+import { getUserRoles, getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from '../components/LoadingScreen.jsx';
 import SectionsList from '../components/SectionsList.jsx';
 import EventsList from '../components/EventsList.jsx';
 import AttendanceView from '../components/AttendanceView.jsx';
+import MembersList from '../components/MembersList.jsx';
 import { Button, Alert } from '../components/ui';
 
 function Dashboard() {
@@ -12,6 +13,8 @@ function Dashboard() {
   const [sections, setSections] = useState([]);
   const [selectedSections, setSelectedSections] = useState([]);
   const [selectedEvents, setSelectedEvents] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -55,10 +58,28 @@ function Dashboard() {
     setSelectedEvents([]);
   };
 
-  const handleContinueToEvents = () => {
+  const handleContinueToEvents = async () => {
     if (selectedSections.length > 0) {
       setCurrentView('events');
       setSelectedEvents([]); // Clear selected events when going to events
+      
+      // Load members for selected sections
+      await loadMembersForSections(selectedSections);
+    }
+  };
+  
+  const loadMembersForSections = async (sectionsToLoad) => {
+    try {
+      setLoadingMembers(true);
+      const token = getToken();
+      const membersData = await getListOfMembers(sectionsToLoad, token);
+      setMembers(membersData);
+      console.log(`Loaded ${membersData.length} members for ${sectionsToLoad.length} sections`);
+    } catch (err) {
+      console.error('Error loading members:', err);
+      // Don't set error here as this is secondary data - just log it
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -71,11 +92,16 @@ function Dashboard() {
     setCurrentView('sections');
     setSelectedSections([]);
     setSelectedEvents([]);
+    setMembers([]); // Clear members data
   };
 
   const handleBackToEvents = () => {
     setCurrentView('events');
     setSelectedEvents([]);
+  };
+  
+  const handleViewMembers = () => {
+    setCurrentView('members');
   };
 
   if (loading) {
@@ -126,24 +152,44 @@ function Dashboard() {
               </div>
             </button>
             {selectedSections.length > 0 && (
-              <button 
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
-                  ${currentView === 'events' 
+              <>
+                <button 
+                  className={`
+                    py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
+                    ${currentView === 'events' 
                 ? 'border-scout-blue text-scout-blue' 
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
-                `}
-                onClick={handleBackToEvents}
-                type="button"
-              >
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-                  </svg>
-                  Events
-                </div>
-              </button>
+                  `}
+                  onClick={handleBackToEvents}
+                  type="button"
+                >
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
+                    </svg>
+                    Events
+                  </div>
+                </button>
+                <button 
+                  className={`
+                    py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
+                    ${currentView === 'members' 
+                ? 'border-scout-blue text-scout-blue' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+                  `}
+                  onClick={handleViewMembers}
+                  type="button"
+                >
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"/>
+                    </svg>
+                    Members
+                  </div>
+                </button>
+              </>
             )}
             {selectedEvents.length > 0 && (
               <button 
@@ -183,6 +229,8 @@ function Dashboard() {
         {currentView === 'events' && selectedSections.length > 0 && (
           <EventsList 
             sections={selectedSections}
+            members={members}
+            loadingMembers={loadingMembers}
             onEventSelect={handleEventSelect}
             onBack={handleBackToSections}
           />
@@ -192,6 +240,15 @@ function Dashboard() {
           <AttendanceView 
             sections={selectedSections}
             events={selectedEvents}
+            members={members}
+            onBack={handleBackToEvents}
+          />
+        )}
+        
+        {currentView === 'members' && selectedSections.length > 0 && (
+          <MembersList 
+            sections={selectedSections}
+            members={members}
             onBack={handleBackToEvents}
           />
         )}

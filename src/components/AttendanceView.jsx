@@ -4,7 +4,7 @@ import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 
-function AttendanceView({ events, onBack }) {
+function AttendanceView({ events, members, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -137,6 +137,54 @@ function AttendanceView({ events, onBack }) {
     };
   };
 
+  const getPersonTypeSummaryStats = () => {
+    const personTypeStats = {};
+    const totals = { yes: 0, no: 0, invited: 0, total: 0 };
+    
+    // Create a map of scout IDs to person types from members data
+    const memberPersonTypes = {};
+    if (members && Array.isArray(members)) {
+      members.forEach(member => {
+        memberPersonTypes[member.scoutid] = member.person_type || 'Young People';
+      });
+    }
+    
+    attendanceData.forEach(record => {
+      // Get person type from members data, fallback to 'Unknown'
+      const personType = memberPersonTypes[record.scoutid] || 'Unknown';
+      
+      if (!personTypeStats[personType]) {
+        personTypeStats[personType] = {
+          name: personType,
+          yes: 0,
+          no: 0,
+          invited: 0,
+          total: 0,
+        };
+      }
+      
+      const status = getAttendanceStatus(record.attending);
+      personTypeStats[personType][status]++;
+      personTypeStats[personType].total++;
+      
+      totals[status]++;
+      totals.total++;
+    });
+    
+    // Sort person types in a logical order
+    const typeOrder = ['Young People', 'Young Leaders', 'Leaders', 'Unknown'];
+    const sortedPersonTypes = Object.values(personTypeStats).sort((a, b) => {
+      const aIndex = typeOrder.indexOf(a.name);
+      const bIndex = typeOrder.indexOf(b.name);
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    });
+    
+    return {
+      personTypes: sortedPersonTypes,
+      totals,
+    };
+  };
+
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -262,10 +310,92 @@ function AttendanceView({ events, onBack }) {
 
   const summaryStats = getSummaryStats();
   const sectionSummaryStats = getSectionSummaryStats();
+  const personTypeSummaryStats = getPersonTypeSummaryStats();
 
   return (
     <div>
-      {/* Attendance Summary Card */}
+      {/* Person Type Summary Card */}
+      {members && members.length > 0 && (
+        <Card className="m-4">
+          <Card.Header>
+            <Card.Title>Attendance by Person Type</Card.Title>
+            <div className="flex gap-2 items-center">
+              <Badge variant="scout-purple">
+                {personTypeSummaryStats.personTypes.length} person type{personTypeSummaryStats.personTypes.length !== 1 ? 's' : ''}
+              </Badge>
+              <Badge variant="scout-green">
+                {personTypeSummaryStats.totals.total} total responses
+              </Badge>
+            </div>
+          </Card.Header>
+          <Card.Body>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Person Type
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">
+                      Yes
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-red-600 uppercase tracking-wider">
+                      No
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">
+                      Invited
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {personTypeSummaryStats.personTypes.map((personType, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                        {personType.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-semibold">
+                        {personType.yes}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-semibold">
+                        {personType.no}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-semibold">
+                        {personType.invited}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-semibold">
+                        {personType.total}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Totals row */}
+                  <tr className="bg-gray-100 font-bold">
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 border-t-2 border-gray-300">
+                      Totals
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
+                      {personTypeSummaryStats.totals.yes}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
+                      {personTypeSummaryStats.totals.no}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
+                      {personTypeSummaryStats.totals.invited}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
+                      {personTypeSummaryStats.totals.total}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Section Summary Card */}
       <Card className="m-4">
         <Card.Header>
           <Card.Title>Attendance Summary</Card.Title>
@@ -499,7 +629,6 @@ function AttendanceView({ events, onBack }) {
                       badgeVariant = 'scout-blue';
                       statusText = 'Invited';
                       break;
-                    case 'no':
                     default:
                       badgeVariant = 'scout-red';
                       statusText = 'No';

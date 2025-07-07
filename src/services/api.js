@@ -624,6 +624,108 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   }
 }
 
+export async function getMembersGrid(sectionId, termId, token) {
+  try {
+    // Check network status first
+    await checkNetworkStatus();
+    
+    // If offline, get from local database (fallback to old format)
+    if (!isOnline) {
+      console.log('Offline - getting members from local database');
+      const cachedMembers = await databaseService.getMembers([sectionId]);
+      return cachedMembers;
+    }
+
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        section_id: sectionId,
+        term_id: termId,
+      }),
+    });
+
+    const data = await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
+    
+    // Transform the grid data into a more usable format
+    if (data && data.data && data.data.members) {
+      return data.data.members.map(member => {
+        // Map patrol_id to person type
+        let person_type = 'Young People'; // default
+        if (member.patrol_id === -2) {
+          person_type = 'Leaders';
+        } else if (member.patrol_id === -3) {
+          person_type = 'Young Leaders';
+        }
+        
+        // The backend now provides flattened fields, so we can use them directly
+        // All custom_data fields are now available as flattened properties like:
+        // primary_contact_1_email_1, primary_contact_1_phone_1, etc.
+        
+        return {
+          // Core member info
+          scoutid: member.member_id,
+          member_id: member.member_id,
+          firstname: member.first_name,
+          lastname: member.last_name,
+          date_of_birth: member.date_of_birth,
+          age: member.age,
+          
+          // Section info
+          sectionid: member.section_id,
+          patrol: member.patrol,
+          patrol_id: member.patrol_id,
+          person_type: person_type, // New field for person classification
+          started: member.started,
+          joined: member.joined,
+          active: member.active,
+          end_date: member.end_date,
+          
+          // Photo info
+          photo_guid: member.photo_guid,
+          has_photo: member.pic,
+          
+          // All flattened custom fields are now available directly on the member object
+          // No need to extract them - they're already flattened by the backend
+          ...member, // Spread all fields including flattened custom_data fields
+          
+          // Keep grouped contact data for backward compatibility
+          contact_groups: member.contact_groups,
+        };
+      });
+    }
+
+    return [];
+
+  } catch (error) {
+    console.error(`Error fetching members grid for section ${sectionId}:`, error);
+    
+    // If online request fails, try local database as fallback
+    if (isOnline) {
+      console.log('Online request failed - trying local database as fallback');
+      try {
+        const cachedMembers = await databaseService.getMembers([sectionId]);
+        return cachedMembers;
+      } catch (dbError) {
+        console.error('Database fallback also failed:', dbError);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+// Note: extractContactField and extractEmergencyContacts functions removed
+// The backend now provides all custom_data fields as flattened properties
+// using the actual group names and column labels from OSM metadata
+
 export async function getListOfMembers(sections, token) {
   // Check network status first
   await checkNetworkStatus();
@@ -641,40 +743,18 @@ export async function getListOfMembers(sections, token) {
     }
   }
 
-  // Online mode - fetch from network
+  // Online mode - use new getMembersGrid for richer data
   const memberMap = new Map(); // For deduplication by scoutid
   
   for (const section of sections) {
-    const termId = await getMostRecentTermId(section.sectionid, token);
-    if (!termId) continue;
-    
-    const response = await fetch(
-      `${BACKEND_URL}/get-list-of-members?sectionid=${section.sectionid}&termid=${termId}&section=${section.section}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-    
-    if (response.status === 400) {
-      const error = new Error('Bad Request: ' + (await response.text()));
-      sentryUtils.captureException(error, { 
-        extra: { 
-          endpoint: '/get-list-of-members', 
-          params: { sectionid: section.sectionid, termid: termId, section: section.section }, 
-        }, 
-      });
-      throw error;
-    }
-    
-    if (!response.ok) {
-      logger.warn(`Failed to fetch members for section ${section.sectionid}: ${response.status} ${response.statusText}`);
-      continue;
-    }
-    
-    const data = await response.json();
-    if (data.items) {
-      // Process members and handle deduplication
-      data.items.forEach(member => {
+    try {
+      const termId = await getMostRecentTermId(section.sectionid, token);
+      if (!termId) continue;
+      
+      // Use the new getMembersGrid API for comprehensive data
+      const members = await getMembersGrid(section.sectionid, termId, token);
+      
+      members.forEach(member => {
         if (member && member.scoutid) {
           const scoutId = member.scoutid;
           
@@ -688,10 +768,9 @@ export async function getListOfMembers(sections, token) {
               existingMember.sections.push(section.sectionname);
             }
           } else {
-            // New member, add to map
+            // New member, add to map with section info
             memberMap.set(scoutId, {
               ...member,
-              sectionid: section.sectionid,
               sectionname: section.sectionname,
               section: section.section,
               sections: [section.sectionname], // Track all sections this member belongs to
@@ -699,6 +778,10 @@ export async function getListOfMembers(sections, token) {
           }
         }
       });
+      
+    } catch (sectionError) {
+      console.warn(`Failed to fetch members for section ${section.sectionid}:`, sectionError);
+      // Continue with other sections
     }
   }
   
