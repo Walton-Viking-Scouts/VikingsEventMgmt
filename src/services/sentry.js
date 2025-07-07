@@ -25,8 +25,8 @@ export function initSentry() {
     environment,
     release: `vikings-eventmgmt-mobile@${release}`,
     
-    // Performance monitoring
-    tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
+    // Performance monitoring - disabled to prevent OAuth interference
+    tracesSampleRate: 0,
     
     // Enable experimental features
     _experiments: {
