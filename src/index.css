@@ -3,39 +3,40 @@
 
 /* Tailwind v4 theme configuration */
 @theme {
-  /* Scout-themed colors - properly mapped for Tailwind v4 */
-  --color-scout-red: #ed3f23;
+  /* Official Scout brand colors (2023) */
+  --color-scout-red: #ed3f23;        /* Scouts Red - Pantone Red 032 C */
   --color-scout-red-light: #f16749;
   --color-scout-red-dark: #c4321d;
   
-  --color-scout-blue: #006ddf;
+  --color-scout-blue: #006ddf;       /* Scouts Blue - Pantone 285 C */
   --color-scout-blue-light: #3387e5;
   --color-scout-blue-dark: #004fb3;
   
-  --color-scout-blue-dark: #004fb3;
-  --color-scout-blue-dark-light: #006ddf;
-  --color-scout-blue-dark-dark: #003f8f;
-  
-  --color-scout-orange: #ff912a;
+  --color-scout-orange: #ff912a;     /* Scouts Orange - Pantone 715 C */
   --color-scout-orange-light: #ffad5a;
   --color-scout-orange-dark: #e67e1f;
   
-  --color-scout-green: #25b755;
+  --color-scout-green: #25b755;      /* Scouts Green - Pantone 347 C */
   --color-scout-green-light: #4fc470;
   --color-scout-green-dark: #1e9544;
   
-  --color-scout-pink: #ffb4e5;
+  --color-scout-pink: #ffb4e5;       /* Scouts Pink - Pantone 183 C */
   --color-scout-pink-light: #ffcbec;
   --color-scout-pink-dark: #e591c9;
   
-  --color-scout-yellow: #ffe627;
+  --color-scout-yellow: #ffe627;     /* Scouts Yellow - Pantone 108 C */
   --color-scout-yellow-light: #ffef5a;
   --color-scout-yellow-dark: #e6c61f;
   
-  --color-scout-forest-green: #205b41;
+  --color-scout-forest-green: #205b41; /* Scouts Forest Green - Pantone 554 C */
   --color-scout-forest-green-light: #3d7863;
   --color-scout-forest-green-dark: #1a4a35;
   
+  --color-scout-navy: #003982;       /* Scouts Navy - Pantone 294 C */
+  --color-scout-navy-light: #004fb3;
+  --color-scout-navy-dark: #002f6f;
+  
+  /* Non-official Scout colors (kept for compatibility) */
   --color-scout-purple: #7413dc;
   --color-scout-purple-light: #8f47e3;
   --color-scout-purple-dark: #5e0fb5;
@@ -43,10 +44,6 @@
   --color-scout-teal: #088486;
   --color-scout-teal-light: #2da5a7;
   --color-scout-teal-dark: #066769;
-  
-  --color-scout-navy: #003f8f;
-  --color-scout-navy-light: #004fb3;
-  --color-scout-navy-dark: #002f6f;
   
   /* Standard design system colors */
   --color-primary-50: #eff6ff;
@@ -93,39 +90,40 @@
 
 /* Legacy Scout color variables for inline styles compatibility */
 :root {
-  /* Scout color aliases for inline styles (without --color prefix) */
-  --scout-red: #ed3f23;
+  /* Official Scout brand colors - legacy aliases for inline styles */
+  --scout-red: #ed3f23;        /* Scouts Red - Pantone Red 032 C */
   --scout-red-light: #f16749;
   --scout-red-dark: #c4321d;
   
-  --scout-blue: #006ddf;
+  --scout-blue: #006ddf;       /* Scouts Blue - Pantone 285 C */
   --scout-blue-light: #3387e5;
   --scout-blue-dark: #004fb3;
   
-  --scout-blue-dark: #004fb3;
-  --scout-blue-dark-light: #006ddf;
-  --scout-blue-dark-dark: #003f8f;
-  
-  --scout-orange: #ff912a;
+  --scout-orange: #ff912a;     /* Scouts Orange - Pantone 715 C */
   --scout-orange-light: #ffad5a;
   --scout-orange-dark: #e67e1f;
   
-  --scout-green: #25b755;
+  --scout-green: #25b755;      /* Scouts Green - Pantone 347 C */
   --scout-green-light: #4fc470;
   --scout-green-dark: #1e9544;
   
-  --scout-pink: #ffb4e5;
+  --scout-pink: #ffb4e5;       /* Scouts Pink - Pantone 183 C */
   --scout-pink-light: #ffcbec;
   --scout-pink-dark: #e591c9;
   
-  --scout-yellow: #ffe627;
+  --scout-yellow: #ffe627;     /* Scouts Yellow - Pantone 108 C */
   --scout-yellow-light: #ffef5a;
   --scout-yellow-dark: #e6c61f;
   
-  --scout-forest-green: #205b41;
+  --scout-forest-green: #205b41; /* Scouts Forest Green - Pantone 554 C */
   --scout-forest-green-light: #3d7863;
   --scout-forest-green-dark: #1a4a35;
   
+  --scout-navy: #003982;       /* Scouts Navy - Pantone 294 C */
+  --scout-navy-light: #004fb3;
+  --scout-navy-dark: #002f6f;
+  
+  /* Non-official Scout colors (kept for compatibility) */
   --scout-purple: #7413dc;
   --scout-purple-light: #8f47e3;
   --scout-purple-dark: #5e0fb5;
@@ -133,10 +131,6 @@
   --scout-teal: #088486;
   --scout-teal-light: #2da5a7;
   --scout-teal-dark: #066769;
-  
-  --scout-navy: #003f8f;
-  --scout-navy-light: #004fb3;
-  --scout-navy-dark: #002f6f;
 }
 
 /* Scout color utilities for Tailwind v4 */
@@ -150,8 +144,6 @@
   .bg-scout-blue-light { background-color: var(--color-scout-blue-light); }
   .bg-scout-blue-dark { background-color: var(--color-scout-blue-dark); }
   
-  .bg-scout-blue-dark-light { background-color: var(--color-scout-blue-dark-light); }
-  .bg-scout-blue-dark-dark { background-color: var(--color-scout-blue-dark-dark); }
   
   .bg-scout-orange { background-color: var(--color-scout-orange); }
   .bg-scout-orange-light { background-color: var(--color-scout-orange-light); }
@@ -194,8 +186,6 @@
   .text-scout-blue-light { color: var(--color-scout-blue-light); }
   .text-scout-blue-dark { color: var(--color-scout-blue-dark); }
   
-  .text-scout-blue-dark-light { color: var(--color-scout-blue-dark-light); }
-  .text-scout-blue-dark-dark { color: var(--color-scout-blue-dark-dark); }
   
   .text-scout-orange { color: var(--color-scout-orange); }
   .text-scout-orange-light { color: var(--color-scout-orange-light); }
@@ -238,8 +228,6 @@
   .border-scout-blue-light { border-color: var(--color-scout-blue-light); }
   .border-scout-blue-dark { border-color: var(--color-scout-blue-dark); }
   
-  .border-scout-blue-dark-light { border-color: var(--color-scout-blue-dark-light); }
-  .border-scout-blue-dark-dark { border-color: var(--color-scout-blue-dark-dark); }
   
   .border-scout-orange { border-color: var(--color-scout-orange); }
   .border-scout-orange-light { border-color: var(--color-scout-orange-light); }
@@ -282,8 +270,6 @@
   .ring-scout-blue-light { --tw-ring-color: var(--color-scout-blue-light); }
   .ring-scout-blue-dark { --tw-ring-color: var(--color-scout-blue-dark); }
   
-  .ring-scout-blue-dark-light { --tw-ring-color: var(--color-scout-blue-dark-light); }
-  .ring-scout-blue-dark-dark { --tw-ring-color: var(--color-scout-blue-dark-dark); }
   
   .ring-scout-orange { --tw-ring-color: var(--color-scout-orange); }
   .ring-scout-orange-light { --tw-ring-color: var(--color-scout-orange-light); }

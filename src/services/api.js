@@ -168,6 +168,16 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
 // API functions
 export async function getTerms(token) {
   try {
+    // Check network status first
+    await checkNetworkStatus();
+    
+    // If offline, get from localStorage
+    if (!isOnline) {
+      console.log('Offline - getting terms from localStorage');
+      const cachedTerms = localStorage.getItem('viking_terms_offline');
+      return cachedTerms ? JSON.parse(cachedTerms) : {};
+    }
+
     if (!token) {
       throw new Error('No authentication token');
     }
@@ -181,10 +191,27 @@ export async function getTerms(token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getTerms');
-    return data || {};
+    const terms = data || {};
+    
+    // Cache terms data for offline use
+    localStorage.setItem('viking_terms_offline', JSON.stringify(terms));
+    
+    return terms;
 
   } catch (error) {
     console.error('Error fetching terms:', error);
+    
+    // If online request fails, try localStorage as fallback
+    if (isOnline) {
+      console.log('Online request failed - trying localStorage as fallback');
+      try {
+        const cachedTerms = localStorage.getItem('viking_terms_offline');
+        return cachedTerms ? JSON.parse(cachedTerms) : {};
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }
@@ -514,6 +541,16 @@ export async function getFlexiStructure(extraid, sectionid, termid, token) {
 
 export async function getStartupData(token) {
   try {
+    // Check network status first
+    await checkNetworkStatus();
+    
+    // If offline, get from localStorage
+    if (!isOnline) {
+      console.log('Offline - getting startup data from localStorage');
+      const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+      return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+    }
+
     if (!token) {
       throw new Error('No authentication token');
     }
@@ -527,10 +564,29 @@ export async function getStartupData(token) {
     });
         
     const data = await handleAPIResponseWithRateLimit(response, 'getStartupData');
-    return data || null;
+    const startupData = data || null;
+    
+    // Cache startup data for offline use
+    if (startupData) {
+      localStorage.setItem('viking_startup_data_offline', JSON.stringify(startupData));
+    }
+    
+    return startupData;
         
   } catch (error) {
     console.error('Error fetching startup data:', error);
+    
+    // If online request fails, try localStorage as fallback
+    if (isOnline) {
+      console.log('Online request failed - trying localStorage as fallback');
+      try {
+        const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+        return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }
