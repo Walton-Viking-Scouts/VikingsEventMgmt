@@ -1,5 +1,6 @@
 // useAuth hook for managing authentication state in React
 import { useState, useEffect, useCallback } from 'react';
+import * as Sentry from '@sentry/react';
 import authService from '../services/auth.js';
 
 export function useAuth() {
@@ -40,11 +41,32 @@ export function useAuth() {
           const userInfo = authService.getUserInfo();
           setUser(userInfo);
           console.log('✅ User authenticated successfully');
+          
+          // Log successful authentication
+          Sentry.addBreadcrumb({
+            category: 'auth',
+            message: 'User authentication successful',
+            level: 'info',
+            data: {
+              hasUserInfo: !!userInfo,
+              userFullname: userInfo?.fullname || 'Unknown',
+            },
+          });
         } else {
           // Token validation failed - clear everything and show login
           setIsAuthenticated(false);
           setUser(null);
           console.log('❌ Token validation failed - showing login');
+          
+          // Log authentication failure
+          Sentry.addBreadcrumb({
+            category: 'auth',
+            message: 'Token validation failed',
+            level: 'warning',
+            data: {
+              reason: 'token_validation_failed',
+            },
+          });
         }
       } else {
         // No token exists - show login
@@ -56,6 +78,18 @@ export function useAuth() {
       console.error('Error checking authentication:', error);
       setIsAuthenticated(false);
       setUser(null);
+      
+      // Log authentication error
+      Sentry.captureException(error, {
+        tags: {
+          section: 'auth',
+          operation: 'check_authentication',
+        },
+        extra: {
+          hasToken: !!authService.getToken(),
+          isBlocked: authService.isBlocked(),
+        },
+      });
     } finally {
       setIsLoading(false);
     }

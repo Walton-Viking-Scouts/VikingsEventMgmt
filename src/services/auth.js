@@ -88,22 +88,24 @@ export function handleTokenExpiration() {
 // OAuth URL generation
 export function generateOAuthUrl() {
   const BACKEND_URL = config.apiUrl;
+  const frontendUrl = window.location.origin;
+  
+  // Build redirect URI without query parameter to match OSM registration
   const redirectUri = `${BACKEND_URL}/oauth/callback`;
     
   // Determine environment based on hostname
   const hostname = window.location.hostname;
   const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikings-eventmgmt-mobile.onrender.com';
     
+  // Embed frontend URL in state parameter for backend detection
   const baseState = isDeployedServer ? 'prod' : 'dev';
-  const frontendUrl = window.location.origin;
-  const stateParam = `${baseState}&frontend_url=${encodeURIComponent(frontendUrl)}`;
+  const stateWithFrontendUrl = `${baseState}&frontend_url=${encodeURIComponent(frontendUrl)}`;
     
   console.log('🔧 Mobile OAuth Config:', {
     hostname,
     isDeployedServer,
     baseState,
     frontendUrl,
-    stateParam,
     redirectUri,
     backendUrl: BACKEND_URL,
   });
@@ -111,7 +113,7 @@ export function generateOAuthUrl() {
   const authUrl = 'https://www.onlinescoutmanager.co.uk/oauth/authorize?' +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `state=${encodeURIComponent(stateParam)}&` +  // Re-enable state parameter
+        `state=${encodeURIComponent(stateWithFrontendUrl)}&` +
         `scope=${encodeURIComponent(scope)}&` +
         'response_type=code';
     
