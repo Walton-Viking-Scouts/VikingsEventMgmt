@@ -63,8 +63,11 @@ class DatabaseService {
         eventid INTEGER PRIMARY KEY,
         sectionid INTEGER,
         name TEXT NOT NULL,
+        date TEXT,
         startdate TEXT,
+        startdate_g TEXT,
         enddate TEXT,
+        enddate_g TEXT,
         location TEXT,
         notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -167,6 +170,7 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       localStorage.setItem(key, JSON.stringify(events));
+      console.log(`Saved ${events.length} events to localStorage with key: ${key}`);
       return;
     }
     
@@ -176,15 +180,18 @@ class DatabaseService {
 
     for (const event of events) {
       const insert = `
-        INSERT INTO events (eventid, sectionid, name, startdate, enddate, location, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO events (eventid, sectionid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       await this.db.run(insert, [
         event.eventid, 
         sectionId, 
         event.name, 
+        event.date,
         event.startdate, 
+        event.startdate_g,
         event.enddate, 
+        event.enddate_g,
         event.location, 
         event.notes,
       ]);
@@ -200,7 +207,9 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       const events = localStorage.getItem(key);
-      return events ? JSON.parse(events) : [];
+      const parsedEvents = events ? JSON.parse(events) : [];
+      console.log(`Retrieved ${parsedEvents.length} events from localStorage with key: ${key}`);
+      return parsedEvents;
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';

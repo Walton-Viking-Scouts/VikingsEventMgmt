@@ -74,9 +74,14 @@ export function isTokenValid(responseData) {
 
 // Token expiration handling
 export function handleTokenExpiration() {
-  console.log('Token expired - clearing session');
+  console.log('Token expired - clearing session but keeping offline data');
   clearToken();
-  localStorage.removeItem('viking_sections_cache');
+  
+  // DON'T clear offline cached data when token expires
+  // The offline data should remain available for offline access
+  // Only clear session-specific data
+  sessionStorage.removeItem('user_info');
+  sessionStorage.removeItem('token_invalid');
     
   // Instead of reloading, we'll let React handle the state change
   // The useAuth hook will detect the token removal and update accordingly
@@ -194,10 +199,24 @@ export async function validateToken() {
 // Logout function
 export function logout() {
   clearToken();
-  localStorage.removeItem('viking_sections_cache');
+  
+  // Clear all offline cached data
+  localStorage.removeItem('viking_sections_offline');
+  localStorage.removeItem('viking_terms_offline');
+  localStorage.removeItem('viking_startup_data_offline');
+  
+  // Clear all event-related cached data
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('viking_events_') || 
+        key.startsWith('viking_attendance_') || 
+        key.startsWith('viking_members_')) {
+      localStorage.removeItem(key);
+    }
+  });
+  
   sessionStorage.removeItem('user_info');
   sessionStorage.removeItem('token_invalid');
-  console.log('User logged out');
+  console.log('User logged out - all cached data cleared');
 }
 
 // Check for blocked status

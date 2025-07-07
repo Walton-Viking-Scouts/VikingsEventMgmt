@@ -168,6 +168,16 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
 // API functions
 export async function getTerms(token) {
   try {
+    // Check network status first
+    await checkNetworkStatus();
+    
+    // If offline, get from localStorage
+    if (!isOnline) {
+      console.log('Offline - getting terms from localStorage');
+      const cachedTerms = localStorage.getItem('viking_terms_offline');
+      return cachedTerms ? JSON.parse(cachedTerms) : {};
+    }
+
     if (!token) {
       throw new Error('No authentication token');
     }
@@ -181,10 +191,27 @@ export async function getTerms(token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getTerms');
-    return data || {};
+    const terms = data || {};
+    
+    // Cache terms data for offline use
+    localStorage.setItem('viking_terms_offline', JSON.stringify(terms));
+    
+    return terms;
 
   } catch (error) {
     console.error('Error fetching terms:', error);
+    
+    // If online request fails, try localStorage as fallback
+    if (isOnline) {
+      console.log('Online request failed - trying localStorage as fallback');
+      try {
+        const cachedTerms = localStorage.getItem('viking_terms_offline');
+        return cachedTerms ? JSON.parse(cachedTerms) : {};
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }
@@ -350,12 +377,14 @@ export async function getEvents(sectionId, termId, token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getEvents');
-    const events = data || [];
+    // Events are in the 'items' property of the response
+    const events = (data && data.items) ? data.items : [];
+    
+    console.log(`getEvents API returned ${events.length} events for section ${sectionId}`);
 
-    // Save to local database when online
-    if (events.length > 0) {
-      await databaseService.saveEvents(sectionId, events);
-    }
+    // Save to local database when online (even if empty to cache the result)
+    await databaseService.saveEvents(sectionId, events);
+    console.log(`Attempted to save ${events.length} events to storage for section ${sectionId}`);
 
     return events;
 
@@ -402,7 +431,8 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getEventAttendance');
-    const attendance = data || [];
+    // Attendance is in the 'items' property of the response
+    const attendance = (data && data.items) ? data.items : [];
 
     // Save to local database when online
     if (attendance.length > 0) {
@@ -514,6 +544,16 @@ export async function getFlexiStructure(extraid, sectionid, termid, token) {
 
 export async function getStartupData(token) {
   try {
+    // Check network status first
+    await checkNetworkStatus();
+    
+    // If offline, get from localStorage
+    if (!isOnline) {
+      console.log('Offline - getting startup data from localStorage');
+      const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+      return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+    }
+
     if (!token) {
       throw new Error('No authentication token');
     }
@@ -527,10 +567,29 @@ export async function getStartupData(token) {
     });
         
     const data = await handleAPIResponseWithRateLimit(response, 'getStartupData');
-    return data || null;
+    const startupData = data || null;
+    
+    // Cache startup data for offline use
+    if (startupData) {
+      localStorage.setItem('viking_startup_data_offline', JSON.stringify(startupData));
+    }
+    
+    return startupData;
         
   } catch (error) {
     console.error('Error fetching startup data:', error);
+    
+    // If online request fails, try localStorage as fallback
+    if (isOnline) {
+      console.log('Online request failed - trying localStorage as fallback');
+      try {
+        const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+        return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }

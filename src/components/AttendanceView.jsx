@@ -33,9 +33,9 @@ function AttendanceView({ events, onBack }) {
             token,
           );
           
-          if (attendance && attendance.items) {
+          if (attendance && Array.isArray(attendance)) {
             // Add event info to each attendance record
-            const attendanceWithEvent = attendance.items.map(record => ({
+            const attendanceWithEvent = attendance.map(record => ({
               ...record,
               eventid: event.eventid,
               eventname: event.name,
@@ -68,6 +68,12 @@ function AttendanceView({ events, onBack }) {
     }
   };
 
+  const getAttendanceStatus = (attending) => {
+    if (attending === 'Yes' || attending === '1') return 'yes';
+    if (attending === 'Invited') return 'invited';
+    return 'no'; // For empty string, "No", or other values
+  };
+
   const getSummaryStats = () => {
     const memberStats = {};
     
@@ -77,24 +83,58 @@ function AttendanceView({ events, onBack }) {
         memberStats[memberKey] = {
           name: memberKey,
           scoutid: record.scoutid,
-          attended: 0,
+          yes: 0,
+          no: 0,
+          invited: 0,
           total: 0,
           events: [],
         };
       }
       
       memberStats[memberKey].total++;
-      if (record.attending === '1' || record.attending === 'Yes') {
-        memberStats[memberKey].attended++;
-      }
+      const status = getAttendanceStatus(record.attending);
+      memberStats[memberKey][status]++;
+      
       memberStats[memberKey].events.push({
         name: record.eventname,
         date: record.eventdate,
-        attended: record.attending === '1' || record.attending === 'Yes',
+        status: status,
+        attending: record.attending,
       });
     });
     
     return Object.values(memberStats);
+  };
+
+  const getSectionSummaryStats = () => {
+    const sectionStats = {};
+    const totals = { yes: 0, no: 0, invited: 0, total: 0 };
+    
+    attendanceData.forEach(record => {
+      const sectionName = record.sectionname || 'Unknown Section';
+      
+      if (!sectionStats[sectionName]) {
+        sectionStats[sectionName] = {
+          name: sectionName,
+          yes: 0,
+          no: 0,
+          invited: 0,
+          total: 0,
+        };
+      }
+      
+      const status = getAttendanceStatus(record.attending);
+      sectionStats[sectionName][status]++;
+      sectionStats[sectionName].total++;
+      
+      totals[status]++;
+      totals.total++;
+    });
+    
+    return {
+      sections: Object.values(sectionStats),
+      totals,
+    };
   };
 
   const handleSort = (key) => {
@@ -121,11 +161,15 @@ function AttendanceView({ events, onBack }) {
         break;
       case 'attendance':
         if (viewMode === 'summary') {
-          aValue = a.attended || 0;
-          bValue = b.attended || 0;
+          aValue = a.yes || 0;
+          bValue = b.yes || 0;
         } else {
-          aValue = (a.attending === '1' || a.attending === 'Yes') ? 1 : 0;
-          bValue = (b.attending === '1' || b.attending === 'Yes') ? 1 : 0;
+          const statusA = getAttendanceStatus(a.attending);
+          const statusB = getAttendanceStatus(b.attending);
+          // Sort order: yes, invited, no
+          const statusOrder = { yes: 0, invited: 1, no: 2 };
+          aValue = statusOrder[statusA] || 3;
+          bValue = statusOrder[statusB] || 3;
         }
         break;
       case 'event':
@@ -217,164 +261,283 @@ function AttendanceView({ events, onBack }) {
   }
 
   const summaryStats = getSummaryStats();
+  const sectionSummaryStats = getSectionSummaryStats();
 
   return (
-    <Card className="m-4">
-      <Card.Header>
-        <Card.Title>Attendance Data</Card.Title>
-        <div className="flex gap-2 items-center">
-          <Badge variant="scout-blue">
-            {events.length} event{events.length !== 1 ? 's' : ''}
-          </Badge>
-          <Button 
-            variant="outline-scout-blue"
-            onClick={onBack}
-            type="button"
-          >
+    <div>
+      {/* Attendance Summary Card */}
+      <Card className="m-4">
+        <Card.Header>
+          <Card.Title>Attendance Summary</Card.Title>
+          <div className="flex gap-2 items-center">
+            <Badge variant="scout-blue">
+              {events.length} event{events.length !== 1 ? 's' : ''}
+            </Badge>
+            <Badge variant="scout-green">
+              {sectionSummaryStats.totals.total} total responses
+            </Badge>
+          </div>
+        </Card.Header>
+        <Card.Body>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Section
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">
+                    Yes
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-red-600 uppercase tracking-wider">
+                    No
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">
+                    Invited
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sectionSummaryStats.sections.map((section, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {section.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-semibold">
+                      {section.yes}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-semibold">
+                      {section.no}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-semibold">
+                      {section.invited}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-semibold">
+                      {section.total}
+                    </td>
+                  </tr>
+                ))}
+                {/* Totals row */}
+                <tr className="bg-gray-100 font-bold">
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 border-t-2 border-gray-300">
+                    Totals
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
+                    {sectionSummaryStats.totals.yes}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
+                    {sectionSummaryStats.totals.no}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
+                    {sectionSummaryStats.totals.invited}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
+                    {sectionSummaryStats.totals.total}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* Attendance Data Card */}
+      <Card className="m-4">
+        <Card.Header>
+          <Card.Title>Attendance Data</Card.Title>
+          <div className="flex gap-2 items-center">
+            <Badge variant="scout-blue">
+              {events.length} event{events.length !== 1 ? 's' : ''}
+            </Badge>
+            <Button 
+              variant="outline-scout-blue"
+              onClick={onBack}
+              type="button"
+            >
             Back
-          </Button>
-        </div>
-      </Card.Header>
+            </Button>
+          </div>
+        </Card.Header>
 
-      <Card.Body>
-        {/* View toggle */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
-            <button 
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                viewMode === 'summary' 
-                  ? 'border-scout-blue text-scout-blue' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setViewMode('summary')}
-              type="button"
-            >
+        <Card.Body>
+          {/* View toggle */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'summary' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('summary')}
+                type="button"
+              >
               Summary
-            </button>
-            <button 
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                viewMode === 'detailed' 
-                  ? 'border-scout-blue text-scout-blue' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setViewMode('detailed')}
-              type="button"
-            >
+              </button>
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'detailed' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('detailed')}
+                type="button"
+              >
               Detailed
-            </button>
-          </nav>
-        </div>
-
-        {viewMode === 'summary' && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('member')}
-                  >
-                    <div className="flex items-center">
-                    Member {getSortIcon('member')}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('attendance')}
-                  >
-                    <div className="flex items-center">
-                    Attendance {getSortIcon('attendance')}
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
-                  return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-semibold text-gray-900">{member.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                        {member.attended} / {member.total}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              </button>
+            </nav>
           </div>
-        )}
 
-        {viewMode === 'detailed' && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('member')}
-                  >
-                    <div className="flex items-center">
+          {viewMode === 'summary' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('member')}
+                    >
+                      <div className="flex items-center">
                     Member {getSortIcon('member')}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('event')}
-                  >
-                    <div className="flex items-center">
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Attendance Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-semibold text-gray-900">{member.name}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex gap-2 flex-wrap">
+                            {member.yes > 0 && (
+                              <Badge variant="scout-green" className="text-xs">
+                              Yes: {member.yes}
+                              </Badge>
+                            )}
+                            {member.no > 0 && (
+                              <Badge variant="scout-red" className="text-xs">
+                              No: {member.no}
+                              </Badge>
+                            )}
+                            {member.invited > 0 && (
+                              <Badge variant="scout-blue" className="text-xs">
+                              Invited: {member.invited}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-gray-500 text-sm mt-1">
+                          Total events: {member.total}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {viewMode === 'detailed' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('member')}
+                    >
+                      <div className="flex items-center">
+                    Member {getSortIcon('member')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('event')}
+                    >
+                      <div className="flex items-center">
                     Event {getSortIcon('event')}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('date')}
-                  >
-                    <div className="flex items-center">
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('date')}
+                    >
+                      <div className="flex items-center">
                     Date {getSortIcon('date')}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                    onClick={() => handleSort('attendance')}
-                  >
-                    <div className="flex items-center">
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('attendance')}
+                    >
+                      <div className="flex items-center">
                     Attendance {getSortIcon('attendance')}
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
-                  const attended = record.attending === '1' || record.attending === 'Yes';
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
+                    const status = getAttendanceStatus(record.attending);
+                    let badgeVariant, statusText;
+                  
+                    switch (status) {
+                    case 'yes':
+                      badgeVariant = 'scout-green';
+                      statusText = 'Yes';
+                      break;
+                    case 'invited':
+                      badgeVariant = 'scout-blue';
+                      statusText = 'Invited';
+                      break;
+                    case 'no':
+                    default:
+                      badgeVariant = 'scout-red';
+                      statusText = 'No';
+                      break;
+                    }
                 
-                  return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
-                        <div className="text-gray-500 text-sm">{record.sectionname}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                        {record.eventname}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                        {formatDate(record.eventdate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={attended ? 'scout-green' : 'scout-red'}>
-                          {attended ? 'Yes' : 'No'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
+                          <div className="text-gray-500 text-sm">{record.sectionname}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                          {record.eventname}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                          {formatDate(record.eventdate)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Badge variant={badgeVariant}>
+                            {statusText}
+                          </Badge>
+                          {record.attending && record.attending !== statusText && (
+                            <div className="text-gray-500 text-xs mt-1">
+                            Raw: &quot;{record.attending}&quot;
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+    </div>
   );
 }
 
