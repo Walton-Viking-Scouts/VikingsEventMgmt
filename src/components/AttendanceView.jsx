@@ -33,9 +33,9 @@ function AttendanceView({ events, onBack }) {
             token,
           );
           
-          if (attendance && attendance.items) {
+          if (attendance && Array.isArray(attendance)) {
             // Add event info to each attendance record
-            const attendanceWithEvent = attendance.items.map(record => ({
+            const attendanceWithEvent = attendance.map(record => ({
               ...record,
               eventid: event.eventid,
               eventname: event.name,

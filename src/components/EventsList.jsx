@@ -24,8 +24,8 @@ function EventsList({ sections, onEventSelect, onBack }) {
         const termId = await getMostRecentTermId(section.sectionid, token);
         if (!termId) continue;
         const sectionEvents = await getEvents(section.sectionid, termId, token);
-        if (sectionEvents && sectionEvents.items) {
-          allEvents.push(...sectionEvents.items.map(event => ({
+        if (sectionEvents && Array.isArray(sectionEvents)) {
+          allEvents.push(...sectionEvents.map(event => ({
             ...event,
             sectionid: section.sectionid,
             sectionname: section.sectionname,

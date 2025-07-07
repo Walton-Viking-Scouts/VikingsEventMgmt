@@ -431,7 +431,8 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getEventAttendance');
-    const attendance = data || [];
+    // Attendance is in the 'items' property of the response
+    const attendance = (data && data.items) ? data.items : [];
 
     // Save to local database when online
     if (attendance.length > 0) {
