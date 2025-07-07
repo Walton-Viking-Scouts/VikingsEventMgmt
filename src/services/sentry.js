@@ -25,8 +25,8 @@ export function initSentry() {
     environment,
     release: `vikings-eventmgmt-mobile@${release}`,
     
-    // Performance monitoring - disabled to prevent OAuth interference
-    tracesSampleRate: 0,
+    // Performance monitoring
+    tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
     
     // Enable experimental features
     _experiments: {
@@ -35,13 +35,8 @@ export function initSentry() {
     
     // Integrations
     integrations: [
-      // Browser tracing for performance monitoring - disabled for OAuth compatibility
-      // Sentry.browserTracingIntegration({
-      //   // Don't track external OAuth URLs as requests - this prevents
-      //   // Sentry from intercepting window.location.href navigation to OSM
-      //   traceFetch: false,
-      //   traceXHR: false,
-      // }),
+      // Browser tracing for performance monitoring
+      Sentry.browserTracingIntegration(),
       
       // Console logging integration
       Sentry.consoleLoggingIntegration({ 
