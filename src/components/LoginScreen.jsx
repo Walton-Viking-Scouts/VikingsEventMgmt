@@ -1,5 +1,4 @@
 import React from 'react';
-import * as Sentry from '@sentry/react';
 import { Button, Card } from './ui';
 
 function LoginScreen({ onLogin }) {
