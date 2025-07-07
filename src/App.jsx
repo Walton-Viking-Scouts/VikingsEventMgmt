@@ -7,7 +7,6 @@ import BlockedScreen from './components/BlockedScreen.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import syncService from './services/sync.js';
-import SentryTestButton from './components/SentryTestButton.jsx';
 import './App.css';
 
 function App() {
@@ -49,12 +48,7 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <LoginScreen onLogin={login} />
-        <SentryTestButton />
-      </>
-    );
+    return <LoginScreen onLogin={login} />;
   }
 
   return (
@@ -67,7 +61,6 @@ function App() {
           </Routes>
         </ResponsiveLayout>
       </Router>
-      <SentryTestButton />
     </div>
   );
 }
