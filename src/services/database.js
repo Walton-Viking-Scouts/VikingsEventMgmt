@@ -167,6 +167,7 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       localStorage.setItem(key, JSON.stringify(events));
+      console.log(`Saved ${events.length} events to localStorage with key: ${key}`);
       return;
     }
     
@@ -200,7 +201,9 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       const events = localStorage.getItem(key);
-      return events ? JSON.parse(events) : [];
+      const parsedEvents = events ? JSON.parse(events) : [];
+      console.log(`Retrieved ${parsedEvents.length} events from localStorage with key: ${key}`);
+      return parsedEvents;
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';
