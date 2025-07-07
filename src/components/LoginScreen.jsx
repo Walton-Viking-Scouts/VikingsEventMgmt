@@ -4,19 +4,20 @@ import { Button, Card } from './ui';
 
 function LoginScreen({ onLogin }) {
   const handleLoginClick = () => {
-    // Create a span to measure login button performance
-    Sentry.startSpan(
-      {
-        op: 'ui.click',
-        name: 'Login Button Click',
+    // Log login attempt for monitoring (without span to avoid OAuth interference)
+    Sentry.addBreadcrumb({
+      category: 'auth',
+      message: 'User initiated OAuth login',
+      level: 'info',
+      data: {
+        component: 'LoginScreen',
+        action: 'login_button_clicked',
+        timestamp: new Date().toISOString(),
       },
-      (span) => {
-        span.setAttribute('component', 'LoginScreen');
-        span.setAttribute('action', 'login_initiated');
-        
-        onLogin();
-      },
-    );
+    });
+    
+    // Direct login call without span instrumentation to prevent OAuth interference
+    onLogin();
   };
 
   return (
