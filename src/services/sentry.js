@@ -35,13 +35,13 @@ export function initSentry() {
     
     // Integrations
     integrations: [
-      // Browser tracing for performance monitoring
-      Sentry.browserTracingIntegration({
-        // Don't track external OAuth URLs as requests - this prevents
-        // Sentry from intercepting window.location.href navigation to OSM
-        traceFetch: false,
-        traceXHR: false,
-      }),
+      // Browser tracing for performance monitoring - disabled for OAuth compatibility
+      // Sentry.browserTracingIntegration({
+      //   // Don't track external OAuth URLs as requests - this prevents
+      //   // Sentry from intercepting window.location.href navigation to OSM
+      //   traceFetch: false,
+      //   traceXHR: false,
+      // }),
       
       // Console logging integration
       Sentry.consoleLoggingIntegration({ 
