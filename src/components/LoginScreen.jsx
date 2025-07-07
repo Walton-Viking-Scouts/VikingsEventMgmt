@@ -29,7 +29,7 @@ function LoginScreen({ onLogin }) {
             Please log in with your Online Scout Manager account to continue.
           </p>
           <Button 
-            variant="scout-blue"
+            variant="scout-purple"
             size="lg"
             onClick={handleLoginClick}
             className="w-full"

@@ -1,57 +1,338 @@
-/* Tailwind CSS imports */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 import */
+@import "tailwindcss";
 
-/* Custom CSS layers for parallel approach */
+/* Tailwind v4 theme configuration */
+@theme {
+  /* Scout-themed colors - properly mapped for Tailwind v4 */
+  --color-scout-red: #ed3f23;
+  --color-scout-red-light: #f16749;
+  --color-scout-red-dark: #c4321d;
+  
+  --color-scout-blue: #006ddf;
+  --color-scout-blue-light: #3387e5;
+  --color-scout-blue-dark: #004fb3;
+  
+  --color-scout-blue-dark: #004fb3;
+  --color-scout-blue-dark-light: #006ddf;
+  --color-scout-blue-dark-dark: #003f8f;
+  
+  --color-scout-orange: #ff912a;
+  --color-scout-orange-light: #ffad5a;
+  --color-scout-orange-dark: #e67e1f;
+  
+  --color-scout-green: #25b755;
+  --color-scout-green-light: #4fc470;
+  --color-scout-green-dark: #1e9544;
+  
+  --color-scout-pink: #ffb4e5;
+  --color-scout-pink-light: #ffcbec;
+  --color-scout-pink-dark: #e591c9;
+  
+  --color-scout-yellow: #ffe627;
+  --color-scout-yellow-light: #ffef5a;
+  --color-scout-yellow-dark: #e6c61f;
+  
+  --color-scout-forest-green: #205b41;
+  --color-scout-forest-green-light: #3d7863;
+  --color-scout-forest-green-dark: #1a4a35;
+  
+  --color-scout-purple: #7413dc;
+  --color-scout-purple-light: #8f47e3;
+  --color-scout-purple-dark: #5e0fb5;
+  
+  --color-scout-teal: #088486;
+  --color-scout-teal-light: #2da5a7;
+  --color-scout-teal-dark: #066769;
+  
+  --color-scout-navy: #003f8f;
+  --color-scout-navy-light: #004fb3;
+  --color-scout-navy-dark: #002f6f;
+  
+  /* Standard design system colors */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #006ddf;
+  --color-primary-600: #004fb3;
+  --color-primary-700: #003f8f;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  
+  --color-success: #25b755;
+  --color-warning: #ff912a;
+  --color-error: #ed3f23;
+  
+  /* Font families */
+  --font-sans: "Inter", system-ui, sans-serif;
+  
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  
+  /* Border radius */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  
+  /* Box shadows */
+  --shadow-soft: 0 2px 15px 0 rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Legacy Scout color variables for inline styles compatibility */
+:root {
+  /* Scout color aliases for inline styles (without --color prefix) */
+  --scout-red: #ed3f23;
+  --scout-red-light: #f16749;
+  --scout-red-dark: #c4321d;
+  
+  --scout-blue: #006ddf;
+  --scout-blue-light: #3387e5;
+  --scout-blue-dark: #004fb3;
+  
+  --scout-blue-dark: #004fb3;
+  --scout-blue-dark-light: #006ddf;
+  --scout-blue-dark-dark: #003f8f;
+  
+  --scout-orange: #ff912a;
+  --scout-orange-light: #ffad5a;
+  --scout-orange-dark: #e67e1f;
+  
+  --scout-green: #25b755;
+  --scout-green-light: #4fc470;
+  --scout-green-dark: #1e9544;
+  
+  --scout-pink: #ffb4e5;
+  --scout-pink-light: #ffcbec;
+  --scout-pink-dark: #e591c9;
+  
+  --scout-yellow: #ffe627;
+  --scout-yellow-light: #ffef5a;
+  --scout-yellow-dark: #e6c61f;
+  
+  --scout-forest-green: #205b41;
+  --scout-forest-green-light: #3d7863;
+  --scout-forest-green-dark: #1a4a35;
+  
+  --scout-purple: #7413dc;
+  --scout-purple-light: #8f47e3;
+  --scout-purple-dark: #5e0fb5;
+  
+  --scout-teal: #088486;
+  --scout-teal-light: #2da5a7;
+  --scout-teal-dark: #066769;
+  
+  --scout-navy: #003f8f;
+  --scout-navy-light: #004fb3;
+  --scout-navy-dark: #002f6f;
+}
+
+/* Scout color utilities for Tailwind v4 */
+@layer utilities {
+  /* Background colors */
+  .bg-scout-red { background-color: var(--color-scout-red); }
+  .bg-scout-red-light { background-color: var(--color-scout-red-light); }
+  .bg-scout-red-dark { background-color: var(--color-scout-red-dark); }
+  
+  .bg-scout-blue { background-color: var(--color-scout-blue); }
+  .bg-scout-blue-light { background-color: var(--color-scout-blue-light); }
+  .bg-scout-blue-dark { background-color: var(--color-scout-blue-dark); }
+  
+  .bg-scout-blue-dark-light { background-color: var(--color-scout-blue-dark-light); }
+  .bg-scout-blue-dark-dark { background-color: var(--color-scout-blue-dark-dark); }
+  
+  .bg-scout-orange { background-color: var(--color-scout-orange); }
+  .bg-scout-orange-light { background-color: var(--color-scout-orange-light); }
+  .bg-scout-orange-dark { background-color: var(--color-scout-orange-dark); }
+  
+  .bg-scout-green { background-color: var(--color-scout-green); }
+  .bg-scout-green-light { background-color: var(--color-scout-green-light); }
+  .bg-scout-green-dark { background-color: var(--color-scout-green-dark); }
+  
+  .bg-scout-pink { background-color: var(--color-scout-pink); }
+  .bg-scout-pink-light { background-color: var(--color-scout-pink-light); }
+  .bg-scout-pink-dark { background-color: var(--color-scout-pink-dark); }
+  
+  .bg-scout-yellow { background-color: var(--color-scout-yellow); }
+  .bg-scout-yellow-light { background-color: var(--color-scout-yellow-light); }
+  .bg-scout-yellow-dark { background-color: var(--color-scout-yellow-dark); }
+  
+  .bg-scout-forest-green { background-color: var(--color-scout-forest-green); }
+  .bg-scout-forest-green-light { background-color: var(--color-scout-forest-green-light); }
+  .bg-scout-forest-green-dark { background-color: var(--color-scout-forest-green-dark); }
+  
+  .bg-scout-purple { background-color: var(--color-scout-purple); }
+  .bg-scout-purple-light { background-color: var(--color-scout-purple-light); }
+  .bg-scout-purple-dark { background-color: var(--color-scout-purple-dark); }
+  
+  .bg-scout-teal { background-color: var(--color-scout-teal); }
+  .bg-scout-teal-light { background-color: var(--color-scout-teal-light); }
+  .bg-scout-teal-dark { background-color: var(--color-scout-teal-dark); }
+  
+  .bg-scout-navy { background-color: var(--color-scout-navy); }
+  .bg-scout-navy-light { background-color: var(--color-scout-navy-light); }
+  .bg-scout-navy-dark { background-color: var(--color-scout-navy-dark); }
+  
+  /* Text colors */
+  .text-scout-red { color: var(--color-scout-red); }
+  .text-scout-red-light { color: var(--color-scout-red-light); }
+  .text-scout-red-dark { color: var(--color-scout-red-dark); }
+  
+  .text-scout-blue { color: var(--color-scout-blue); }
+  .text-scout-blue-light { color: var(--color-scout-blue-light); }
+  .text-scout-blue-dark { color: var(--color-scout-blue-dark); }
+  
+  .text-scout-blue-dark-light { color: var(--color-scout-blue-dark-light); }
+  .text-scout-blue-dark-dark { color: var(--color-scout-blue-dark-dark); }
+  
+  .text-scout-orange { color: var(--color-scout-orange); }
+  .text-scout-orange-light { color: var(--color-scout-orange-light); }
+  .text-scout-orange-dark { color: var(--color-scout-orange-dark); }
+  
+  .text-scout-green { color: var(--color-scout-green); }
+  .text-scout-green-light { color: var(--color-scout-green-light); }
+  .text-scout-green-dark { color: var(--color-scout-green-dark); }
+  
+  .text-scout-pink { color: var(--color-scout-pink); }
+  .text-scout-pink-light { color: var(--color-scout-pink-light); }
+  .text-scout-pink-dark { color: var(--color-scout-pink-dark); }
+  
+  .text-scout-yellow { color: var(--color-scout-yellow); }
+  .text-scout-yellow-light { color: var(--color-scout-yellow-light); }
+  .text-scout-yellow-dark { color: var(--color-scout-yellow-dark); }
+  
+  .text-scout-forest-green { color: var(--color-scout-forest-green); }
+  .text-scout-forest-green-light { color: var(--color-scout-forest-green-light); }
+  .text-scout-forest-green-dark { color: var(--color-scout-forest-green-dark); }
+  
+  .text-scout-purple { color: var(--color-scout-purple); }
+  .text-scout-purple-light { color: var(--color-scout-purple-light); }
+  .text-scout-purple-dark { color: var(--color-scout-purple-dark); }
+  
+  .text-scout-teal { color: var(--color-scout-teal); }
+  .text-scout-teal-light { color: var(--color-scout-teal-light); }
+  .text-scout-teal-dark { color: var(--color-scout-teal-dark); }
+  
+  .text-scout-navy { color: var(--color-scout-navy); }
+  .text-scout-navy-light { color: var(--color-scout-navy-light); }
+  .text-scout-navy-dark { color: var(--color-scout-navy-dark); }
+  
+  /* Border colors */
+  .border-scout-red { border-color: var(--color-scout-red); }
+  .border-scout-red-light { border-color: var(--color-scout-red-light); }
+  .border-scout-red-dark { border-color: var(--color-scout-red-dark); }
+  
+  .border-scout-blue { border-color: var(--color-scout-blue); }
+  .border-scout-blue-light { border-color: var(--color-scout-blue-light); }
+  .border-scout-blue-dark { border-color: var(--color-scout-blue-dark); }
+  
+  .border-scout-blue-dark-light { border-color: var(--color-scout-blue-dark-light); }
+  .border-scout-blue-dark-dark { border-color: var(--color-scout-blue-dark-dark); }
+  
+  .border-scout-orange { border-color: var(--color-scout-orange); }
+  .border-scout-orange-light { border-color: var(--color-scout-orange-light); }
+  .border-scout-orange-dark { border-color: var(--color-scout-orange-dark); }
+  
+  .border-scout-green { border-color: var(--color-scout-green); }
+  .border-scout-green-light { border-color: var(--color-scout-green-light); }
+  .border-scout-green-dark { border-color: var(--color-scout-green-dark); }
+  
+  .border-scout-pink { border-color: var(--color-scout-pink); }
+  .border-scout-pink-light { border-color: var(--color-scout-pink-light); }
+  .border-scout-pink-dark { border-color: var(--color-scout-pink-dark); }
+  
+  .border-scout-yellow { border-color: var(--color-scout-yellow); }
+  .border-scout-yellow-light { border-color: var(--color-scout-yellow-light); }
+  .border-scout-yellow-dark { border-color: var(--color-scout-yellow-dark); }
+  
+  .border-scout-forest-green { border-color: var(--color-scout-forest-green); }
+  .border-scout-forest-green-light { border-color: var(--color-scout-forest-green-light); }
+  .border-scout-forest-green-dark { border-color: var(--color-scout-forest-green-dark); }
+  
+  .border-scout-purple { border-color: var(--color-scout-purple); }
+  .border-scout-purple-light { border-color: var(--color-scout-purple-light); }
+  .border-scout-purple-dark { border-color: var(--color-scout-purple-dark); }
+  
+  .border-scout-teal { border-color: var(--color-scout-teal); }
+  .border-scout-teal-light { border-color: var(--color-scout-teal-light); }
+  .border-scout-teal-dark { border-color: var(--color-scout-teal-dark); }
+  
+  .border-scout-navy { border-color: var(--color-scout-navy); }
+  .border-scout-navy-light { border-color: var(--color-scout-navy-light); }
+  .border-scout-navy-dark { border-color: var(--color-scout-navy-dark); }
+  
+  /* Ring colors for focus states */
+  .ring-scout-red { --tw-ring-color: var(--color-scout-red); }
+  .ring-scout-red-light { --tw-ring-color: var(--color-scout-red-light); }
+  .ring-scout-red-dark { --tw-ring-color: var(--color-scout-red-dark); }
+  
+  .ring-scout-blue { --tw-ring-color: var(--color-scout-blue); }
+  .ring-scout-blue-light { --tw-ring-color: var(--color-scout-blue-light); }
+  .ring-scout-blue-dark { --tw-ring-color: var(--color-scout-blue-dark); }
+  
+  .ring-scout-blue-dark-light { --tw-ring-color: var(--color-scout-blue-dark-light); }
+  .ring-scout-blue-dark-dark { --tw-ring-color: var(--color-scout-blue-dark-dark); }
+  
+  .ring-scout-orange { --tw-ring-color: var(--color-scout-orange); }
+  .ring-scout-orange-light { --tw-ring-color: var(--color-scout-orange-light); }
+  .ring-scout-orange-dark { --tw-ring-color: var(--color-scout-orange-dark); }
+  
+  .ring-scout-green { --tw-ring-color: var(--color-scout-green); }
+  .ring-scout-green-light { --tw-ring-color: var(--color-scout-green-light); }
+  .ring-scout-green-dark { --tw-ring-color: var(--color-scout-green-dark); }
+  
+  .ring-scout-pink { --tw-ring-color: var(--color-scout-pink); }
+  .ring-scout-pink-light { --tw-ring-color: var(--color-scout-pink-light); }
+  .ring-scout-pink-dark { --tw-ring-color: var(--color-scout-pink-dark); }
+  
+  .ring-scout-yellow { --tw-ring-color: var(--color-scout-yellow); }
+  .ring-scout-yellow-light { --tw-ring-color: var(--color-scout-yellow-light); }
+  .ring-scout-yellow-dark { --tw-ring-color: var(--color-scout-yellow-dark); }
+  
+  .ring-scout-forest-green { --tw-ring-color: var(--color-scout-forest-green); }
+  .ring-scout-forest-green-light { --tw-ring-color: var(--color-scout-forest-green-light); }
+  .ring-scout-forest-green-dark { --tw-ring-color: var(--color-scout-forest-green-dark); }
+  
+  .ring-scout-purple { --tw-ring-color: var(--color-scout-purple); }
+  .ring-scout-purple-light { --tw-ring-color: var(--color-scout-purple-light); }
+  .ring-scout-purple-dark { --tw-ring-color: var(--color-scout-purple-dark); }
+  
+  .ring-scout-teal { --tw-ring-color: var(--color-scout-teal); }
+  .ring-scout-teal-light { --tw-ring-color: var(--color-scout-teal-light); }
+  .ring-scout-teal-dark { --tw-ring-color: var(--color-scout-teal-dark); }
+  
+  .ring-scout-navy { --tw-ring-color: var(--color-scout-navy); }
+  .ring-scout-navy-light { --tw-ring-color: var(--color-scout-navy-light); }
+  .ring-scout-navy-dark { --tw-ring-color: var(--color-scout-navy-dark); }
+}
+
+/* Custom CSS layers for additional styles */
 @layer base {
   :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-weight: 400;
 
-    color-scheme: light dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #242424;
+    color-scheme: light;
+    color: #213547;
+    background-color: #f3f4f6;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-
-    /* Official Scout Colours - Available as CSS variables and Tailwind classes */
-    --scout-red: #ed3f23;
-    --scout-blue: #006ddf;
-    --scout-orange: #ff912a;
-    --scout-green: #25b755;
-    --scout-pink: #ffb4e5;
-    --scout-yellow: #ffe627;
-    --scout-forest-green: #205b41;
-    --scout-purple: #7413dc;
-    --scout-teal: #088486;
-    --scout-navy: #003f8f;
-    
-    /* Scout colour variations */
-    --scout-red-light: #f16749;
-    --scout-red-dark: #c4321d;
-    --scout-blue-light: #3387e5;
-    --scout-blue-dark: #004fb3;
-    --scout-orange-light: #ffad5a;
-    --scout-orange-dark: #e67e1f;
-    --scout-green-light: #4fc470;
-    --scout-green-dark: #1e9544;
-    --scout-pink-light: #ffcbec;
-    --scout-pink-dark: #e591c9;
-    --scout-yellow-light: #ffef5a;
-    --scout-yellow-dark: #e6c61f;
-    --scout-forest-green-light: #3d7863;
-    --scout-forest-green-dark: #1a4a35;
-    --scout-purple-light: #8f47e3;
-    --scout-purple-dark: #5e0fb5;
-    --scout-teal-light: #2da5a7;
-    --scout-teal-dark: #066769;
-    --scout-navy-light: #004fb3;
-    --scout-navy-dark: #002f6f;
   }
 }
 
@@ -173,9 +454,6 @@ body {
   }
   a:hover {
     color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
   }
 }
 
