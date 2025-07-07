@@ -377,12 +377,14 @@ export async function getEvents(sectionId, termId, token) {
     });
 
     const data = await handleAPIResponseWithRateLimit(response, 'getEvents');
-    const events = data || [];
+    // Events are in the 'items' property of the response
+    const events = (data && data.items) ? data.items : [];
+    
+    console.log(`getEvents API returned ${events.length} events for section ${sectionId}`);
 
-    // Save to local database when online
-    if (events.length > 0) {
-      await databaseService.saveEvents(sectionId, events);
-    }
+    // Save to local database when online (even if empty to cache the result)
+    await databaseService.saveEvents(sectionId, events);
+    console.log(`Attempted to save ${events.length} events to storage for section ${sectionId}`);
 
     return events;
 
