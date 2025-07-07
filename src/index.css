@@ -1,9 +1,97 @@
-/* Tailwind CSS imports */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 import */
+@import "tailwindcss";
 
-/* Custom CSS layers for parallel approach */
+/* Tailwind v4 theme configuration */
+@theme {
+  /* Scout-themed colors */
+  --color-scout-red: #ed3f23;
+  --color-scout-red-light: #f16749;
+  --color-scout-red-dark: #c4321d;
+  
+  --color-scout-blue: #006ddf;
+  --color-scout-blue-light: #3387e5;
+  --color-scout-blue-dark: #004fb3;
+  
+  --color-scout-blue-dark: #004fb3;
+  --color-scout-blue-dark-light: #006ddf;
+  --color-scout-blue-dark-dark: #003f8f;
+  
+  --color-scout-orange: #ff912a;
+  --color-scout-orange-light: #ffad5a;
+  --color-scout-orange-dark: #e67e1f;
+  
+  --color-scout-green: #25b755;
+  --color-scout-green-light: #4fc470;
+  --color-scout-green-dark: #1e9544;
+  
+  --color-scout-pink: #ffb4e5;
+  --color-scout-pink-light: #ffcbec;
+  --color-scout-pink-dark: #e591c9;
+  
+  --color-scout-yellow: #ffe627;
+  --color-scout-yellow-light: #ffef5a;
+  --color-scout-yellow-dark: #e6c61f;
+  
+  --color-scout-forest-green: #205b41;
+  --color-scout-forest-green-light: #3d7863;
+  --color-scout-forest-green-dark: #1a4a35;
+  
+  --color-scout-purple: #7413dc;
+  --color-scout-purple-light: #8f47e3;
+  --color-scout-purple-dark: #5e0fb5;
+  
+  --color-scout-teal: #088486;
+  --color-scout-teal-light: #2da5a7;
+  --color-scout-teal-dark: #066769;
+  
+  --color-scout-navy: #003f8f;
+  --color-scout-navy-light: #004fb3;
+  --color-scout-navy-dark: #002f6f;
+  
+  /* Standard design system colors */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #006ddf;
+  --color-primary-600: #004fb3;
+  --color-primary-700: #003f8f;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  
+  --color-success: #25b755;
+  --color-warning: #ff912a;
+  --color-error: #ed3f23;
+  
+  /* Font families */
+  --font-sans: "Inter", system-ui, sans-serif;
+  
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  
+  /* Border radius */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  
+  /* Box shadows */
+  --shadow-soft: 0 2px 15px 0 rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Custom CSS layers for additional styles */
 @layer base {
   :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -18,40 +106,6 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-
-    /* Official Scout Colours - Available as CSS variables and Tailwind classes */
-    --scout-red: #ed3f23;
-    --scout-blue: #006ddf;
-    --scout-orange: #ff912a;
-    --scout-green: #25b755;
-    --scout-pink: #ffb4e5;
-    --scout-yellow: #ffe627;
-    --scout-forest-green: #205b41;
-    --scout-purple: #7413dc;
-    --scout-teal: #088486;
-    --scout-navy: #003f8f;
-    
-    /* Scout colour variations */
-    --scout-red-light: #f16749;
-    --scout-red-dark: #c4321d;
-    --scout-blue-light: #3387e5;
-    --scout-blue-dark: #004fb3;
-    --scout-orange-light: #ffad5a;
-    --scout-orange-dark: #e67e1f;
-    --scout-green-light: #4fc470;
-    --scout-green-dark: #1e9544;
-    --scout-pink-light: #ffcbec;
-    --scout-pink-dark: #e591c9;
-    --scout-yellow-light: #ffef5a;
-    --scout-yellow-dark: #e6c61f;
-    --scout-forest-green-light: #3d7863;
-    --scout-forest-green-dark: #1a4a35;
-    --scout-purple-light: #8f47e3;
-    --scout-purple-dark: #5e0fb5;
-    --scout-teal-light: #2da5a7;
-    --scout-teal-dark: #066769;
-    --scout-navy-light: #004fb3;
-    --scout-navy-dark: #002f6f;
   }
 }
 
