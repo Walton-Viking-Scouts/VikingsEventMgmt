@@ -50,7 +50,7 @@ class SyncService {
           },
           onCancel: () => {
             resolve(false);
-          }
+          },
         });
       });
     });
