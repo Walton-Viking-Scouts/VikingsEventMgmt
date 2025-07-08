@@ -156,7 +156,7 @@ function OfflineIndicator() {
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <span className="text-amber-600 text-xl">�</span>
+                    <span className="text-amber-600 text-xl">🔐</span>
                   </div>
                 </div>
                 <div>
