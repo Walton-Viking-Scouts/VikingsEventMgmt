@@ -237,56 +237,6 @@ function OfflineIndicator() {
           </div>
         </Alert>
       )}
-      
-      {/* Login Prompt Modal */}
-      <Modal
-        isOpen={showLoginPrompt}
-        onClose={handleLoginCancel}
-        size="md"
-      >
-        <Modal.Header>
-          <Modal.Title>Authentication Required</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                  <span className="text-amber-600 text-xl">🔐</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-gray-900 font-medium">
-                  {loginPromptData?.message || 'Authentication required to sync data.'}
-                </p>
-                <p className="text-gray-600 text-sm mt-1">
-                  You will be redirected to Online Scout Manager to authenticate.
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-blue-800 text-sm">
-                <strong>Note:</strong> You can continue using the app with offline data if you prefer not to sync at this time.
-              </p>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline"
-            onClick={handleLoginCancel}
-          >
-            Stay Offline
-          </Button>
-          <Button
-            variant="scout-blue"
-            onClick={handleLoginConfirm}
-          >
-            Login & Sync
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </div>
   );
 }
