@@ -1,6 +1,6 @@
 import databaseService from './database.js';
 import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId } from './api.js';
-import { getToken, isAuthenticated, validateToken, generateOAuthUrl } from './auth.js';
+import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 
