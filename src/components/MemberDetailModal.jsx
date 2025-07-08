@@ -322,7 +322,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                   </Card.Title>
                 </Card.Header>
                 <Card.Body className="space-y-3">
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {Object.entries(groupData).map(([fieldKey, fieldValue]) => (
                       <div key={fieldKey}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
