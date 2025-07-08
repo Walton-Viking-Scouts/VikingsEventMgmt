@@ -1,6 +1,6 @@
 import databaseService from './database.js';
 import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId } from './api.js';
-import { getToken } from './auth.js';
+import { getToken, isAuthenticated, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 
@@ -8,6 +8,7 @@ class SyncService {
   constructor() {
     this.isSyncing = false;
     this.syncListeners = [];
+    this.loginPromptCallbacks = [];
   }
 
   // Add listener for sync status changes
@@ -20,9 +21,39 @@ class SyncService {
     this.syncListeners = this.syncListeners.filter(cb => cb !== callback);
   }
 
+  // Add listener for login prompt requests
+  addLoginPromptListener(callback) {
+    this.loginPromptCallbacks.push(callback);
+  }
+
+  // Remove login prompt listener
+  removeLoginPromptListener(callback) {
+    this.loginPromptCallbacks = this.loginPromptCallbacks.filter(cb => cb !== callback);
+  }
+
   // Notify listeners of sync status
   notifyListeners(status) {
     this.syncListeners.forEach(callback => callback(status));
+  }
+
+  // Notify listeners to show login prompt
+  showLoginPrompt() {
+    return new Promise((resolve) => {
+      this.loginPromptCallbacks.forEach(callback => {
+        callback({
+          message: 'Authentication required to sync data. Would you like to login?',
+          onConfirm: () => {
+            // Redirect to OSM OAuth
+            const oauthUrl = generateOAuthUrl();
+            window.location.href = oauthUrl;
+            resolve(true);
+          },
+          onCancel: () => {
+            resolve(false);
+          }
+        });
+      });
+    });
   }
 
   // Check if we're online
@@ -33,6 +64,37 @@ class SyncService {
     } else {
       return navigator.onLine;
     }
+  }
+
+  // Check if we have a valid token before syncing
+  async checkTokenAndPromptLogin() {
+    const token = getToken();
+    if (!token || !isAuthenticated()) {
+      console.log('No valid token found - prompting for login');
+      const shouldLogin = await this.showLoginPrompt();
+      if (!shouldLogin) {
+        throw new Error('Authentication required but user declined to login');
+      }
+      return false; // Login initiated, don't continue sync
+    }
+    return true; // Token is valid, continue sync
+  }
+
+  // Handle 401/403 errors by prompting for login
+  async handleAuthError(error) {
+    if (error.status === 401 || error.status === 403 || 
+        error.message.includes('Invalid access token') || 
+        error.message.includes('Token expired') ||
+        error.message.includes('Unauthorized')) {
+      
+      console.log('Authentication error detected - prompting for login');
+      const shouldLogin = await this.showLoginPrompt();
+      if (!shouldLogin) {
+        throw new Error('Authentication failed and user declined to login');
+      }
+      return false; // Login initiated, don't continue sync
+    }
+    throw error; // Re-throw other errors
   }
 
   // Sync all data
@@ -51,10 +113,19 @@ class SyncService {
         throw new Error('No internet connection available');
       }
 
-      const token = getToken();
-      if (!token) {
-        throw new Error('No authentication token available');
+      // Check token and prompt for login if needed
+      const hasValidToken = await this.checkTokenAndPromptLogin();
+      if (!hasValidToken) {
+        // User was prompted for login, don't continue sync
+        this.notifyListeners({ 
+          status: 'error', 
+          message: 'Login required - redirecting to authentication',
+          timestamp: new Date().toISOString(),
+        });
+        return;
       }
+
+      const token = getToken();
 
       // Sync sections first
       await this.syncSections(token);
@@ -81,6 +152,24 @@ class SyncService {
 
     } catch (error) {
       console.error('Sync failed:', error);
+      
+      // Check if it's an auth error and handle appropriately
+      try {
+        const handled = await this.handleAuthError(error);
+        if (!handled) {
+          // Login was initiated, don't show error
+          return;
+        }
+      } catch (authError) {
+        // Auth error was handled or user declined login
+        this.notifyListeners({ 
+          status: 'error', 
+          message: authError.message,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
       this.notifyListeners({ 
         status: 'error', 
         message: error.message,
@@ -103,6 +192,13 @@ class SyncService {
       
     } catch (error) {
       console.error('Failed to sync sections:', error);
+      
+      // Check if it's an auth error
+      const handled = await this.handleAuthError(error);
+      if (!handled) {
+        return; // Login was initiated
+      }
+      
       throw new Error(`Failed to sync sections: ${error.message}`);
     }
   }
@@ -125,6 +221,19 @@ class SyncService {
       
     } catch (error) {
       console.error(`Failed to sync events for section ${sectionId}:`, error);
+      
+      // Check if it's an auth error
+      try {
+        const handled = await this.handleAuthError(error);
+        if (!handled) {
+          return; // Login was initiated
+        }
+      } catch (authError) {
+        // Auth error handled, continue with other sections
+        console.warn(`Auth error for section ${sectionId}, continuing with other sections`);
+        return;
+      }
+      
       // Don't throw here - continue with other sections
     }
   }
@@ -150,6 +259,19 @@ class SyncService {
       
     } catch (error) {
       console.error(`Failed to sync attendance for event ${eventId}:`, error);
+      
+      // Check if it's an auth error
+      try {
+        const handled = await this.handleAuthError(error);
+        if (!handled) {
+          return; // Login was initiated
+        }
+      } catch (authError) {
+        // Auth error handled, continue with other events
+        console.warn(`Auth error for event ${eventId}, continuing with other events`);
+        return;
+      }
+      
       // Don't throw here - continue with other events
     }
   }
