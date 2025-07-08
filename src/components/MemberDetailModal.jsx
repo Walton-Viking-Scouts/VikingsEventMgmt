@@ -56,7 +56,46 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   const formatPhoneForCall = (phone) => {
     if (!phone) return null;
     // Remove all non-digit characters for tel: link
-    return phone.replace(/\D/g, '');
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Validate phone number length and pattern
+    if (!isValidPhoneNumber(cleanPhone)) {
+      return null;
+    }
+    
+    return cleanPhone;
+  };
+
+  // Helper function to validate phone number
+  const isValidPhoneNumber = (phoneDigits) => {
+    if (!phoneDigits || typeof phoneDigits !== 'string') {
+      return false;
+    }
+    
+    // Check length: most phone numbers are between 7-15 digits
+    // UK numbers: 10-11 digits, US: 10 digits, International: up to 15 digits
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      return false;
+    }
+    
+    // Check if it contains only digits
+    if (!/^\d+$/.test(phoneDigits)) {
+      return false;
+    }
+    
+    // Additional validation: avoid obvious invalid patterns
+    // Reject numbers with all same digits (e.g., 0000000000)
+    if (/^(\d)\1+$/.test(phoneDigits)) {
+      return false;
+    }
+    
+    // Reject numbers starting with 0 or 1 for international format
+    // (unless it's a UK number which can start with 0)
+    if (phoneDigits.length >= 10 && phoneDigits.startsWith('1') && phoneDigits.length === 10) {
+      return false; // US numbers starting with 1 (area code can't be 1)
+    }
+    
+    return true;
   };
 
   // Helper function to handle phone call
@@ -65,6 +104,10 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     const cleanPhone = formatPhoneForCall(phone);
     if (cleanPhone) {
       window.location.href = `tel:${cleanPhone}`;
+    } else {
+      console.warn('Invalid phone number format:', phone);
+      // Optionally show user feedback
+      alert('Invalid phone number format. Please check the number and try again.');
     }
   };
 
