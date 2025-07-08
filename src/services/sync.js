@@ -1,6 +1,6 @@
 import databaseService from './database.js';
 import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId } from './api.js';
-import { getToken, isAuthenticated, generateOAuthUrl } from './auth.js';
+import { getToken, isAuthenticated, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 
@@ -69,14 +69,28 @@ class SyncService {
   // Check if we have a valid token before syncing
   async checkTokenAndPromptLogin() {
     const token = getToken();
-    if (!token || !isAuthenticated()) {
-      console.log('No valid token found - prompting for login');
+    if (!token) {
+      console.log('No token found - prompting for login');
       const shouldLogin = await this.showLoginPrompt();
       if (!shouldLogin) {
         throw new Error('Authentication required but user declined to login');
       }
       return false; // Login initiated, don't continue sync
     }
+    
+    // Actually validate the token against the server
+    console.log('Token found - validating against server...');
+    const isValid = await validateToken();
+    if (!isValid) {
+      console.log('Token validation failed - prompting for login');
+      const shouldLogin = await this.showLoginPrompt();
+      if (!shouldLogin) {
+        throw new Error('Authentication required but user declined to login');
+      }
+      return false; // Login initiated, don't continue sync
+    }
+    
+    console.log('Token validation successful - proceeding with sync');
     return true; // Token is valid, continue sync
   }
 
