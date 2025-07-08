@@ -5,9 +5,9 @@ import { Button, Card, Input, Alert, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import { isMobileLayout } from '../utils/platform.js';
 
-function MembersList({ sections, onBack }) {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+function MembersList({ sections, members: propsMembers, onBack }) {
+  const [members, setMembers] = useState(propsMembers || []);
+  const [loading, setLoading] = useState(!propsMembers);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('lastname');
@@ -18,8 +18,11 @@ function MembersList({ sections, onBack }) {
     email: true,
     phone: true,
     patrol: true,
-    rank: true,
+    person_type: true,
     age: true,
+    address: false,
+    medical: false,
+    emergency: false,
   });
 
   const isMobile = isMobileLayout();
@@ -39,8 +42,15 @@ function MembersList({ sections, onBack }) {
   };
 
   useEffect(() => {
-    loadMembers();
-  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (propsMembers) {
+      // Use provided members data
+      setMembers(propsMembers);
+      setLoading(false);
+    } else {
+      // Load members if not provided
+      loadMembers();
+    }
+  }, [sections, propsMembers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
@@ -118,7 +128,7 @@ function MembersList({ sections, onBack }) {
       return;
     }
 
-    // Define CSV headers
+    // Define CSV headers based on available data
     const headers = [
       'First Name',
       'Last Name', 
@@ -126,39 +136,47 @@ function MembersList({ sections, onBack }) {
       'Phone',
       'Sections',
       'Patrol',
-      'Rank',
+      'Person Type',
       'Age',
       'Date of Birth',
-      'Gender',
       'Address',
       'Postcode',
-      'Emergency Contact Name',
-      'Emergency Contact Phone',
+      'Emergency Contacts',
       'Medical Notes',
       'Dietary Requirements',
+      'Active',
+      'Started',
+      'Joined',
     ];
 
-    // Convert members to CSV rows
+    // Convert members to CSV rows using enhanced data
     const csvRows = [
       headers.join(','),
-      ...filteredAndSortedMembers.map(member => [
-        `"${member.firstname || ''}"`,
-        `"${member.lastname || ''}"`,
-        `"${member.email || ''}"`,
-        `"${member.phone || ''}"`,
-        `"${(member.sections || []).join('; ')}"`,
-        `"${member.patrol || ''}"`,
-        `"${member.rank || ''}"`,
-        `"${calculateAge(member.date_of_birth)}"`,
-        `"${member.date_of_birth || ''}"`,
-        `"${member.gender || ''}"`,
-        `"${member.address || ''}"`,
-        `"${member.postcode || ''}"`,
-        `"${member.emergency_contact_name || ''}"`,
-        `"${member.emergency_contact_phone || ''}"`,
-        `"${member.medical_notes || ''}"`,
-        `"${member.dietary_requirements || ''}"`,
-      ].join(',')),
+      ...filteredAndSortedMembers.map(member => {
+        const emergencyContacts = (member.emergency_contacts || []).map(contact => 
+          `${contact.name} (${contact.phone}) ${contact.email}`.trim(),
+        ).join('; ');
+        
+        return [
+          `"${member.firstname || ''}"`,
+          `"${member.lastname || ''}"`,
+          `"${member.email || ''}"`,
+          `"${member.phone || ''}"`,
+          `"${(member.sections || []).join('; ')}"`,
+          `"${member.patrol || ''}"`,
+          `"${member.person_type || 'Young People'}"`,
+          `"${calculateAge(member.date_of_birth)}"`,
+          `"${member.date_of_birth || ''}"`,
+          `"${member.address || ''}"`,
+          `"${member.postcode || ''}"`,
+          `"${emergencyContacts}"`,
+          `"${member.medical_notes || ''}"`,
+          `"${member.dietary_requirements || ''}"`,
+          `"${member.active ? 'Yes' : 'No'}"`,
+          `"${member.started || ''}"`,
+          `"${member.joined || ''}"`,
+        ].join(',');
+      }),
     ];
 
     // Create and download CSV file
@@ -303,6 +321,16 @@ function MembersList({ sections, onBack }) {
                         Age {calculateAge(member.date_of_birth)}
                       </Badge>
                     )}
+                    <Badge 
+                      variant={
+                        member.person_type === 'Leaders' ? 'scout-purple' :
+                          member.person_type === 'Young Leaders' ? 'scout-blue' : 
+                            'scout-green'
+                      } 
+                      size="sm"
+                    >
+                      {member.person_type || 'Young People'}
+                    </Badge>
                   </div>
                   
                   <div className="mt-3 space-y-1 text-sm text-gray-600">
@@ -323,10 +351,26 @@ function MembersList({ sections, onBack }) {
                         {member.phone}
                       </div>
                     )}
-                    {(member.patrol || member.rank) && (
-                      <div className="flex items-center space-x-4">
-                        {member.patrol && <span>Patrol: {member.patrol}</span>}
-                        {member.rank && <span>Rank: {member.rank}</span>}
+                    {member.patrol && (
+                      <div className="flex items-center">
+                        <span>Patrol: {member.patrol}</span>
+                      </div>
+                    )}
+                    
+                    {/* Medical info */}
+                    {member.medical_notes && (
+                      <div className="flex items-center text-orange-600">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Medical info available
+                      </div>
+                    )}
+                    
+                    {/* Emergency contacts */}
+                    {member.emergency_contacts && member.emergency_contacts.length > 0 && (
+                      <div className="text-xs text-gray-500">
+                        Emergency contacts: {member.emergency_contacts.length}
                       </div>
                     )}
                   </div>
@@ -396,15 +440,36 @@ function MembersList({ sections, onBack }) {
                         </div>
                       </th>
                     )}
-                    {visibleColumns.rank && (
+                    {visibleColumns.person_type && (
                       <th 
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('rank')}
+                        onClick={() => handleSort('person_type')}
                       >
                         <div className="flex items-center space-x-1">
-                          <span>Rank</span>
-                          <SortIcon field="rank" />
+                          <span>Type</span>
+                          <SortIcon field="person_type" />
                         </div>
+                      </th>
+                    )}
+                    {visibleColumns.address && (
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('address')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Address</span>
+                          <SortIcon field="address" />
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.medical && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Medical
+                      </th>
+                    )}
+                    {visibleColumns.emergency && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Emergency
                       </th>
                     )}
                     {visibleColumns.age && (
@@ -456,9 +521,58 @@ function MembersList({ sections, onBack }) {
                           {member.patrol}
                         </td>
                       )}
-                      {visibleColumns.rank && (
+                      {visibleColumns.person_type && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.rank}
+                          <Badge 
+                            variant={
+                              member.person_type === 'Leaders' ? 'scout-purple' :
+                                member.person_type === 'Young Leaders' ? 'scout-blue' : 
+                                  'scout-green'
+                            } 
+                            size="sm"
+                          >
+                            {member.person_type || 'Young People'}
+                          </Badge>
+                        </td>
+                      )}
+                      {visibleColumns.address && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="max-w-xs truncate" title={`${member.address || ''} ${member.postcode || ''}`}>
+                            {member.address && (
+                              <div>{member.address}</div>
+                            )}
+                            {member.postcode && (
+                              <div className="text-gray-500">{member.postcode}</div>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.medical && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.medical_notes ? (
+                            <div className="flex items-center text-orange-600">
+                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-xs">Medical</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      )}
+                      {visibleColumns.emergency && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.emergency_contacts && member.emergency_contacts.length > 0 ? (
+                            <div className="text-xs">
+                              <div className="font-medium">{member.emergency_contacts.length} contact{member.emergency_contacts.length > 1 ? 's' : ''}</div>
+                              <div className="text-gray-500 truncate max-w-xs">
+                                {member.emergency_contacts[0].name}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                       )}
                       {visibleColumns.age && (
