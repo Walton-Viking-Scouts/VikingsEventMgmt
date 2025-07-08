@@ -3,6 +3,7 @@ import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import { Button, Card, Input, Alert, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
+import MemberDetailModal from './MemberDetailModal.jsx';
 import { isMobileLayout } from '../utils/platform.js';
 
 function MembersList({ sections, members: propsMembers, onBack }) {
@@ -12,6 +13,8 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('lastname');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [showMemberModal, setShowMemberModal] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
     sections: true,
@@ -203,6 +206,18 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     );
   };
 
+  // Handle member click to show detail modal
+  const handleMemberClick = (member) => {
+    setSelectedMember(member);
+    setShowMemberModal(true);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowMemberModal(false);
+    setSelectedMember(null);
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading members..." />;
   }
@@ -301,7 +316,11 @@ function MembersList({ sections, members: propsMembers, onBack }) {
           // Mobile: Card layout
           <div className="space-y-4">
             {filteredAndSortedMembers.map((member) => (
-              <Card key={member.scoutid}>
+              <Card 
+                key={member.scoutid} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleMemberClick(member)}
+              >
                 <Card.Body>
                   <div className="flex justify-between items-start">
                     <div>
@@ -487,7 +506,11 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredAndSortedMembers.map((member) => (
-                    <tr key={member.scoutid} className="hover:bg-gray-50">
+                    <tr 
+                      key={member.scoutid} 
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => handleMemberClick(member)}
+                    >
                       {visibleColumns.name && (
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
@@ -588,6 +611,13 @@ function MembersList({ sections, members: propsMembers, onBack }) {
           </Card>
         )}
       </div>
+
+      {/* Member Detail Modal */}
+      <MemberDetailModal 
+        member={selectedMember}
+        isOpen={showMemberModal}
+        onClose={handleModalClose}
+      />
     </div>
   );
 }
