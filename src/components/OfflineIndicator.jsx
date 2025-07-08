@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
-import { Alert, Button } from './ui';
+import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
+import { isAuthenticated } from '../services/auth.js';
 
 function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [loginPromptData, setLoginPromptData] = useState(null);
 
   useEffect(() => {
     checkInitialStatus();
     setupNetworkListeners();
     setupSyncListeners();
 
+    // Setup login prompt listener
+    const handleLoginPrompt = (promptData) => {
+      setLoginPromptData(promptData);
+      setShowLoginPrompt(true);
+    };
+
+    syncService.addLoginPromptListener(handleLoginPrompt);
+
     return () => {
-      // Cleanup listeners would go here if needed
+      // Cleanup listeners
+      syncService.removeLoginPromptListener(handleLoginPrompt);
     };
   }, []);
 
@@ -71,6 +83,22 @@ function OfflineIndicator() {
     };
   };
 
+
+
+  const handleLoginConfirm = () => {
+    setShowLoginPrompt(false);
+    if (loginPromptData?.onConfirm) {
+      loginPromptData.onConfirm();
+    }
+  };
+
+  const handleLoginCancel = () => {
+    setShowLoginPrompt(false);
+    if (loginPromptData?.onCancel) {
+      loginPromptData.onCancel();
+    }
+  };
+
   const handleSyncClick = async () => {
     if (!isOnline) {
       alert('Cannot sync while offline');
@@ -84,20 +112,86 @@ function OfflineIndicator() {
     }
   };
 
+  const getSyncButtonText = () => {
+    if (!isAuthenticated()) {
+      return '🔐 Login & Sync';
+    }
+    return '🔄 Sync';
+  };
+
+  const getSyncButtonTitle = () => {
+    if (!isAuthenticated()) {
+      return 'Login to OSM and sync data';
+    }
+    return 'Sync data';
+  };
+
   // Don't show anything if online and no sync status
   if (isOnline && !syncStatus) {
     return (
-      <div className="fixed top-20 right-4 z-40">
-        <Button
-          variant="scout-blue"
-          size="sm"
-          onClick={handleSyncClick}
-          className="shadow-lg"
-          title="Sync data"
+      <>
+        <div className="fixed top-20 right-4 z-40">
+          <Button
+            variant="scout-blue"
+            size="sm"
+            onClick={handleSyncClick}
+            className="shadow-lg"
+            title={getSyncButtonTitle()}
+          >
+            {getSyncButtonText()}
+          </Button>
+        </div>
+        
+        {/* Login Prompt Modal */}
+        <Modal
+          isOpen={showLoginPrompt}
+          onClose={handleLoginCancel}
+          size="md"
         >
-          🔄 Sync
-        </Button>
-      </div>
+          <Modal.Header>
+            <Modal.Title>Authentication Required</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <span className="text-amber-600 text-xl">🔐</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-gray-900 font-medium">
+                    {loginPromptData?.message || 'Authentication required to sync data.'}
+                  </p>
+                  <p className="text-gray-600 text-sm mt-1">
+                    You will be redirected to Online Scout Manager to authenticate.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> You can continue using the app with offline data if you prefer not to sync at this time.
+                </p>
+              </div>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="outline"
+              onClick={handleLoginCancel}
+            >
+              Stay Offline
+            </Button>
+            <Button
+              variant="scout-blue"
+              onClick={handleLoginConfirm}
+            >
+              Login & Sync
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </>
     );
   }
 
