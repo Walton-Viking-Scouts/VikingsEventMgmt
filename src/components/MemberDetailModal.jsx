@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Badge, Card } from './ui';
 import { isMobileLayout } from '../utils/platform.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
   const isMobile = isMobileLayout();
+  const [errorNotification, setErrorNotification] = useState(null);
 
   // Handle click outside to close
   useEffect(() => {
@@ -17,6 +18,8 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = 'hidden'; // Prevent background scroll
+      // Clear any existing error notifications when modal opens
+      setErrorNotification(null);
     }
 
     return () => {
@@ -106,8 +109,9 @@ function MemberDetailModal({ member, isOpen, onClose }) {
       window.location.href = `tel:${cleanPhone}`;
     } else {
       console.warn('Invalid phone number format:', phone);
-      // Optionally show user feedback
-      alert('Invalid phone number format. Please check the number and try again.');
+      setErrorNotification('Invalid phone number format. Please check the number and try again.');
+      // Auto-hide error after 5 seconds
+      setTimeout(() => setErrorNotification(null), 5000);
     }
   };
 
@@ -142,12 +146,16 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   const age = calculateAge(member.date_of_birth);
 
   // Group labels for display
+  // Note: Backend cleaning process converts "Doctor's Surgery" → "doctor_s_surgery"
   const groupLabels = {
     primary_contact: 'Primary Contact',
-    primary_contact_1: 'Primary Contact 1',
+    primary_contact_1: 'Primary Contact 1', 
     primary_contact_2: 'Primary Contact 2',
     emergency_contact: 'Emergency Contact',
+    emergency_contact_1: 'Emergency Contact 1',
+    emergency_contact_2: 'Emergency Contact 2',
     doctor: 'Doctor',
+    doctor_s_surgery: 'Doctor\'s Surgery', // Maps from "Doctor's Surgery" after apostrophe → underscore conversion
     member_contact: 'Member Contact',
     medical_information: 'Medical Information',
     gender: 'Gender',
@@ -158,6 +166,10 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div 
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`member-modal-title-${member.member_id || member.scoutid}`}
+        aria-describedby={`member-modal-description-${member.member_id || member.scoutid}`}
         className={`
           bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden
           ${isMobile ? 'mx-2' : 'mx-4'}
@@ -180,12 +192,13 @@ function MemberDetailModal({ member, isOpen, onClose }) {
               )}
             </div>
             <div>
-              <h2 className="text-xl font-semibold">
+              <h2 id={`member-modal-title-${member.member_id || member.scoutid}`} className="text-xl font-semibold">
                 {member.firstname} {member.lastname}
               </h2>
-              <div className="flex items-center space-x-2 text-scout-blue-light">
+              <div id={`member-modal-description-${member.member_id || member.scoutid}`} className="flex items-center space-x-2 text-scout-blue-light">
                 {age && <span>Age {age}</span>}
                 {member.patrol && <span>• {member.patrol}</span>}
+                {!age && !member.patrol && <span>Member details and contact information</span>}
               </div>
             </div>
           </div>
@@ -198,6 +211,27 @@ function MemberDetailModal({ member, isOpen, onClose }) {
             </svg>
           </button>
         </div>
+
+        {/* Error Notification */}
+        {errorNotification && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4 rounded">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-red-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm text-red-700">{errorNotification}</p>
+              <button 
+                onClick={() => setErrorNotification(null)}
+                className="ml-auto text-red-400 hover:text-red-600"
+                aria-label="Dismiss error"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Content - Scrollable */}
         <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
@@ -228,11 +262,18 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                       Section(s)
                     </label>
                     <div className="flex flex-wrap gap-1">
-                      {(member.sections || [member.sectionname]).filter(Boolean).map((section, idx) => (
-                        <Badge key={idx} variant="scout-blue" size="sm">
-                          {section}
-                        </Badge>
-                      ))}
+                      {(() => {
+                        const sections = (member.sections || [member.sectionname]).filter(Boolean);
+                        return sections.length > 0 ? (
+                          sections.map((section, idx) => (
+                            <Badge key={idx} variant="scout-blue" size="sm">
+                              {section}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">No sections assigned</span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div>
@@ -289,14 +330,24 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                         </label>
                         {fieldKey.includes('phone') ? (
                           <button
+                            type="button"
                             onClick={() => handlePhoneCall(fieldValue)}
-                            className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handlePhoneCall(fieldValue);
+                              }
+                            }}
+                            aria-label={`Call ${fieldValue}`}
+                            className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue focus:ring-offset-2 rounded"
                           >
                             {fieldValue}
                           </button>
                         ) : fieldKey.includes('email') ? (
                           <a 
                             href={`mailto:${fieldValue}`}
+                            rel="noopener noreferrer"
+                            aria-label={`Send email to ${fieldValue}`}
                             className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
                           >
                             {fieldValue}
