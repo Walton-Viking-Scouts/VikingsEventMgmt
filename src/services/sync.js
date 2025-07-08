@@ -97,6 +97,33 @@ class SyncService {
     throw error; // Re-throw other errors
   }
 
+  // Wrapper method to handle auth errors consistently
+  async withAuthErrorHandling(operation, options = {}) {
+    const { continueOnError = false, contextMessage = '' } = options;
+    
+    try {
+      return await operation();
+    } catch (error) {
+      console.error(`${contextMessage}:`, error);
+      
+      try {
+        const handled = await this.handleAuthError(error);
+        if (!handled) {
+          return; // Login was initiated
+        }
+      } catch (authError) {
+        if (continueOnError) {
+          console.warn(`Auth error${contextMessage ? ` for ${contextMessage}` : ''}, continuing: ${authError.message}`);
+          return;
+        }
+        throw authError;
+      }
+      
+      // Re-throw the original error for non-auth errors
+      throw error;
+    }
+  }
+
   // Sync all data
   async syncAll() {
     if (this.isSyncing) {
@@ -184,28 +211,25 @@ class SyncService {
   // Sync sections
   async syncSections(token) {
     try {
-      this.notifyListeners({ status: 'syncing', message: 'Syncing sections...' });
-      
-      // This will fetch from server and save to database
-      const sections = await getUserRoles(token);
-      console.log(`Synced ${sections.length} sections`);
-      
+      await this.withAuthErrorHandling(async () => {
+        this.notifyListeners({ status: 'syncing', message: 'Syncing sections...' });
+        
+        // This will fetch from server and save to database
+        const sections = await getUserRoles(token);
+        console.log(`Synced ${sections.length} sections`);
+      }, { 
+        continueOnError: false,
+        contextMessage: 'Failed to sync sections',
+      });
     } catch (error) {
-      console.error('Failed to sync sections:', error);
-      
-      // Check if it's an auth error
-      const handled = await this.handleAuthError(error);
-      if (!handled) {
-        return; // Login was initiated
-      }
-      
+      // Only non-auth errors reach here (auth errors are handled in wrapper)
       throw new Error(`Failed to sync sections: ${error.message}`);
     }
   }
 
   // Sync events for a section
   async syncEvents(sectionId, token) {
-    try {
+    await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing events for section ${sectionId}...` });
       
       // Get the most recent term
@@ -218,29 +242,15 @@ class SyncService {
       // This will fetch from server and save to database
       const events = await getEvents(sectionId, termId, token);
       console.log(`Synced ${events.length} events for section ${sectionId}`);
-      
-    } catch (error) {
-      console.error(`Failed to sync events for section ${sectionId}:`, error);
-      
-      // Check if it's an auth error
-      try {
-        const handled = await this.handleAuthError(error);
-        if (!handled) {
-          return; // Login was initiated
-        }
-      } catch (authError) {
-        // Auth error handled, continue with other sections
-        console.warn(`Auth error for section ${sectionId}, continuing with other sections`);
-        return;
-      }
-      
-      // Don't throw here - continue with other sections
-    }
+    }, { 
+      continueOnError: true,
+      contextMessage: `Failed to sync events for section ${sectionId}`,
+    });
   }
 
   // Sync attendance for an event
   async syncAttendance(sectionId, eventId, termId, token) {
-    try {
+    await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing attendance for event ${eventId}...` });
       
       if (!termId) {
@@ -256,24 +266,10 @@ class SyncService {
       // This will fetch from server and save to database
       const attendance = await getEventAttendance(sectionId, eventId, termId, token);
       console.log(`Synced ${attendance.length} attendance records for event ${eventId}`);
-      
-    } catch (error) {
-      console.error(`Failed to sync attendance for event ${eventId}:`, error);
-      
-      // Check if it's an auth error
-      try {
-        const handled = await this.handleAuthError(error);
-        if (!handled) {
-          return; // Login was initiated
-        }
-      } catch (authError) {
-        // Auth error handled, continue with other events
-        console.warn(`Auth error for event ${eventId}, continuing with other events`);
-        return;
-      }
-      
-      // Don't throw here - continue with other events
-    }
+    }, { 
+      continueOnError: true,
+      contextMessage: `Failed to sync attendance for event ${eventId}`,
+    });
   }
 
   // Get sync status
