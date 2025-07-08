@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
+import MemberDetailModal from './MemberDetailModal.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 
 function AttendanceView({ events, members, onBack }) {
@@ -10,6 +11,8 @@ function AttendanceView({ events, members, onBack }) {
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('summary'); // summary, detailed
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [showMemberModal, setShowMemberModal] = useState(false);
 
   useEffect(() => {
     loadAttendance();
@@ -262,6 +265,27 @@ function AttendanceView({ events, members, onBack }) {
         </svg>
       </span>
     );
+  };
+
+  // Handle member click to show detail modal
+  const handleMemberClick = (attendanceRecord) => {
+    // Find the full member data or create a basic member object
+    const member = members?.find(m => m.scoutid === attendanceRecord.scoutid) || {
+      scoutid: attendanceRecord.scoutid,
+      firstname: attendanceRecord.firstname,
+      lastname: attendanceRecord.lastname,
+      sections: [attendanceRecord.sectionname],
+      person_type: attendanceRecord.person_type || 'Young People',
+    };
+    
+    setSelectedMember(member);
+    setShowMemberModal(true);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setShowMemberModal(false);
+    setSelectedMember(null);
   };
 
   if (loading) {
@@ -544,7 +568,12 @@ function AttendanceView({ events, members, onBack }) {
                     return (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-semibold text-gray-900">{member.name}</div>
+                          <button
+                            onClick={() => handleMemberClick({ scoutid: member.scoutid, firstname: member.name.split(' ')[0], lastname: member.name.split(' ').slice(1).join(' '), sectionname: member.events[0]?.sectionname })}
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
+                          >
+                            {member.name}
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex gap-2 flex-wrap">
@@ -638,7 +667,12 @@ function AttendanceView({ events, members, onBack }) {
                     return (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-semibold text-gray-900">{record.firstname} {record.lastname}</div>
+                          <button
+                            onClick={() => handleMemberClick(record)}
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
+                          >
+                            {record.firstname} {record.lastname}
+                          </button>
                           <div className="text-gray-500 text-sm">{record.sectionname}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-900">
@@ -666,6 +700,13 @@ function AttendanceView({ events, members, onBack }) {
           )}
         </Card.Body>
       </Card>
+
+      {/* Member Detail Modal */}
+      <MemberDetailModal 
+        member={selectedMember}
+        isOpen={showMemberModal}
+        onClose={handleModalClose}
+      />
     </div>
   );
 }
