@@ -302,6 +302,13 @@
   .ring-scout-navy { --tw-ring-color: var(--color-scout-navy); }
   .ring-scout-navy-light { --tw-ring-color: var(--color-scout-navy-light); }
   .ring-scout-navy-dark { --tw-ring-color: var(--color-scout-navy-dark); }
+  
+  /* Custom table header and row label styling */
+  .table-header-text {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.25;
+  }
 }
 
 /* Custom CSS layers for additional styles */
