@@ -109,40 +109,15 @@ function AttendanceView({ events, members, onBack }) {
     return Object.values(memberStats);
   };
 
-  const getSectionSummaryStats = () => {
-    const sectionStats = {};
-    const totals = { yes: 0, no: 0, invited: 0, total: 0 };
-    
-    attendanceData.forEach(record => {
-      const sectionName = record.sectionname || 'Unknown Section';
-      
-      if (!sectionStats[sectionName]) {
-        sectionStats[sectionName] = {
-          name: sectionName,
-          yes: 0,
-          no: 0,
-          invited: 0,
-          total: 0,
-        };
-      }
-      
-      const status = getAttendanceStatus(record.attending);
-      sectionStats[sectionName][status]++;
-      sectionStats[sectionName].total++;
-      
-      totals[status]++;
-      totals.total++;
-    });
-    
-    return {
-      sections: Object.values(sectionStats),
-      totals,
-    };
-  };
 
-  const getPersonTypeSummaryStats = () => {
-    const personTypeStats = {};
-    const totals = { yes: 0, no: 0, invited: 0, total: 0 };
+  const getSimplifiedAttendanceSummaryStats = () => {
+    const sectionStats = {};
+    const totals = {
+      yes: { yp: 0, yl: 0, l: 0, total: 0 },
+      no: { yp: 0, yl: 0, l: 0, total: 0 },
+      invited: { yp: 0, yl: 0, l: 0, total: 0 },
+      total: { yp: 0, yl: 0, l: 0, total: 0 },
+    };
     
     // Create a map of scout IDs to person types from members data
     const memberPersonTypes = {};
@@ -153,37 +128,43 @@ function AttendanceView({ events, members, onBack }) {
     }
     
     attendanceData.forEach(record => {
-      // Get person type from members data, fallback to 'Unknown'
-      const personType = memberPersonTypes[record.scoutid] || 'Unknown';
+      const sectionName = record.sectionname || 'Unknown Section';
+      const personType = memberPersonTypes[record.scoutid] || 'Young People';
+      const status = getAttendanceStatus(record.attending);
       
-      if (!personTypeStats[personType]) {
-        personTypeStats[personType] = {
-          name: personType,
-          yes: 0,
-          no: 0,
-          invited: 0,
-          total: 0,
+      // Initialize section stats if not exists
+      if (!sectionStats[sectionName]) {
+        sectionStats[sectionName] = {
+          name: sectionName,
+          yes: { yp: 0, yl: 0, l: 0, total: 0 },
+          no: { yp: 0, yl: 0, l: 0, total: 0 },
+          invited: { yp: 0, yl: 0, l: 0, total: 0 },
+          total: { yp: 0, yl: 0, l: 0, total: 0 },
         };
       }
       
-      const status = getAttendanceStatus(record.attending);
-      personTypeStats[personType][status]++;
-      personTypeStats[personType].total++;
+      // Map person types to abbreviations
+      let roleKey;
+      if (personType === 'Young People') roleKey = 'yp';
+      else if (personType === 'Young Leaders') roleKey = 'yl';
+      else if (personType === 'Leaders') roleKey = 'l';
+      else roleKey = 'yp'; // Default unknown to YP
       
-      totals[status]++;
-      totals.total++;
-    });
-    
-    // Sort person types in a logical order
-    const typeOrder = ['Young People', 'Young Leaders', 'Leaders', 'Unknown'];
-    const sortedPersonTypes = Object.values(personTypeStats).sort((a, b) => {
-      const aIndex = typeOrder.indexOf(a.name);
-      const bIndex = typeOrder.indexOf(b.name);
-      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      // Update section-specific counts
+      sectionStats[sectionName][status][roleKey]++;
+      sectionStats[sectionName][status].total++;
+      sectionStats[sectionName].total[roleKey]++;
+      sectionStats[sectionName].total.total++;
+      
+      // Update totals
+      totals[status][roleKey]++;
+      totals[status].total++;
+      totals.total[roleKey]++;
+      totals.total.total++;
     });
     
     return {
-      personTypes: sortedPersonTypes,
+      sections: Object.values(sectionStats),
       totals,
     };
   };
@@ -333,22 +314,21 @@ function AttendanceView({ events, members, onBack }) {
   }
 
   const summaryStats = getSummaryStats();
-  const sectionSummaryStats = getSectionSummaryStats();
-  const personTypeSummaryStats = getPersonTypeSummaryStats();
+  const simplifiedSummaryStats = getSimplifiedAttendanceSummaryStats();
 
   return (
     <div>
-      {/* Person Type Summary Card */}
+      {/* Simplified Attendance Summary Card */}
       {members && members.length > 0 && (
         <Card className="m-4">
           <Card.Header>
-            <Card.Title>Attendance by Person Type</Card.Title>
+            <Card.Title>Attendance Summary</Card.Title>
             <div className="flex gap-2 items-center">
-              <Badge variant="scout-purple">
-                {personTypeSummaryStats.personTypes.length} person type{personTypeSummaryStats.personTypes.length !== 1 ? 's' : ''}
+              <Badge variant="scout-blue">
+                {events.length} event{events.length !== 1 ? 's' : ''}
               </Badge>
               <Badge variant="scout-green">
-                {personTypeSummaryStats.totals.total} total responses
+                {simplifiedSummaryStats.totals.total.total} total responses
               </Badge>
             </div>
           </Card.Header>
@@ -357,59 +337,123 @@ function AttendanceView({ events, members, onBack }) {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Person Type
+                    <th className="px-3 py-2 text-left table-header-text text-gray-500 uppercase tracking-wider">
+                      Section
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">
-                      Yes
+                    <th className="px-2 py-2 text-center table-header-text text-green-600 uppercase tracking-wider">
+                      <div>Yes</div>
+                      <div className="flex justify-center mt-1 text-xs">
+                        <span className="w-8 text-center">YP</span>
+                        <span className="w-8 text-center">YL</span>
+                        <span className="w-8 text-center">L</span>
+                        <span className="w-12 text-center">Total</span>
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-red-600 uppercase tracking-wider">
-                      No
+                    <th className="px-2 py-2 text-center table-header-text text-red-600 uppercase tracking-wider">
+                      <div>No</div>
+                      <div className="flex justify-center mt-1 text-xs">
+                        <span className="w-8 text-center">YP</span>
+                        <span className="w-8 text-center">YL</span>
+                        <span className="w-8 text-center">L</span>
+                        <span className="w-12 text-center">Total</span>
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">
-                      Invited
+                    <th className="px-2 py-2 text-center table-header-text text-blue-600 uppercase tracking-wider">
+                      <div>Invited</div>
+                      <div className="flex justify-center mt-1 text-xs">
+                        <span className="w-8 text-center">YP</span>
+                        <span className="w-8 text-center">YL</span>
+                        <span className="w-8 text-center">L</span>
+                        <span className="w-12 text-center">Total</span>
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
+                    <th className="px-2 py-2 text-center table-header-text text-gray-500 uppercase tracking-wider">
+                      <div>Total</div>
+                      <div className="flex justify-center mt-1 text-xs">
+                        <span className="w-8 text-center">YP</span>
+                        <span className="w-8 text-center">YL</span>
+                        <span className="w-8 text-center">L</span>
+                        <span className="w-12 text-center">Total</span>
+                      </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {personTypeSummaryStats.personTypes.map((personType, index) => (
+                  {simplifiedSummaryStats.sections.map((section, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {personType.name}
+                      <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
+                        {section.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-semibold">
-                        {personType.yes}
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
+                        <div className="flex justify-center">
+                          <span className="w-8 text-center">{section.yes.yp}</span>
+                          <span className="w-8 text-center">{section.yes.yl}</span>
+                          <span className="w-8 text-center">{section.yes.l}</span>
+                          <span className="w-12 text-center">{section.yes.total}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-semibold">
-                        {personType.no}
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-semibold">
+                        <div className="flex justify-center">
+                          <span className="w-8 text-center">{section.no.yp}</span>
+                          <span className="w-8 text-center">{section.no.yl}</span>
+                          <span className="w-8 text-center">{section.no.l}</span>
+                          <span className="w-12 text-center">{section.no.total}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-semibold">
-                        {personType.invited}
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-blue-600 font-semibold">
+                        <div className="flex justify-center">
+                          <span className="w-8 text-center">{section.invited.yp}</span>
+                          <span className="w-8 text-center">{section.invited.yl}</span>
+                          <span className="w-8 text-center">{section.invited.l}</span>
+                          <span className="w-12 text-center">{section.invited.total}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-semibold">
-                        {personType.total}
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
+                        <div className="flex justify-center">
+                          <span className="w-8 text-center">{section.total.yp}</span>
+                          <span className="w-8 text-center">{section.total.yl}</span>
+                          <span className="w-8 text-center">{section.total.l}</span>
+                          <span className="w-12 text-center">{section.total.total}</span>
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {/* Totals row */}
                   <tr className="bg-gray-100 font-bold">
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 border-t-2 border-gray-300">
+                    <td className="px-3 py-3 whitespace-nowrap table-header-text font-bold text-gray-900 border-t-2 border-gray-300">
                       Totals
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
-                      {personTypeSummaryStats.totals.yes}
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
+                      <div className="flex justify-center">
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.yes.yp}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.yes.yl}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.yes.l}</span>
+                        <span className="w-12 text-center">{simplifiedSummaryStats.totals.yes.total}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
-                      {personTypeSummaryStats.totals.no}
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
+                      <div className="flex justify-center">
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.no.yp}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.no.yl}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.no.l}</span>
+                        <span className="w-12 text-center">{simplifiedSummaryStats.totals.no.total}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
-                      {personTypeSummaryStats.totals.invited}
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
+                      <div className="flex justify-center">
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yp}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yl}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.l}</span>
+                        <span className="w-12 text-center">{simplifiedSummaryStats.totals.invited.total}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
-                      {personTypeSummaryStats.totals.total}
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
+                      <div className="flex justify-center">
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.total.yp}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.total.yl}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.total.l}</span>
+                        <span className="w-12 text-center">{simplifiedSummaryStats.totals.total.total}</span>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -418,85 +462,6 @@ function AttendanceView({ events, members, onBack }) {
           </Card.Body>
         </Card>
       )}
-
-      {/* Section Summary Card */}
-      <Card className="m-4">
-        <Card.Header>
-          <Card.Title>Attendance Summary</Card.Title>
-          <div className="flex gap-2 items-center">
-            <Badge variant="scout-blue">
-              {events.length} event{events.length !== 1 ? 's' : ''}
-            </Badge>
-            <Badge variant="scout-green">
-              {sectionSummaryStats.totals.total} total responses
-            </Badge>
-          </div>
-        </Card.Header>
-        <Card.Body>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Section
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-green-600 uppercase tracking-wider">
-                    Yes
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-red-600 uppercase tracking-wider">
-                    No
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-blue-600 uppercase tracking-wider">
-                    Invited
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sectionSummaryStats.sections.map((section, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                      {section.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-semibold">
-                      {section.yes}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-semibold">
-                      {section.no}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-semibold">
-                      {section.invited}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-semibold">
-                      {section.total}
-                    </td>
-                  </tr>
-                ))}
-                {/* Totals row */}
-                <tr className="bg-gray-100 font-bold">
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 border-t-2 border-gray-300">
-                    Totals
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
-                    {sectionSummaryStats.totals.yes}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
-                    {sectionSummaryStats.totals.no}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
-                    {sectionSummaryStats.totals.invited}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
-                    {sectionSummaryStats.totals.total}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Card.Body>
-      </Card>
 
       {/* Attendance Data Card */}
       <Card className="m-4">
