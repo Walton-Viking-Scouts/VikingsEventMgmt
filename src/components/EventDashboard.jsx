@@ -283,7 +283,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       } else {
         // No cached data - ask user if they want to fetch from OSM
         const shouldFetch = window.confirm(
-          `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`
+          `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
         );
         
         if (shouldFetch) {
