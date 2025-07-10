@@ -391,8 +391,14 @@ export async function getUserRoles(token) {
             hasToken: !!token,
           },
         });
+        
+        // Don't fall back to cache for authentication errors - these need to be handled by auth system
+        if (error.status === 401 || error.status === 403) {
+          logger.error('Authentication error - not using cache fallback');
+          throw error;
+        }
                 
-        // If online request fails, try local database as fallback
+        // If online request fails (non-auth errors), try local database as fallback
         if (isOnline) {
           logger.info('Online request failed - trying local database as fallback');
           span.setAttribute('fallback.used', true);
@@ -640,7 +646,13 @@ export async function getStartupData(token) {
   } catch (error) {
     console.error('Error fetching startup data:', error);
     
-    // If online request fails, try localStorage as fallback
+    // Don't fall back to cache for authentication errors - these need to be handled by auth system
+    if (error.status === 401 || error.status === 403) {
+      console.error('Authentication error - not using cache fallback');
+      throw error;
+    }
+    
+    // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
       console.log('Online request failed - trying localStorage as fallback');
       try {
