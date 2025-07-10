@@ -16,6 +16,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [lastSync, setLastSync] = useState(null);
   const [queueStats, setQueueStats] = useState({ queueLength: 0, processing: false, totalRequests: 0 });
   const [developmentMode, setDevelopmentMode] = useState(false);
+  const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
 
   useEffect(() => {
     loadInitialData();
@@ -265,9 +266,39 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     onNavigateToMembers(section);
   };
 
-  const handleViewAttendees = (eventCard) => {
-    // Navigate to attendance view with the events from this card
-    onNavigateToAttendance(eventCard.events);
+  const handleViewAttendees = async (eventCard) => {
+    try {
+      // Set loading state for this specific event card
+      setLoadingAttendees(eventCard.id);
+      
+      // Extract all unique section IDs from the events in this card
+      const sectionIds = [...new Set(eventCard.events.map(event => event.sectionid))];
+      
+      // Find the corresponding section objects for these IDs
+      const involvedSections = sections.filter(section => 
+        sectionIds.includes(section.sectionid),
+      );
+      
+      console.log(`Loading members for ${involvedSections.length} sections involved in "${eventCard.name}":`, 
+        involvedSections.map(s => s.sectionname),
+      );
+      
+      // Load members for all involved sections
+      const token = getToken();
+      const members = await getListOfMembers(involvedSections, token);
+      
+      console.log(`Loaded ${members.length} members for event "${eventCard.name}"`);
+      
+      // Navigate to attendance view with both events and members
+      onNavigateToAttendance(eventCard.events, members);
+      
+    } catch (err) {
+      console.error('Error loading members for attendance view:', err);
+      setError(`Failed to load members: ${err.message}`);
+    } finally {
+      // Clear loading state
+      setLoadingAttendees(null);
+    }
   };
 
   const formatLastSync = (date) => {
@@ -390,6 +421,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                     key={card.id}
                     eventCard={card}
                     onViewAttendees={handleViewAttendees}
+                    loading={loadingAttendees === card.id}
                   />
                 ))}
               </div>

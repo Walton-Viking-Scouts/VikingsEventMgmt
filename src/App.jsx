@@ -29,16 +29,22 @@ function App() {
     setCurrentView('members');
   };
 
-  const handleNavigateToAttendance = async (events) => {
-    // Load cached members data for the attendance view
-    const sectionsInvolved = [...new Set(events.map(e => e.sectionid))];
-    try {
-      const members = await databaseService.getMembers(sectionsInvolved);
-      setNavigationData({ events, members });
-    } catch (error) {
-      console.error('Error loading cached members:', error);
-      setNavigationData({ events, members: [] });
+  const handleNavigateToAttendance = async (events, members = null) => {
+    // If members are provided (from fresh API call), use them
+    // Otherwise, load cached members data for the attendance view
+    let membersData = members;
+    
+    if (!membersData) {
+      const sectionsInvolved = [...new Set(events.map(e => e.sectionid))];
+      try {
+        membersData = await databaseService.getMembers(sectionsInvolved);
+      } catch (error) {
+        console.error('Error loading cached members:', error);
+        membersData = [];
+      }
     }
+    
+    setNavigationData({ events, members: membersData });
     setCurrentView('attendance');
   };
 
