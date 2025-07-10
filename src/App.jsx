@@ -13,7 +13,7 @@ import databaseService from './services/database.js';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, isLoading, user, isBlocked, login, logout } = useAuth();
+  const { isAuthenticated, isLoading, user, isBlocked, isOfflineMode, login, logout } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
 
@@ -129,7 +129,7 @@ function App() {
   return (
     <div className="App" data-testid="app">
       <Router>
-        <ResponsiveLayout user={user} onLogout={logout} currentView={currentView}>
+        <ResponsiveLayout user={user} onLogout={logout} currentView={currentView} isOfflineMode={isOfflineMode}>
           <Routes>
             <Route path="/" element={renderCurrentView()} />
             <Route path="/dashboard" element={renderCurrentView()} />

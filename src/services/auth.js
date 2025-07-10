@@ -187,11 +187,64 @@ export async function validateToken() {
         
   } catch (error) {
     console.error('Token validation failed:', error);
+    
+    // For authentication errors, check if we have cached data before forcing re-login
     if (error.status === 401 || error.status === 403) {
-      // Mark token as invalid for quick future checks
-      sessionStorage.setItem('token_invalid', 'true');
-      clearToken();
+      console.log('🔍 Authentication failed - checking for cached data...');
+      
+      // Check if we have any cached data that would allow offline access
+      const hasCachedData = await checkForCachedData();
+      
+      if (hasCachedData) {
+        console.log('✅ Found cached data - allowing offline access with expired token');
+        console.log('⚠️  Note: Token is expired but user can access cached data');
+        
+        // Mark token as expired but don't clear it completely
+        sessionStorage.setItem('token_expired', 'true');
+        
+        // Try to get user info from cache
+        try {
+          const cachedUserInfo = getUserInfo();
+          if (cachedUserInfo) {
+            console.log('Using cached user info:', cachedUserInfo);
+          }
+        } catch (cacheError) {
+          console.warn('Could not load cached user info:', cacheError);
+        }
+        
+        // Allow access in offline mode
+        return true;
+      } else {
+        console.log('❌ No cached data found - user must re-authenticate');
+        // Mark token as invalid for quick future checks
+        sessionStorage.setItem('token_invalid', 'true');
+        clearToken();
+        return false;
+      }
     }
+    
+    return false;
+  }
+}
+
+// Helper function to check for cached data
+async function checkForCachedData() {
+  try {
+    // Check localStorage for any cached data
+    const cachedSections = localStorage.getItem('viking_sections_offline');
+    const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+    
+    if (cachedSections && JSON.parse(cachedSections).length > 0) {
+      return true;
+    }
+    
+    if (cachedStartupData) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking cached data:', error);
     return false;
   }
 }
