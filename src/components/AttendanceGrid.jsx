@@ -7,7 +7,7 @@ function AttendanceGrid({ data }) {
       return 'bg-green-100 text-green-800';
     case 'notAttending':
       return 'bg-red-100 text-red-800';
-    case 'unknown':
+    case 'invited':
       return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
@@ -27,7 +27,7 @@ function AttendanceGrid({ data }) {
       </td>
       <StatusCell count={typeData.attending} status="attending" />
       <StatusCell count={typeData.notAttending} status="notAttending" />
-      <StatusCell count={typeData.unknown} status="unknown" />
+      <StatusCell count={typeData.invited} status="invited" />
     </tr>
   );
 
@@ -58,15 +58,15 @@ function AttendanceGrid({ data }) {
             <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="flex flex-col items-center">
                 <div className="w-3 h-3 bg-gray-500 rounded-full mb-1"></div>
-                <span>Unknown</span>
+                <span>Invited</span>
               </div>
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          <PersonTypeRow type="YL" typeData={data.YL} />
-          <PersonTypeRow type="YP" typeData={data.YP} />
-          <PersonTypeRow type="Leader" typeData={data.Leader} />
+          {Object.entries(data).map(([type, typeData]) => (
+            <PersonTypeRow key={type} type={type} typeData={typeData} />
+          ))}
           
           {/* Totals row */}
           <tr className="bg-gray-50 font-medium">
@@ -80,7 +80,7 @@ function AttendanceGrid({ data }) {
               {getTotalByStatus('notAttending')}
             </td>
             <td className="px-3 py-2 text-center text-sm text-gray-800">
-              {getTotalByStatus('unknown')}
+              {getTotalByStatus('invited')}
             </td>
           </tr>
         </tbody>

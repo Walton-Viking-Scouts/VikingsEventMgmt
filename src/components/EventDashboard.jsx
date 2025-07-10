@@ -17,6 +17,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [queueStats, setQueueStats] = useState({ queueLength: 0, processing: false, totalRequests: 0 });
   const [developmentMode, setDevelopmentMode] = useState(false);
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
+  const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
 
   useEffect(() => {
     loadInitialData();
@@ -261,9 +262,52 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     return cards;
   };
 
-  const handleSectionSelect = (section) => {
-    // Navigate to members screen for this section
-    onNavigateToMembers(section);
+  const handleSectionSelect = async (section) => {
+    try {
+      // Set loading state for this specific section
+      setLoadingSection(section.sectionid);
+      
+      console.log(`Checking cached members for section: ${section.sectionname}`);
+      
+      // Try to load cached members first
+      let members = [];
+      try {
+        members = await databaseService.getMembers([section.sectionid]);
+      } catch (cacheError) {
+        console.log('No cached members found');
+      }
+      
+      if (members.length > 0) {
+        console.log(`Using ${members.length} cached members for section "${section.sectionname}"`);
+        onNavigateToMembers(section, members);
+      } else {
+        // No cached data - ask user if they want to fetch from OSM
+        const shouldFetch = window.confirm(
+          `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`
+        );
+        
+        if (shouldFetch) {
+          console.log(`Fetching fresh members for section: ${section.sectionname}`);
+          const token = getToken();
+          const freshMembers = await getListOfMembers([section], token);
+          console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
+          onNavigateToMembers(section, freshMembers);
+        } else {
+          // User chose not to fetch - show empty members screen
+          onNavigateToMembers(section, []);
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error loading members for section:', err);
+      setError(`Failed to load members: ${err.message}`);
+      
+      // Fallback to empty members screen
+      onNavigateToMembers(section, []);
+    } finally {
+      // Clear loading state
+      setLoadingSection(null);
+    }
   };
 
   const handleViewAttendees = async (eventCard) => {
@@ -274,20 +318,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Extract all unique section IDs from the events in this card
       const sectionIds = [...new Set(eventCard.events.map(event => event.sectionid))];
       
-      // Find the corresponding section objects for these IDs
-      const involvedSections = sections.filter(section => 
-        sectionIds.includes(section.sectionid),
+      console.log(`Loading members for ${sectionIds.length} sections involved in "${eventCard.name}":`, 
+        sectionIds,
       );
       
-      console.log(`Loading members for ${involvedSections.length} sections involved in "${eventCard.name}":`, 
-        involvedSections.map(s => s.sectionname),
-      );
-      
-      // Load members for all involved sections
-      const token = getToken();
-      const members = await getListOfMembers(involvedSections, token);
-      
-      console.log(`Loaded ${members.length} members for event "${eventCard.name}"`);
+      // Try to load from cache first
+      let members = [];
+      try {
+        members = await databaseService.getMembers(sectionIds);
+        console.log(`Loaded ${members.length} members from cache for event "${eventCard.name}"`);
+      } catch (cacheErr) {
+        console.log('No cached members found, fetching from API...');
+        
+        // Find the corresponding section objects for these IDs
+        const involvedSections = sections.filter(section => 
+          sectionIds.includes(section.sectionid),
+        );
+        
+        // Fallback to API call
+        const token = getToken();
+        members = await getListOfMembers(involvedSections, token);
+        console.log(`Loaded ${members.length} members from API for event "${eventCard.name}"`);
+      }
       
       // Navigate to attendance view with both events and members
       onNavigateToAttendance(eventCard.events, members);
@@ -405,6 +457,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             selectedSections={[]} // No selection needed, just for display
             onSectionToggle={handleSectionSelect}
             showContinueButton={false}
+            loadingSection={loadingSection}
           />
         </div>
 

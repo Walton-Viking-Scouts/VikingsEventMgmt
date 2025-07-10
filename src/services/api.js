@@ -792,19 +792,24 @@ export async function getListOfMembers(sections, token) {
   await checkNetworkStatus();
   const sectionIds = sections.map(s => s.sectionid);
   
-  // If offline, return cached members
-  if (!isOnline) {
-    logger.info('Offline mode - retrieving members from local database');
-    try {
-      const cachedMembers = await databaseService.getMembers(sectionIds);
+  // Try cache first (both online and offline)
+  try {
+    const cachedMembers = await databaseService.getMembers(sectionIds);
+    if (cachedMembers.length > 0) {
+      logger.info(`Using cached members: ${cachedMembers.length} members for sections ${sectionIds.join(', ')}`);
       return cachedMembers;
-    } catch (error) {
-      logger.error('Failed to get cached members:', error);
-      throw new Error('Unable to retrieve members while offline');
     }
+  } catch (error) {
+    logger.warn('Failed to get cached members:', error);
+  }
+  
+  // If offline and no cache, throw error
+  if (!isOnline) {
+    logger.error('Offline mode - no cached members available');
+    throw new Error('Unable to retrieve members while offline and no cache available');
   }
 
-  // Online mode - use new getMembersGrid for richer data
+  // Online mode - fetch from API if cache is empty
   const memberMap = new Map(); // For deduplication by scoutid
   
   for (const section of sections) {

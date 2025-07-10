@@ -17,15 +17,21 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
 
-  const handleNavigateToMembers = async (section) => {
-    // Load cached members data for the selected section
-    try {
-      const members = await databaseService.getMembers([section.sectionid]);
-      setNavigationData({ section, members });
-    } catch (error) {
-      console.error('Error loading cached members:', error);
-      setNavigationData({ section, members: [] });
+  const handleNavigateToMembers = async (section, members = null) => {
+    // If members are provided (from fresh API call), use them
+    // Otherwise, load cached members data for the selected section
+    let membersData = members;
+    
+    if (!membersData) {
+      try {
+        membersData = await databaseService.getMembers([section.sectionid]);
+      } catch (error) {
+        console.error('Error loading cached members:', error);
+        membersData = [];
+      }
     }
+    
+    setNavigationData({ section, members: membersData });
     setCurrentView('members');
   };
 

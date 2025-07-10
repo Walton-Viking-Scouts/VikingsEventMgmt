@@ -33,69 +33,33 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     return `${formatDate(firstEvent.startdate)} - ${formatDate(lastEvent.enddate)}`;
   };
 
-  const aggregateAttendanceData = (events) => {
-    const attendanceMap = new Map();
-    
-    // Aggregate attendance data from all events
-    events.forEach(event => {
-      if (event.attendanceData) {
-        event.attendanceData.forEach(person => {
-          const key = `${person.firstname}_${person.lastname}`;
-          if (!attendanceMap.has(key)) {
-            attendanceMap.set(key, {
-              firstname: person.firstname,
-              lastname: person.lastname,
-              attending: person.attending,
-              type: person.type || 'YP', // Default to YP if no type
-              patrol: person.patrol,
-              events: [],
-            });
-          }
-          attendanceMap.get(key).events.push({
-            eventId: event.eventid,
-            attending: person.attending,
-          });
-        });
-      }
-    });
-    
-    return Array.from(attendanceMap.values());
-  };
 
   const buildAttendanceGrid = (events) => {
-    const aggregatedData = aggregateAttendanceData(events);
+    // Initialize grid structure by section
+    const grid = {};
     
-    // Initialize grid structure
-    const grid = {
-      YL: { attending: 0, notAttending: 0, unknown: 0 },
-      YP: { attending: 0, notAttending: 0, unknown: 0 },
-      Leader: { attending: 0, notAttending: 0, unknown: 0 },
-    };
+    // Get unique sections from events
+    const sections = [...new Set(events.map(event => event.sectionname))];
     
-    aggregatedData.forEach(person => {
-      // Determine person type based on available data
-      let personType = 'YP'; // Default
-      
-      if (person.type) {
-        if (person.type.toLowerCase().includes('leader') || person.type.toLowerCase().includes('adult')) {
-          personType = 'Leader';
-        } else if (person.type.toLowerCase().includes('yl') || person.type.toLowerCase().includes('young leader')) {
-          personType = 'YL';
-        }
-      }
-      
-      // Count attendance status (use most recent/common status across events)
-      const attendingStatuses = person.events.map(e => e.attending);
-      const mostCommonStatus = attendingStatuses.sort((a, b) =>
-        attendingStatuses.filter(v => v === a).length - attendingStatuses.filter(v => v === b).length,
-      ).pop();
-      
-      if (mostCommonStatus === 'Yes') {
-        grid[personType].attending++;
-      } else if (mostCommonStatus === 'No') {
-        grid[personType].notAttending++;
-      } else {
-        grid[personType].unknown++;
+    // Initialize each section in grid
+    sections.forEach(sectionName => {
+      grid[sectionName] = { attending: 0, notAttending: 0, invited: 0 };
+    });
+    
+    // Process attendance data by section
+    events.forEach(event => {
+      if (event.attendanceData && event.sectionname) {
+        const sectionName = event.sectionname;
+        
+        event.attendanceData.forEach(person => {
+          if (person.attending === 'Yes') {
+            grid[sectionName].attending++;
+          } else if (person.attending === 'No') {
+            grid[sectionName].notAttending++;
+          } else {
+            grid[sectionName].invited++;
+          }
+        });
       }
     });
     
@@ -107,9 +71,13 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     const eventStart = new Date(event.startdate);
     const eventEnd = new Date(event.enddate);
     
+    // Create a date for the day after the event ends
+    const dayAfterEventEnd = new Date(eventEnd);
+    dayAfterEventEnd.setDate(dayAfterEventEnd.getDate() + 1);
+    
     if (now < eventStart) {
       return 'upcoming';
-    } else if (now >= eventStart && now <= eventEnd) {
+    } else if (now >= eventStart && now < dayAfterEventEnd) {
       return 'ongoing';
     } else {
       return 'past';
