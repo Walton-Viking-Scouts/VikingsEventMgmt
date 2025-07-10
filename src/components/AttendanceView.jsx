@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getEventAttendance } from '../services/api.js';
+import { getEventAttendance, getMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
@@ -29,24 +29,34 @@ function AttendanceView({ events, members, onBack }) {
       // Load attendance for each selected event
       for (const event of events) {
         try {
-          const attendance = await getEventAttendance(
-            event.sectionid, 
-            event.eventid, 
-            event.termid, 
-            token,
-          );
+          // If termid is missing, get it from API
+          let termId = event.termid;
+          if (!termId) {
+            termId = await getMostRecentTermId(event.sectionid, token);
+          }
           
-          if (attendance && Array.isArray(attendance)) {
-            // Add event info to each attendance record
-            const attendanceWithEvent = attendance.map(record => ({
-              ...record,
-              eventid: event.eventid,
-              eventname: event.name,
-              eventdate: event.startdate,
-              sectionid: event.sectionid,
-              sectionname: event.sectionname,
-            }));
-            allAttendance.push(...attendanceWithEvent);
+          if (termId) {
+            const attendance = await getEventAttendance(
+              event.sectionid, 
+              event.eventid, 
+              termId, 
+              token,
+            );
+            
+            if (attendance && Array.isArray(attendance)) {
+              // Add event info to each attendance record
+              const attendanceWithEvent = attendance.map(record => ({
+                ...record,
+                eventid: event.eventid,
+                eventname: event.name,
+                eventdate: event.startdate,
+                sectionid: event.sectionid,
+                sectionname: event.sectionname,
+              }));
+              allAttendance.push(...attendanceWithEvent);
+            }
+          } else {
+            console.warn(`No termid found for event ${event.name} in section ${event.sectionid}`);
           }
         } catch (eventError) {
           console.warn(`Error loading attendance for event ${event.name}:`, eventError);
@@ -301,7 +311,7 @@ function AttendanceView({ events, members, onBack }) {
             onClick={onBack}
             type="button"
           >
-            Back to Events
+            Back to Dashboard
           </Button>
         </Card.Header>
         <Card.Body>
@@ -476,7 +486,7 @@ function AttendanceView({ events, members, onBack }) {
               onClick={onBack}
               type="button"
             >
-            Back
+            Back to Dashboard
             </Button>
           </div>
         </Card.Header>

@@ -2,10 +2,10 @@ import React from 'react';
 import Header from '../components/Header.jsx';
 import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
-function MobileLayout({ children, user, onLogout }) {
+function MobileLayout({ children, user, onLogout, currentView }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" data-testid="mobile-layout">
-      <OfflineIndicator />
+      <OfflineIndicator hideSync={currentView === 'dashboard'} />
       <Header user={user} onLogout={onLogout} />
       
       <main className="flex-1" data-testid="mobile-main">

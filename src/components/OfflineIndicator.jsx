@@ -5,7 +5,7 @@ import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
 import { isAuthenticated } from '../services/auth.js';
 
-function OfflineIndicator() {
+function OfflineIndicator({ hideSync = false }) {
   const [isOnline, setIsOnline] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -130,17 +130,20 @@ function OfflineIndicator() {
   if (isOnline && !syncStatus) {
     return (
       <>
-        <div className="fixed top-20 right-4 z-40">
-          <Button
-            variant="scout-blue"
-            size="sm"
-            onClick={handleSyncClick}
-            className="shadow-lg"
-            title={getSyncButtonTitle()}
-          >
-            {getSyncButtonText()}
-          </Button>
-        </div>
+        {/* Only show sync button if not hidden */}
+        {!hideSync && (
+          <div className="fixed top-20 right-4 z-40">
+            <Button
+              variant="scout-blue"
+              size="sm"
+              onClick={handleSyncClick}
+              className="shadow-lg"
+              title={getSyncButtonTitle()}
+            >
+              {getSyncButtonText()}
+            </Button>
+          </div>
+        )}
         
         {/* Login Prompt Modal */}
         <Modal

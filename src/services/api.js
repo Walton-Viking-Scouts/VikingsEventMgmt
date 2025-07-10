@@ -10,6 +10,65 @@ const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend
 
 console.log('Using Backend URL:', BACKEND_URL);
 
+// API call queue to prevent simultaneous requests
+class APIQueue {
+  constructor() {
+    this.queue = [];
+    this.processing = false;
+    this.requestCount = 0;
+  }
+
+  async add(apiCall) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ apiCall, resolve, reject });
+      this.process();
+    });
+  }
+
+  async process() {
+    if (this.processing || this.queue.length === 0) {
+      return;
+    }
+
+    this.processing = true;
+    
+    while (this.queue.length > 0) {
+      const { apiCall, resolve, reject } = this.queue.shift();
+      
+      try {
+        this.requestCount++;
+        console.log(`API Queue: Processing request ${this.requestCount} (${this.queue.length} remaining)`);
+        
+        const result = await apiCall();
+        resolve(result);
+        
+        // Add delay between queued API calls
+        if (this.queue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    }
+    
+    this.processing = false;
+  }
+
+  getStats() {
+    return {
+      queueLength: this.queue.length,
+      processing: this.processing,
+      totalRequests: this.requestCount,
+    };
+  }
+}
+
+// Global API queue instance
+const apiQueue = new APIQueue();
+
+// Export queue stats for debugging
+export const getAPIQueueStats = () => apiQueue.getStats();
+
 // Network status checking
 let isOnline = true;
 
@@ -217,31 +276,33 @@ export async function getTerms(token) {
 }
 
 export async function getMostRecentTermId(sectionId, token) {
-  try {
-    const terms = await getTerms(token);
-    if (!terms || !terms[sectionId]) {
-      console.warn(`No terms found for section ${sectionId}`);
-      return null;
+  return apiQueue.add(async () => {
+    try {
+      const terms = await getTerms(token);
+      if (!terms || !terms[sectionId]) {
+        console.warn(`No terms found for section ${sectionId}`);
+        return null;
+      }
+
+      const mostRecentTerm = terms[sectionId].reduce((latest, term) => {
+        const termEndDate = new Date(term.enddate);
+        const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
+        return termEndDate > latestEndDate ? term : latest;
+      }, null);
+
+      if (!mostRecentTerm) {
+        console.warn(`No valid term found for section ${sectionId}`);
+        return null;
+      }
+
+      console.log(`Most recent term found for section ${sectionId}:`, mostRecentTerm);
+      return mostRecentTerm.termid;
+
+    } catch (error) {
+      console.error(`Error fetching most recent term ID for section ${sectionId}:`, error);
+      throw error;
     }
-
-    const mostRecentTerm = terms[sectionId].reduce((latest, term) => {
-      const termEndDate = new Date(term.enddate);
-      const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
-      return termEndDate > latestEndDate ? term : latest;
-    }, null);
-
-    if (!mostRecentTerm) {
-      console.warn(`No valid term found for section ${sectionId}`);
-      return null;
-    }
-
-    console.log(`Most recent term found for section ${sectionId}:`, mostRecentTerm);
-    return mostRecentTerm.termid;
-
-  } catch (error) {
-    console.error(`Error fetching most recent term ID for section ${sectionId}:`, error);
-    throw error;
-  }
+  });
 }
 
 export async function getUserRoles(token) {
@@ -330,8 +391,14 @@ export async function getUserRoles(token) {
             hasToken: !!token,
           },
         });
+        
+        // Don't fall back to cache for authentication errors - these need to be handled by auth system
+        if (error.status === 401 || error.status === 403) {
+          logger.error('Authentication error - not using cache fallback');
+          throw error;
+        }
                 
-        // If online request fails, try local database as fallback
+        // If online request fails (non-auth errors), try local database as fallback
         if (isOnline) {
           logger.info('Online request failed - trying local database as fallback');
           span.setAttribute('fallback.used', true);
@@ -579,7 +646,13 @@ export async function getStartupData(token) {
   } catch (error) {
     console.error('Error fetching startup data:', error);
     
-    // If online request fails, try localStorage as fallback
+    // Don't fall back to cache for authentication errors - these need to be handled by auth system
+    if (error.status === 401 || error.status === 403) {
+      console.error('Authentication error - not using cache fallback');
+      throw error;
+    }
+    
+    // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
       console.log('Online request failed - trying localStorage as fallback');
       try {
@@ -731,25 +804,36 @@ export async function getListOfMembers(sections, token) {
   await checkNetworkStatus();
   const sectionIds = sections.map(s => s.sectionid);
   
-  // If offline, return cached members
-  if (!isOnline) {
-    logger.info('Offline mode - retrieving members from local database');
-    try {
-      const cachedMembers = await databaseService.getMembers(sectionIds);
+  // Try cache first (both online and offline)
+  try {
+    const cachedMembers = await databaseService.getMembers(sectionIds);
+    if (cachedMembers.length > 0) {
+      logger.info(`Using cached members: ${cachedMembers.length} members for sections ${sectionIds.join(', ')}`);
       return cachedMembers;
-    } catch (error) {
-      logger.error('Failed to get cached members:', error);
-      throw new Error('Unable to retrieve members while offline');
     }
+  } catch (error) {
+    logger.warn('Failed to get cached members:', error);
+  }
+  
+  // If offline and no cache, throw error
+  if (!isOnline) {
+    logger.error('Offline mode - no cached members available');
+    throw new Error('Unable to retrieve members while offline and no cache available');
   }
 
-  // Online mode - use new getMembersGrid for richer data
+  // Online mode - fetch from API if cache is empty
   const memberMap = new Map(); // For deduplication by scoutid
   
   for (const section of sections) {
     try {
+      // Add delay between sections to prevent rapid API calls
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
       const termId = await getMostRecentTermId(section.sectionid, token);
       if (!termId) continue;
+      
+      // Add delay before members grid call
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Use the new getMembersGrid API for comprehensive data
       const members = await getMembersGrid(section.sectionid, termId, token);

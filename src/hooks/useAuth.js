@@ -8,6 +8,7 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
@@ -40,22 +41,33 @@ export function useAuth() {
           setIsAuthenticated(true);
           const userInfo = authService.getUserInfo();
           setUser(userInfo);
-          console.log('✅ User authenticated successfully');
+          
+          // Check if user is in offline mode with expired token
+          const isTokenExpired = sessionStorage.getItem('token_expired') === 'true';
+          setIsOfflineMode(isTokenExpired);
+          
+          if (isTokenExpired) {
+            console.log('✅ User authenticated in offline mode (expired token with cached data)');
+          } else {
+            console.log('✅ User authenticated successfully');
+          }
           
           // Log successful authentication
           Sentry.addBreadcrumb({
             category: 'auth',
-            message: 'User authentication successful',
+            message: isTokenExpired ? 'User authentication successful (offline mode)' : 'User authentication successful',
             level: 'info',
             data: {
               hasUserInfo: !!userInfo,
               userFullname: userInfo?.fullname || 'Unknown',
+              isOfflineMode: isTokenExpired,
             },
           });
         } else {
           // Token validation failed - clear everything and show login
           setIsAuthenticated(false);
           setUser(null);
+          setIsOfflineMode(false);
           console.log('❌ Token validation failed - showing login');
           
           // Log authentication failure
@@ -136,6 +148,7 @@ export function useAuth() {
     isLoading,
     user,
     isBlocked,
+    isOfflineMode,
     login,
     logout,
     setToken,

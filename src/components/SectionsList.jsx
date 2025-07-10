@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Card, Badge } from './ui';
 
-function SectionsList({ sections, selectedSections = [], onSectionToggle, onContinueToEvents }) {
+function SectionsList({ sections, selectedSections = [], onSectionToggle, onContinueToEvents, showContinueButton = true, loadingSection = null }) {
   if (!sections || sections.length === 0) {
     return (
       <Card>
@@ -77,6 +77,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
         <div className="flex flex-wrap justify-center" style={{ gap: '30px' }}>
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
+            const isLoading = loadingSection === section.sectionid;
             const sectionType = section.section.toLowerCase();
             
             // Determine background color based on section type
@@ -108,38 +109,53 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
               <button
                 key={section.sectionid}
                 onClick={() => onSectionToggle(section)}
+                disabled={isLoading}
                 style={{
                   padding: '10px',
                   backgroundColor: isSelected ? hoverBgColor : bgColor,
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: 'pointer',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
                   fontSize: '12px',
                   fontWeight: '500',
                   minWidth: '120px',
-                  opacity: isSelected ? 1 : 0.8,
+                  opacity: isLoading ? 0.6 : (isSelected ? 1 : 0.8),
                   transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                   boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                   transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = hoverBgColor;
-                  e.target.style.opacity = 1;
+                  if (!isLoading) {
+                    e.target.style.backgroundColor = hoverBgColor;
+                    e.target.style.opacity = 1;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = isSelected ? hoverBgColor : bgColor;
-                  e.target.style.opacity = isSelected ? 1 : 0.8;
+                  if (!isLoading) {
+                    e.target.style.backgroundColor = isSelected ? hoverBgColor : bgColor;
+                    e.target.style.opacity = isSelected ? 1 : 0.8;
+                  }
                 }}
               >
-                {section.sectionname}
+                {isLoading && (
+                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                )}
+                {isLoading ? 'Loading...' : section.sectionname}
               </button>
             );
           })}
         </div>
       </Card.Body>
 
-      {selectedSections.length > 0 && (
+      {selectedSections.length > 0 && showContinueButton && (
         <Card.Footer className="text-center">
           <Button
             variant="scout-green"
