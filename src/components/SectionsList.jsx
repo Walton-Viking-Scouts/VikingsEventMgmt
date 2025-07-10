@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Card, Badge } from './ui';
 
-function SectionsList({ sections, selectedSections = [], onSectionToggle, onContinueToEvents }) {
+function SectionsList({ sections, selectedSections = [], onSectionToggle, onContinueToEvents, showContinueButton = true }) {
   if (!sections || sections.length === 0) {
     return (
       <Card>
@@ -139,7 +139,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
         </div>
       </Card.Body>
 
-      {selectedSections.length > 0 && (
+      {selectedSections.length > 0 && showContinueButton && (
         <Card.Footer className="text-center">
           <Button
             variant="scout-green"

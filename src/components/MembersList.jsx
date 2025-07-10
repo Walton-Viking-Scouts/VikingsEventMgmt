@@ -232,7 +232,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
             Retry
           </Button>
           <Button variant="outline" onClick={onBack} type="button">
-            Back to Events
+            Back to Dashboard
           </Button>
         </Alert.Actions>
       </Alert>
@@ -264,7 +264,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
             Export CSV
           </Button>
           <Button variant="outline" onClick={onBack} type="button">
-            Back to Events
+            Back to Dashboard
           </Button>
         </div>
       </div>

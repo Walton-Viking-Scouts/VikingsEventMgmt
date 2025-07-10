@@ -1,16 +1,51 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ResponsiveLayout from './components/ResponsiveLayout.jsx';
 import LoginScreen from './components/LoginScreen.jsx';
 import BlockedScreen from './components/BlockedScreen.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import syncService from './services/sync.js';
+import EventDashboard from './components/EventDashboard.jsx';
+import AttendanceView from './components/AttendanceView.jsx';
+import MembersList from './components/MembersList.jsx';
+// import syncService from './services/sync.js'; // TODO: implement sync functionality
+import databaseService from './services/database.js';
 import './App.css';
 
 function App() {
   const { isAuthenticated, isLoading, user, isBlocked, login, logout } = useAuth();
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [navigationData, setNavigationData] = useState({});
+
+  const handleNavigateToMembers = async (section) => {
+    // Load cached members data for the selected section
+    try {
+      const members = await databaseService.getMembers([section.sectionid]);
+      setNavigationData({ section, members });
+    } catch (error) {
+      console.error('Error loading cached members:', error);
+      setNavigationData({ section, members: [] });
+    }
+    setCurrentView('members');
+  };
+
+  const handleNavigateToAttendance = async (events) => {
+    // Load cached members data for the attendance view
+    const sectionsInvolved = [...new Set(events.map(e => e.sectionid))];
+    try {
+      const members = await databaseService.getMembers(sectionsInvolved);
+      setNavigationData({ events, members });
+    } catch (error) {
+      console.error('Error loading cached members:', error);
+      setNavigationData({ events, members: [] });
+    }
+    setCurrentView('attendance');
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+    setNavigationData({});
+  };
 
   useEffect(() => {
     // Check for OAuth callback parameters in URL
@@ -35,8 +70,7 @@ function App() {
       window.location.reload();
     }
 
-    // Setup auto-sync when app loads
-    syncService.setupAutoSync();
+    // Auto-sync disabled - user must manually sync via dashboard
   }, []);
 
   if (isLoading) {
@@ -51,13 +85,42 @@ function App() {
     return <LoginScreen onLogin={login} />;
   }
 
+  const renderCurrentView = () => {
+    switch (currentView) {
+    case 'members':
+      return (
+        <MembersList
+          sections={navigationData.section ? [navigationData.section] : []}
+          members={navigationData.members || []} // Loaded from cache
+          onBack={handleBackToDashboard}
+        />
+      );
+    case 'attendance':
+      return (
+        <AttendanceView
+          sections={navigationData.events ? [...new Set(navigationData.events.map(e => ({ sectionid: e.sectionid, sectionname: e.sectionname })))] : []}
+          events={navigationData.events || []}
+          members={navigationData.members || []} // Loaded from cache
+          onBack={handleBackToDashboard}
+        />
+      );
+    default:
+      return (
+        <EventDashboard
+          onNavigateToMembers={handleNavigateToMembers}
+          onNavigateToAttendance={handleNavigateToAttendance}
+        />
+      );
+    }
+  };
+
   return (
     <div className="App" data-testid="app">
       <Router>
-        <ResponsiveLayout user={user} onLogout={logout}>
+        <ResponsiveLayout user={user} onLogout={logout} currentView={currentView}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={renderCurrentView()} />
+            <Route path="/dashboard" element={renderCurrentView()} />
           </Routes>
         </ResponsiveLayout>
       </Router>

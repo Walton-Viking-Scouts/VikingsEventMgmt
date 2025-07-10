@@ -126,7 +126,7 @@ describe('MembersList', () => {
     render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     
     await waitFor(() => {
-      expect(screen.getByText('Back to Events')).toBeInTheDocument();
+      expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
     });
   });
 
@@ -134,10 +134,10 @@ describe('MembersList', () => {
     render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     
     await waitFor(() => {
-      expect(screen.getByText('Back to Events')).toBeInTheDocument();
+      expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
     });
 
-    const backButton = screen.getByText('Back to Events');
+    const backButton = screen.getByText('Back to Dashboard');
     fireEvent.click(backButton);
 
     expect(mockOnBack).toHaveBeenCalledTimes(1);
@@ -173,7 +173,7 @@ describe('MembersList', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Retry')).toBeInTheDocument();
-      expect(screen.getByText('Back to Events')).toBeInTheDocument();
+      expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
     });
   });
 

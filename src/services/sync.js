@@ -307,31 +307,11 @@ class SyncService {
     }
   }
 
-  // Auto-sync when coming back online
+  // Auto-sync disabled - user must manually sync via dashboard
   async setupAutoSync() {
-    if (Capacitor.isNativePlatform()) {
-      Network.addListener('networkStatusChange', async (status) => {
-        if (status.connected && !this.isSyncing) {
-          console.log('Network reconnected - starting auto-sync');
-          try {
-            await this.syncAll();
-          } catch (error) {
-            console.error('Auto-sync failed:', error);
-          }
-        }
-      });
-    } else {
-      window.addEventListener('online', async () => {
-        if (!this.isSyncing) {
-          console.log('Network reconnected - starting auto-sync');
-          try {
-            await this.syncAll();
-          } catch (error) {
-            console.error('Auto-sync failed:', error);
-          }
-        }
-      });
-    }
+    // Auto-sync functionality disabled to prevent unwanted OSM API calls
+    // User must manually trigger sync via dashboard sync button
+    console.log('Auto-sync disabled - manual sync only');
   }
 }
 

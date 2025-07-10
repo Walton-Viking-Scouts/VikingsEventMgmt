@@ -3,7 +3,7 @@ import { isMobileLayout } from '../utils/platform.js';
 import MobileLayout from '../layouts/MobileLayout.jsx';
 import DesktopLayout from '../layouts/DesktopLayout.jsx';
 
-function ResponsiveLayout({ children, user, onLogout }) {
+function ResponsiveLayout({ children, user, onLogout, currentView }) {
   const [isMobile, setIsMobile] = React.useState(isMobileLayout());
 
   React.useEffect(() => {
@@ -19,7 +19,7 @@ function ResponsiveLayout({ children, user, onLogout }) {
 
   return (
     <div data-testid="responsive-layout" className="h-full">
-      <LayoutComponent user={user} onLogout={onLogout}>
+      <LayoutComponent user={user} onLogout={onLogout} currentView={currentView}>
         {children}
       </LayoutComponent>
     </div>

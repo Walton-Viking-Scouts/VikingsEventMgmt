@@ -62,6 +62,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS events (
         eventid INTEGER PRIMARY KEY,
         sectionid INTEGER,
+        termid TEXT,
         name TEXT NOT NULL,
         date TEXT,
         startdate TEXT,
@@ -117,11 +118,36 @@ class DatabaseService {
       );
     `;
 
+    const createEventDashboardTable = `
+      CREATE TABLE IF NOT EXISTS event_dashboard (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL,
+        event_name TEXT NOT NULL,
+        section_id INTEGER NOT NULL,
+        section_name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        attendance_summary TEXT,
+        last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(event_id, section_id)
+      );
+    `;
+
+    const createSyncMetadataTable = `
+      CREATE TABLE IF NOT EXISTS sync_metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
     await this.db.execute(createSectionsTable);
     await this.db.execute(createEventsTable);
     await this.db.execute(createAttendanceTable);
     await this.db.execute(createMembersTable);
     await this.db.execute(createSyncStatusTable);
+    await this.db.execute(createEventDashboardTable);
+    await this.db.execute(createSyncMetadataTable);
   }
 
   // Sections
@@ -180,12 +206,13 @@ class DatabaseService {
 
     for (const event of events) {
       const insert = `
-        INSERT INTO events (eventid, sectionid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO events (eventid, sectionid, termid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       await this.db.run(insert, [
         event.eventid, 
         sectionId, 
+        event.termid || null,
         event.name, 
         event.date,
         event.startdate, 
