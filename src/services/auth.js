@@ -2,15 +2,18 @@
 // React version of the original auth module
 
 import { getUserRoles, getStartupData } from './api.js';
-import { sentryUtils, logger } from './sentry.js';
+import { sentryUtils } from './sentry.js';
 import { config } from '../config/env.js';
+import logger, { LOG_CATEGORIES } from './logger.js';
 
 const clientId = config.oauthClientId;
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
 
 // Validate client ID is provided
 if (!clientId) {
-  console.error('⚠️ VITE_OAUTH_CLIENT_ID environment variable not set');
+  logger.error('OAuth client ID environment variable not set', { 
+    variable: 'VITE_OAUTH_CLIENT_ID' 
+  }, LOG_CATEGORIES.AUTH);
   throw new Error('OAuth client ID not configured. Please set VITE_OAUTH_CLIENT_ID environment variable.');
 }
 
@@ -74,7 +77,7 @@ export function isTokenValid(responseData) {
 
 // Token expiration handling
 export function handleTokenExpiration() {
-  console.log('Token expired - clearing session but keeping offline data');
+  logger.info('Token expired - clearing session but keeping offline data', {}, LOG_CATEGORIES.AUTH);
   clearToken();
   
   // DON'T clear offline cached data when token expires
@@ -106,14 +109,14 @@ export function generateOAuthUrl() {
   const baseState = isDeployedServer ? 'prod' : 'dev';
   const stateWithFrontendUrl = `${baseState}&frontend_url=${encodeURIComponent(frontendUrl)}`;
     
-  console.log('🔧 Mobile OAuth Config:', {
+  logger.info('Mobile OAuth configuration', {
     hostname,
     isDeployedServer,
     baseState,
     frontendUrl,
     redirectUri,
     backendUrl: BACKEND_URL,
-  });
+  }, LOG_CATEGORIES.AUTH);
 
   const authUrl = 'https://www.onlinescoutmanager.co.uk/oauth/authorize?' +
         `client_id=${clientId}&` +
@@ -122,7 +125,7 @@ export function generateOAuthUrl() {
         `scope=${encodeURIComponent(scope)}&` +
         'response_type=code';
     
-  console.log('🔗 Generated Mobile OAuth URL:', authUrl);
+  logger.info('Generated Mobile OAuth URL', { authUrl }, LOG_CATEGORIES.AUTH);
   return authUrl;
 }
 
@@ -133,7 +136,7 @@ export function getUserInfo() {
     try {
       return JSON.parse(userInfoStr);
     } catch (error) {
-      console.warn('Could not parse user info:', error);
+      logger.warn('Could not parse user info from session storage', { error }, LOG_CATEGORIES.AUTH);
       return null;
     }
   }
@@ -149,22 +152,24 @@ export async function validateToken() {
   try {
     const token = getToken();
     if (!token) {
-      console.log('No token found - user needs to login');
+      logger.info('No token found - user needs to login', {}, LOG_CATEGORIES.AUTH);
       return false;
     }
 
     // Check if OSM API access is blocked
     if (sessionStorage.getItem('osm_blocked') === 'true') {
-      console.error('🚨 Application is blocked - cannot validate token');
+      logger.error('Application is blocked - cannot validate token', { 
+        blockedStatus: sessionStorage.getItem('osm_blocked') 
+      }, LOG_CATEGORIES.AUTH);
       return false;
     }
 
     // Validate token by making a lightweight API call
-    console.log('Token found, testing validity...');
+    logger.info('Token found, testing validity', {}, LOG_CATEGORIES.AUTH);
     await getUserRoles(token);
         
     // If getUserRoles succeeds, token is valid
-    console.log('Token is valid');
+    logger.info('Token is valid', {}, LOG_CATEGORIES.AUTH);
         
     // Fetch user information for display
     try {
@@ -176,28 +181,34 @@ export async function validateToken() {
           fullname: `${startupData.globals.firstname} ${startupData.globals.lastname || ''}`.trim(),
         };
         setUserInfo(userInfo);
-        console.log('User info stored:', userInfo);
+        logger.info('User info stored successfully', { 
+          firstname: userInfo.firstname,
+          lastname: userInfo.lastname,
+          fullname: userInfo.fullname 
+        }, LOG_CATEGORIES.AUTH);
       }
     } catch (error) {
-      console.warn('Could not fetch user info:', error);
+      logger.warn('Could not fetch user info from startup data', { error }, LOG_CATEGORIES.AUTH);
       // Continue without user info
     }
         
     return true;
         
   } catch (error) {
-    console.error('Token validation failed:', error);
+    logger.error('Token validation failed', { error, status: error.status }, LOG_CATEGORIES.AUTH);
     
     // For authentication errors, check if we have cached data before forcing re-login
     if (error.status === 401 || error.status === 403) {
-      console.log('🔍 Authentication failed - checking for cached data...');
+      logger.info('Authentication failed - checking for cached data', { 
+        errorStatus: error.status 
+      }, LOG_CATEGORIES.AUTH);
       
       // Check if we have any cached data that would allow offline access
       const hasCachedData = checkForCachedData();
       
       if (hasCachedData) {
-        console.log('✅ Found cached data - allowing offline access with expired token');
-        console.log('⚠️  Note: Token is expired but user can access cached data');
+        logger.info('Found cached data - allowing offline access with expired token', {}, LOG_CATEGORIES.AUTH);
+        logger.info('Token is expired but user can access cached data', {}, LOG_CATEGORIES.AUTH);
         
         // Mark token as expired but don't clear it completely
         sessionStorage.setItem('token_expired', 'true');
@@ -206,16 +217,20 @@ export async function validateToken() {
         try {
           const cachedUserInfo = getUserInfo();
           if (cachedUserInfo) {
-            console.log('Using cached user info:', cachedUserInfo);
+            logger.info('Using cached user info', { 
+              firstname: cachedUserInfo.firstname,
+              lastname: cachedUserInfo.lastname,
+              fullname: cachedUserInfo.fullname 
+            }, LOG_CATEGORIES.AUTH);
           }
         } catch (cacheError) {
-          console.warn('Could not load cached user info:', cacheError);
+          logger.warn('Could not load cached user info', { error: cacheError }, LOG_CATEGORIES.AUTH);
         }
         
         // Allow access in offline mode
         return true;
       } else {
-        console.log('❌ No cached data found - user must re-authenticate');
+        logger.info('No cached data found - user must re-authenticate', {}, LOG_CATEGORIES.AUTH);
         // Mark token as invalid for quick future checks
         sessionStorage.setItem('token_invalid', 'true');
         clearToken();
@@ -261,7 +276,7 @@ function checkForCachedData() {
     
     return false;
   } catch (error) {
-    console.error('Error checking cached data:', error);
+    logger.error('Error checking cached data', { error }, LOG_CATEGORIES.AUTH);
     return false;
   }
 }
@@ -293,7 +308,7 @@ export function logout() {
   
   sessionStorage.removeItem('user_info');
   sessionStorage.removeItem('token_invalid');
-  console.log('User logged out - all cached data cleared');
+  logger.info('User logged out - all cached data cleared', {}, LOG_CATEGORIES.AUTH);
 }
 
 // Check for blocked status
