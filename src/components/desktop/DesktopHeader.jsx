@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { canPrint } from '../../utils/platform.js';
 import { Button } from '../ui';
+import ConfirmModal from '../ui/ConfirmModal';
 
 function DesktopHeader({ user, onLogout }) {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
   const handlePrint = () => {
     window.print();
   };
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      onLogout();
-    }
+    setShowLogoutModal(true);
   };
 
   return (
@@ -56,6 +57,21 @@ function DesktopHeader({ user, onLogout }) {
           )}
         </div>
       </div>
+      
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showLogoutModal}
+        title="Confirm Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowLogoutModal(false);
+          onLogout();
+        }}
+        onCancel={() => setShowLogoutModal(false)}
+        confirmVariant="error"
+      />
     </header>
   );
 }

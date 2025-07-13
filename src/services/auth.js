@@ -249,6 +249,13 @@ async function checkForCachedData() {
   }
 }
 
+// Guard function to check if write operations are allowed
+export function checkWritePermission() {
+  if (sessionStorage.getItem('token_expired') === 'true') {
+    throw new Error('Write operations are not allowed while in offline mode with expired token');
+  }
+}
+
 // Logout function
 export function logout() {
   clearToken();

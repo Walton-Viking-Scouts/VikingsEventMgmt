@@ -6,6 +6,7 @@ import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
 import { Button, Alert } from './ui';
+import ConfirmModal from './ui/ConfirmModal';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [sections, setSections] = useState([]);
@@ -18,6 +19,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [developmentMode, setDevelopmentMode] = useState(false);
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
+  
+  // Modal state for confirmation dialogs
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState({
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel'
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -282,20 +293,24 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         onNavigateToMembers(section, members);
       } else {
         // No cached data - ask user if they want to fetch from OSM
-        const shouldFetch = window.confirm(
-          `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
-        );
+        setConfirmModalData({
+          title: 'Fetch Member Data',
+          message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
+          onConfirm: async () => {
+            setShowConfirmModal(false);
+            console.log(`Fetching fresh members for section: ${section.sectionname}`);
+            const token = getToken();
+            const freshMembers = await getListOfMembers([section], token);
+            console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
+            onNavigateToMembers(section, freshMembers);
+          },
+          confirmText: 'Fetch Data',
+          cancelText: 'Use Empty'
+        });
+        setShowConfirmModal(true);
         
-        if (shouldFetch) {
-          console.log(`Fetching fresh members for section: ${section.sectionname}`);
-          const token = getToken();
-          const freshMembers = await getListOfMembers([section], token);
-          console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
-          onNavigateToMembers(section, freshMembers);
-        } else {
-          // User chose not to fetch - show empty members screen
-          onNavigateToMembers(section, []);
-        }
+        // The modal will handle the user's response
+        return;
       }
       
     } catch (err) {
@@ -505,6 +520,21 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           )}
         </div>
       </div>
+      
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalData.title}
+        message={confirmModalData.message}
+        confirmText={confirmModalData.confirmText}
+        cancelText={confirmModalData.cancelText}
+        onConfirm={confirmModalData.onConfirm}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          // Handle cancel - show empty members screen
+          onNavigateToMembers(sections.find(s => s.sectionid === loadingSection), []);
+        }}
+      />
     </div>
   );
 }
