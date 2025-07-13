@@ -10,12 +10,36 @@ import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
 // import syncService from './services/sync.js'; // TODO: implement sync functionality
 import databaseService from './services/database.js';
+import { Alert } from './components/ui';
 import './App.css';
 
 function App() {
   const { isAuthenticated, isLoading, user, isBlocked, isOfflineMode, login, logout } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
+  
+  // Notification system state
+  const [notifications, setNotifications] = useState([]);
+  
+  // Helper function to add notifications
+  const addNotification = (type, message, duration = 5000) => {
+    const id = Date.now();
+    const notification = { id, type, message, duration };
+    
+    setNotifications(prev => [...prev, notification]);
+    
+    // Auto-dismiss after duration
+    if (duration > 0) {
+      setTimeout(() => {
+        removeNotification(id);
+      }, duration);
+    }
+  };
+  
+  // Helper function to remove notifications
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
   const handleNavigateToMembers = async (section, members = null) => {
     // If members are provided (from fresh API call), use them
@@ -27,6 +51,7 @@ function App() {
         membersData = await databaseService.getMembers([section.sectionid]);
       } catch (error) {
         console.error('Error loading cached members:', error);
+        addNotification('error', 'Unable to load member data. Please try refreshing the page.');
         membersData = [];
       }
     }
@@ -46,6 +71,7 @@ function App() {
         membersData = await databaseService.getMembers(sectionsInvolved);
       } catch (error) {
         console.error('Error loading cached members:', error);
+        addNotification('error', 'Unable to load member data for attendance view. Please try refreshing the page.');
         membersData = [];
       }
     }
@@ -136,6 +162,21 @@ function App() {
           </Routes>
         </ResponsiveLayout>
       </Router>
+      
+      {/* Notification System */}
+      <div className="fixed top-4 right-4 z-50 space-y-2" style={{ maxWidth: '400px' }}>
+        {notifications.map(notification => (
+          <Alert
+            key={notification.id}
+            variant={notification.type}
+            dismissible={true}
+            onDismiss={() => removeNotification(notification.id)}
+            className="shadow-lg"
+          >
+            {notification.message}
+          </Alert>
+        ))}
+      </div>
     </div>
   );
 }

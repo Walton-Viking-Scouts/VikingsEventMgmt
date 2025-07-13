@@ -193,7 +193,7 @@ export async function validateToken() {
       console.log('🔍 Authentication failed - checking for cached data...');
       
       // Check if we have any cached data that would allow offline access
-      const hasCachedData = await checkForCachedData();
+      const hasCachedData = checkForCachedData();
       
       if (hasCachedData) {
         console.log('✅ Found cached data - allowing offline access with expired token');
@@ -228,17 +228,34 @@ export async function validateToken() {
 }
 
 // Helper function to check for cached data
-async function checkForCachedData() {
+function checkForCachedData() {
   try {
-    // Check localStorage for any cached data
+    // Check localStorage for all cached data types (comprehensive check)
     const cachedSections = localStorage.getItem('viking_sections_offline');
     const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
+    const cachedTerms = localStorage.getItem('viking_terms_offline');
     
+    // Check static cache keys
     if (cachedSections && JSON.parse(cachedSections).length > 0) {
       return true;
     }
     
     if (cachedStartupData) {
+      return true;
+    }
+    
+    if (cachedTerms) {
+      return true;
+    }
+    
+    // Check for dynamic keys (events, attendance, members)
+    const hasEventData = Object.keys(localStorage).some(key => 
+      key.startsWith('viking_events_') || 
+      key.startsWith('viking_attendance_') || 
+      key.startsWith('viking_members_')
+    );
+    
+    if (hasEventData) {
       return true;
     }
     
