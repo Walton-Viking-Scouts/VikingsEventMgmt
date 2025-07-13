@@ -7,6 +7,7 @@ import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
 import { Button, Alert } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [sections, setSections] = useState([]);
@@ -73,7 +74,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         console.log('No cached data available - user needs to sync manually');
       }
     } catch (err) {
-      console.error('Error loading initial data:', err);
+      logger.error('Error loading initial data', { error: err }, LOG_CATEGORIES.COMPONENT);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -96,7 +97,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setLastSync(new Date(lastSyncTime));
       }
     } catch (err) {
-      console.error('Error loading cached data:', err);
+      logger.error('Error loading cached data', { error: err }, LOG_CATEGORIES.COMPONENT);
       throw err;
     }
   };
@@ -132,7 +133,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       localStorage.setItem('viking_last_sync', now.toISOString());
       
     } catch (err) {
-      console.error('Error syncing data:', err);
+      logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
       setError(err.message);
     } finally {
       setSyncing(false);
@@ -179,7 +180,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       
       return events;
     } catch (err) {
-      console.error(`Error fetching events for section ${section.sectionid}:`, err);
+      logger.error('Error fetching events for section {sectionId}', { 
+        error: err, 
+        sectionId: section.sectionid,
+        sectionName: section.sectionname 
+      }, LOG_CATEGORIES.API);
       return [];
     }
   };
@@ -222,7 +227,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         return cachedAttendance;
       }
     } catch (err) {
-      console.error(`Error fetching attendance for event ${event.eventid}:`, err);
+      logger.error('Error fetching attendance for event {eventId}', { 
+        error: err, 
+        eventId: event.eventid,
+        eventName: event.name,
+        sectionId: event.sectionid 
+      }, LOG_CATEGORIES.API);
     }
     return null;
   };
@@ -262,123 +272,42 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
+    // Fetch events for all sections
     for (const section of sectionsData) {
       try {
-        let events = [];
-        
-        if (token) {
-          // Add delay between sections to prevent rapid API calls
-          const sectionDelay = developmentMode ? 1500 : 800; // Longer delay in development
-          await new Promise(resolve => setTimeout(resolve, sectionDelay));
-          
-          // Fetch from API
-          const termId = await getMostRecentTermId(section.sectionid, token);
-          if (termId) {
-            // Add delay before events call
-            const eventDelay = developmentMode ? 1000 : 500; // Longer delay in development
-            await new Promise(resolve => setTimeout(resolve, eventDelay));
-            const sectionEvents = await getEvents(section.sectionid, termId, token);
-            if (sectionEvents && Array.isArray(sectionEvents)) {
-              events = sectionEvents.map(event => ({
-                ...event,
-                sectionid: section.sectionid,
-                sectionname: section.sectionname,
-                termid: termId,
-              }));
-              
-              // Save to cache (with termid included)
-              await databaseService.saveEvents(section.sectionid, events);
-            }
-          }
-        } else {
-          // Load from cache
-          const cachedEvents = await databaseService.getEvents(section.sectionid);
-          events = cachedEvents.map(event => ({
-            ...event,
-            sectionname: section.sectionname,
-            // If termid is missing from cache, we'll need to get it later
-            termid: event.termid || null,
-          }));
-        }
+        const sectionEvents = await fetchSectionEvents(section, token);
         
         // Filter for future events and events from last week
-        const filteredEvents = events.filter(event => {
+        const filteredEvents = sectionEvents.filter(event => {
           const eventDate = new Date(event.startdate);
           return eventDate >= oneWeekAgo;
         });
         
         // Fetch attendance data for filtered events
         for (const event of filteredEvents) {
-          if (token) {
-            try {
-              // Add delay between attendance calls to prevent rapid API calls
-              const attendanceDelay = developmentMode ? 1200 : 600; // Longer delay in development
-              await new Promise(resolve => setTimeout(resolve, attendanceDelay));
-              
-              // If termid is missing, get it from API
-              let termId = event.termid;
-              if (!termId) {
-                // Add delay before termid call
-                const termIdDelay = developmentMode ? 600 : 300;
-                await new Promise(resolve => setTimeout(resolve, termIdDelay));
-                termId = await getMostRecentTermId(event.sectionid, token);
-                event.termid = termId; // Update the event object
-              }
-              
-              if (termId) {
-                // Add delay before attendance call
-                const finalDelay = developmentMode ? 800 : 400;
-                await new Promise(resolve => setTimeout(resolve, finalDelay));
-                const attendanceData = await getEventAttendance(
-                  event.sectionid, 
-                  event.eventid, 
-                  termId, 
-                  token,
-                );
-                
-                if (attendanceData) {
-                  await databaseService.saveAttendance(event.eventid, attendanceData);
-                  event.attendanceData = attendanceData;
-                }
-              }
-            } catch (err) {
-              console.error(`Error fetching attendance for event ${event.eventid}:`, err);
-            }
-          } else {
-            // Load from cache
-            const cachedAttendance = await databaseService.getAttendance(event.eventid);
-            event.attendanceData = cachedAttendance;
-          }
+          const attendanceData = await fetchEventAttendance(event, token);
+          event.attendanceData = attendanceData;
         }
         
-        // Group events by name
-        for (const event of filteredEvents) {
-          const eventName = event.name;
-          if (!eventGroups.has(eventName)) {
-            eventGroups.set(eventName, []);
-          }
-          eventGroups.get(eventName).push(event);
-        }
+        // Add filtered events to the main collection
+        allEvents.push(...filteredEvents);
         
       } catch (err) {
-        console.error(`Error processing section ${section.sectionid}:`, err);
+        logger.error('Error processing section {sectionId}', { 
+          error: err, 
+          sectionId: section.sectionid,
+          sectionName: section.sectionname 
+        }, LOG_CATEGORIES.COMPONENT);
       }
     }
     
-    // Convert groups to cards and sort by earliest event date
+    // Group events by name
+    const eventGroups = groupEventsByName(allEvents);
+    
+    // Convert groups to cards
+    const cards = [];
     for (const [eventName, events] of eventGroups) {
-      // Sort events within group by date
-      events.sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
-      
-      // Create card with earliest event date for sorting
-      const card = {
-        id: `${eventName}-${events[0].eventid}`,
-        name: eventName,
-        events: events,
-        earliestDate: new Date(events[0].startdate),
-        sections: [...new Set(events.map(e => e.sectionname))],
-      };
-      
+      const card = buildEventCard(eventName, events);
       cards.push(card);
     }
     
