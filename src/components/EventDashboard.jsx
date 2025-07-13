@@ -139,13 +139,128 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
+  // Helper function to fetch events for a single section
+  const fetchSectionEvents = async (section, token) => {
+    try {
+      let events = [];
+      
+      if (token) {
+        // Add delay between sections to prevent rapid API calls
+        const sectionDelay = developmentMode ? 1500 : 800;
+        await new Promise(resolve => setTimeout(resolve, sectionDelay));
+        
+        // Fetch from API
+        const termId = await getMostRecentTermId(section.sectionid, token);
+        if (termId) {
+          const eventDelay = developmentMode ? 1000 : 500;
+          await new Promise(resolve => setTimeout(resolve, eventDelay));
+          const sectionEvents = await getEvents(section.sectionid, termId, token);
+          if (sectionEvents && Array.isArray(sectionEvents)) {
+            events = sectionEvents.map(event => ({
+              ...event,
+              sectionid: section.sectionid,
+              sectionname: section.sectionname,
+              termid: termId,
+            }));
+            
+            // Save to cache (with termid included)
+            await databaseService.saveEvents(section.sectionid, events);
+          }
+        }
+      } else {
+        // Load from cache
+        const cachedEvents = await databaseService.getEvents(section.sectionid);
+        events = cachedEvents.map(event => ({
+          ...event,
+          sectionname: section.sectionname,
+          termid: event.termid || null,
+        }));
+      }
+      
+      return events;
+    } catch (err) {
+      console.error(`Error fetching events for section ${section.sectionid}:`, err);
+      return [];
+    }
+  };
+
+  // Helper function to fetch attendance data for an event
+  const fetchEventAttendance = async (event, token) => {
+    try {
+      if (token) {
+        // Add delay between attendance calls to prevent rapid API calls
+        const attendanceDelay = developmentMode ? 1200 : 600;
+        await new Promise(resolve => setTimeout(resolve, attendanceDelay));
+        
+        // If termid is missing, get it from API
+        let termId = event.termid;
+        if (!termId) {
+          const termIdDelay = developmentMode ? 600 : 300;
+          await new Promise(resolve => setTimeout(resolve, termIdDelay));
+          termId = await getMostRecentTermId(event.sectionid, token);
+          event.termid = termId;
+        }
+        
+        if (termId) {
+          const finalDelay = developmentMode ? 800 : 400;
+          await new Promise(resolve => setTimeout(resolve, finalDelay));
+          const attendanceData = await getEventAttendance(
+            event.sectionid, 
+            event.eventid, 
+            termId, 
+            token,
+          );
+          
+          if (attendanceData) {
+            await databaseService.saveAttendance(event.eventid, attendanceData);
+            return attendanceData;
+          }
+        }
+      } else {
+        // Load from cache
+        const cachedAttendance = await databaseService.getAttendance(event.eventid);
+        return cachedAttendance;
+      }
+    } catch (err) {
+      console.error(`Error fetching attendance for event ${event.eventid}:`, err);
+    }
+    return null;
+  };
+
+  // Helper function to group events by name
+  const groupEventsByName = (events) => {
+    const eventGroups = new Map();
+    
+    for (const event of events) {
+      const eventName = event.name;
+      if (!eventGroups.has(eventName)) {
+        eventGroups.set(eventName, []);
+      }
+      eventGroups.get(eventName).push(event);
+    }
+    
+    return eventGroups;
+  };
+
+  // Helper function to build an individual event card
+  const buildEventCard = (eventName, events) => {
+    // Sort events within group by date
+    events.sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
+    
+    // Create card with earliest event date for sorting
+    return {
+      id: `${eventName}-${events[0].eventid}`,
+      name: eventName,
+      events: events,
+      earliestDate: new Date(events[0].startdate),
+      sections: [...new Set(events.map(e => e.sectionname))],
+    };
+  };
+
   const buildEventCards = async (sectionsData, token = null) => {
-    const cards = [];
+    const allEvents = [];
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
-    // Group events by name
-    const eventGroups = new Map();
     
     for (const section of sectionsData) {
       try {
