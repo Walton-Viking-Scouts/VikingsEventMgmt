@@ -28,7 +28,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     message: '',
     onConfirm: null,
     confirmText: 'Confirm',
-    cancelText: 'Cancel'
+    cancelText: 'Cancel',
   });
 
   useEffect(() => {
@@ -183,7 +183,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       logger.error('Error fetching events for section {sectionId}', { 
         error: err, 
         sectionId: section.sectionid,
-        sectionName: section.sectionname 
+        sectionName: section.sectionname, 
       }, LOG_CATEGORIES.API);
       return [];
     }
@@ -231,7 +231,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         error: err, 
         eventId: event.eventid,
         eventName: event.name,
-        sectionId: event.sectionid 
+        sectionId: event.sectionid, 
       }, LOG_CATEGORIES.API);
     }
     return null;
@@ -296,7 +296,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         logger.error('Error processing section {sectionId}', { 
           error: err, 
           sectionId: section.sectionid,
-          sectionName: section.sectionname 
+          sectionName: section.sectionname, 
         }, LOG_CATEGORIES.COMPONENT);
       }
     }
@@ -349,7 +349,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             onNavigateToMembers(section, freshMembers);
           },
           confirmText: 'Fetch Data',
-          cancelText: 'Use Empty'
+          cancelText: 'Use Empty',
         });
         setShowConfirmModal(true);
         

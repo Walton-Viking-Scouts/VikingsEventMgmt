@@ -12,7 +12,7 @@ const scope = 'section:member:read section:programme:read section:event:read sec
 // Validate client ID is provided
 if (!clientId) {
   logger.error('OAuth client ID environment variable not set', { 
-    variable: 'VITE_OAUTH_CLIENT_ID' 
+    variable: 'VITE_OAUTH_CLIENT_ID', 
   }, LOG_CATEGORIES.AUTH);
   throw new Error('OAuth client ID not configured. Please set VITE_OAUTH_CLIENT_ID environment variable.');
 }
@@ -159,7 +159,7 @@ export async function validateToken() {
     // Check if OSM API access is blocked
     if (sessionStorage.getItem('osm_blocked') === 'true') {
       logger.error('Application is blocked - cannot validate token', { 
-        blockedStatus: sessionStorage.getItem('osm_blocked') 
+        blockedStatus: sessionStorage.getItem('osm_blocked'), 
       }, LOG_CATEGORIES.AUTH);
       return false;
     }
@@ -184,7 +184,7 @@ export async function validateToken() {
         logger.info('User info stored successfully', { 
           firstname: userInfo.firstname,
           lastname: userInfo.lastname,
-          fullname: userInfo.fullname 
+          fullname: userInfo.fullname, 
         }, LOG_CATEGORIES.AUTH);
       }
     } catch (error) {
@@ -200,7 +200,7 @@ export async function validateToken() {
     // For authentication errors, check if we have cached data before forcing re-login
     if (error.status === 401 || error.status === 403) {
       logger.info('Authentication failed - checking for cached data', { 
-        errorStatus: error.status 
+        errorStatus: error.status, 
       }, LOG_CATEGORIES.AUTH);
       
       // Check if we have any cached data that would allow offline access
@@ -220,7 +220,7 @@ export async function validateToken() {
             logger.info('Using cached user info', { 
               firstname: cachedUserInfo.firstname,
               lastname: cachedUserInfo.lastname,
-              fullname: cachedUserInfo.fullname 
+              fullname: cachedUserInfo.fullname, 
             }, LOG_CATEGORIES.AUTH);
           }
         } catch (cacheError) {
@@ -267,7 +267,7 @@ function checkForCachedData() {
     const hasEventData = Object.keys(localStorage).some(key => 
       key.startsWith('viking_events_') || 
       key.startsWith('viking_attendance_') || 
-      key.startsWith('viking_members_')
+      key.startsWith('viking_members_'),
     );
     
     if (hasEventData) {
