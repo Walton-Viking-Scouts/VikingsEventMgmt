@@ -34,6 +34,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     title: '',
     message: '',
     onConfirm: null,
+    onCancel: null,
     confirmText: 'Confirm',
     cancelText: 'Cancel',
   });
@@ -226,6 +227,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             const freshMembers = await getListOfMembers([section], token);
             console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
             onNavigateToMembers(section, freshMembers);
+          },
+          onCancel: () => {
+            setShowConfirmModal(false);
+            setLoadingSection(null);
+            // Handle cancel - show empty members screen for this specific section
+            onNavigateToMembers(section, []);
           },
           confirmText: 'Fetch Data',
           cancelText: 'Use Empty',
@@ -460,11 +467,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         confirmText={confirmModalData.confirmText}
         cancelText={confirmModalData.cancelText}
         onConfirm={confirmModalData.onConfirm}
-        onCancel={() => {
+        onCancel={confirmModalData.onCancel || (() => {
           setShowConfirmModal(false);
-          // Handle cancel - show empty members screen
-          onNavigateToMembers(sections.find(s => s.sectionid === loadingSection), []);
-        }}
+          // Safe fallback - only navigate if we have a valid section
+          if (loadingSection && sections.length > 0) {
+            const section = sections.find(s => s.sectionid === loadingSection);
+            if (section) {
+              onNavigateToMembers(section, []);
+            }
+          }
+        })}
       />
     </div>
   );
