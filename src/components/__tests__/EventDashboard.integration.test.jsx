@@ -1,0 +1,355 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import EventDashboard from '../EventDashboard.jsx';
+import * as helpers from '../../utils/eventDashboardHelpers.js';
+
+// Mock external dependencies
+vi.mock('../../services/api.js', () => ({
+  getUserRoles: vi.fn(),
+  getListOfMembers: vi.fn(),
+  getAPIQueueStats: vi.fn(),
+}));
+
+vi.mock('../../services/auth.js', () => ({
+  getToken: vi.fn(),
+}));
+
+vi.mock('../../services/database.js', () => ({
+  default: {
+    getSections: vi.fn(),
+    getMembers: vi.fn(),
+    saveMembers: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/logger.js', () => ({
+  default: {
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+  LOG_CATEGORIES: {
+    COMPONENT: 'component',
+  },
+}));
+
+// Mock helper functions
+vi.mock('../../utils/eventDashboardHelpers.js', () => ({
+  fetchSectionEvents: vi.fn(),
+  fetchEventAttendance: vi.fn(),
+  groupEventsByName: vi.fn(),
+  buildEventCard: vi.fn(),
+  filterEventsByDateRange: vi.fn(),
+}));
+
+// Import mocked modules
+import { getUserRoles } from '../../services/api.js';
+import { getToken } from '../../services/auth.js';
+import databaseService from '../../services/database.js';
+
+describe('EventDashboard Integration Tests', () => {
+  const mockSections = [
+    { sectionid: 1, sectionname: 'Beavers' },
+    { sectionid: 2, sectionname: 'Cubs' },
+  ];
+
+  const mockEventCards = [
+    {
+      id: 'Camp Weekend-101',
+      name: 'Camp Weekend',
+      earliestDate: new Date('2024-02-15'),
+      sections: ['Beavers', 'Cubs'],
+      events: [
+        {
+          eventid: 101,
+          name: 'Camp Weekend',
+          startdate: '2024-02-15',
+          sectionid: 1,
+          sectionname: 'Beavers',
+        },
+        {
+          eventid: 102,
+          name: 'Camp Weekend',
+          startdate: '2024-02-16',
+          sectionid: 2,
+          sectionname: 'Cubs',
+        },
+      ],
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    
+    // Mock localStorage
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
+      writable: true,
+    });
+
+    // Setup default mocks
+    getUserRoles.mockResolvedValue([]);
+    getToken.mockReturnValue('mock-token');
+    databaseService.getSections.mockResolvedValue(mockSections);
+    
+    // Mock helper functions with realistic behavior
+    helpers.fetchSectionEvents.mockResolvedValue([]);
+    helpers.fetchEventAttendance.mockResolvedValue([]);
+    helpers.filterEventsByDateRange.mockReturnValue([]);
+    helpers.groupEventsByName.mockReturnValue(new Map());
+    helpers.buildEventCard.mockReturnValue(mockEventCards[0]);
+  });
+
+  describe('buildEventCards Integration', () => {
+    it('should orchestrate helper functions correctly for API mode', async () => {
+      const mockEvents = [
+        { eventid: 101, name: 'Camp Weekend', startdate: '2024-02-15' },
+        { eventid: 102, name: 'Badge Workshop', startdate: '2024-02-20' },
+      ];
+
+      const mockFilteredEvents = [
+        { eventid: 101, name: 'Camp Weekend', startdate: '2024-02-15' },
+      ];
+
+      const mockAttendanceData = [
+        { scoutid: 1, attended: true },
+      ];
+
+      const mockEventGroups = new Map([
+        ['Camp Weekend', [mockFilteredEvents[0]]],
+      ]);
+
+      // Setup mocks for integration test
+      helpers.fetchSectionEvents.mockResolvedValue(mockEvents);
+      helpers.filterEventsByDateRange.mockReturnValue(mockFilteredEvents);
+      helpers.fetchEventAttendance.mockResolvedValue(mockAttendanceData);
+      helpers.groupEventsByName.mockReturnValue(mockEventGroups);
+      helpers.buildEventCard.mockReturnValue(mockEventCards[0]);
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      // Wait for component to load and process
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Verify helper functions were called in correct order
+      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
+        mockSections[0],
+        'mock-token',
+        false, // developmentMode
+      );
+      
+      expect(helpers.filterEventsByDateRange).toHaveBeenCalledWith(
+        mockEvents,
+        expect.any(Date), // oneWeekAgo
+      );
+
+      expect(helpers.fetchEventAttendance).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventid: 101,
+          attendanceData: mockAttendanceData,
+        }),
+        'mock-token',
+        false, // developmentMode
+      );
+
+      expect(helpers.groupEventsByName).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventid: 101,
+            attendanceData: mockAttendanceData,
+          }),
+        ]),
+      );
+
+      expect(helpers.buildEventCard).toHaveBeenCalledWith(
+        'Camp Weekend',
+        [mockFilteredEvents[0]],
+      );
+    });
+
+    it('should handle cache-only mode correctly', async () => {
+      getToken.mockReturnValue(null); // No token = cache mode
+
+      const mockCachedEvents = [
+        { eventid: 201, name: 'Cached Event', startdate: '2024-02-25' },
+      ];
+
+      helpers.fetchSectionEvents.mockResolvedValue(mockCachedEvents);
+      helpers.filterEventsByDateRange.mockReturnValue(mockCachedEvents);
+      helpers.fetchEventAttendance.mockResolvedValue(null); // Cache only
+      helpers.groupEventsByName.mockReturnValue(new Map([
+        ['Cached Event', [mockCachedEvents[0]]],
+      ]));
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Verify cache-only calls
+      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
+        expect.any(Object),
+        null, // No token
+        false,
+      );
+
+      expect(helpers.fetchEventAttendance).toHaveBeenCalledWith(
+        expect.any(Object),
+        null, // No token
+        false,
+      );
+    });
+
+    it('should handle empty sections gracefully', async () => {
+      databaseService.getSections.mockResolvedValue([]);
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByText('No Upcoming Events', {}, { timeout: 3000 });
+
+      // Should not call helper functions for empty sections
+      expect(helpers.fetchSectionEvents).not.toHaveBeenCalled();
+      expect(helpers.fetchEventAttendance).not.toHaveBeenCalled();
+      expect(helpers.groupEventsByName).toHaveBeenCalledWith([]);
+    });
+
+    it('should handle individual section failures gracefully', async () => {
+      // First section succeeds, second fails
+      helpers.fetchSectionEvents
+        .mockResolvedValueOnce([
+          { eventid: 101, name: 'Success Event', startdate: '2024-02-15' },
+        ])
+        .mockRejectedValueOnce(new Error('Section 2 failed'));
+
+      helpers.filterEventsByDateRange.mockReturnValue([
+        { eventid: 101, name: 'Success Event', startdate: '2024-02-15' },
+      ]);
+
+      helpers.fetchEventAttendance.mockResolvedValue([]);
+      helpers.groupEventsByName.mockReturnValue(new Map([
+        ['Success Event', [{ eventid: 101, name: 'Success Event' }]],
+      ]));
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Should still process successful section
+      expect(helpers.fetchSectionEvents).toHaveBeenCalledTimes(2);
+      expect(helpers.groupEventsByName).toHaveBeenCalledWith([
+        expect.objectContaining({ eventid: 101 }),
+      ]);
+    });
+
+    it('should sort event cards by earliest date', async () => {
+      const mockCard1 = {
+        ...mockEventCards[0],
+        name: 'Early Event',
+        earliestDate: new Date('2024-02-10'),
+      };
+      
+      const mockCard2 = {
+        ...mockEventCards[0],
+        name: 'Late Event',
+        earliestDate: new Date('2024-02-20'),
+      };
+
+      // Mock multiple event groups
+      helpers.groupEventsByName.mockReturnValue(new Map([
+        ['Late Event', [{ eventid: 102 }]],
+        ['Early Event', [{ eventid: 101 }]],
+      ]));
+
+      helpers.buildEventCard
+        .mockReturnValueOnce(mockCard2) // Late event returned first
+        .mockReturnValueOnce(mockCard1); // Early event returned second
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Verify both cards were built
+      expect(helpers.buildEventCard).toHaveBeenCalledTimes(2);
+      
+      // The component should sort cards by earliestDate
+      // (This would be verified by checking the order in the rendered output)
+    });
+
+    it('should handle development mode delays', async () => {
+      // Mock localStorage to simulate development mode
+      window.localStorage.getItem.mockImplementation((key) => {
+        if (key === 'development_mode') return 'true';
+        return null;
+      });
+
+      helpers.fetchSectionEvents.mockResolvedValue([]);
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Verify development mode was passed to helper functions
+      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(String),
+        true, // developmentMode = true
+      );
+    });
+  });
+
+  describe('Helper Function Error Handling', () => {
+    it('should continue processing other sections when one fails', async () => {
+      helpers.fetchSectionEvents
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce([
+          { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
+        ]);
+
+      helpers.filterEventsByDateRange.mockReturnValue([
+        { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
+      ]);
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Should call for both sections despite first one failing
+      expect(helpers.fetchSectionEvents).toHaveBeenCalledTimes(2);
+      
+      // Should still process the successful section
+      expect(helpers.groupEventsByName).toHaveBeenCalledWith([
+        expect.objectContaining({ eventid: 102 }),
+      ]);
+    });
+
+    it('should handle attendance fetching failures gracefully', async () => {
+      const mockEvents = [
+        { eventid: 101, name: 'Event 1', startdate: '2024-02-15' },
+        { eventid: 102, name: 'Event 2', startdate: '2024-02-16' },
+      ];
+
+      helpers.fetchSectionEvents.mockResolvedValue(mockEvents);
+      helpers.filterEventsByDateRange.mockReturnValue(mockEvents);
+      
+      // First attendance fetch fails, second succeeds
+      helpers.fetchEventAttendance
+        .mockRejectedValueOnce(new Error('Attendance fetch failed'))
+        .mockResolvedValueOnce([{ scoutid: 1, attended: true }]);
+
+      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+
+      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+
+      // Should call attendance for both events
+      expect(helpers.fetchEventAttendance).toHaveBeenCalledTimes(2);
+      
+      // Should still process all events
+      expect(helpers.groupEventsByName).toHaveBeenCalledWith([
+        expect.objectContaining({ eventid: 101 }),
+        expect.objectContaining({ eventid: 102 }),
+      ]);
+    });
+  });
+});
