@@ -47,7 +47,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     
     // Update queue stats every second
     const interval = setInterval(() => {
-      setQueueStats(getAPIQueueStats());
+      const stats = getAPIQueueStats();
+      if (stats) {
+        setQueueStats(stats);
+      }
     }, 1000);
     
     return () => clearInterval(interval);
@@ -404,7 +407,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Sections selector */}
-        <div className="mb-8">
+        <div className="mb-8" data-testid="sections-list">
           <SectionsList 
             sections={sections}
             selectedSections={[]} // No selection needed, just for display
