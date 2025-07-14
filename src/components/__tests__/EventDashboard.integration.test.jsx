@@ -19,6 +19,7 @@ vi.mock('../../services/database.js', () => ({
     getSections: vi.fn(),
     getMembers: vi.fn(),
     saveMembers: vi.fn(),
+    hasOfflineData: vi.fn(),
   },
 }));
 
@@ -94,6 +95,7 @@ describe('EventDashboard Integration Tests', () => {
     getUserRoles.mockResolvedValue([]);
     getToken.mockReturnValue('mock-token');
     databaseService.getSections.mockResolvedValue(mockSections);
+    databaseService.hasOfflineData.mockResolvedValue(false);
     
     // Mock helper functions with realistic behavior
     helpers.fetchSectionEvents.mockResolvedValue([]);
