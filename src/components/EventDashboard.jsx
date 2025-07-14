@@ -358,7 +358,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       }
       
     } catch (err) {
-      console.error('Error loading members for section:', err);
+      logger.error('Error loading members for section', { 
+        error: err,
+        sectionId: section.sectionid,
+        sectionName: section.sectionname,
+      }, LOG_CATEGORIES.COMPONENT);
       setError(`Failed to load members: ${err.message}`);
       
       // Fallback to empty members screen
@@ -404,7 +408,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       onNavigateToAttendance(eventCard.events, members);
       
     } catch (err) {
-      console.error('Error loading members for attendance view:', err);
+      logger.error('Error loading members for attendance view', { 
+        error: err,
+        eventName: eventCard.name,
+        eventCount: eventCard.events.length,
+      }, LOG_CATEGORIES.COMPONENT);
       setError(`Failed to load members: ${err.message}`);
     } finally {
       // Clear loading state
