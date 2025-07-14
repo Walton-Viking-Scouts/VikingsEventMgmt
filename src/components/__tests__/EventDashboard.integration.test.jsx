@@ -17,8 +17,13 @@ vi.mock('../../services/auth.js', () => ({
 vi.mock('../../services/database.js', () => ({
   default: {
     getSections: vi.fn(),
+    saveSections: vi.fn(),
     getMembers: vi.fn(),
     saveMembers: vi.fn(),
+    getEvents: vi.fn(),
+    saveEvents: vi.fn(),
+    getAttendance: vi.fn(),
+    saveAttendance: vi.fn(),
     hasOfflineData: vi.fn(),
   },
 }));
@@ -95,6 +100,13 @@ describe('EventDashboard Integration Tests', () => {
     getUserRoles.mockResolvedValue([]);
     getToken.mockReturnValue('mock-token');
     databaseService.getSections.mockResolvedValue(mockSections);
+    databaseService.saveSections.mockResolvedValue();
+    databaseService.getMembers.mockResolvedValue([]);
+    databaseService.saveMembers.mockResolvedValue();
+    databaseService.getEvents.mockResolvedValue([]);
+    databaseService.saveEvents.mockResolvedValue();
+    databaseService.getAttendance.mockResolvedValue([]);
+    databaseService.saveAttendance.mockResolvedValue();
     databaseService.hasOfflineData.mockResolvedValue(true);
     getAPIQueueStats.mockReturnValue({ queueLength: 0, processing: false, totalRequests: 0 });
     
