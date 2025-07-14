@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Header as TailwindHeader, Button } from './ui';
+import ConfirmModal from './ui/ConfirmModal';
 
 function Header({ user, onLogout }) {
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      onLogout();
-    }
+    setShowLogoutModal(true);
   };
 
   return (
@@ -33,6 +34,21 @@ function Header({ user, onLogout }) {
           )}
         </TailwindHeader.Content>
       </TailwindHeader.Container>
+      
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showLogoutModal}
+        title="Confirm Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowLogoutModal(false);
+          onLogout();
+        }}
+        onCancel={() => setShowLogoutModal(false)}
+        confirmVariant="error"
+      />
     </TailwindHeader>
   );
 }

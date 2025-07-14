@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getUserRoles, getEvents, getMostRecentTermId, getEventAttendance, getListOfMembers, getAPIQueueStats } from '../services/api.js';
+import { getUserRoles, getListOfMembers, getAPIQueueStats } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
 import { Button, Alert } from './ui';
+import ConfirmModal from './ui/ConfirmModal';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import { 
+  fetchSectionEvents, 
+  fetchEventAttendance, 
+  groupEventsByName, 
+  buildEventCard,
+  filterEventsByDateRange,
+} from '../utils/eventDashboardHelpers.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [sections, setSections] = useState([]);
@@ -18,6 +27,17 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [developmentMode, setDevelopmentMode] = useState(false);
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
+  
+  // Modal state for confirmation dialogs
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState({
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -27,7 +47,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     
     // Update queue stats every second
     const interval = setInterval(() => {
-      setQueueStats(getAPIQueueStats());
+      const stats = getAPIQueueStats();
+      if (stats) {
+        setQueueStats(stats);
+      }
     }, 1000);
     
     return () => clearInterval(interval);
@@ -62,7 +85,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         console.log('No cached data available - user needs to sync manually');
       }
     } catch (err) {
-      console.error('Error loading initial data:', err);
+      logger.error('Error loading initial data', { error: err }, LOG_CATEGORIES.COMPONENT);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -85,7 +108,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setLastSync(new Date(lastSyncTime));
       }
     } catch (err) {
-      console.error('Error loading cached data:', err);
+      logger.error('Error loading cached data', { error: err }, LOG_CATEGORIES.COMPONENT);
       throw err;
     }
   };
@@ -121,138 +144,53 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       localStorage.setItem('viking_last_sync', now.toISOString());
       
     } catch (err) {
-      console.error('Error syncing data:', err);
+      logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
       setError(err.message);
     } finally {
       setSyncing(false);
     }
   };
 
+  
+
   const buildEventCards = async (sectionsData, token = null) => {
-    const cards = [];
+    const allEvents = [];
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
-    // Group events by name
-    const eventGroups = new Map();
-    
+    // Fetch events for all sections
     for (const section of sectionsData) {
       try {
-        let events = [];
-        
-        if (token) {
-          // Add delay between sections to prevent rapid API calls
-          const sectionDelay = developmentMode ? 1500 : 800; // Longer delay in development
-          await new Promise(resolve => setTimeout(resolve, sectionDelay));
-          
-          // Fetch from API
-          const termId = await getMostRecentTermId(section.sectionid, token);
-          if (termId) {
-            // Add delay before events call
-            const eventDelay = developmentMode ? 1000 : 500; // Longer delay in development
-            await new Promise(resolve => setTimeout(resolve, eventDelay));
-            const sectionEvents = await getEvents(section.sectionid, termId, token);
-            if (sectionEvents && Array.isArray(sectionEvents)) {
-              events = sectionEvents.map(event => ({
-                ...event,
-                sectionid: section.sectionid,
-                sectionname: section.sectionname,
-                termid: termId,
-              }));
-              
-              // Save to cache (with termid included)
-              await databaseService.saveEvents(section.sectionid, events);
-            }
-          }
-        } else {
-          // Load from cache
-          const cachedEvents = await databaseService.getEvents(section.sectionid);
-          events = cachedEvents.map(event => ({
-            ...event,
-            sectionname: section.sectionname,
-            // If termid is missing from cache, we'll need to get it later
-            termid: event.termid || null,
-          }));
-        }
+        const sectionEvents = await fetchSectionEvents(section, token, developmentMode);
         
         // Filter for future events and events from last week
-        const filteredEvents = events.filter(event => {
-          const eventDate = new Date(event.startdate);
-          return eventDate >= oneWeekAgo;
-        });
+        const filteredEvents = filterEventsByDateRange(sectionEvents, oneWeekAgo);
         
         // Fetch attendance data for filtered events
         for (const event of filteredEvents) {
-          if (token) {
-            try {
-              // Add delay between attendance calls to prevent rapid API calls
-              const attendanceDelay = developmentMode ? 1200 : 600; // Longer delay in development
-              await new Promise(resolve => setTimeout(resolve, attendanceDelay));
-              
-              // If termid is missing, get it from API
-              let termId = event.termid;
-              if (!termId) {
-                // Add delay before termid call
-                const termIdDelay = developmentMode ? 600 : 300;
-                await new Promise(resolve => setTimeout(resolve, termIdDelay));
-                termId = await getMostRecentTermId(event.sectionid, token);
-                event.termid = termId; // Update the event object
-              }
-              
-              if (termId) {
-                // Add delay before attendance call
-                const finalDelay = developmentMode ? 800 : 400;
-                await new Promise(resolve => setTimeout(resolve, finalDelay));
-                const attendanceData = await getEventAttendance(
-                  event.sectionid, 
-                  event.eventid, 
-                  termId, 
-                  token,
-                );
-                
-                if (attendanceData) {
-                  await databaseService.saveAttendance(event.eventid, attendanceData);
-                  event.attendanceData = attendanceData;
-                }
-              }
-            } catch (err) {
-              console.error(`Error fetching attendance for event ${event.eventid}:`, err);
-            }
-          } else {
-            // Load from cache
-            const cachedAttendance = await databaseService.getAttendance(event.eventid);
-            event.attendanceData = cachedAttendance;
-          }
+          const attendanceData = await fetchEventAttendance(event, token, developmentMode);
+          event.attendanceData = attendanceData;
         }
         
-        // Group events by name
-        for (const event of filteredEvents) {
-          const eventName = event.name;
-          if (!eventGroups.has(eventName)) {
-            eventGroups.set(eventName, []);
-          }
-          eventGroups.get(eventName).push(event);
-        }
+        // Add filtered events to the main collection
+        allEvents.push(...filteredEvents);
         
       } catch (err) {
-        console.error(`Error processing section ${section.sectionid}:`, err);
+        logger.error('Error processing section {sectionId}', { 
+          error: err, 
+          sectionId: section.sectionid,
+          sectionName: section.sectionname, 
+        }, LOG_CATEGORIES.COMPONENT);
       }
     }
     
-    // Convert groups to cards and sort by earliest event date
+    // Group events by name
+    const eventGroups = groupEventsByName(allEvents);
+    
+    // Convert groups to cards
+    const cards = [];
     for (const [eventName, events] of eventGroups) {
-      // Sort events within group by date
-      events.sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
-      
-      // Create card with earliest event date for sorting
-      const card = {
-        id: `${eventName}-${events[0].eventid}`,
-        name: eventName,
-        events: events,
-        earliestDate: new Date(events[0].startdate),
-        sections: [...new Set(events.map(e => e.sectionname))],
-      };
-      
+      const card = buildEventCard(eventName, events);
       cards.push(card);
     }
     
@@ -282,24 +220,38 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         onNavigateToMembers(section, members);
       } else {
         // No cached data - ask user if they want to fetch from OSM
-        const shouldFetch = window.confirm(
-          `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
-        );
+        setConfirmModalData({
+          title: 'Fetch Member Data',
+          message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
+          onConfirm: async () => {
+            setShowConfirmModal(false);
+            console.log(`Fetching fresh members for section: ${section.sectionname}`);
+            const token = getToken();
+            const freshMembers = await getListOfMembers([section], token);
+            console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
+            onNavigateToMembers(section, freshMembers);
+          },
+          onCancel: () => {
+            setShowConfirmModal(false);
+            setLoadingSection(null);
+            // Handle cancel - show empty members screen for this specific section
+            onNavigateToMembers(section, []);
+          },
+          confirmText: 'Fetch Data',
+          cancelText: 'Use Empty',
+        });
+        setShowConfirmModal(true);
         
-        if (shouldFetch) {
-          console.log(`Fetching fresh members for section: ${section.sectionname}`);
-          const token = getToken();
-          const freshMembers = await getListOfMembers([section], token);
-          console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
-          onNavigateToMembers(section, freshMembers);
-        } else {
-          // User chose not to fetch - show empty members screen
-          onNavigateToMembers(section, []);
-        }
+        // The modal will handle the user's response
+        return;
       }
       
     } catch (err) {
-      console.error('Error loading members for section:', err);
+      logger.error('Error loading members for section', { 
+        error: err,
+        sectionId: section.sectionid,
+        sectionName: section.sectionname,
+      }, LOG_CATEGORIES.COMPONENT);
       setError(`Failed to load members: ${err.message}`);
       
       // Fallback to empty members screen
@@ -345,7 +297,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       onNavigateToAttendance(eventCard.events, members);
       
     } catch (err) {
-      console.error('Error loading members for attendance view:', err);
+      logger.error('Error loading members for attendance view', { 
+        error: err,
+        eventName: eventCard.name,
+        eventCount: eventCard.events.length,
+      }, LOG_CATEGORIES.COMPONENT);
       setError(`Failed to load members: ${err.message}`);
     } finally {
       // Clear loading state
@@ -451,7 +407,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Sections selector */}
-        <div className="mb-8">
+        <div className="mb-8" data-testid="sections-list">
           <SectionsList 
             sections={sections}
             selectedSections={[]} // No selection needed, just for display
@@ -505,6 +461,26 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           )}
         </div>
       </div>
+      
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalData.title}
+        message={confirmModalData.message}
+        confirmText={confirmModalData.confirmText}
+        cancelText={confirmModalData.cancelText}
+        onConfirm={confirmModalData.onConfirm}
+        onCancel={confirmModalData.onCancel || (() => {
+          setShowConfirmModal(false);
+          // Safe fallback - only navigate if we have a valid section
+          if (loadingSection && sections.length > 0) {
+            const section = sections.find(s => s.sectionid === loadingSection);
+            if (section) {
+              onNavigateToMembers(section, []);
+            }
+          }
+        })}
+      />
     </div>
   );
 }

@@ -669,6 +669,12 @@ export async function getStartupData(token) {
 
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, token) {
   try {
+    // Import the guard function
+    const { checkWritePermission } = await import('./auth.js');
+    
+    // Check if write operations are allowed (blocks offline writes with expired token)
+    checkWritePermission();
+    
     if (!token) {
       throw new Error('No authentication token');
     }
