@@ -357,15 +357,22 @@ describe('EventDashboard Integration Tests', () => {
     });
 
     it('should handle attendance fetching failures gracefully', async () => {
+      // Mock fresh data to prevent auto-sync
+      const mockFreshSyncTime = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 minutes ago
+      window.localStorage.getItem.mockImplementation((key) => {
+        if (key === 'viking_last_sync') return mockFreshSyncTime;
+        return null;
+      });
+
       const mockEvents = [
         { eventid: 101, name: 'Event 1', startdate: '2024-02-15' },
         { eventid: 102, name: 'Event 2', startdate: '2024-02-16' },
       ];
 
-      helpers.fetchSectionEvents.mockResolvedValue(mockEvents);
+      helpers.fetchAllSectionEvents.mockResolvedValue(mockEvents);
       helpers.filterEventsByDateRange.mockReturnValue(mockEvents);
       
-      // First attendance fetch fails, second succeeds
+      // Set up mock responses for attendance calls
       helpers.fetchEventAttendance
         .mockRejectedValueOnce(new Error('Attendance fetch failed'))
         .mockResolvedValueOnce([{ scoutid: 1, attended: true }]);
@@ -377,7 +384,7 @@ describe('EventDashboard Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Should call attendance for events (may vary based on filtering)
+      // Should call attendance for each event once (cache-only mode)
       expect(helpers.fetchEventAttendance).toHaveBeenCalledTimes(2);
       
       // Should still process all events
