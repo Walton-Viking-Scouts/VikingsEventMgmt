@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { getEventAttendance, getMostRecentTermId } from '../services/api.js';
+import { getEventAttendance, getMostRecentTermId, getMembersGrid } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
+import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 
 function AttendanceView({ events, members, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('summary'); // summary, detailed
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  
+  // Attendance filter state - exclude "Not Invited" by default
+  const [attendanceFilters, setAttendanceFilters] = useState({
+    yes: true,
+    no: true,
+    invited: true,
+    notInvited: false,
+  });
 
   useEffect(() => {
     loadAttendance();
+    loadEnhancedMembers();
   }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
@@ -23,43 +34,60 @@ function AttendanceView({ events, members, onBack }) {
       setLoading(true);
       setError(null);
       
-      const token = getToken();
       const allAttendance = [];
       
-      // Load attendance for each selected event
+      // Check if events already have cached attendance data
       for (const event of events) {
-        try {
-          // If termid is missing, get it from API
-          let termId = event.termid;
-          if (!termId) {
-            termId = await getMostRecentTermId(event.sectionid, token);
-          }
-          
-          if (termId) {
-            const attendance = await getEventAttendance(
-              event.sectionid, 
-              event.eventid, 
-              termId, 
-              token,
-            );
+        if (event.attendanceData && Array.isArray(event.attendanceData)) {
+          // Use cached attendance data
+          console.log(`Using cached attendance data for event ${event.name} (${event.attendanceData.length} records)`);
+          const attendanceWithEvent = event.attendanceData.map(record => ({
+            ...record,
+            eventid: event.eventid,
+            eventname: event.name,
+            eventdate: event.startdate,
+            sectionid: event.sectionid,
+            sectionname: event.sectionname,
+          }));
+          allAttendance.push(...attendanceWithEvent);
+        } else {
+          // Fallback to API call if no cached data
+          console.log(`No cached attendance data for event ${event.name}, fetching from API...`);
+          try {
+            const token = getToken();
             
-            if (attendance && Array.isArray(attendance)) {
-              // Add event info to each attendance record
-              const attendanceWithEvent = attendance.map(record => ({
-                ...record,
-                eventid: event.eventid,
-                eventname: event.name,
-                eventdate: event.startdate,
-                sectionid: event.sectionid,
-                sectionname: event.sectionname,
-              }));
-              allAttendance.push(...attendanceWithEvent);
+            // If termid is missing, get it from API
+            let termId = event.termid;
+            if (!termId) {
+              termId = await getMostRecentTermId(event.sectionid, token);
             }
-          } else {
-            console.warn(`No termid found for event ${event.name} in section ${event.sectionid}`);
+            
+            if (termId) {
+              const attendance = await getEventAttendance(
+                event.sectionid, 
+                event.eventid, 
+                termId, 
+                token,
+              );
+              
+              if (attendance && Array.isArray(attendance)) {
+                // Add event info to each attendance record
+                const attendanceWithEvent = attendance.map(record => ({
+                  ...record,
+                  eventid: event.eventid,
+                  eventname: event.name,
+                  eventdate: event.startdate,
+                  sectionid: event.sectionid,
+                  sectionname: event.sectionname,
+                }));
+                allAttendance.push(...attendanceWithEvent);
+              }
+            } else {
+              console.warn(`No termid found for event ${event.name} in section ${event.sectionid}`);
+            }
+          } catch (eventError) {
+            console.warn(`Error loading attendance for event ${event.name}:`, eventError);
           }
-        } catch (eventError) {
-          console.warn(`Error loading attendance for event ${event.name}:`, eventError);
         }
       }
       
@@ -73,7 +101,45 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
-  const formatDate = (dateString) => {
+  const loadEnhancedMembers = async () => {
+    try {
+      const token = getToken();
+      if (!token) {
+        console.log('No token available for enhanced member data');
+        return;
+      }
+
+      // Get unique sections from events
+      const uniqueSections = [...new Set(events.map(event => 
+        JSON.stringify({ sectionid: event.sectionid, sectionname: event.sectionname })
+      ))].map(str => JSON.parse(str));
+
+      if (uniqueSections.length === 0) {
+        console.log('No sections found in events');
+        return;
+      }
+
+      console.log(`Triggering getMembersGrid for ${uniqueSections.length} sections to populate cache...`);
+      
+      // Call getMembersGrid for each section to populate the cache
+      for (const section of uniqueSections) {
+        try {
+          const termId = await getMostRecentTermId(section.sectionid, token);
+          if (termId) {
+            console.log(`Calling getMembersGrid for section ${section.sectionname} (${section.sectionid})`);
+            await getMembersGrid(section.sectionid, termId, token);
+          }
+        } catch (err) {
+          console.warn(`Failed to load enhanced members for section ${section.sectionname}:`, err);
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error loading enhanced member data:', err);
+    }
+  };
+
+  const _formatDate = (dateString) => {
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
@@ -83,14 +149,30 @@ function AttendanceView({ events, members, onBack }) {
 
   const getAttendanceStatus = (attending) => {
     if (attending === 'Yes' || attending === '1') return 'yes';
+    if (attending === 'No') return 'no';
     if (attending === 'Invited') return 'invited';
-    return 'no'; // For empty string, "No", or other values
+    // Empty string, null, or any other value means not invited
+    return 'notInvited';
   };
+
+  // Filter attendance data based on active filters
+  const filterAttendanceData = (data, filters) => {
+    return data.filter(record => {
+      const status = getAttendanceStatus(record.attending);
+      return filters[status];
+    });
+  };
+
+  // Update filtered data when attendance data or filters change
+  useEffect(() => {
+    const filtered = filterAttendanceData(attendanceData, attendanceFilters);
+    setFilteredAttendanceData(filtered);
+  }, [attendanceData, attendanceFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getSummaryStats = () => {
     const memberStats = {};
     
-    attendanceData.forEach(record => {
+    filteredAttendanceData.forEach(record => {
       const memberKey = `${record.firstname} ${record.lastname}`;
       if (!memberStats[memberKey]) {
         memberStats[memberKey] = {
@@ -99,6 +181,7 @@ function AttendanceView({ events, members, onBack }) {
           yes: 0,
           no: 0,
           invited: 0,
+          notInvited: 0,
           total: 0,
           events: [],
         };
@@ -126,6 +209,7 @@ function AttendanceView({ events, members, onBack }) {
       yes: { yp: 0, yl: 0, l: 0, total: 0 },
       no: { yp: 0, yl: 0, l: 0, total: 0 },
       invited: { yp: 0, yl: 0, l: 0, total: 0 },
+      notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
       total: { yp: 0, yl: 0, l: 0, total: 0 },
     };
     
@@ -137,7 +221,7 @@ function AttendanceView({ events, members, onBack }) {
       });
     }
     
-    attendanceData.forEach(record => {
+    filteredAttendanceData.forEach(record => {
       const sectionName = record.sectionname || 'Unknown Section';
       const personType = memberPersonTypes[record.scoutid] || 'Young People';
       const status = getAttendanceStatus(record.attending);
@@ -149,6 +233,7 @@ function AttendanceView({ events, members, onBack }) {
           yes: { yp: 0, yl: 0, l: 0, total: 0 },
           no: { yp: 0, yl: 0, l: 0, total: 0 },
           invited: { yp: 0, yl: 0, l: 0, total: 0 },
+          notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
           total: { yp: 0, yl: 0, l: 0, total: 0 },
         };
       }
@@ -203,24 +288,33 @@ function AttendanceView({ events, members, onBack }) {
         break;
       case 'attendance':
         if (viewMode === 'summary') {
-          aValue = a.yes || 0;
-          bValue = b.yes || 0;
+          // For summary, determine primary status for each member and sort by priority
+          const getPrimaryStatus = (member) => {
+            if (member.yes > 0) return 'yes';
+            if (member.no > 0) return 'no';  
+            if (member.invited > 0) return 'invited';
+            if (member.notInvited > 0) return 'notInvited';
+            return 'unknown';
+          };
+          
+          const statusA = getPrimaryStatus(a);
+          const statusB = getPrimaryStatus(b);
+          // Sort order: yes, no, invited, notInvited (higher values come first in desc)
+          const statusOrder = { yes: 3, no: 2, invited: 1, notInvited: 0, unknown: -1 };
+          aValue = statusOrder[statusA] || -1;
+          bValue = statusOrder[statusB] || -1;
         } else {
           const statusA = getAttendanceStatus(a.attending);
           const statusB = getAttendanceStatus(b.attending);
-          // Sort order: yes, invited, no
-          const statusOrder = { yes: 0, invited: 1, no: 2 };
-          aValue = statusOrder[statusA] || 3;
-          bValue = statusOrder[statusB] || 3;
+          // Sort order: yes, no, invited, notInvited (higher values come first in desc)
+          const statusOrder = { yes: 3, no: 2, invited: 1, notInvited: 0 };
+          aValue = statusOrder[statusA] || 4;
+          bValue = statusOrder[statusB] || 4;
         }
         break;
-      case 'event':
-        aValue = a.eventname?.toLowerCase() || '';
-        bValue = b.eventname?.toLowerCase() || '';
-        break;
-      case 'date':
-        aValue = new Date(a.eventdate || '1900-01-01');
-        bValue = new Date(b.eventdate || '1900-01-01');
+      case 'section':
+        aValue = a.sectionname?.toLowerCase() || '';
+        bValue = b.sectionname?.toLowerCase() || '';
         break;
       default:
         return 0;
@@ -368,8 +462,17 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">Total</span>
                       </div>
                     </th>
-                    <th className="px-2 py-2 text-center table-header-text text-blue-600 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-center table-header-text text-yellow-600 uppercase tracking-wider">
                       <div>Invited</div>
+                      <div className="flex justify-center mt-1 text-xs">
+                        <span className="w-8 text-center">YP</span>
+                        <span className="w-8 text-center">YL</span>
+                        <span className="w-8 text-center">L</span>
+                        <span className="w-12 text-center">Total</span>
+                      </div>
+                    </th>
+                    <th className="px-2 py-2 text-center table-header-text text-gray-600 uppercase tracking-wider">
+                      <div>Not Invited</div>
                       <div className="flex justify-center mt-1 text-xs">
                         <span className="w-8 text-center">YP</span>
                         <span className="w-8 text-center">YL</span>
@@ -410,12 +513,20 @@ function AttendanceView({ events, members, onBack }) {
                           <span className="w-12 text-center">{section.no.total}</span>
                         </div>
                       </td>
-                      <td className="px-2 py-3 whitespace-nowrap text-center text-blue-600 font-semibold">
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
                         <div className="flex justify-center">
                           <span className="w-8 text-center">{section.invited.yp}</span>
                           <span className="w-8 text-center">{section.invited.yl}</span>
                           <span className="w-8 text-center">{section.invited.l}</span>
                           <span className="w-12 text-center">{section.invited.total}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-semibold">
+                        <div className="flex justify-center">
+                          <span className="w-8 text-center">{section.notInvited.yp}</span>
+                          <span className="w-8 text-center">{section.notInvited.yl}</span>
+                          <span className="w-8 text-center">{section.notInvited.l}</span>
+                          <span className="w-12 text-center">{section.notInvited.total}</span>
                         </div>
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
@@ -449,12 +560,20 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.no.total}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-blue-600 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-bold border-t-2 border-gray-300">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yl}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.l}</span>
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.invited.total}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-bold border-t-2 border-gray-300">
+                      <div className="flex justify-center">
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.notInvited.yp}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.notInvited.yl}</span>
+                        <span className="w-8 text-center">{simplifiedSummaryStats.totals.notInvited.l}</span>
+                        <span className="w-12 text-center">{simplifiedSummaryStats.totals.notInvited.total}</span>
                       </div>
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
@@ -473,11 +592,18 @@ function AttendanceView({ events, members, onBack }) {
         </Card>
       )}
 
+
       {/* Attendance Data Card */}
       <Card className="m-4">
         <Card.Header>
-          <Card.Title>Attendance Data</Card.Title>
-          <div className="flex gap-2 items-center">
+          <Card.Title>
+            Attendance Data {filteredAttendanceData.length !== attendanceData.length && (
+              <span className="text-sm font-normal text-gray-600">
+                ({filteredAttendanceData.length} of {attendanceData.length} records)
+              </span>
+            )}
+          </Card.Title>
+          <div className="flex gap-2 items-center flex-wrap">
             <Badge variant="scout-blue">
               {events.length} event{events.length !== 1 ? 's' : ''}
             </Badge>
@@ -488,6 +614,12 @@ function AttendanceView({ events, members, onBack }) {
             >
             Back to Dashboard
             </Button>
+            {attendanceData.length > 0 && (
+              <CompactAttendanceFilter
+                filters={attendanceFilters}
+                onFiltersChange={setAttendanceFilters}
+              />
+            )}
           </div>
         </Card.Header>
 
@@ -520,7 +652,31 @@ function AttendanceView({ events, members, onBack }) {
             </nav>
           </div>
 
-          {viewMode === 'summary' && (
+          {filteredAttendanceData.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-500 mb-4">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Records Match Filters</h3>
+              <p className="text-gray-600 mb-4">
+                No attendance records match your current filter settings. Try adjusting the filters above to see more data.
+              </p>
+              <Button
+                variant="scout-blue"
+                onClick={() => setAttendanceFilters({
+                  yes: true,
+                  no: true,
+                  invited: true,
+                  notInvited: true,
+                })}
+                type="button"
+              >
+                Show All Records
+              </Button>
+            </div>
+          ) : viewMode === 'summary' && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -533,8 +689,13 @@ function AttendanceView({ events, members, onBack }) {
                     Member {getSortIcon('member')}
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Attendance Status
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      onClick={() => handleSort('attendance')}
+                    >
+                      <div className="flex items-center">
+                    Attendance Status {getSortIcon('attendance')}
+                      </div>
                     </th>
                   </tr>
                 </thead>
@@ -567,6 +728,11 @@ function AttendanceView({ events, members, onBack }) {
                               Invited: {member.invited}
                               </Badge>
                             )}
+                            {member.notInvited > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                              Not Invited: {member.notInvited}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-gray-500 text-sm mt-1">
                           Total events: {member.total}
@@ -595,18 +761,10 @@ function AttendanceView({ events, members, onBack }) {
                     </th>
                     <th 
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                      onClick={() => handleSort('event')}
+                      onClick={() => handleSort('section')}
                     >
                       <div className="flex items-center">
-                    Event {getSortIcon('event')}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
-                      onClick={() => handleSort('date')}
-                    >
-                      <div className="flex items-center">
-                    Date {getSortIcon('date')}
+                    Section {getSortIcon('section')}
                       </div>
                     </th>
                     <th 
@@ -620,7 +778,7 @@ function AttendanceView({ events, members, onBack }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sortData(attendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
+                  {sortData(filteredAttendanceData, sortConfig.key, sortConfig.direction).map((record, index) => {
                     const status = getAttendanceStatus(record.attending);
                     let badgeVariant, statusText;
                   
@@ -629,13 +787,21 @@ function AttendanceView({ events, members, onBack }) {
                       badgeVariant = 'scout-green';
                       statusText = 'Yes';
                       break;
+                    case 'no':
+                      badgeVariant = 'scout-red';
+                      statusText = 'No';
+                      break;
                     case 'invited':
                       badgeVariant = 'scout-blue';
                       statusText = 'Invited';
                       break;
+                    case 'notInvited':
+                      badgeVariant = 'secondary';
+                      statusText = 'Not Invited';
+                      break;
                     default:
-                      badgeVariant = 'scout-red';
-                      statusText = 'No';
+                      badgeVariant = 'secondary';
+                      statusText = 'Unknown';
                       break;
                     }
                 
@@ -648,13 +814,9 @@ function AttendanceView({ events, members, onBack }) {
                           >
                             {record.firstname} {record.lastname}
                           </button>
-                          <div className="text-gray-500 text-sm">{record.sectionname}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                          {record.eventname}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                          {formatDate(record.eventdate)}
+                          {record.sectionname}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Badge variant={badgeVariant}>

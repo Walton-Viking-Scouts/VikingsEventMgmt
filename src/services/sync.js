@@ -1,5 +1,5 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId, getTerms } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
@@ -168,7 +168,8 @@ class SyncService {
 
       const token = getToken();
 
-      // Sync sections first
+      // Load core data needed for all operations
+      await this.syncTerms(token);  // Load terms once for all sections
       await this.syncSections(token);
       
       // Get sections from database to sync events and attendance
@@ -219,6 +220,26 @@ class SyncService {
       throw error;
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  // Sync terms (core data needed for all section operations)
+  async syncTerms(token) {
+    try {
+      await this.withAuthErrorHandling(async () => {
+        this.notifyListeners({ status: 'syncing', message: 'Loading terms...' });
+        
+        // Load terms once for all sections - major optimization!
+        const terms = await getTerms(token);
+        const termCount = Object.keys(terms).length;
+        console.log(`Synced terms for ${termCount} sections`);
+      }, { 
+        continueOnError: false,
+        contextMessage: 'Failed to sync terms',
+      });
+    } catch (error) {
+      // Only non-auth errors reach here (auth errors are handled in wrapper)
+      throw new Error(`Failed to sync terms: ${error.message}`);
     }
   }
 

@@ -3,18 +3,82 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
-import { isAuthenticated } from '../services/auth.js';
+import { isAuthenticated, getToken } from '../services/auth.js';
+import { config } from '../config/env.js';
 
 function OfflineIndicator({ hideSync = false }) {
   const [isOnline, setIsOnline] = useState(true);
+  const [apiConnected, setApiConnected] = useState(true);
+  const [apiTested, setApiTested] = useState(false); // Track if we've tested API yet
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
 
+  // Test actual API connectivity by making a lightweight request
+  const testApiConnectivity = async () => {
+    try {
+      const token = getToken();
+      console.log('🔍 OfflineIndicator - Testing API connectivity...', { 
+        hasToken: !!token, 
+        apiUrl: config.apiUrl,
+        isOnline,
+        apiConnected,
+        apiTested
+      });
+      
+      // Create AbortController for timeout (this is a modern browser API)
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 5000) : null; // 5 second timeout
+      
+      const requestOptions = {
+        method: 'GET',
+        ...(controller && { signal: controller.signal }),
+      };
+      
+      let endpoint;
+      if (token) {
+        // If we have a token, test with the validate-token endpoint
+        requestOptions.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        };
+        endpoint = '/validate-token';
+      } else {
+        // If no token, use the health endpoint which doesn't require authentication
+        endpoint = '/health';
+      }
+      
+      console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
+      
+      // Make the API request
+      const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
+      
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      console.log('✅ OfflineIndicator - API connectivity test succeeded:', { 
+        status: response.status, 
+        ok: response.ok,
+        endpoint 
+      });
+      
+      // API is connected if we get any response (even 401 means API is reachable)
+      setApiConnected(true);
+      setApiTested(true);
+    } catch (error) {
+      // Only log non-abort errors to avoid spam
+      if (error.name !== 'AbortError') {
+        console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
+      }
+      console.log('❌ OfflineIndicator - Setting API connected to false due to error:', error.message);
+      setApiConnected(false);
+      setApiTested(true);
+    }
+  };
+
   useEffect(() => {
     checkInitialStatus();
-    setupNetworkListeners();
-    setupSyncListeners();
+    const networkCleanup = setupNetworkListeners();
+    const syncCleanup = setupSyncListeners();
 
     // Setup login prompt listener
     const handleLoginPrompt = (promptData) => {
@@ -24,22 +88,35 @@ function OfflineIndicator({ hideSync = false }) {
 
     syncService.addLoginPromptListener(handleLoginPrompt);
 
+    // Test API connectivity on mount and periodically if we think we're offline
+    testApiConnectivity();
+    const connectivityInterval = setInterval(() => {
+      if (!apiConnected || !isOnline) {
+        testApiConnectivity();
+      }
+    }, 30000); // Test every 30 seconds if offline
+
     return () => {
       // Cleanup listeners
       syncService.removeLoginPromptListener(handleLoginPrompt);
+      clearInterval(connectivityInterval);
+      if (networkCleanup) networkCleanup();
+      if (syncCleanup) syncCleanup();
     };
-  }, []);
+  }, [apiConnected, isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkInitialStatus = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
+        console.log('🔍 OfflineIndicator - Capacitor network status:', status);
         setIsOnline(status.connected);
       } else {
+        console.log('🔍 OfflineIndicator - Navigator online status:', navigator.onLine);
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
-      console.error('Error checking network status:', error);
+      console.error('❌ OfflineIndicator - Error checking network status:', error);
     }
   };
 
@@ -47,10 +124,23 @@ function OfflineIndicator({ hideSync = false }) {
     if (Capacitor.isNativePlatform()) {
       Network.addListener('networkStatusChange', (status) => {
         setIsOnline(status.connected);
+        // Test API connectivity when network status changes
+        if (status.connected) {
+          testApiConnectivity();
+        } else {
+          setApiConnected(false);
+        }
       });
     } else {
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
+      const handleOnline = () => {
+        setIsOnline(true);
+        // Test API connectivity when browser thinks we're back online
+        testApiConnectivity();
+      };
+      const handleOffline = () => {
+        setIsOnline(false);
+        setApiConnected(false);
+      };
       
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
@@ -100,8 +190,8 @@ function OfflineIndicator({ hideSync = false }) {
   };
 
   const handleSyncClick = async () => {
-    if (!isOnline) {
-      alert('Cannot sync while offline');
+    if (!isOnline || !apiConnected) {
+      alert('Cannot sync while offline or API is unreachable');
       return;
     }
 
@@ -126,8 +216,8 @@ function OfflineIndicator({ hideSync = false }) {
     return 'Sync data';
   };
 
-  // Don't show anything if online and no sync status
-  if (isOnline && !syncStatus) {
+  // Don't show anything if both network and API are connected and no sync status
+  if (isOnline && apiConnected && !syncStatus) {
     return (
       <>
         {/* Only show sync button if not hidden */}
@@ -198,13 +288,27 @@ function OfflineIndicator({ hideSync = false }) {
     );
   }
 
+  // Debug logging for banner visibility
+  const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
+  console.log('🔍🔍🔍 OFFLINE INDICATOR BANNER CHECK 🔍🔍🔍:', {
+    apiTested,
+    isOnline,
+    apiConnected,
+    shouldShowBanner
+  });
+  
+  // Add render log
+  console.log('🔍🔍🔍 OFFLINE INDICATOR RENDERING 🔍🔍🔍');
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
-      {!isOnline && (
+      {shouldShowBanner && (
         <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
           <div className="flex items-center justify-center gap-2">
             <span>📱</span>
-            <span>Offline Mode - Using cached data</span>
+            <span>
+              {!isOnline ? 'Offline Mode - Using cached data' : 'API Unavailable - Using cached data'}
+            </span>
           </div>
         </Alert>
       )}

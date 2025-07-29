@@ -1,7 +1,7 @@
 // Authentication service for Viking Event Management Mobile
 // React version of the original auth module
 
-import { getUserRoles, getStartupData } from './api.js';
+// Removed heavy API imports - auth should be lightweight
 import { sentryUtils } from './sentry.js';
 import { config } from '../config/env.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
@@ -53,9 +53,8 @@ export function isAuthenticated() {
   // Check if we've previously determined this token is invalid
   const tokenInvalid = sessionStorage.getItem('token_invalid');
   if (tokenInvalid === 'true') {
-    // Clear the invalid token and flags
-    clearToken();
-    sessionStorage.removeItem('token_invalid');
+    // Token was marked as invalid, but don't clear it immediately
+    // Let the auth flow decide when to clear it
     return false;
   }
   
@@ -147,7 +146,7 @@ export function setUserInfo(userInfo) {
   sessionStorage.setItem('user_info', JSON.stringify(userInfo));
 }
 
-// Validate token by making API call
+// Simple token validation - just check if we have a token
 export async function validateToken() {
   try {
     const token = getToken();
@@ -164,80 +163,18 @@ export async function validateToken() {
       return false;
     }
 
-    // Validate token by making a lightweight API call
-    logger.info('Token found, testing validity', {}, LOG_CATEGORIES.AUTH);
-    await getUserRoles(token);
-        
-    // If getUserRoles succeeds, token is valid
-    logger.info('Token is valid', {}, LOG_CATEGORIES.AUTH);
-        
-    // Fetch user information for display
-    try {
-      const startupData = await getStartupData(token);
-      if (startupData && startupData.globals && startupData.globals.firstname) {
-        const userInfo = {
-          firstname: startupData.globals.firstname,
-          lastname: startupData.globals.lastname || '',
-          fullname: `${startupData.globals.firstname} ${startupData.globals.lastname || ''}`.trim(),
-        };
-        setUserInfo(userInfo);
-        logger.info('User info stored successfully', { 
-          firstname: userInfo.firstname,
-          lastname: userInfo.lastname,
-          fullname: userInfo.fullname, 
-        }, LOG_CATEGORIES.AUTH);
-      }
-    } catch (error) {
-      logger.warn('Could not fetch user info from startup data', { error }, LOG_CATEGORIES.AUTH);
-      // Continue without user info
-    }
-        
+    // Skip meaningless backend validation - just trust we have a token
+    // Real validation happens when actual API calls are made
+    logger.info('Token found - assuming valid until API calls prove otherwise', {}, LOG_CATEGORIES.AUTH);
+    
+    // Clear any invalid token flag since we're assuming the token is good
+    sessionStorage.removeItem('token_invalid');
+    sessionStorage.removeItem('token_expired');
+    
     return true;
         
   } catch (error) {
-    logger.error('Token validation failed', { error, status: error.status }, LOG_CATEGORIES.AUTH);
-    
-    // For authentication errors, check if we have cached data before forcing re-login
-    if (error.status === 401 || error.status === 403) {
-      logger.info('Authentication failed - checking for cached data', { 
-        errorStatus: error.status, 
-      }, LOG_CATEGORIES.AUTH);
-      
-      // Check if we have any cached data that would allow offline access
-      const hasCachedData = checkForCachedData();
-      
-      if (hasCachedData) {
-        logger.info('Found cached data - allowing offline access with expired token', {}, LOG_CATEGORIES.AUTH);
-        logger.info('Token is expired but user can access cached data', {}, LOG_CATEGORIES.AUTH);
-        
-        // Mark token as expired but don't clear it completely
-        sessionStorage.setItem('token_expired', 'true');
-        
-        // Try to get user info from cache
-        try {
-          const cachedUserInfo = getUserInfo();
-          if (cachedUserInfo) {
-            logger.info('Using cached user info', { 
-              firstname: cachedUserInfo.firstname,
-              lastname: cachedUserInfo.lastname,
-              fullname: cachedUserInfo.fullname, 
-            }, LOG_CATEGORIES.AUTH);
-          }
-        } catch (cacheError) {
-          logger.warn('Could not load cached user info', { error: cacheError }, LOG_CATEGORIES.AUTH);
-        }
-        
-        // Allow access in offline mode
-        return true;
-      } else {
-        logger.info('No cached data found - user must re-authenticate', {}, LOG_CATEGORIES.AUTH);
-        // Mark token as invalid for quick future checks
-        sessionStorage.setItem('token_invalid', 'true');
-        clearToken();
-        return false;
-      }
-    }
-    
+    logger.error('Token validation failed', { error }, LOG_CATEGORIES.AUTH);
     return false;
   }
 }
@@ -279,6 +216,31 @@ function checkForCachedData() {
     logger.error('Error checking cached data', { error }, LOG_CATEGORIES.AUTH);
     return false;
   }
+}
+
+// Enhanced error handling for API authentication failures
+export function handleApiAuthError(error) {
+  if (error?.status === 401 || error?.status === 403) {
+    logger.info('API authentication failed - clearing token and redirecting to login', { 
+      status: error.status,
+      message: error.message 
+    }, LOG_CATEGORIES.AUTH);
+    
+    // Check if we have cached data before fully logging out
+    const hasCachedData = checkForCachedData();
+    
+    if (hasCachedData) {
+      logger.info('API auth failed but cached data available - enabling offline mode', {}, LOG_CATEGORIES.AUTH);
+      sessionStorage.setItem('token_expired', 'true');
+      return { offline: true, shouldReload: true };
+    } else {
+      logger.info('API auth failed with no cached data - full logout required', {}, LOG_CATEGORIES.AUTH);
+      clearToken();
+      return { offline: false, shouldReload: true };
+    }
+  }
+  
+  return { offline: false, shouldReload: false };
 }
 
 // Guard function to check if write operations are allowed

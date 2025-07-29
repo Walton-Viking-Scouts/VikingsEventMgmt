@@ -224,9 +224,23 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
   }
 }
 
+// Terms cache to prevent multiple API calls within same session
+let termsCache = null;
+let termsCacheTimestamp = null;
+const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 // API functions
-export async function getTerms(token) {
+export async function getTerms(token, forceRefresh = false) {
   try {
+    // Check if we have a valid cache (unless force refresh)
+    if (!forceRefresh && termsCache && termsCacheTimestamp) {
+      const cacheAge = Date.now() - termsCacheTimestamp;
+      if (cacheAge < TERMS_CACHE_TTL) {
+        console.log('Using cached terms from memory');
+        return termsCache;
+      }
+    }
+
     // Check network status first
     await checkNetworkStatus();
     
@@ -234,13 +248,20 @@ export async function getTerms(token) {
     if (!isOnline) {
       console.log('Offline - getting terms from localStorage');
       const cachedTerms = localStorage.getItem('viking_terms_offline');
-      return cachedTerms ? JSON.parse(cachedTerms) : {};
+      const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
+      
+      // Cache in memory for this session
+      termsCache = terms;
+      termsCacheTimestamp = Date.now();
+      
+      return terms;
     }
 
     if (!token) {
       throw new Error('No authentication token');
     }
 
+    console.log('Fetching fresh terms from API');
     const response = await fetch(`${BACKEND_URL}/get-terms`, {
       method: 'GET',
       headers: {
@@ -255,6 +276,10 @@ export async function getTerms(token) {
     // Cache terms data for offline use
     localStorage.setItem('viking_terms_offline', JSON.stringify(terms));
     
+    // Cache in memory for this session
+    termsCache = terms;
+    termsCacheTimestamp = Date.now();
+    
     return terms;
 
   } catch (error) {
@@ -265,7 +290,13 @@ export async function getTerms(token) {
       console.log('Online request failed - trying localStorage as fallback');
       try {
         const cachedTerms = localStorage.getItem('viking_terms_offline');
-        return cachedTerms ? JSON.parse(cachedTerms) : {};
+        const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
+        
+        // Cache in memory for this session
+        termsCache = terms;
+        termsCacheTimestamp = Date.now();
+        
+        return terms;
       } catch (cacheError) {
         console.error('Cache fallback also failed:', cacheError);
       }
@@ -303,6 +334,34 @@ export async function getMostRecentTermId(sectionId, token) {
       throw error;
     }
   });
+}
+
+// Optimized version that uses pre-loaded terms to avoid multiple API calls
+export function getMostRecentTermIdFromCache(sectionId, allTerms) {
+  try {
+    if (!allTerms || !allTerms[sectionId]) {
+      console.warn(`No terms found for section ${sectionId}`);
+      return null;
+    }
+
+    const mostRecentTerm = allTerms[sectionId].reduce((latest, term) => {
+      const termEndDate = new Date(term.enddate);
+      const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
+      return termEndDate > latestEndDate ? term : latest;
+    }, null);
+
+    if (!mostRecentTerm) {
+      console.warn(`No valid term found for section ${sectionId}`);
+      return null;
+    }
+
+    console.log(`Most recent term found for section ${sectionId}:`, mostRecentTerm);
+    return mostRecentTerm.termid;
+
+  } catch (error) {
+    console.error(`Error finding most recent term ID for section ${sectionId}:`, error);
+    return null;
+  }
 }
 
 export async function getUserRoles(token) {
@@ -830,12 +889,17 @@ export async function getListOfMembers(sections, token) {
   // Online mode - fetch from API if cache is empty
   const memberMap = new Map(); // For deduplication by scoutid
   
+  // Load terms once for all sections (major optimization!)
+  console.log('Loading terms once for all sections...');
+  const allTerms = await getTerms(token);
+  
   for (const section of sections) {
     try {
       // Add delay between sections to prevent rapid API calls
       await new Promise(resolve => setTimeout(resolve, 600));
       
-      const termId = await getMostRecentTermId(section.sectionid, token);
+      // Use cached terms instead of calling API again
+      const termId = getMostRecentTermIdFromCache(section.sectionid, allTerms);
       if (!termId) continue;
       
       // Add delay before members grid call
