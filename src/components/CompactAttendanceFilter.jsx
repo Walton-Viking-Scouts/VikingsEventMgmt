@@ -37,19 +37,25 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
   ];
 
   return (
-    <div className="flex gap-2">
-      {statusConfig.map(({ key, label, activeStyles, inactiveStyles }) => (
-        <button
-          key={key}
-          onClick={() => handleFilterToggle(key)}
-          className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm ${
-            filters[key] ? activeStyles : inactiveStyles
-          }`}
-          type="button"
-        >
-          {label}
-        </button>
-      ))}
+    <div
+      className="flex gap-2"
+      role="group"
+      aria-label="Attendance status filters"
+    >
+      {statusConfig.map(
+        ({ key, label, activeStyles, inactiveStyles }) => (
+          <button
+            key={key}
+            onClick={() => handleFilterToggle(key)}
+            className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm ${filters[key] ? activeStyles : inactiveStyles}`}
+            type="button"
+            aria-pressed={filters[key]}
+            aria-label={`Filter by ${label} attendance status`}
+          >
+            {label}
+          </button>
+        )
+      )}
     </div>
   );
 }

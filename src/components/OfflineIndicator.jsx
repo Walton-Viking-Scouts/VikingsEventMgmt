@@ -13,18 +13,21 @@ function OfflineIndicator({ hideSync = false }) {
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
+  const [showSyncError, setShowSyncError] = useState(false);
 
   // Test actual API connectivity by making a lightweight request
   const testApiConnectivity = async () => {
     try {
       const token = getToken();
-      console.log('🔍 OfflineIndicator - Testing API connectivity...', { 
-        hasToken: !!token, 
-        apiUrl: config.apiUrl,
-        isOnline,
-        apiConnected,
-        apiTested
-      });
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 OfflineIndicator - Testing API connectivity...', { 
+          hasToken: !!token, 
+          apiUrl: config.apiUrl,
+          isOnline,
+          apiConnected,
+          apiTested
+        });
+      }
       
       // Create AbortController for timeout (this is a modern browser API)
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -48,7 +51,9 @@ function OfflineIndicator({ hideSync = false }) {
         endpoint = '/health';
       }
       
-      console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
+      }
       
       // Make the API request
       const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
@@ -88,18 +93,44 @@ function OfflineIndicator({ hideSync = false }) {
 
     syncService.addLoginPromptListener(handleLoginPrompt);
 
-    // Test API connectivity on mount and periodically if we think we're offline
+    // Test API connectivity on mount and with exponential backoff when offline
     testApiConnectivity();
-    const connectivityInterval = setInterval(() => {
-      if (!apiConnected || !isOnline) {
-        testApiConnectivity();
-      }
-    }, 30000); // Test every 30 seconds if offline
+    
+    let backoffDelay = 30000; // Start with 30 seconds
+    const maxDelay = 300000; // Max 5 minutes
+    let connectivityTimeoutId;
+    
+    const scheduleNextCheck = () => {
+      connectivityTimeoutId = setTimeout(() => {
+        if (!apiConnected || !isOnline) {
+          testApiConnectivity().then(() => {
+            if (!apiConnected || !isOnline) {
+              // Still offline, increase backoff delay
+              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            } else {
+              // Back online, reset backoff delay
+              backoffDelay = 30000;
+            }
+            scheduleNextCheck();
+          }).catch(() => {
+            // Error in connectivity test, continue with backoff
+            backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            scheduleNextCheck();
+          });
+        } else {
+          // Online, continue checking at base interval
+          backoffDelay = 30000;
+          scheduleNextCheck();
+        }
+      }, backoffDelay);
+    };
+    
+    scheduleNextCheck();
 
     return () => {
       // Cleanup listeners
       syncService.removeLoginPromptListener(handleLoginPrompt);
-      clearInterval(connectivityInterval);
+      if (connectivityTimeoutId) clearTimeout(connectivityTimeoutId);
       if (networkCleanup) networkCleanup();
       if (syncCleanup) syncCleanup();
     };
@@ -109,10 +140,14 @@ function OfflineIndicator({ hideSync = false }) {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
-        console.log('🔍 OfflineIndicator - Capacitor network status:', status);
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log('🔍 OfflineIndicator - Capacitor network status:', status);
+        }
         setIsOnline(status.connected);
       } else {
-        console.log('🔍 OfflineIndicator - Navigator online status:', navigator.onLine);
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log('🔍 OfflineIndicator - Navigator online status:', navigator.onLine);
+        }
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
@@ -191,7 +226,7 @@ function OfflineIndicator({ hideSync = false }) {
 
   const handleSyncClick = async () => {
     if (!isOnline || !apiConnected) {
-      alert('Cannot sync while offline or API is unreachable');
+      setShowSyncError(true);
       return;
     }
 
@@ -288,17 +323,16 @@ function OfflineIndicator({ hideSync = false }) {
     );
   }
 
-  // Debug logging for banner visibility
   const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
-  console.log('🔍🔍🔍 OFFLINE INDICATOR BANNER CHECK 🔍🔍🔍:', {
-    apiTested,
-    isOnline,
-    apiConnected,
-    shouldShowBanner
-  });
   
-  // Add render log
-  console.log('🔍🔍🔍 OFFLINE INDICATOR RENDERING 🔍🔍🔍');
+  if (import.meta.env.NODE_ENV === 'development') {
+    console.log('🔍 Offline Indicator - Banner visibility:', {
+      apiTested,
+      isOnline,
+      apiConnected,
+      shouldShowBanner
+    });
+  }
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
@@ -341,6 +375,25 @@ function OfflineIndicator({ hideSync = false }) {
                 <span>Sync failed: {syncStatus.message}</span>
               </>
             )}
+          </div>
+        </Alert>
+      )}
+
+      {showSyncError && (
+        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Cannot sync while offline or API is unreachable</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSyncError(false)}
+              className="ml-4"
+            >
+              Dismiss
+            </Button>
           </div>
         </Alert>
       )}

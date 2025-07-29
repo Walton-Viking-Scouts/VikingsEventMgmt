@@ -308,8 +308,8 @@ function AttendanceView({ events, members, onBack }) {
           const statusB = getAttendanceStatus(b.attending);
           // Sort order: yes, no, invited, notInvited (higher values come first in desc)
           const statusOrder = { yes: 3, no: 2, invited: 1, notInvited: 0 };
-          aValue = statusOrder[statusA] || 4;
-          bValue = statusOrder[statusB] || 4;
+          aValue = statusOrder[statusA] || 0;
+          bValue = statusOrder[statusB] || 0;
         }
         break;
       case 'section':
