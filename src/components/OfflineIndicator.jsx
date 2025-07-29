@@ -25,7 +25,7 @@ function OfflineIndicator({ hideSync = false }) {
           apiUrl: config.apiUrl,
           isOnline,
           apiConnected,
-          apiTested
+          apiTested,
         });
       }
       
@@ -63,7 +63,7 @@ function OfflineIndicator({ hideSync = false }) {
       console.log('✅ OfflineIndicator - API connectivity test succeeded:', { 
         status: response.status, 
         ok: response.ok,
-        endpoint 
+        endpoint, 
       });
       
       // API is connected if we get any response (even 401 means API is reachable)
@@ -330,7 +330,7 @@ function OfflineIndicator({ hideSync = false }) {
       apiTested,
       isOnline,
       apiConnected,
-      shouldShowBanner
+      shouldShowBanner,
     });
   }
 

@@ -54,7 +54,7 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
           >
             {label}
           </button>
-        )
+        ),
       )}
     </div>
   );

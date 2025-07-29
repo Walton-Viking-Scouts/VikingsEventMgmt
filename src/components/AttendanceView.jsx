@@ -111,7 +111,7 @@ function AttendanceView({ events, members, onBack }) {
 
       // Get unique sections from events
       const uniqueSections = [...new Set(events.map(event => 
-        JSON.stringify({ sectionid: event.sectionid, sectionname: event.sectionname })
+        JSON.stringify({ sectionid: event.sectionid, sectionname: event.sectionname }),
       ))].map(str => JSON.parse(str));
 
       if (uniqueSections.length === 0) {

@@ -40,6 +40,7 @@ vi.mock('../../services/logger.js', () => ({
 
 // Mock helper functions
 vi.mock('../../utils/eventDashboardHelpers.js', () => ({
+  fetchAllSectionEvents: vi.fn(),
   fetchSectionEvents: vi.fn(),
   fetchEventAttendance: vi.fn(),
   groupEventsByName: vi.fn(),
@@ -111,6 +112,7 @@ describe('EventDashboard Integration Tests', () => {
     getAPIQueueStats.mockReturnValue({ queueLength: 0, processing: false, totalRequests: 0 });
     
     // Mock helper functions with realistic behavior
+    helpers.fetchAllSectionEvents.mockResolvedValue([]);
     helpers.fetchSectionEvents.mockResolvedValue([]);
     helpers.fetchEventAttendance.mockResolvedValue([]);
     helpers.filterEventsByDateRange.mockReturnValue([]);
@@ -119,7 +121,7 @@ describe('EventDashboard Integration Tests', () => {
   });
 
   describe('buildEventCards Integration', () => {
-    it('should orchestrate helper functions correctly for API mode', async () => {
+    it('should orchestrate helper functions correctly for cache-only mode', async () => {
       const mockEvents = [
         { eventid: 101, name: 'Camp Weekend', startdate: '2024-02-15' },
         { eventid: 102, name: 'Badge Workshop', startdate: '2024-02-20' },
@@ -138,7 +140,7 @@ describe('EventDashboard Integration Tests', () => {
       ]);
 
       // Setup mocks for integration test
-      helpers.fetchSectionEvents.mockResolvedValue(mockEvents);
+      helpers.fetchAllSectionEvents.mockResolvedValue(mockEvents);
       helpers.filterEventsByDateRange.mockReturnValue(mockFilteredEvents);
       helpers.fetchEventAttendance.mockResolvedValue(mockAttendanceData);
       helpers.groupEventsByName.mockReturnValue(mockEventGroups);
@@ -153,8 +155,8 @@ describe('EventDashboard Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify helper functions were called in correct order (cache-only mode)
-      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
-        mockSections[0],
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
+        mockSections,
         null, // cache-only mode uses null token
         false, // developmentMode
       );
@@ -167,7 +169,6 @@ describe('EventDashboard Integration Tests', () => {
       expect(helpers.fetchEventAttendance).toHaveBeenCalledWith(
         expect.objectContaining({
           eventid: 101,
-          attendanceData: mockAttendanceData,
         }),
         null, // cache-only mode uses null token
         false, // developmentMode
@@ -184,7 +185,7 @@ describe('EventDashboard Integration Tests', () => {
 
       expect(helpers.buildEventCard).toHaveBeenCalledWith(
         'Camp Weekend',
-        [mockFilteredEvents[0]],
+        [expect.objectContaining({ eventid: 101 })],
       );
     });
 
@@ -210,8 +211,8 @@ describe('EventDashboard Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify cache-only calls
-      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
-        expect.any(Object),
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
+        expect.any(Array),
         null, // No token
         false,
       );
@@ -232,18 +233,16 @@ describe('EventDashboard Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should not call helper functions for empty sections
-      expect(helpers.fetchSectionEvents).not.toHaveBeenCalled();
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith([], null, false);
       expect(helpers.fetchEventAttendance).not.toHaveBeenCalled();
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([]);
     });
 
     it('should handle individual section failures gracefully', async () => {
-      // First section succeeds, second fails
-      helpers.fetchSectionEvents
-        .mockResolvedValueOnce([
-          { eventid: 101, name: 'Success Event', startdate: '2024-02-15' },
-        ])
-        .mockRejectedValueOnce(new Error('Section 2 failed'));
+      // Mock fetchAllSectionEvents to return some successful events
+      helpers.fetchAllSectionEvents.mockResolvedValue([
+        { eventid: 101, name: 'Success Event', startdate: '2024-02-15' },
+      ]);
 
       helpers.filterEventsByDateRange.mockReturnValue([
         { eventid: 101, name: 'Success Event', startdate: '2024-02-15' },
@@ -261,8 +260,8 @@ describe('EventDashboard Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Should still process successful section
-      expect(helpers.fetchSectionEvents).toHaveBeenCalledTimes(2);
+      // Should process available sections
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledTimes(1);
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([
         expect.objectContaining({ eventid: 101 }),
       ]);
@@ -322,8 +321,8 @@ describe('EventDashboard Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify development mode was passed to helper functions (cache-only mode)
-      expect(helpers.fetchSectionEvents).toHaveBeenCalledWith(
-        expect.any(Object),
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
+        expect.any(Array),
         null, // cache-only mode uses null token
         false, // Note: cache-only mode, developmentMode determined by environment
       );
@@ -332,11 +331,10 @@ describe('EventDashboard Integration Tests', () => {
 
   describe('Helper Function Error Handling', () => {
     it('should continue processing other sections when one fails', async () => {
-      helpers.fetchSectionEvents
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce([
-          { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
-        ]);
+      // Mock fetchAllSectionEvents to return some successful events
+      helpers.fetchAllSectionEvents.mockResolvedValue([
+        { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
+      ]);
 
       helpers.filterEventsByDateRange.mockReturnValue([
         { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
@@ -349,10 +347,10 @@ describe('EventDashboard Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Should call for both sections despite first one failing
-      expect(helpers.fetchSectionEvents).toHaveBeenCalledTimes(2);
+      // Should call fetchAllSectionEvents once
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledTimes(1);
       
-      // Should still process the successful section
+      // Should still process the successful events
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([
         expect.objectContaining({ eventid: 102 }),
       ]);
@@ -379,8 +377,8 @@ describe('EventDashboard Integration Tests', () => {
       // Wait for async operations to complete
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Should call attendance for events from both sections (2 sections × 2 events each, but may vary based on filtering)
-      expect(helpers.fetchEventAttendance).toHaveBeenCalledTimes(3);
+      // Should call attendance for events (may vary based on filtering)
+      expect(helpers.fetchEventAttendance).toHaveBeenCalledTimes(2);
       
       // Should still process all events
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([

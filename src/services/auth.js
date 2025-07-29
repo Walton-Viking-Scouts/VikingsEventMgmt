@@ -223,7 +223,7 @@ export function handleApiAuthError(error) {
   if (error?.status === 401 || error?.status === 403) {
     logger.info('API authentication failed - clearing token and redirecting to login', { 
       status: error.status,
-      message: error.message 
+      message: error.message, 
     }, LOG_CATEGORIES.AUTH);
     
     // Check if we have cached data before fully logging out
