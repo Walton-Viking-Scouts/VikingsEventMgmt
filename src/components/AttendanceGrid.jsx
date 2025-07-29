@@ -8,6 +8,8 @@ function AttendanceGrid({ data }) {
     case 'notAttending':
       return 'bg-red-100 text-red-800';
     case 'invited':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'notInvited':
       return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
@@ -28,6 +30,7 @@ function AttendanceGrid({ data }) {
       <StatusCell count={typeData.attending} status="attending" />
       <StatusCell count={typeData.notAttending} status="notAttending" />
       <StatusCell count={typeData.invited} status="invited" />
+      <StatusCell count={typeData.notInvited} status="notInvited" />
     </tr>
   );
 
@@ -57,8 +60,14 @@ function AttendanceGrid({ data }) {
             </th>
             <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="flex flex-col items-center">
-                <div className="w-3 h-3 bg-gray-500 rounded-full mb-1"></div>
+                <div className="w-3 h-3 bg-yellow-500 rounded-full mb-1"></div>
                 <span>Invited</span>
+              </div>
+            </th>
+            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 bg-gray-500 rounded-full mb-1"></div>
+                <span>Not Invited</span>
               </div>
             </th>
           </tr>
@@ -79,8 +88,11 @@ function AttendanceGrid({ data }) {
             <td className="px-3 py-2 text-center text-sm text-red-800">
               {getTotalByStatus('notAttending')}
             </td>
-            <td className="px-3 py-2 text-center text-sm text-gray-800">
+            <td className="px-3 py-2 text-center text-sm text-yellow-800">
               {getTotalByStatus('invited')}
+            </td>
+            <td className="px-3 py-2 text-center text-sm text-gray-800">
+              {getTotalByStatus('notInvited')}
             </td>
           </tr>
         </tbody>

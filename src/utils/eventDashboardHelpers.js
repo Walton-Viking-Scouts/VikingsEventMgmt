@@ -1,18 +1,58 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { getMostRecentTermId, getEvents, getEventAttendance } from '../services/api.js';
+import { getMostRecentTermId, getMostRecentTermIdFromCache, getEvents, getEventAttendance, getTerms } from '../services/api.js';
 import databaseService from '../services/database.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
+
+/**
+ * Fetches events for all sections with optimized terms loading
+ * @param {Array} sections - Array of section objects
+ * @param {string|null} token - Authentication token (null for cache-only)
+ * @param {boolean} developmentMode - Whether development delays should be used
+ * @returns {Promise<Array>} Array of all events from all sections
+ */
+export const fetchAllSectionEvents = async (sections, token, developmentMode = false) => {
+  const allEvents = [];
+  
+  // Load terms once for all sections (major optimization!)
+  let allTerms = null;
+  if (token) {
+    try {
+      console.log('Loading terms once for all sections...');
+      allTerms = await getTerms(token); // This will use cache from sync process
+      console.log(`Using cached terms for ${Object.keys(allTerms).length} sections`);
+    } catch (err) {
+      logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
+    }
+  }
+  
+  // Fetch events for all sections using cached terms
+  for (const section of sections) {
+    try {
+      const sectionEvents = await fetchSectionEvents(section, token, developmentMode, allTerms);
+      allEvents.push(...sectionEvents);
+    } catch (err) {
+      logger.error('Error processing section {sectionId}', { 
+        error: err, 
+        sectionId: section.sectionid,
+        sectionName: section.sectionname, 
+      }, LOG_CATEGORIES.COMPONENT);
+    }
+  }
+  
+  return allEvents;
+};
 
 /**
  * Fetches events for a single section from API or cache
  * @param {Object} section - Section object with sectionid and sectionname
  * @param {string|null} token - Authentication token (null for cache-only)
  * @param {boolean} developmentMode - Whether development delays should be used
+ * @param {Object|null} allTerms - Pre-loaded terms data (optional optimization)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const fetchSectionEvents = async (section, token, developmentMode = false) => {
+export const fetchSectionEvents = async (section, token, developmentMode = false, allTerms = null) => {
   try {
     let events = [];
     
@@ -21,8 +61,16 @@ export const fetchSectionEvents = async (section, token, developmentMode = false
       const sectionDelay = developmentMode ? 1500 : 800;
       await new Promise(resolve => setTimeout(resolve, sectionDelay));
       
-      // Fetch from API
-      const termId = await getMostRecentTermId(section.sectionid, token);
+      // Fetch from API - use cached terms if available for major optimization
+      let termId;
+      if (allTerms) {
+        // Use pre-loaded terms (avoids API call per section!)
+        termId = getMostRecentTermIdFromCache(section.sectionid, allTerms);
+      } else {
+        // Fallback to individual API call
+        termId = await getMostRecentTermId(section.sectionid, token);
+      }
+      
       if (termId) {
         const eventDelay = developmentMode ? 1000 : 500;
         await new Promise(resolve => setTimeout(resolve, eventDelay));

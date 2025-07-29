@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserRoles, getListOfMembers, getAPIQueueStats } from '../services/api.js';
-import { getToken } from '../services/auth.js';
+import { getToken, generateOAuthUrl } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
@@ -9,7 +9,7 @@ import { Button, Alert } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import { 
-  fetchSectionEvents, 
+  fetchAllSectionEvents,
   fetchEventAttendance, 
   groupEventsByName, 
   buildEventCard,
@@ -76,13 +76,29 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         timeSinceLastSync: lastSyncTime ? Math.round((Date.now() - new Date(lastSyncTime).getTime()) / 60000) : 'N/A',
       });
       
-      if (hasOfflineData) {
-        // Always load from cache if available - no automatic syncing
-        console.log('Loading cached data (no automatic sync)');
+      if (hasOfflineData && isDataFresh) {
+        // Recent cached data available - use cache
+        console.log('Loading fresh cached data');
         await loadCachedData();
+      } else if (hasOfflineData && !isDataFresh) {
+        // Stale cached data - load cache first, then auto-sync in background
+        console.log('Loading stale cached data, will auto-sync in background');
+        await loadCachedData();
+        
+        // Auto-sync in background (now optimized to only 6 API calls)
+        setTimeout(async () => {
+          try {
+            console.log('Auto-syncing stale data in background...');
+            await syncData();
+          } catch (error) {
+            console.log('Background sync failed:', error.message);
+            // Don't show error - this is background sync
+          }
+        }, 1000);
       } else {
-        // No cached data, user will need to sync manually
-        console.log('No cached data available - user needs to sync manually');
+        // No cached data - auto-sync immediately
+        console.log('No cached data - auto-syncing immediately');
+        await syncData();
       }
     } catch (err) {
       logger.error('Error loading initial data', { error: err }, LOG_CATEGORIES.COMPONENT);
@@ -126,15 +142,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setSections(sectionsData);
       await databaseService.saveSections(sectionsData);
       
-      // 2. Fetch members data for all sections (needed for attendance modals and members screen)
-      console.log('Fetching members data for all sections...');
-      // Add delay before members calls to prevent rapid API calls
-      const memberDelay = developmentMode ? 2000 : 1000; // Longer delay in development
-      await new Promise(resolve => setTimeout(resolve, memberDelay));
-      await getListOfMembers(sectionsData, token);
-      console.log('Members data cached successfully');
-      
-      // 3. Fetch events for each section and build cards
+      // 2. Fetch events for each section and build cards (members loaded on-demand)
       const cards = await buildEventCards(sectionsData, token);
       setEventCards(cards);
       
@@ -154,38 +162,31 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   
 
   const buildEventCards = async (sectionsData, token = null) => {
-    const allEvents = [];
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
-    // Fetch events for all sections
-    for (const section of sectionsData) {
+    // Fetch events for all sections with optimized terms loading
+    const allEvents = await fetchAllSectionEvents(sectionsData, token, developmentMode);
+    
+    // Filter for future events and events from last week
+    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
+    
+    // Fetch attendance data for filtered events
+    for (const event of filteredEvents) {
       try {
-        const sectionEvents = await fetchSectionEvents(section, token, developmentMode);
-        
-        // Filter for future events and events from last week
-        const filteredEvents = filterEventsByDateRange(sectionEvents, oneWeekAgo);
-        
-        // Fetch attendance data for filtered events
-        for (const event of filteredEvents) {
-          const attendanceData = await fetchEventAttendance(event, token, developmentMode);
-          event.attendanceData = attendanceData;
-        }
-        
-        // Add filtered events to the main collection
-        allEvents.push(...filteredEvents);
-        
+        const attendanceData = await fetchEventAttendance(event, token, developmentMode);
+        event.attendanceData = attendanceData;
       } catch (err) {
-        logger.error('Error processing section {sectionId}', { 
+        logger.error('Error fetching attendance for event {eventId}', { 
           error: err, 
-          sectionId: section.sectionid,
-          sectionName: section.sectionname, 
+          eventId: event.eventid,
+          eventName: event.name,
         }, LOG_CATEGORIES.COMPONENT);
       }
     }
     
     // Group events by name
-    const eventGroups = groupEventsByName(allEvents);
+    const eventGroups = groupEventsByName(filteredEvents);
     
     // Convert groups to cards
     const cards = [];
@@ -223,13 +224,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setConfirmModalData({
           title: 'Fetch Member Data',
           message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
-          onConfirm: async () => {
+          onConfirm: () => {
             setShowConfirmModal(false);
-            console.log(`Fetching fresh members for section: ${section.sectionname}`);
-            const token = getToken();
-            const freshMembers = await getListOfMembers([section], token);
-            console.log(`Loaded ${freshMembers.length} members for section "${section.sectionname}"`);
-            onNavigateToMembers(section, freshMembers);
+            console.log('Redirecting to OSM login for authentication');
+            // Redirect to OSM OAuth since we know the token is expired/invalid
+            const oauthUrl = generateOAuthUrl();
+            window.location.href = oauthUrl;
           },
           onCancel: () => {
             setShowConfirmModal(false);
@@ -289,8 +289,30 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         // Fallback to API call
         const token = getToken();
-        members = await getListOfMembers(involvedSections, token);
-        console.log(`Loaded ${members.length} members from API for event "${eventCard.name}"`);
+        if (!token) {
+          console.log('No token available - redirecting to login');
+          const oauthUrl = generateOAuthUrl();
+          window.location.href = oauthUrl;
+          return;
+        }
+        
+        try {
+          members = await getListOfMembers(involvedSections, token);
+          console.log(`Loaded ${members.length} members from API for event "${eventCard.name}"`);
+        } catch (apiError) {
+          // Check if it's an authentication error
+          if (apiError.status === 401 || apiError.status === 403 || 
+              apiError.message.includes('Invalid access token') || 
+              apiError.message.includes('Token expired') ||
+              apiError.message.includes('Unauthorized')) {
+            
+            console.log('Authentication error - redirecting to login');
+            const oauthUrl = generateOAuthUrl();
+            window.location.href = oauthUrl;
+            return;
+          }
+          throw apiError; // Re-throw non-auth errors
+        }
       }
       
       // Navigate to attendance view with both events and members
@@ -308,6 +330,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setLoadingAttendees(null);
     }
   };
+
 
   const formatLastSync = (date) => {
     if (!date) return 'Never';

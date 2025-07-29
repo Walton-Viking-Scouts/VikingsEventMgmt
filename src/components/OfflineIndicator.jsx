@@ -3,18 +3,87 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
-import { isAuthenticated } from '../services/auth.js';
+import { isAuthenticated, getToken } from '../services/auth.js';
+import { config } from '../config/env.js';
 
 function OfflineIndicator({ hideSync = false }) {
   const [isOnline, setIsOnline] = useState(true);
+  const [apiConnected, setApiConnected] = useState(true);
+  const [apiTested, setApiTested] = useState(false); // Track if we've tested API yet
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
+  const [showSyncError, setShowSyncError] = useState(false);
+
+  // Test actual API connectivity by making a lightweight request
+  const testApiConnectivity = async () => {
+    try {
+      const token = getToken();
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 OfflineIndicator - Testing API connectivity...', { 
+          hasToken: !!token, 
+          apiUrl: config.apiUrl,
+          isOnline,
+          apiConnected,
+          apiTested,
+        });
+      }
+      
+      // Create AbortController for timeout (this is a modern browser API)
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 5000) : null; // 5 second timeout
+      
+      const requestOptions = {
+        method: 'GET',
+        ...(controller && { signal: controller.signal }),
+      };
+      
+      let endpoint;
+      if (token) {
+        // If we have a token, test with the validate-token endpoint
+        requestOptions.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        };
+        endpoint = '/validate-token';
+      } else {
+        // If no token, use the health endpoint which doesn't require authentication
+        endpoint = '/health';
+      }
+      
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
+      }
+      
+      // Make the API request
+      const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
+      
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      console.log('✅ OfflineIndicator - API connectivity test succeeded:', { 
+        status: response.status, 
+        ok: response.ok,
+        endpoint, 
+      });
+      
+      // API is connected if we get any response (even 401 means API is reachable)
+      setApiConnected(true);
+      setApiTested(true);
+    } catch (error) {
+      // Only log non-abort errors to avoid spam
+      if (error.name !== 'AbortError') {
+        console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
+      }
+      console.log('❌ OfflineIndicator - Setting API connected to false due to error:', error.message);
+      setApiConnected(false);
+      setApiTested(true);
+    }
+  };
 
   useEffect(() => {
     checkInitialStatus();
-    setupNetworkListeners();
-    setupSyncListeners();
+    const networkCleanup = setupNetworkListeners();
+    const syncCleanup = setupSyncListeners();
 
     // Setup login prompt listener
     const handleLoginPrompt = (promptData) => {
@@ -24,22 +93,65 @@ function OfflineIndicator({ hideSync = false }) {
 
     syncService.addLoginPromptListener(handleLoginPrompt);
 
+    // Test API connectivity on mount and with exponential backoff when offline
+    testApiConnectivity();
+    
+    let backoffDelay = 30000; // Start with 30 seconds
+    const maxDelay = 300000; // Max 5 minutes
+    let connectivityTimeoutId;
+    
+    const scheduleNextCheck = () => {
+      connectivityTimeoutId = setTimeout(() => {
+        if (!apiConnected || !isOnline) {
+          testApiConnectivity().then(() => {
+            if (!apiConnected || !isOnline) {
+              // Still offline, increase backoff delay
+              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            } else {
+              // Back online, reset backoff delay
+              backoffDelay = 30000;
+            }
+            scheduleNextCheck();
+          }).catch(() => {
+            // Error in connectivity test, continue with backoff
+            backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            scheduleNextCheck();
+          });
+        } else {
+          // Online, continue checking at base interval
+          backoffDelay = 30000;
+          scheduleNextCheck();
+        }
+      }, backoffDelay);
+    };
+    
+    scheduleNextCheck();
+
     return () => {
       // Cleanup listeners
       syncService.removeLoginPromptListener(handleLoginPrompt);
+      if (connectivityTimeoutId) clearTimeout(connectivityTimeoutId);
+      if (networkCleanup) networkCleanup();
+      if (syncCleanup) syncCleanup();
     };
-  }, []);
+  }, [apiConnected, isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkInitialStatus = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log('🔍 OfflineIndicator - Capacitor network status:', status);
+        }
         setIsOnline(status.connected);
       } else {
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log('🔍 OfflineIndicator - Navigator online status:', navigator.onLine);
+        }
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
-      console.error('Error checking network status:', error);
+      console.error('❌ OfflineIndicator - Error checking network status:', error);
     }
   };
 
@@ -47,10 +159,23 @@ function OfflineIndicator({ hideSync = false }) {
     if (Capacitor.isNativePlatform()) {
       Network.addListener('networkStatusChange', (status) => {
         setIsOnline(status.connected);
+        // Test API connectivity when network status changes
+        if (status.connected) {
+          testApiConnectivity();
+        } else {
+          setApiConnected(false);
+        }
       });
     } else {
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
+      const handleOnline = () => {
+        setIsOnline(true);
+        // Test API connectivity when browser thinks we're back online
+        testApiConnectivity();
+      };
+      const handleOffline = () => {
+        setIsOnline(false);
+        setApiConnected(false);
+      };
       
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
@@ -100,8 +225,8 @@ function OfflineIndicator({ hideSync = false }) {
   };
 
   const handleSyncClick = async () => {
-    if (!isOnline) {
-      alert('Cannot sync while offline');
+    if (!isOnline || !apiConnected) {
+      setShowSyncError(true);
       return;
     }
 
@@ -126,8 +251,8 @@ function OfflineIndicator({ hideSync = false }) {
     return 'Sync data';
   };
 
-  // Don't show anything if online and no sync status
-  if (isOnline && !syncStatus) {
+  // Don't show anything if both network and API are connected and no sync status
+  if (isOnline && apiConnected && !syncStatus) {
     return (
       <>
         {/* Only show sync button if not hidden */}
@@ -198,13 +323,26 @@ function OfflineIndicator({ hideSync = false }) {
     );
   }
 
+  const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
+  
+  if (import.meta.env.NODE_ENV === 'development') {
+    console.log('🔍 Offline Indicator - Banner visibility:', {
+      apiTested,
+      isOnline,
+      apiConnected,
+      shouldShowBanner,
+    });
+  }
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
-      {!isOnline && (
+      {shouldShowBanner && (
         <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
           <div className="flex items-center justify-center gap-2">
             <span>📱</span>
-            <span>Offline Mode - Using cached data</span>
+            <span>
+              {!isOnline ? 'Offline Mode - Using cached data' : 'API Unavailable - Using cached data'}
+            </span>
           </div>
         </Alert>
       )}
@@ -237,6 +375,25 @@ function OfflineIndicator({ hideSync = false }) {
                 <span>Sync failed: {syncStatus.message}</span>
               </>
             )}
+          </div>
+        </Alert>
+      )}
+
+      {showSyncError && (
+        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Cannot sync while offline or API is unreachable</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSyncError(false)}
+              className="ml-4"
+            >
+              Dismiss
+            </Button>
           </div>
         </Alert>
       )}

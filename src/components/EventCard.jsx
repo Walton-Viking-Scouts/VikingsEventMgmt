@@ -43,7 +43,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     
     // Initialize each section in grid
     sections.forEach(sectionName => {
-      grid[sectionName] = { attending: 0, notAttending: 0, invited: 0 };
+      grid[sectionName] = { attending: 0, notAttending: 0, invited: 0, notInvited: 0 };
     });
     
     // Process attendance data by section
@@ -56,8 +56,11 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             grid[sectionName].attending++;
           } else if (person.attending === 'No') {
             grid[sectionName].notAttending++;
-          } else {
+          } else if (person.attending === 'Invited') {
             grid[sectionName].invited++;
+          } else {
+            // Empty string, null, or any other value means not invited
+            grid[sectionName].notInvited++;
           }
         });
       }
