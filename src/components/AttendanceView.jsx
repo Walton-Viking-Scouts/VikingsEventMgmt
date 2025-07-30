@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getEventAttendance, getMostRecentTermId, getMembersGrid } from '../services/api.js';
+import { getEventAttendance, getMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
@@ -26,7 +26,7 @@ function AttendanceView({ events, members, onBack }) {
 
   useEffect(() => {
     loadAttendance();
-    loadEnhancedMembers();
+    // Note: Member data should already be loaded by dashboard background loading
   }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
@@ -101,43 +101,7 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
-  const loadEnhancedMembers = async () => {
-    try {
-      const token = getToken();
-      if (!token) {
-        console.log('No token available for enhanced member data');
-        return;
-      }
-
-      // Get unique sections from events
-      const uniqueSections = [...new Set(events.map(event => 
-        JSON.stringify({ sectionid: event.sectionid, sectionname: event.sectionname }),
-      ))].map(str => JSON.parse(str));
-
-      if (uniqueSections.length === 0) {
-        console.log('No sections found in events');
-        return;
-      }
-
-      console.log(`Triggering getMembersGrid for ${uniqueSections.length} sections to populate cache...`);
-      
-      // Call getMembersGrid for each section to populate the cache
-      for (const section of uniqueSections) {
-        try {
-          const termId = await getMostRecentTermId(section.sectionid, token);
-          if (termId) {
-            console.log(`Calling getMembersGrid for section ${section.sectionname} (${section.sectionid})`);
-            await getMembersGrid(section.sectionid, termId, token);
-          }
-        } catch (err) {
-          console.warn(`Failed to load enhanced members for section ${section.sectionname}:`, err);
-        }
-      }
-      
-    } catch (err) {
-      console.error('Error loading enhanced member data:', err);
-    }
-  };
+  // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
 
   const _formatDate = (dateString) => {
     try {
