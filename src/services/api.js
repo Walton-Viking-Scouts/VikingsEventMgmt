@@ -282,7 +282,6 @@ export async function getTerms(token, forceRefresh = false) {
     
     // If online request fails, try localStorage as fallback
     if (isOnline) {
-      console.log('Online request failed - trying localStorage as fallback');
       try {
         const cachedTerms = localStorage.getItem('viking_terms_offline');
         const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
@@ -306,7 +305,6 @@ export async function getMostRecentTermId(sectionId, token) {
     try {
       const terms = await getTerms(token);
       if (!terms || !terms[sectionId]) {
-        console.warn(`No terms found for section ${sectionId}`);
         return null;
       }
 
@@ -317,12 +315,10 @@ export async function getMostRecentTermId(sectionId, token) {
       }, null);
 
       if (!mostRecentTerm) {
-        console.warn(`No valid term found for section ${sectionId}`);
         return null;
       }
 
-      console.log(`Most recent term found for section ${sectionId}:`, mostRecentTerm);
-      return mostRecentTerm.termid;
+        return mostRecentTerm.termid;
 
     } catch (error) {
       console.error(`Error fetching most recent term ID for section ${sectionId}:`, error);
@@ -350,7 +346,6 @@ export function getMostRecentTermIdFromCache(sectionId, allTerms) {
       return null;
     }
 
-    console.log(`Most recent term found for section ${sectionId}:`, mostRecentTerm);
     return mostRecentTerm.termid;
 
   } catch (error) {
@@ -517,11 +512,9 @@ export async function getEvents(sectionId, termId, token) {
     // Events are in the 'items' property of the response
     const events = (data && data.items) ? data.items : [];
     
-    console.log(`getEvents API returned ${events.length} events for section ${sectionId}`);
 
     // Save to local database when online (even if empty to cache the result)
     await databaseService.saveEvents(sectionId, events);
-    console.log(`Attempted to save ${events.length} events to storage for section ${sectionId}`);
 
     return events;
 
@@ -530,7 +523,6 @@ export async function getEvents(sectionId, termId, token) {
         
     // If online request fails, try local database as fallback
     if (isOnline) {
-      console.log('Online request failed - trying local database as fallback');
       try {
         const events = await databaseService.getEvents(sectionId);
         return events;
@@ -589,7 +581,6 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
         
     // If online request fails, try local database as fallback
     if (isOnline) {
-      console.log('Online request failed - trying local database as fallback');
       try {
         const attendance = await databaseService.getAttendance(eventId);
         return attendance;
@@ -729,7 +720,6 @@ export async function getStartupData(token) {
     
     // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
-      console.log('Online request failed - trying localStorage as fallback');
       try {
         const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
         return cachedStartupData ? JSON.parse(cachedStartupData) : null;
@@ -869,7 +859,6 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // If online request fails, try local database as fallback
     if (isOnline) {
-      console.log('Online request failed - trying local database as fallback');
       try {
         const cachedMembers = await databaseService.getMembers([sectionId]);
         return cachedMembers;
@@ -980,17 +969,14 @@ export async function getListOfMembers(sections, token) {
 
 export async function testBackendConnection() {
   try {
-    console.log('Testing backend connection to:', BACKEND_URL);
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
         
-    console.log('Backend connection test - Status:', response.status);
         
     if (response.ok) {
       const data = await response.text();
-      console.log('Backend connection test - Response:', data);
       return true;
     } else {
       console.error('Backend connection test failed:', response.status);
