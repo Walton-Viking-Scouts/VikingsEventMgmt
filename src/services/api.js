@@ -5,6 +5,7 @@ import databaseService from './database.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { sentryUtils, logger } from './sentry.js';
+import { authHandler } from './simpleAuthHandler.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
@@ -189,9 +190,8 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
     }
   }
     
-  if (response.status === 401 || response.status === 403) {
-    console.warn(`🔐 Authentication error on ${apiName}: ${response.status}`);
-    // Will be handled by auth service
+  // Simple auth handling with circuit breaker
+  if (!authHandler.handleAPIResponse(response, apiName)) {
     const error = new Error('Authentication failed');
     error.status = response.status;
     throw error;
@@ -395,6 +395,14 @@ export async function getUserRoles(token) {
           throw new Error('No authentication token');
         }
 
+        // Simple circuit breaker - use cache if auth already failed
+        if (!authHandler.shouldMakeAPICall()) {
+          logger.info('Auth failed this session - using cached sections only');
+          span.setAttribute('data.source', 'local_database_auth_failed');
+          const sections = await databaseService.getSections();
+          return sections;
+        }
+
         span.setAttribute('data.source', 'api');
         logger.debug('Making API request for user roles');
 
@@ -451,21 +459,23 @@ export async function getUserRoles(token) {
           },
         });
         
-        // Don't fall back to cache for authentication errors - these need to be handled by auth system
-        if (error.status === 401 || error.status === 403) {
-          logger.error('Authentication error - not using cache fallback');
-          throw error;
-        }
-                
-        // If online request fails (non-auth errors), try local database as fallback
+        // If online request fails (including auth errors), try local database as fallback
         if (isOnline) {
-          logger.info('Online request failed - trying local database as fallback');
+          logger.info('Online request failed - trying local database as fallback', {
+            errorType: error.status === 401 || error.status === 403 ? 'auth' : 'other',
+          });
           span.setAttribute('fallback.used', true);
+          span.setAttribute('fallback.reason', error.status === 401 || error.status === 403 ? 'auth_error' : 'other_error');
                     
           try {
             const sections = await databaseService.getSections();
-            span.setAttribute('fallback.successful', true);
-            return sections;
+            if (sections && sections.length > 0) {
+              logger.info(`Using cached sections data (${sections.length} sections) after API failure`);
+              span.setAttribute('fallback.successful', true);
+              return sections;
+            } else {
+              logger.warn('No cached sections available for fallback');
+            }
           } catch (dbError) {
             logger.error('Database fallback also failed', { error: dbError.message });
             span.setAttribute('fallback.successful', false);
@@ -492,6 +502,13 @@ export async function getEvents(sectionId, termId, token) {
 
     if (!token) {
       throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - using cached events only');
+      const events = await databaseService.getEvents(sectionId);
+      return events;
     }
 
     const response = await fetch(`${BACKEND_URL}/get-events?sectionid=${sectionId}&termid=${termId}`, {
@@ -546,6 +563,13 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
 
     if (!token) {
       throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - using cached attendance only');
+      const attendance = await databaseService.getAttendance(eventId);
+      return attendance;
     }
 
     const response = await fetch(`${BACKEND_URL}/get-event-attendance?sectionid=${sectionId}&termid=${termId}&eventid=${eventId}`, {

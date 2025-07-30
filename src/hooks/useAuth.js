@@ -32,54 +32,35 @@ export function useAuth() {
       console.log('🔍 Auth check - has token:', hasToken);
       
       if (hasToken) {
-        // Validate the token with the API
-        console.log('🔄 Validating token with API...');
-        const isValid = await authService.validateToken();
-        console.log('✓ Token validation result:', isValid);
-                
-        if (isValid) {
-          setIsAuthenticated(true);
-          const userInfo = authService.getUserInfo();
-          setUser(userInfo);
-          
-          // Check if user is in offline mode with expired token
-          const isTokenExpired = sessionStorage.getItem('token_expired') === 'true';
-          setIsOfflineMode(isTokenExpired);
-          
-          if (isTokenExpired) {
-            console.log('✅ User authenticated in offline mode (expired token with cached data)');
-          } else {
-            console.log('✅ User authenticated successfully');
-          }
-          
-          // Log successful authentication
-          Sentry.addBreadcrumb({
-            category: 'auth',
-            message: isTokenExpired ? 'User authentication successful (offline mode)' : 'User authentication successful',
-            level: 'info',
-            data: {
-              hasUserInfo: !!userInfo,
-              userFullname: userInfo?.fullname || 'Unknown',
-              isOfflineMode: isTokenExpired,
-            },
-          });
+        // Skip redundant token validation - just trust the token exists
+        // Real validation happens on first actual API call (getUserRoles, etc.)
+        console.log('✅ Token found - assuming valid until proven otherwise');
+        
+        setIsAuthenticated(true);
+        const userInfo = authService.getUserInfo();
+        setUser(userInfo);
+        
+        // Check if user is in offline mode with expired token
+        const isTokenExpired = sessionStorage.getItem('token_expired') === 'true';
+        setIsOfflineMode(isTokenExpired);
+        
+        if (isTokenExpired) {
+          console.log('✅ User authenticated in offline mode (expired token with cached data)');
         } else {
-          // Token validation failed - clear everything and show login
-          setIsAuthenticated(false);
-          setUser(null);
-          setIsOfflineMode(false);
-          console.log('❌ Token validation failed - showing login');
-          
-          // Log authentication failure
-          Sentry.addBreadcrumb({
-            category: 'auth',
-            message: 'Token validation failed',
-            level: 'warning',
-            data: {
-              reason: 'token_validation_failed',
-            },
-          });
+          console.log('✅ User authenticated successfully');
         }
+        
+        // Log successful authentication
+        Sentry.addBreadcrumb({
+          category: 'auth',
+          message: isTokenExpired ? 'User authentication successful (offline mode)' : 'User authentication successful',
+          level: 'info',
+          data: {
+            hasUserInfo: !!userInfo,
+            userFullname: userInfo?.fullname || 'Unknown',
+            isOfflineMode: isTokenExpired,
+          },
+        });
       } else {
         // No token exists - show login
         setIsAuthenticated(false);
@@ -129,10 +110,18 @@ export function useAuth() {
 
   // Check auth on mount and when storage changes
   useEffect(() => {
-    checkAuth();
+    let mounted = true;
+    
+    const initializeAuth = async () => {
+      if (!mounted) return; // Prevent duplicate calls in StrictMode
+      await checkAuth();
+    };
+    
+    initializeAuth();
 
     // Listen for storage changes (in case user logs out in another tab)
     const handleStorageChange = (e) => {
+      if (!mounted) return;
       if (e.key === 'access_token' || e.key === 'osm_blocked' || e.key === 'token_invalid') {
         console.log('🔄 Storage change detected, rechecking auth:', e.key);
         checkAuth();
@@ -140,7 +129,10 @@ export function useAuth() {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      mounted = false;
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [checkAuth]);
 
   return {

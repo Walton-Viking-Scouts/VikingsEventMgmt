@@ -38,18 +38,9 @@ function OfflineIndicator({ hideSync = false }) {
         ...(controller && { signal: controller.signal }),
       };
       
-      let endpoint;
-      if (token) {
-        // If we have a token, test with the validate-token endpoint
-        requestOptions.headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        };
-        endpoint = '/validate-token';
-      } else {
-        // If no token, use the health endpoint which doesn't require authentication
-        endpoint = '/health';
-      }
+      // Always use the health endpoint for connectivity testing
+      // No need to waste API calls on token validation - just test if backend is reachable
+      const endpoint = '/health';
       
       if (import.meta.env.NODE_ENV === 'development') {
         console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);

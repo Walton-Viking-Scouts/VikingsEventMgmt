@@ -5,6 +5,7 @@
 import { sentryUtils } from './sentry.js';
 import { config } from '../config/env.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
+import { authHandler } from './simpleAuthHandler.js';
 
 const clientId = config.oauthClientId;
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
@@ -24,6 +25,9 @@ export function getToken() {
 
 export function setToken(token) {
   sessionStorage.setItem('access_token', token);
+  
+  // Reset auth error state when new token is set
+  authHandler.reset();
     
   // Set user context in Sentry when token is set
   sentryUtils.setUser({
@@ -37,6 +41,10 @@ export function setToken(token) {
 export function clearToken() {
   sessionStorage.removeItem('access_token');
   sessionStorage.removeItem('token_invalid');
+  sessionStorage.removeItem('token_expired');
+  
+  // Reset auth handler state when token is cleared
+  authHandler.reset();
     
   // Clear user context in Sentry when logging out
   sentryUtils.setUser(null);

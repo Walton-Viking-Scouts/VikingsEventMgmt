@@ -2,7 +2,7 @@ import React from 'react';
 import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
 import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
-function DesktopLayout({ children, user, onLogout, currentView }) {
+function DesktopLayout({ children, user, onLogout, onLogin, currentView, isOfflineMode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" data-testid="desktop-layout">
       <OfflineIndicator hideSync={currentView === 'dashboard'} />
@@ -10,6 +10,8 @@ function DesktopLayout({ children, user, onLogout, currentView }) {
       <DesktopHeader 
         user={user} 
         onLogout={onLogout}
+        onLogin={onLogin}
+        isOfflineMode={isOfflineMode}
       />
       
       <div className="flex-1">
