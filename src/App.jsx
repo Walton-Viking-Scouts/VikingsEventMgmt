@@ -155,7 +155,7 @@ function App() {
   return (
     <div className="App" data-testid="app">
       <Router>
-        <ResponsiveLayout user={user} onLogout={logout} currentView={currentView} isOfflineMode={isOfflineMode}>
+        <ResponsiveLayout user={user} onLogout={logout} onLogin={login} currentView={currentView} isOfflineMode={isOfflineMode}>
           <Routes>
             <Route path="/" element={renderCurrentView()} />
             <Route path="/dashboard" element={renderCurrentView()} />

@@ -3,7 +3,7 @@ import { isMobileLayout } from '../utils/platform.js';
 import MobileLayout from '../layouts/MobileLayout.jsx';
 import DesktopLayout from '../layouts/DesktopLayout.jsx';
 
-function ResponsiveLayout({ children, user, onLogout, currentView, isOfflineMode = false }) {
+function ResponsiveLayout({ children, user, onLogout, onLogin, currentView, isOfflineMode = false }) {
   const [isMobile, setIsMobile] = React.useState(isMobileLayout());
 
   React.useEffect(() => {
@@ -35,7 +35,7 @@ function ResponsiveLayout({ children, user, onLogout, currentView, isOfflineMode
           </div>
         </div>
       )}
-      <LayoutComponent user={user} onLogout={onLogout} currentView={currentView}>
+      <LayoutComponent user={user} onLogout={onLogout} onLogin={onLogin} currentView={currentView} isOfflineMode={isOfflineMode}>
         {children}
       </LayoutComponent>
     </div>

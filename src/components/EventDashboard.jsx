@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserRoles, getListOfMembers, getAPIQueueStats } from '../services/api.js';
 import { getToken, generateOAuthUrl } from '../services/auth.js';
+import { authHandler } from '../services/simpleAuthHandler.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
@@ -27,6 +28,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [developmentMode, setDevelopmentMode] = useState(false);
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
+  const [isOfflineMode, setIsOfflineMode] = useState(false); // Track if we're in offline mode due to auth failure
   
   // Modal state for confirmation dialogs
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -40,20 +42,35 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   });
 
   useEffect(() => {
-    loadInitialData();
-    // Check for development mode
-    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
-    setDevelopmentMode(isDev);
+    let mounted = true;
+    
+    const initializeDashboard = async () => {
+      if (!mounted) return; // Prevent duplicate calls in StrictMode
+      
+      await loadInitialData();
+      
+      if (!mounted) return; // Check again after async operation
+      
+      // Check for development mode
+      const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+      setDevelopmentMode(isDev);
+    };
+    
+    initializeDashboard();
     
     // Update queue stats every second
     const interval = setInterval(() => {
+      if (!mounted) return;
       const stats = getAPIQueueStats();
       if (stats) {
         setQueueStats(stats);
       }
     }, 1000);
     
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadInitialData = async () => {
@@ -85,24 +102,73 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         console.log('Loading stale cached data, will auto-sync in background');
         await loadCachedData();
         
-        // Auto-sync in background (now optimized to only 6 API calls)
+        // Auto-sync in background only if auth hasn't failed
         setTimeout(async () => {
           try {
+            if (authHandler.hasAuthFailed()) {
+              console.log('Auth failed this session - skipping background sync');
+              setIsOfflineMode(true);
+              return;
+            }
+            
+            const token = getToken();
+            if (!token) {
+              console.log('No token available - skipping background sync');
+              return;
+            }
+            
             console.log('Auto-syncing stale data in background...');
             await syncData();
           } catch (error) {
             console.log('Background sync failed:', error.message);
+            // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
           }
         }, 1000);
       } else {
-        // No cached data - auto-sync immediately
+        // No cached data - check if we should attempt sync
+        if (authHandler.hasAuthFailed()) {
+          console.log('Auth failed and no cached data - cannot sync');
+          setError('Authentication expired and no cached data available. Please reconnect to OSM.');
+          setIsOfflineMode(true);
+          return;
+        }
+        
+        const token = getToken();
+        if (!token) {
+          console.log('No token available and no cached data - showing empty state');
+          return;
+        }
+        
         console.log('No cached data - auto-syncing immediately');
         await syncData();
       }
     } catch (err) {
       logger.error('Error loading initial data', { error: err }, LOG_CATEGORIES.COMPONENT);
-      setError(err.message);
+      
+      // Check if this is an auth error and we have some cached sections
+      const cachedSections = await databaseService.getSections().catch(() => []);
+      if ((err.status === 401 || err.status === 403 || err.message?.includes('Authentication failed')) && cachedSections.length > 0) {
+        logger.info('Auth error during initial load but cached data available - enabling offline mode');
+        setSections(cachedSections);
+        setIsOfflineMode(true);
+        
+        // Try to load cached event cards
+        try {
+          const cards = await buildEventCards(cachedSections);
+          setEventCards(cards);
+        } catch (cardError) {
+          logger.warn('Failed to build cached event cards', { error: cardError });
+        }
+        
+        // Set last sync time from localStorage if available
+        const lastSyncTime = localStorage.getItem('viking_last_sync');
+        if (lastSyncTime) {
+          setLastSync(new Date(lastSyncTime));
+        }
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -134,6 +200,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setSyncing(true);
       setError(null);
+      setIsOfflineMode(false);
       
       const token = getToken();
       
@@ -153,10 +220,33 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       
     } catch (err) {
       logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
-      setError(err.message);
+      
+      // Check if auth failed and we have cached data
+      if (authHandler.hasAuthFailed() && sections.length > 0) {
+        logger.info('Auth failed but cached data available - enabling offline mode');
+        setIsOfflineMode(true);
+        setError(null); // Clear error since we can show cached data
+        
+        // Load cached event cards instead of making more API calls
+        try {
+          const cards = await buildEventCards(sections); // Use cached sections, no token
+          setEventCards(cards);
+        } catch (cardError) {
+          logger.warn('Failed to build cached event cards after auth error', { error: cardError });
+        }
+      } else {
+        setError(err.message);
+      }
     } finally {
       setSyncing(false);
     }
+  };
+
+  // Reconnect function to handle authentication refresh
+  const handleReconnect = () => {
+    logger.info('User requested reconnection - redirecting to OAuth');
+    const oauthUrl = generateOAuthUrl();
+    window.location.href = oauthUrl;
   };
 
   
@@ -381,6 +471,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 <p className="text-sm text-gray-600">
                   Last updated: {formatLastSync(lastSync)}
                   {!lastSync && ' (Never synced)'}
+                  {isOfflineMode && (
+                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                      🔒 Offline Mode
+                    </span>
+                  )}
                 </p>
                 {(queueStats.processing || queueStats.queueLength > 0) && (
                   <p className="text-xs text-blue-600">
@@ -393,6 +488,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                     🚧 Development mode: Extended delays active
                   </p>
                 )}
+                {isOfflineMode && (
+                  <p className="text-xs text-amber-600">
+                    🔒 Authentication expired - showing cached data only
+                  </p>
+                )}
                 {!lastSync && (
                   <p className="text-xs text-amber-600">
                     📡 No data cached - click Sync to load from OSM
@@ -400,30 +500,45 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 )}
               </div>
             </div>
-            <Button
-              variant="scout-blue"
-              onClick={syncData}
-              disabled={syncing}
-              type="button"
-              className="flex items-center gap-2"
-            >
-              {syncing ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                  Sync from OSMing...
-                </>
-              ) : (
-                <>
+            <div className="flex items-center gap-2">
+              {isOfflineMode && (
+                <Button
+                  variant="scout-green"
+                  onClick={handleReconnect}
+                  type="button"
+                  className="flex items-center gap-2"
+                >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  Sync from OSM
-                </>
+                  Reconnect
+                </Button>
               )}
-            </Button>
+              <Button
+                variant="scout-blue"
+                onClick={syncData}
+                disabled={syncing}
+                type="button"
+                className="flex items-center gap-2"
+              >
+                {syncing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {isOfflineMode ? 'Retry Sync' : 'Sync from OSM'}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
