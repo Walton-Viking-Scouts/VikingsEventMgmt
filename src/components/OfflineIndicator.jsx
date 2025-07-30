@@ -51,11 +51,6 @@ function OfflineIndicator({ hideSync = false }) {
       
       if (timeoutId) clearTimeout(timeoutId);
       
-      console.log('✅ OfflineIndicator - API connectivity test succeeded:', { 
-        status: response.status, 
-        ok: response.ok,
-        endpoint, 
-      });
       
       // API is connected if we get any response (even 401 means API is reachable)
       setApiConnected(true);
@@ -65,7 +60,6 @@ function OfflineIndicator({ hideSync = false }) {
       if (error.name !== 'AbortError') {
         console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
       }
-      console.log('❌ OfflineIndicator - Setting API connected to false due to error:', error.message);
       setApiConnected(false);
       setApiTested(true);
     }

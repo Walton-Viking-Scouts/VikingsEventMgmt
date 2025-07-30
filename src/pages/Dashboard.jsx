@@ -74,7 +74,6 @@ function Dashboard() {
       const token = getToken();
       const membersData = await getListOfMembers(sectionsToLoad, token);
       setMembers(membersData);
-      console.log(`Loaded ${membersData.length} members for ${sectionsToLoad.length} sections`);
     } catch (err) {
       console.error('Error loading members:', err);
       // Don't set error here as this is secondary data - just log it

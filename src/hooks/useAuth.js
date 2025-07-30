@@ -29,12 +29,10 @@ export function useAuth() {
 
       // Check if token exists
       const hasToken = authService.isAuthenticated();
-      console.log('🔍 Auth check - has token:', hasToken);
       
       if (hasToken) {
         // Skip redundant token validation - just trust the token exists
         // Real validation happens on first actual API call (getUserRoles, etc.)
-        console.log('✅ Token found - assuming valid until proven otherwise');
         
         setIsAuthenticated(true);
         const userInfo = authService.getUserInfo();
@@ -45,9 +43,7 @@ export function useAuth() {
         setIsOfflineMode(isTokenExpired);
         
         if (isTokenExpired) {
-          console.log('✅ User authenticated in offline mode (expired token with cached data)');
         } else {
-          console.log('✅ User authenticated successfully');
         }
         
         // Log successful authentication
@@ -65,7 +61,6 @@ export function useAuth() {
         // No token exists - show login
         setIsAuthenticated(false);
         setUser(null);
-        console.log('🔐 No token found - showing login');
       }
     } catch (error) {
       console.error('Error checking authentication:', error);
@@ -123,7 +118,6 @@ export function useAuth() {
     const handleStorageChange = (e) => {
       if (!mounted) return;
       if (e.key === 'access_token' || e.key === 'osm_blocked' || e.key === 'token_invalid') {
-        console.log('🔄 Storage change detected, rechecking auth:', e.key);
         checkAuth();
       }
     };

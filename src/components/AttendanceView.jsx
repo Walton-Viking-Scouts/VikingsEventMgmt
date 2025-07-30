@@ -40,7 +40,6 @@ function AttendanceView({ events, members, onBack }) {
       for (const event of events) {
         if (event.attendanceData && Array.isArray(event.attendanceData)) {
           // Use cached attendance data
-          console.log(`Using cached attendance data for event ${event.name} (${event.attendanceData.length} records)`);
           const attendanceWithEvent = event.attendanceData.map(record => ({
             ...record,
             eventid: event.eventid,
@@ -52,7 +51,6 @@ function AttendanceView({ events, members, onBack }) {
           allAttendance.push(...attendanceWithEvent);
         } else {
           // Fallback to API call if no cached data
-          console.log(`No cached attendance data for event ${event.name}, fetching from API...`);
           try {
             const token = getToken();
             

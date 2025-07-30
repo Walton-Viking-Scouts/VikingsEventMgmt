@@ -70,7 +70,6 @@ class SyncService {
   async checkTokenAndPromptLogin() {
     const token = getToken();
     if (!token) {
-      console.log('No token found - prompting for login');
       const shouldLogin = await this.showLoginPrompt();
       if (!shouldLogin) {
         throw new Error('Authentication required but user declined to login');
@@ -79,10 +78,8 @@ class SyncService {
     }
     
     // Actually validate the token against the server
-    console.log('Token found - validating against server...');
     const isValid = await validateToken();
     if (!isValid) {
-      console.log('Token validation failed - prompting for login');
       const shouldLogin = await this.showLoginPrompt();
       if (!shouldLogin) {
         throw new Error('Authentication required but user declined to login');
@@ -90,7 +87,6 @@ class SyncService {
       return false; // Login initiated, don't continue sync
     }
     
-    console.log('Token validation successful - proceeding with sync');
     return true; // Token is valid, continue sync
   }
 
@@ -101,7 +97,6 @@ class SyncService {
         error.message.includes('Token expired') ||
         error.message.includes('Unauthorized')) {
       
-      console.log('Authentication error detected - prompting for login');
       const shouldLogin = await this.showLoginPrompt();
       if (!shouldLogin) {
         throw new Error('Authentication failed and user declined to login');
@@ -141,7 +136,6 @@ class SyncService {
   // Sync all data
   async syncAll() {
     if (this.isSyncing) {
-      console.log('Sync already in progress');
       return;
     }
 
@@ -232,7 +226,6 @@ class SyncService {
         // Load terms once for all sections - major optimization!
         const terms = await getTerms(token);
         const termCount = Object.keys(terms).length;
-        console.log(`Synced terms for ${termCount} sections`);
       }, { 
         continueOnError: false,
         contextMessage: 'Failed to sync terms',
@@ -251,7 +244,6 @@ class SyncService {
         
         // This will fetch from server and save to database
         const sections = await getUserRoles(token);
-        console.log(`Synced ${sections.length} sections`);
       }, { 
         continueOnError: false,
         contextMessage: 'Failed to sync sections',
@@ -276,7 +268,6 @@ class SyncService {
 
       // This will fetch from server and save to database
       const events = await getEvents(sectionId, termId, token);
-      console.log(`Synced ${events.length} events for section ${sectionId}`);
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync events for section ${sectionId}`,
@@ -300,7 +291,6 @@ class SyncService {
 
       // This will fetch from server and save to database
       const attendance = await getEventAttendance(sectionId, eventId, termId, token);
-      console.log(`Synced ${attendance.length} attendance records for event ${eventId}`);
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync attendance for event ${eventId}`,
@@ -332,7 +322,6 @@ class SyncService {
   async setupAutoSync() {
     // Auto-sync functionality disabled to prevent unwanted OSM API calls
     // User must manually trigger sync via dashboard sync button
-    console.log('Auto-sync disabled - manual sync only');
   }
 }
 
