@@ -209,9 +209,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setSections(sectionsData);
       await databaseService.saveSections(sectionsData);
       
-      // 2. Fetch events for each section and build cards (members loaded on-demand)
+      // 2. Fetch events for each section and build cards
       const cards = await buildEventCards(sectionsData, token);
       setEventCards(cards);
+      
+      // 3. Proactively load member data in background (non-blocking)
+      loadMemberDataInBackground(sectionsData, token);
       
       // Update last sync time
       const now = new Date();
@@ -239,6 +242,31 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // Load member data proactively in background
+  const loadMemberDataInBackground = async (sectionsData, token) => {
+    try {
+      if (!token || authHandler.hasAuthFailed()) {
+        console.log('Skipping background member loading - no valid token');
+        return;
+      }
+      
+      console.log('🔄 Starting background member data loading for enhanced UX...');
+      
+      // Use getListOfMembers which already handles caching properly
+      await getListOfMembers(sectionsData, token);
+      
+      console.log('✅ Background member data loading completed');
+      
+    } catch (error) {
+      // Don't show error to user - this is background loading
+      console.log('Background member loading failed (non-critical):', error.message);
+      logger.warn('Background member loading failed', { 
+        error: error.message,
+        sectionCount: sectionsData.length, 
+      }, LOG_CATEGORIES.COMPONENT);
     }
   };
 

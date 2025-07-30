@@ -802,6 +802,13 @@ export async function getMembersGrid(sectionId, termId, token) {
       throw new Error('No authentication token');
     }
 
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - using cached members only');
+      const cachedMembers = await databaseService.getMembers([sectionId]);
+      return cachedMembers;
+    }
+
     const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
       method: 'POST',
       headers: {

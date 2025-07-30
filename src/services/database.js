@@ -96,15 +96,51 @@ class DatabaseService {
     const createMembersTable = `
       CREATE TABLE IF NOT EXISTS members (
         scoutid INTEGER PRIMARY KEY,
+        -- Basic info
         firstname TEXT,
         lastname TEXT,
-        email TEXT,
+        date_of_birth TEXT,
+        age TEXT,
+        age_years INTEGER,
+        age_months INTEGER,
+        
+        -- Section info
         sectionid INTEGER,
         sectionname TEXT,
         section TEXT,
-        sections TEXT,
+        sections TEXT, -- JSON array of all sections this member belongs to
         patrol TEXT,
-        dateofbirth TEXT,
+        patrol_id INTEGER,
+        person_type TEXT, -- Young People, Young Leaders, Leaders
+        
+        -- Membership dates
+        started TEXT,
+        joined TEXT,
+        end_date TEXT,
+        active BOOLEAN,
+        
+        -- Photo info
+        photo_guid TEXT,
+        has_photo BOOLEAN,
+        pic BOOLEAN,
+        
+        -- Role info
+        patrol_role_level INTEGER,
+        patrol_role_level_label TEXT,
+        
+        -- Contact info (basic)
+        email TEXT,
+        
+        -- Complex data stored as JSON
+        contact_groups TEXT, -- JSON blob of all contact groups
+        custom_data TEXT,    -- JSON blob of raw custom_data from OSM
+        flattened_fields TEXT, -- JSON blob of all flattened custom fields
+        
+        -- Metadata
+        read_only TEXT, -- JSON array
+        filter_string TEXT,
+        
+        -- Timestamps
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -312,38 +348,116 @@ class DatabaseService {
     return result.values?.[0]?.needs_sync === 1;
   }
 
-  // Members
+  // Members - Single comprehensive cache approach
   async saveMembers(sectionIds, members) {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const key = `viking_members_${sectionIds.join('_')}_offline`;
-      localStorage.setItem(key, JSON.stringify(members));
+      // localStorage fallback - use single comprehensive key
+      const key = 'viking_members_comprehensive_offline';
+      
+      // Get existing members
+      let existingMembers = [];
+      try {
+        const existing = localStorage.getItem(key);
+        existingMembers = existing ? JSON.parse(existing) : [];
+      } catch (error) {
+        console.warn('Failed to parse existing members cache:', error);
+        existingMembers = [];
+      }
+      
+      // Create member map for deduplication
+      const memberMap = new Map();
+      
+      // Add existing members first
+      existingMembers.forEach(member => {
+        if (member.scoutid) {
+          memberMap.set(member.scoutid, member);
+        }
+      });
+      
+      // Add/update new members (overwrites existing with same scoutid)
+      members.forEach(member => {
+        if (member.scoutid) {
+          // Ensure sections array is properly maintained for multi-section members
+          if (memberMap.has(member.scoutid)) {
+            const existing = memberMap.get(member.scoutid);
+            const combinedSections = [...new Set([
+              ...(existing.sections || [existing.sectionname].filter(Boolean)),
+              ...(member.sections || [member.sectionname].filter(Boolean)),
+            ])];
+            member.sections = combinedSections;
+          }
+          memberMap.set(member.scoutid, member);
+        }
+      });
+      
+      // Save comprehensive member list
+      const allMembers = Array.from(memberMap.values());
+      localStorage.setItem(key, JSON.stringify(allMembers));
+      console.log(`Saved ${allMembers.length} members to comprehensive cache (${members.length} new/updated)`);
       return;
     }
     
-    // Delete existing members for these sections
-    const placeholders = sectionIds.map(() => '?').join(',');
-    const deleteOld = `DELETE FROM members WHERE sectionid IN (${placeholders})`;
-    await this.db.run(deleteOld, sectionIds);
-
+    // Use REPLACE INTO to handle updates for existing members across sections
     for (const member of members) {
+      // Separate flattened fields from known structured fields
+      const knownFields = new Set([
+        'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months',
+        'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
+        'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
+        'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
+        'read_only', 'filter_string', '_filterString',
+      ]);
+      
+      const flattenedFields = {};
+      Object.keys(member).forEach(key => {
+        if (!knownFields.has(key)) {
+          flattenedFields[key] = member[key];
+        }
+      });
+      
       const insert = `
-        INSERT INTO members (scoutid, firstname, lastname, email, sectionid, sectionname, section, sections, patrol, dateofbirth)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        REPLACE INTO members (
+          scoutid, firstname, lastname, date_of_birth, age, age_years, age_months,
+          sectionid, sectionname, section, sections, patrol, patrol_id, person_type,
+          started, joined, end_date, active, photo_guid, has_photo, pic,
+          patrol_role_level, patrol_role_level_label, email,
+          contact_groups, custom_data, flattened_fields, read_only, filter_string
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
+      
       await this.db.run(insert, [
-        member.scoutid,
+        member.scoutid || member.member_id,
         member.firstname,
         member.lastname,
-        member.email,
+        member.date_of_birth,
+        member.age,
+        member.age_years,
+        member.age_months,
         member.sectionid,
         member.sectionname,
         member.section,
         JSON.stringify(member.sections || []),
         member.patrol,
-        member.dateofbirth,
+        member.patrol_id,
+        member.person_type,
+        member.started,
+        member.joined,
+        member.end_date,
+        member.active,
+        member.photo_guid,
+        member.has_photo,
+        member.pic,
+        member.patrol_role_level,
+        member.patrol_role_level_label,
+        member.email,
+        JSON.stringify(member.contact_groups || {}),
+        JSON.stringify(member.custom_data || {}),
+        JSON.stringify(flattenedFields),
+        JSON.stringify(member.read_only || []),
+        member._filterString || member.filter_string,
       ]);
     }
 
@@ -354,21 +468,76 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const key = `viking_members_${sectionIds.join('_')}_offline`;
-      const members = localStorage.getItem(key);
-      return members ? JSON.parse(members) : [];
+      // localStorage fallback - use single comprehensive cache
+      const key = 'viking_members_comprehensive_offline';
+      
+      try {
+        const allMembers = localStorage.getItem(key);
+        if (!allMembers) {
+          return [];
+        }
+        
+        const members = JSON.parse(allMembers);
+        
+        // Filter members by requested sections
+        const filteredMembers = members.filter(member => {
+          // Must have a sectionid to be filterable
+          if (!member.sectionid) {
+            return false;
+          }
+          
+          // Convert sectionIds array to numbers for comparison (they come in as numbers)
+          const requestedSectionIds = sectionIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
+          const memberSectionId = typeof member.sectionid === 'string' ? parseInt(member.sectionid, 10) : member.sectionid;
+          
+          // Check if member's primary section matches any requested section
+          return requestedSectionIds.includes(memberSectionId);
+        });
+        
+        console.log(`Retrieved ${filteredMembers.length} members from comprehensive cache for sections ${sectionIds.join(', ')}`);
+        return filteredMembers;
+        
+      } catch (error) {
+        console.warn('Failed to parse comprehensive members cache:', error);
+        return [];
+      }
     }
     
     const placeholders = sectionIds.map(() => '?').join(',');
     const query = `SELECT * FROM members WHERE sectionid IN (${placeholders}) ORDER BY lastname, firstname`;
     const result = await this.db.query(query, sectionIds);
     
-    // Parse sections JSON back to array
-    return (result.values || []).map(member => ({
-      ...member,
-      sections: member.sections ? JSON.parse(member.sections) : [],
-    }));
+    // Reconstruct full member objects from database
+    return (result.values || []).map(dbMember => {
+      // Parse JSON fields back to objects/arrays
+      const member = {
+        ...dbMember,
+        sections: dbMember.sections ? JSON.parse(dbMember.sections) : [],
+        contact_groups: dbMember.contact_groups ? JSON.parse(dbMember.contact_groups) : {},
+        custom_data: dbMember.custom_data ? JSON.parse(dbMember.custom_data) : {},
+        read_only: dbMember.read_only ? JSON.parse(dbMember.read_only) : [],
+      };
+      
+      // Restore flattened fields to the member object
+      if (dbMember.flattened_fields) {
+        try {
+          const flattenedFields = JSON.parse(dbMember.flattened_fields);
+          Object.assign(member, flattenedFields);
+        } catch (error) {
+          console.warn('Failed to parse flattened_fields for member:', dbMember.scoutid, error);
+        }
+      }
+      
+      // Ensure backward compatibility field mappings
+      if (!member.member_id && member.scoutid) {
+        member.member_id = member.scoutid;
+      }
+      if (!member.dateofbirth && member.date_of_birth) {
+        member.dateofbirth = member.date_of_birth;
+      }
+      
+      return member;
+    });
   }
 
   // Check if we have offline data
