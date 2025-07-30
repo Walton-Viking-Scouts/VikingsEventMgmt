@@ -426,7 +426,7 @@ export async function getUserRoles(token) {
           .map(key => data[key])
           .filter(item => item && typeof item === 'object')
           .map(item => ({
-            sectionid: item.sectionid,
+            sectionid: parseInt(item.sectionid, 10), // Standardize to number
             sectionname: item.sectionname,
             section: item.section,
             sectiontype: item.section, // Map section to sectiontype for database
