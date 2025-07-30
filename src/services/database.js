@@ -232,7 +232,6 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       localStorage.setItem(key, JSON.stringify(events));
-      console.log(`Saved ${events.length} events to localStorage with key: ${key}`);
       return;
     }
     
@@ -271,7 +270,6 @@ class DatabaseService {
       const key = `viking_events_${sectionId}_offline`;
       const events = localStorage.getItem(key);
       const parsedEvents = events ? JSON.parse(events) : [];
-      console.log(`Retrieved ${parsedEvents.length} events from localStorage with key: ${key}`);
       return parsedEvents;
     }
     
@@ -395,7 +393,6 @@ class DatabaseService {
       // Save comprehensive member list
       const allMembers = Array.from(memberMap.values());
       localStorage.setItem(key, JSON.stringify(allMembers));
-      console.log(`Saved ${allMembers.length} members to comprehensive cache (${members.length} new/updated)`);
       return;
     }
     
@@ -485,7 +482,6 @@ class DatabaseService {
           return member.sectionid && sectionIds.includes(member.sectionid);
         });
         
-        console.log(`Retrieved ${filteredMembers.length} members from comprehensive cache for sections ${sectionIds.join(', ')}`);
         return filteredMembers;
         
       } catch (error) {
