@@ -9,7 +9,6 @@ import { authHandler } from './simpleAuthHandler.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
-console.log('Using Backend URL:', BACKEND_URL);
 
 // API call queue to prevent simultaneous requests
 class APIQueue {
@@ -38,7 +37,6 @@ class APIQueue {
       
       try {
         this.requestCount++;
-        console.log(`API Queue: Processing request ${this.requestCount} (${this.queue.length} remaining)`);
         
         const result = await apiCall();
         resolve(result);
@@ -236,7 +234,6 @@ export async function getTerms(token, forceRefresh = false) {
     if (!forceRefresh && termsCache && termsCacheTimestamp) {
       const cacheAge = Date.now() - termsCacheTimestamp;
       if (cacheAge < TERMS_CACHE_TTL) {
-        console.log('Using cached terms from memory');
         return termsCache;
       }
     }
@@ -246,7 +243,6 @@ export async function getTerms(token, forceRefresh = false) {
     
     // If offline, get from localStorage
     if (!isOnline) {
-      console.log('Offline - getting terms from localStorage');
       const cachedTerms = localStorage.getItem('viking_terms_offline');
       const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
       
@@ -261,7 +257,6 @@ export async function getTerms(token, forceRefresh = false) {
       throw new Error('No authentication token');
     }
 
-    console.log('Fetching fresh terms from API');
     const response = await fetch(`${BACKEND_URL}/get-terms`, {
       method: 'GET',
       headers: {
@@ -495,7 +490,6 @@ export async function getEvents(sectionId, termId, token) {
         
     // If offline, get from local database
     if (!isOnline) {
-      console.log('Offline - getting events from local database');
       const events = await databaseService.getEvents(sectionId);
       return events;
     }
@@ -556,7 +550,6 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
         
     // If offline, get from local database
     if (!isOnline) {
-      console.log('Offline - getting attendance from local database');
       const attendance = await databaseService.getAttendance(eventId);
       return attendance;
     }
@@ -699,7 +692,6 @@ export async function getStartupData(token) {
     
     // If offline, get from localStorage
     if (!isOnline) {
-      console.log('Offline - getting startup data from localStorage');
       const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
       return cachedStartupData ? JSON.parse(cachedStartupData) : null;
     }
@@ -793,7 +785,6 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // If offline, get from local database (fallback to old format)
     if (!isOnline) {
-      console.log('Offline - getting members from local database');
       const cachedMembers = await databaseService.getMembers([sectionId]);
       return cachedMembers;
     }
