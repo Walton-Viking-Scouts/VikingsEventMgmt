@@ -480,18 +480,9 @@ class DatabaseService {
         const members = JSON.parse(allMembers);
         
         // Filter members by requested sections
+        // Now that section IDs are standardized as numbers, filtering is simple
         const filteredMembers = members.filter(member => {
-          // Must have a sectionid to be filterable
-          if (!member.sectionid) {
-            return false;
-          }
-          
-          // Convert sectionIds array to numbers for comparison (they come in as numbers)
-          const requestedSectionIds = sectionIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
-          const memberSectionId = typeof member.sectionid === 'string' ? parseInt(member.sectionid, 10) : member.sectionid;
-          
-          // Check if member's primary section matches any requested section
-          return requestedSectionIds.includes(memberSectionId);
+          return member.sectionid && sectionIds.includes(member.sectionid);
         });
         
         console.log(`Retrieved ${filteredMembers.length} members from comprehensive cache for sections ${sectionIds.join(', ')}`);
