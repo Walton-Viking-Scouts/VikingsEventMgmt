@@ -47,7 +47,7 @@ function OfflineIndicator({ hideSync = false }) {
       }
       
       // Make the API request
-      const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
+      await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
       
       if (timeoutId) clearTimeout(timeoutId);
       

@@ -42,9 +42,7 @@ export function useAuth() {
         const isTokenExpired = sessionStorage.getItem('token_expired') === 'true';
         setIsOfflineMode(isTokenExpired);
         
-        if (isTokenExpired) {
-        } else {
-        }
+        // Token expiry is already handled by setting isOfflineMode above
         
         // Log successful authentication
         Sentry.addBreadcrumb({

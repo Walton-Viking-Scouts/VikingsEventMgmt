@@ -1,5 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
+import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 
 class DatabaseService {
   constructor() {
@@ -192,7 +193,7 @@ class DatabaseService {
     
     if (!this.isNative || !this.db) {
       // localStorage fallback
-      localStorage.setItem('viking_sections_offline', JSON.stringify(sections));
+      safeSetItem('viking_sections_offline', sections);
       return;
     }
     
@@ -215,8 +216,7 @@ class DatabaseService {
     
     if (!this.isNative || !this.db) {
       // localStorage fallback
-      const sections = localStorage.getItem('viking_sections_offline');
-      return sections ? JSON.parse(sections) : [];
+      return safeGetItem('viking_sections_offline', []);
     }
     
     const query = 'SELECT * FROM sections ORDER BY sectionname';
@@ -231,7 +231,7 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
-      localStorage.setItem(key, JSON.stringify(events));
+      safeSetItem(key, events);
       return;
     }
     
@@ -268,9 +268,7 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
-      const events = localStorage.getItem(key);
-      const parsedEvents = events ? JSON.parse(events) : [];
-      return parsedEvents;
+      return safeGetItem(key, []);
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';
@@ -285,7 +283,7 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_attendance_${eventId}_offline`;
-      localStorage.setItem(key, JSON.stringify(attendanceData));
+      safeSetItem(key, attendanceData);
       return;
     }
     
@@ -318,8 +316,7 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_attendance_${eventId}_offline`;
-      const attendance = localStorage.getItem(key);
-      return attendance ? JSON.parse(attendance) : [];
+      return safeGetItem(key, []);
     }
     
     const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname';
@@ -357,8 +354,7 @@ class DatabaseService {
       // Get existing members
       let existingMembers = [];
       try {
-        const existing = localStorage.getItem(key);
-        existingMembers = existing ? JSON.parse(existing) : [];
+        existingMembers = safeGetItem(key, []);
       } catch (error) {
         console.warn('Failed to parse existing members cache:', error);
         existingMembers = [];
@@ -392,7 +388,7 @@ class DatabaseService {
       
       // Save comprehensive member list
       const allMembers = Array.from(memberMap.values());
-      localStorage.setItem(key, JSON.stringify(allMembers));
+      safeSetItem(key, allMembers);
       return;
     }
     
@@ -469,12 +465,10 @@ class DatabaseService {
       const key = 'viking_members_comprehensive_offline';
       
       try {
-        const allMembers = localStorage.getItem(key);
-        if (!allMembers) {
+        const members = safeGetItem(key, []);
+        if (!members.length) {
           return [];
         }
-        
-        const members = JSON.parse(allMembers);
         
         // Filter members by requested sections
         // Now that section IDs are standardized as numbers, filtering is simple
@@ -533,8 +527,8 @@ class DatabaseService {
     
     if (!this.isNative || !this.db) {
       // localStorage fallback
-      const sections = localStorage.getItem('viking_sections_offline');
-      return !!(sections && JSON.parse(sections).length > 0);
+      const sections = safeGetItem('viking_sections_offline', []);
+      return sections.length > 0;
     }
     
     const sectionsQuery = 'SELECT COUNT(*) as count FROM sections';

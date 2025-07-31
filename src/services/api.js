@@ -2,10 +2,12 @@
 // React version of the original API module with enhanced mobile support and offline capabilities
 
 import databaseService from './database.js';
-import { Capacitor } from '@capacitor/core';
-import { Network } from '@capacitor/network';
 import { sentryUtils, logger } from './sentry.js';
 import { authHandler } from './simpleAuthHandler.js';
+import { sleep } from '../utils/asyncUtils.js';
+import { getMostRecentTermId } from '../utils/termUtils.js';
+import { checkNetworkStatus, addNetworkListener } from '../utils/networkUtils.js';
+import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
@@ -43,7 +45,7 @@ class APIQueue {
         
         // Add delay between queued API calls
         if (this.queue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await sleep(200);
         }
       } catch (error) {
         reject(error);
@@ -71,32 +73,11 @@ export const getAPIQueueStats = () => apiQueue.getStats();
 // Network status checking
 let isOnline = true;
 
-async function checkNetworkStatus() {
-  if (Capacitor.isNativePlatform()) {
-    const status = await Network.getStatus();
-    isOnline = status.connected;
-  } else {
-    isOnline = navigator.onLine;
-  }
-  return isOnline;
-}
-
-// Listen for network changes
-if (Capacitor.isNativePlatform()) {
-  Network.addListener('networkStatusChange', status => {
-    isOnline = status.connected;
-    console.log('Network status changed:', status.connected ? 'Online' : 'Offline');
-  });
-} else {
-  window.addEventListener('online', () => {
-    isOnline = true;
-    console.log('Network status: Online');
-  });
-  window.addEventListener('offline', () => {
-    isOnline = false;
-    console.log('Network status: Offline');
-  });
-}
+// Initialize network monitoring
+addNetworkListener((status) => {
+  isOnline = status.connected;
+  console.log('Network status changed:', status.connected ? 'Online' : 'Offline');
+});
 
 // Check if OSM API access is blocked
 function checkIfBlocked() {
@@ -239,12 +220,11 @@ export async function getTerms(token, forceRefresh = false) {
     }
 
     // Check network status first
-    await checkNetworkStatus();
+    isOnline = await checkNetworkStatus();
     
     // If offline, get from localStorage
     if (!isOnline) {
-      const cachedTerms = localStorage.getItem('viking_terms_offline');
-      const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
+      const terms = safeGetItem('viking_terms_offline', {});
       
       // Cache in memory for this session
       termsCache = terms;
@@ -269,7 +249,7 @@ export async function getTerms(token, forceRefresh = false) {
     const terms = data || {};
     
     // Cache terms data for offline use
-    localStorage.setItem('viking_terms_offline', JSON.stringify(terms));
+    safeSetItem('viking_terms_offline', terms);
     
     // Cache in memory for this session
     termsCache = terms;
@@ -283,8 +263,7 @@ export async function getTerms(token, forceRefresh = false) {
     // If online request fails, try localStorage as fallback
     if (isOnline) {
       try {
-        const cachedTerms = localStorage.getItem('viking_terms_offline');
-        const terms = cachedTerms ? JSON.parse(cachedTerms) : {};
+        const terms = safeGetItem('viking_terms_offline', {});
         
         // Cache in memory for this session
         termsCache = terms;
@@ -300,26 +279,11 @@ export async function getTerms(token, forceRefresh = false) {
   }
 }
 
-export async function getMostRecentTermId(sectionId, token) {
+export async function getMostRecentTermIdFromAPI(sectionId, token) {
   return apiQueue.add(async () => {
     try {
       const terms = await getTerms(token);
-      if (!terms || !terms[sectionId]) {
-        return null;
-      }
-
-      const mostRecentTerm = terms[sectionId].reduce((latest, term) => {
-        const termEndDate = new Date(term.enddate);
-        const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
-        return termEndDate > latestEndDate ? term : latest;
-      }, null);
-
-      if (!mostRecentTerm) {
-        return null;
-      }
-
-        return mostRecentTerm.termid;
-
+      return getMostRecentTermId(sectionId, terms);
     } catch (error) {
       console.error(`Error fetching most recent term ID for section ${sectionId}:`, error);
       throw error;
@@ -328,31 +292,6 @@ export async function getMostRecentTermId(sectionId, token) {
 }
 
 // Optimized version that uses pre-loaded terms to avoid multiple API calls
-export function getMostRecentTermIdFromCache(sectionId, allTerms) {
-  try {
-    if (!allTerms || !allTerms[sectionId]) {
-      console.warn(`No terms found for section ${sectionId}`);
-      return null;
-    }
-
-    const mostRecentTerm = allTerms[sectionId].reduce((latest, term) => {
-      const termEndDate = new Date(term.enddate);
-      const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
-      return termEndDate > latestEndDate ? term : latest;
-    }, null);
-
-    if (!mostRecentTerm) {
-      console.warn(`No valid term found for section ${sectionId}`);
-      return null;
-    }
-
-    return mostRecentTerm.termid;
-
-  } catch (error) {
-    console.error(`Error finding most recent term ID for section ${sectionId}:`, error);
-    return null;
-  }
-}
 
 export async function getUserRoles(token) {
   return sentryUtils.startSpan(
@@ -369,7 +308,7 @@ export async function getUserRoles(token) {
         logger.debug('Fetching user roles', { hasToken: !!token });
                 
         // Check network status first
-        await checkNetworkStatus();
+        isOnline = await checkNetworkStatus();
         span.setAttribute('network.online', isOnline);
                 
         // If offline, try to get from local database
@@ -481,7 +420,7 @@ export async function getUserRoles(token) {
 export async function getEvents(sectionId, termId, token) {
   try {
     // Check network status first
-    await checkNetworkStatus();
+    isOnline = await checkNetworkStatus();
         
     // If offline, get from local database
     if (!isOnline) {
@@ -538,7 +477,7 @@ export async function getEvents(sectionId, termId, token) {
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
     // Check network status first
-    await checkNetworkStatus();
+    isOnline = await checkNetworkStatus();
         
     // If offline, get from local database
     if (!isOnline) {
@@ -679,12 +618,11 @@ export async function getFlexiStructure(extraid, sectionid, termid, token) {
 export async function getStartupData(token) {
   try {
     // Check network status first
-    await checkNetworkStatus();
+    isOnline = await checkNetworkStatus();
     
     // If offline, get from localStorage
     if (!isOnline) {
-      const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
-      return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+      return safeGetItem('viking_startup_data_offline', null);
     }
 
     if (!token) {
@@ -704,7 +642,7 @@ export async function getStartupData(token) {
     
     // Cache startup data for offline use
     if (startupData) {
-      localStorage.setItem('viking_startup_data_offline', JSON.stringify(startupData));
+      safeSetItem('viking_startup_data_offline', startupData);
     }
     
     return startupData;
@@ -721,8 +659,7 @@ export async function getStartupData(token) {
     // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
       try {
-        const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
-        return cachedStartupData ? JSON.parse(cachedStartupData) : null;
+        return safeGetItem('viking_startup_data_offline', null);
       } catch (cacheError) {
         console.error('Cache fallback also failed:', cacheError);
       }
@@ -771,7 +708,7 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
 export async function getMembersGrid(sectionId, termId, token) {
   try {
     // Check network status first
-    await checkNetworkStatus();
+    isOnline = await checkNetworkStatus();
     
     // If offline, get from local database (fallback to old format)
     if (!isOnline) {
@@ -877,7 +814,7 @@ export async function getMembersGrid(sectionId, termId, token) {
 
 export async function getListOfMembers(sections, token) {
   // Check network status first
-  await checkNetworkStatus();
+  isOnline = await checkNetworkStatus();
   const sectionIds = sections.map(s => s.sectionid);
   
   // Try cache first (both online and offline)
@@ -907,14 +844,14 @@ export async function getListOfMembers(sections, token) {
   for (const section of sections) {
     try {
       // Add delay between sections to prevent rapid API calls
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await sleep(600);
       
       // Use cached terms instead of calling API again
-      const termId = getMostRecentTermIdFromCache(section.sectionid, allTerms);
+      const termId = getMostRecentTermId(section.sectionid, allTerms);
       if (!termId) continue;
       
       // Add delay before members grid call
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await sleep(300);
       
       // Use the new getMembersGrid API for comprehensive data
       const members = await getMembersGrid(section.sectionid, termId, token);
@@ -967,6 +904,9 @@ export async function getListOfMembers(sections, token) {
   return members;
 }
 
+// Compatibility export for tests - remove when tests are updated
+export { getMostRecentTermIdFromAPI as getMostRecentTermId };
+
 export async function testBackendConnection() {
   try {
     const response = await fetch(`${BACKEND_URL}/health`, {
@@ -976,7 +916,7 @@ export async function testBackendConnection() {
         
         
     if (response.ok) {
-      const data = await response.text();
+      await response.text();
       return true;
     } else {
       console.error('Backend connection test failed:', response.status);

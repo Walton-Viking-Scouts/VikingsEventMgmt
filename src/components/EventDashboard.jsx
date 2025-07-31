@@ -234,7 +234,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const loadMemberDataInBackground = async (sectionsData, token) => {
     try {
       if (!token || authHandler.hasAuthFailed()) {
-          return;
+        return;
       }
       
       
@@ -311,6 +311,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       try {
         members = await databaseService.getMembers([section.sectionid]);
       } catch (cacheError) {
+        // Ignore cache errors - will fallback to empty array
       }
       
       if (members.length > 0) {

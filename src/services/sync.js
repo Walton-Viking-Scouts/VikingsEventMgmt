@@ -224,8 +224,8 @@ class SyncService {
         this.notifyListeners({ status: 'syncing', message: 'Loading terms...' });
         
         // Load terms once for all sections - major optimization!
-        const terms = await getTerms(token);
-        const termCount = Object.keys(terms).length;
+        await getTerms(token);
+        // Terms loaded and cached successfully
       }, { 
         continueOnError: false,
         contextMessage: 'Failed to sync terms',
@@ -243,7 +243,7 @@ class SyncService {
         this.notifyListeners({ status: 'syncing', message: 'Syncing sections...' });
         
         // This will fetch from server and save to database
-        const sections = await getUserRoles(token);
+        await getUserRoles(token);
       }, { 
         continueOnError: false,
         contextMessage: 'Failed to sync sections',
@@ -267,7 +267,7 @@ class SyncService {
       }
 
       // This will fetch from server and save to database
-      const events = await getEvents(sectionId, termId, token);
+      await getEvents(sectionId, termId, token);
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync events for section ${sectionId}`,
@@ -290,7 +290,7 @@ class SyncService {
       }
 
       // This will fetch from server and save to database
-      const attendance = await getEventAttendance(sectionId, eventId, termId, token);
+      await getEventAttendance(sectionId, eventId, termId, token);
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync attendance for event ${eventId}`,
