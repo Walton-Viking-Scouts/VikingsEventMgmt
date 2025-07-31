@@ -1,5 +1,5 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, getMostRecentTermId, getTerms } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
@@ -260,7 +260,7 @@ class SyncService {
       this.notifyListeners({ status: 'syncing', message: `Syncing events for section ${sectionId}...` });
       
       // Get the most recent term
-      const termId = await getMostRecentTermId(sectionId, token);
+      const termId = await fetchMostRecentTermId(sectionId, token);
       if (!termId) {
         console.warn(`No term found for section ${sectionId}`);
         return;
@@ -281,7 +281,7 @@ class SyncService {
       
       if (!termId) {
         // Try to get term ID if not provided
-        termId = await getMostRecentTermId(sectionId, token);
+        termId = await fetchMostRecentTermId(sectionId, token);
       }
 
       if (!termId) {

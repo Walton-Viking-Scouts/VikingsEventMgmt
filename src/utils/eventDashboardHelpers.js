@@ -1,7 +1,7 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { getMostRecentTermId as getMostRecentTermIdFromAPI, getEvents, getEventAttendance, getTerms } from '../services/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms } from '../services/api.js';
 import { getMostRecentTermId } from './termUtils.js';
 import { sleep } from './asyncUtils.js';
 import databaseService from '../services/database.js';
@@ -70,7 +70,7 @@ export const fetchSectionEvents = async (section, token, developmentMode = false
         termId = getMostRecentTermId(section.sectionid, allTerms);
       } else {
         // Fallback to individual API call
-        termId = await getMostRecentTermIdFromAPI(section.sectionid, token);
+        termId = await fetchMostRecentTermId(section.sectionid, token);
       }
       
       if (termId) {
@@ -129,7 +129,7 @@ export const fetchEventAttendance = async (event, token, developmentMode = false
       if (!termId) {
         const termIdDelay = developmentMode ? 600 : 300;
         await sleep(termIdDelay);
-        termId = await getMostRecentTermIdFromAPI(event.sectionid, token);
+        termId = await fetchMostRecentTermId(event.sectionid, token);
         event.termid = termId;
       }
       

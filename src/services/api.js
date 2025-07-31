@@ -70,14 +70,25 @@ const apiQueue = new APIQueue();
 // Export queue stats for debugging
 export const getAPIQueueStats = () => apiQueue.getStats();
 
-// Network status checking
+// Network status checking with proper initialization
 let isOnline = true;
 
-// Initialize network monitoring
-addNetworkListener((status) => {
-  isOnline = status.connected;
-  console.log('Network status changed:', status.connected ? 'Online' : 'Offline');
-});
+// Initialize network status properly on startup
+(async () => {
+  try {
+    isOnline = await checkNetworkStatus();
+    console.log('Initial network status:', isOnline ? 'Online' : 'Offline');
+    
+    // Then set up monitoring for changes
+    addNetworkListener((status) => {
+      isOnline = status.connected;
+      console.log('Network status changed:', status.connected ? 'Online' : 'Offline');
+    });
+  } catch (error) {
+    console.warn('Failed to initialize network status, assuming online:', error);
+    isOnline = true;
+  }
+})();
 
 // Check if OSM API access is blocked
 function checkIfBlocked() {
@@ -279,7 +290,7 @@ export async function getTerms(token, forceRefresh = false) {
   }
 }
 
-export async function getMostRecentTermIdFromAPI(sectionId, token) {
+export async function fetchMostRecentTermId(sectionId, token) {
   return apiQueue.add(async () => {
     try {
       const terms = await getTerms(token);
@@ -904,8 +915,6 @@ export async function getListOfMembers(sections, token) {
   return members;
 }
 
-// Compatibility export for tests - remove when tests are updated
-export { getMostRecentTermIdFromAPI as getMostRecentTermId };
 
 export async function testBackendConnection() {
   try {

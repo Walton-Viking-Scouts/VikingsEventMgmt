@@ -9,7 +9,7 @@ import {
 
 // Mock external dependencies
 vi.mock('../../services/api.js', () => ({
-  getMostRecentTermId: vi.fn(),
+  fetchMostRecentTermId: vi.fn(),
   getEvents: vi.fn(),
   getEventAttendance: vi.fn(),
 }));
@@ -33,7 +33,7 @@ vi.mock('../../services/logger.js', () => ({
 }));
 
 // Import mocked modules for assertions
-import { getMostRecentTermId, getEvents, getEventAttendance } from '../../services/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance } from '../../services/api.js';
 import databaseService from '../../services/database.js';
 import logger from '../../services/logger.js';
 
@@ -74,13 +74,13 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const termId = 'term-123';
 
-      getMostRecentTermId.mockResolvedValue(termId);
+      fetchMostRecentTermId.mockResolvedValue(termId);
       getEvents.mockResolvedValue(mockApiEvents);
       databaseService.saveEvents.mockResolvedValue();
 
       const result = await fetchSectionEvents(mockSection, token, false);
 
-      expect(getMostRecentTermId).toHaveBeenCalledWith(1, token);
+      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
       expect(getEvents).toHaveBeenCalledWith(1, termId, token);
       expect(databaseService.saveEvents).toHaveBeenCalledWith(1, [
         {
@@ -121,7 +121,7 @@ describe('EventDashboard Helper Functions', () => {
       const result = await fetchSectionEvents(mockSection, null, false);
 
       expect(databaseService.getEvents).toHaveBeenCalledWith(1);
-      expect(getMostRecentTermId).not.toHaveBeenCalled();
+      expect(fetchMostRecentTermId).not.toHaveBeenCalled();
       expect(getEvents).not.toHaveBeenCalled();
 
       expect(result).toHaveLength(1);
@@ -136,7 +136,7 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const error = new Error('API failure');
 
-      getMostRecentTermId.mockRejectedValue(error);
+      fetchMostRecentTermId.mockRejectedValue(error);
 
       const result = await fetchSectionEvents(mockSection, token, false);
 
@@ -156,7 +156,7 @@ describe('EventDashboard Helper Functions', () => {
     it('should return empty array when no termId found', async () => {
       const token = 'mock-token';
 
-      getMostRecentTermId.mockResolvedValue(null);
+      fetchMostRecentTermId.mockResolvedValue(null);
 
       const result = await fetchSectionEvents(mockSection, token, false);
 
@@ -168,7 +168,7 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const termId = 'term-123';
 
-      getMostRecentTermId.mockResolvedValue(termId);
+      fetchMostRecentTermId.mockResolvedValue(termId);
       getEvents.mockResolvedValue(null); // Invalid response
 
       const result = await fetchSectionEvents(mockSection, token, false);
@@ -180,7 +180,7 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const termId = 'term-123';
 
-      getMostRecentTermId.mockResolvedValue(termId);
+      fetchMostRecentTermId.mockResolvedValue(termId);
       getEvents.mockResolvedValue([]);
 
       await fetchSectionEvents(mockSection, token, true);
@@ -221,12 +221,12 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const eventWithoutTerm = { ...mockEvent, termid: null };
 
-      getMostRecentTermId.mockResolvedValue('resolved-term');
+      fetchMostRecentTermId.mockResolvedValue('resolved-term');
       getEventAttendance.mockResolvedValue(mockAttendanceData);
 
       const result = await fetchEventAttendance(eventWithoutTerm, token, false);
 
-      expect(getMostRecentTermId).toHaveBeenCalledWith(1, token);
+      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'resolved-term', token);
       expect(result).toEqual(mockAttendanceData);
     });
@@ -267,7 +267,7 @@ describe('EventDashboard Helper Functions', () => {
       const token = 'mock-token';
       const eventWithoutTerm = { ...mockEvent, termid: null };
 
-      getMostRecentTermId.mockResolvedValue(null);
+      fetchMostRecentTermId.mockResolvedValue(null);
 
       const result = await fetchEventAttendance(eventWithoutTerm, token, false);
 

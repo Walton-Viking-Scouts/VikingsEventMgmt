@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getEventAttendance, getMostRecentTermId } from '../services/api.js';
+import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
@@ -57,7 +57,7 @@ function AttendanceView({ events, members, onBack }) {
             // If termid is missing, get it from API
             let termId = event.termid;
             if (!termId) {
-              termId = await getMostRecentTermId(event.sectionid, token);
+              termId = await fetchMostRecentTermId(event.sectionid, token);
             }
             
             if (termId) {
