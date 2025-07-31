@@ -86,41 +86,29 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const isDataFresh = lastSyncTime && 
         (Date.now() - new Date(lastSyncTime).getTime()) < 30 * 60 * 1000; // 30 minutes
       
-      console.log('Cache freshness check:', {
-        hasOfflineData,
-        lastSyncTime,
-        isDataFresh,
-        timeSinceLastSync: lastSyncTime ? Math.round((Date.now() - new Date(lastSyncTime).getTime()) / 60000) : 'N/A',
-      });
       
       if (hasOfflineData && isDataFresh) {
         // Recent cached data available - use cache
-        console.log('Loading fresh cached data');
         await loadCachedData();
       } else if (hasOfflineData && !isDataFresh) {
         // Stale cached data - load cache first, then auto-sync in background
-        console.log('Loading stale cached data, will auto-sync in background');
         await loadCachedData();
         
         // Auto-sync in background only if auth hasn't failed
         setTimeout(async () => {
           try {
             if (authHandler.hasAuthFailed()) {
-              console.log('Auth failed this session - skipping background sync');
               setIsOfflineMode(true);
               return;
             }
             
             const token = getToken();
             if (!token) {
-              console.log('No token available - skipping background sync');
               return;
             }
             
-            console.log('Auto-syncing stale data in background...');
             await syncData();
           } catch (error) {
-            console.log('Background sync failed:', error.message);
             // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
           }
@@ -128,7 +116,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       } else {
         // No cached data - check if we should attempt sync
         if (authHandler.hasAuthFailed()) {
-          console.log('Auth failed and no cached data - cannot sync');
           setError('Authentication expired and no cached data available. Please reconnect to OSM.');
           setIsOfflineMode(true);
           return;
@@ -136,11 +123,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         const token = getToken();
         if (!token) {
-          console.log('No token available and no cached data - showing empty state');
           return;
         }
         
-        console.log('No cached data - auto-syncing immediately');
         await syncData();
       }
     } catch (err) {
@@ -249,20 +234,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const loadMemberDataInBackground = async (sectionsData, token) => {
     try {
       if (!token || authHandler.hasAuthFailed()) {
-        console.log('Skipping background member loading - no valid token');
         return;
       }
       
-      console.log('🔄 Starting background member data loading for enhanced UX...');
       
       // Use getListOfMembers which already handles caching properly
       await getListOfMembers(sectionsData, token);
       
-      console.log('✅ Background member data loading completed');
       
     } catch (error) {
       // Don't show error to user - this is background loading
-      console.log('Background member loading failed (non-critical):', error.message);
       logger.warn('Background member loading failed', { 
         error: error.message,
         sectionCount: sectionsData.length, 
@@ -324,18 +305,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Set loading state for this specific section
       setLoadingSection(section.sectionid);
       
-      console.log(`Checking cached members for section: ${section.sectionname}`);
       
       // Try to load cached members first
       let members = [];
       try {
         members = await databaseService.getMembers([section.sectionid]);
       } catch (cacheError) {
-        console.log('No cached members found');
+        // Ignore cache errors - will fallback to empty array
       }
       
       if (members.length > 0) {
-        console.log(`Using ${members.length} cached members for section "${section.sectionname}"`);
         onNavigateToMembers(section, members);
       } else {
         // No cached data - ask user if they want to fetch from OSM
@@ -344,7 +323,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
           onConfirm: () => {
             setShowConfirmModal(false);
-            console.log('Redirecting to OSM login for authentication');
             // Redirect to OSM OAuth since we know the token is expired/invalid
             const oauthUrl = generateOAuthUrl();
             window.location.href = oauthUrl;
@@ -388,17 +366,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Extract all unique section IDs from the events in this card
       const sectionIds = [...new Set(eventCard.events.map(event => event.sectionid))];
       
-      console.log(`Loading members for ${sectionIds.length} sections involved in "${eventCard.name}":`, 
-        sectionIds,
-      );
       
       // Try to load from cache first
       let members = [];
       try {
         members = await databaseService.getMembers(sectionIds);
-        console.log(`Loaded ${members.length} members from cache for event "${eventCard.name}"`);
       } catch (cacheErr) {
-        console.log('No cached members found, fetching from API...');
         
         // Find the corresponding section objects for these IDs
         const involvedSections = sections.filter(section => 
@@ -408,7 +381,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         // Fallback to API call
         const token = getToken();
         if (!token) {
-          console.log('No token available - redirecting to login');
           const oauthUrl = generateOAuthUrl();
           window.location.href = oauthUrl;
           return;
@@ -416,7 +388,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         try {
           members = await getListOfMembers(involvedSections, token);
-          console.log(`Loaded ${members.length} members from API for event "${eventCard.name}"`);
         } catch (apiError) {
           // Check if it's an authentication error
           if (apiError.status === 401 || apiError.status === 403 || 
@@ -424,7 +395,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               apiError.message.includes('Token expired') ||
               apiError.message.includes('Unauthorized')) {
             
-            console.log('Authentication error - redirecting to login');
             const oauthUrl = generateOAuthUrl();
             window.location.href = oauthUrl;
             return;

@@ -46,26 +46,31 @@ function OfflineIndicator({ hideSync = false }) {
         console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
       }
       
-      // Make the API request
+      // Make the API request and validate response
       const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
       
       if (timeoutId) clearTimeout(timeoutId);
       
-      console.log('✅ OfflineIndicator - API connectivity test succeeded:', { 
-        status: response.status, 
-        ok: response.ok,
-        endpoint, 
-      });
-      
-      // API is connected if we get any response (even 401 means API is reachable)
-      setApiConnected(true);
-      setApiTested(true);
+      // Validate response status - API is reachable if we get a valid HTTP response
+      // Accept 2xx success responses and 4xx client errors (means API is up but may require auth)
+      // Reject 5xx server errors (means API is down/broken)
+      if (response.status >= 200 && response.status < 500) {
+        // API is connected - successful response or client error (like 401 auth required)
+        setApiConnected(true);
+        setApiTested(true);
+        
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log(`✅ OfflineIndicator - API connectivity confirmed (status: ${response.status})`);
+        }
+      } else {
+        // Server error (5xx) - API is not functioning properly
+        throw new Error(`API server error: ${response.status} ${response.statusText}`);
+      }
     } catch (error) {
       // Only log non-abort errors to avoid spam
       if (error.name !== 'AbortError') {
         console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
       }
-      console.log('❌ OfflineIndicator - Setting API connected to false due to error:', error.message);
       setApiConnected(false);
       setApiTested(true);
     }

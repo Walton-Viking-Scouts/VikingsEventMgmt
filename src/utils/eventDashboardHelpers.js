@@ -1,7 +1,9 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { getMostRecentTermId, getMostRecentTermIdFromCache, getEvents, getEventAttendance, getTerms } from '../services/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms } from '../services/api.js';
+import { getMostRecentTermId } from './termUtils.js';
+import { sleep } from './asyncUtils.js';
 import databaseService from '../services/database.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
@@ -59,21 +61,21 @@ export const fetchSectionEvents = async (section, token, developmentMode = false
     if (token) {
       // Add delay between sections to prevent rapid API calls
       const sectionDelay = developmentMode ? 1500 : 800;
-      await new Promise(resolve => setTimeout(resolve, sectionDelay));
+      await sleep(sectionDelay);
       
       // Fetch from API - use cached terms if available for major optimization
       let termId;
       if (allTerms) {
         // Use pre-loaded terms (avoids API call per section!)
-        termId = getMostRecentTermIdFromCache(section.sectionid, allTerms);
+        termId = getMostRecentTermId(section.sectionid, allTerms);
       } else {
         // Fallback to individual API call
-        termId = await getMostRecentTermId(section.sectionid, token);
+        termId = await fetchMostRecentTermId(section.sectionid, token);
       }
       
       if (termId) {
         const eventDelay = developmentMode ? 1000 : 500;
-        await new Promise(resolve => setTimeout(resolve, eventDelay));
+        await sleep(eventDelay);
         const sectionEvents = await getEvents(section.sectionid, termId, token);
         if (sectionEvents && Array.isArray(sectionEvents)) {
           events = sectionEvents.map(event => ({
@@ -120,20 +122,20 @@ export const fetchEventAttendance = async (event, token, developmentMode = false
     if (token) {
       // Add delay between attendance calls to prevent rapid API calls
       const attendanceDelay = developmentMode ? 1200 : 600;
-      await new Promise(resolve => setTimeout(resolve, attendanceDelay));
+      await sleep(attendanceDelay);
       
       // If termid is missing, get it from API
       let termId = event.termid;
       if (!termId) {
         const termIdDelay = developmentMode ? 600 : 300;
-        await new Promise(resolve => setTimeout(resolve, termIdDelay));
-        termId = await getMostRecentTermId(event.sectionid, token);
+        await sleep(termIdDelay);
+        termId = await fetchMostRecentTermId(event.sectionid, token);
         event.termid = termId;
       }
       
       if (termId) {
         const finalDelay = developmentMode ? 800 : 400;
-        await new Promise(resolve => setTimeout(resolve, finalDelay));
+        await sleep(finalDelay);
         const attendanceData = await getEventAttendance(
           event.sectionid, 
           event.eventid, 
