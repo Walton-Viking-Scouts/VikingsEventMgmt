@@ -1,5 +1,5 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, preloadFlexiRecordStructures } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
@@ -168,6 +168,20 @@ class SyncService {
       
       // Get sections from database to sync events and attendance
       const sections = await databaseService.getSections();
+      
+      // Preload flexirecord structures (optimization to reduce API calls during usage)
+      try {
+        await this.withAuthErrorHandling(async () => {
+          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord structures...' });
+          await preloadFlexiRecordStructures(sections, token);
+        }, { 
+          continueOnError: true, // Don't fail sync if flexirecord preloading fails
+          contextMessage: 'Failed to preload flexirecord structures',
+        });
+      } catch (error) {
+        console.warn('Flexirecord preloading failed, continuing with sync:', error.message);
+        // Continue with sync - this is optimization, not critical
+      }
       
       // Sync events for each section
       for (const section of sections) {

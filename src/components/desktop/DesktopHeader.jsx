@@ -54,7 +54,18 @@ function DesktopHeader({ user, onLogout, onLogin, isOfflineMode }) {
                 )}
               </span>
               <div className="flex items-center gap-2">
-                {isOfflineMode ? (
+                <Button
+                  variant="outline-scout-red"
+                  size="sm"
+                  onClick={handleLogout}
+                  type="button"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 001-1h10.586l-2.293 2.293a1 1 0 001.414 1.414l4-4a1 1 0 000-1.414l-4-4a1 1 0 10-1.414 1.414L15.586 3H4z" clipRule="evenodd" />
+                  </svg>
+                  {isOfflineMode ? 'Clear Data' : 'Logout'}
+                </Button>
+                {isOfflineMode && (
                   <Button
                     variant="outline-scout-green"
                     size="sm"
@@ -65,33 +76,6 @@ function DesktopHeader({ user, onLogout, onLogin, isOfflineMode }) {
                       <path fillRule="evenodd" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" clipRule="evenodd" />
                     </svg>
                     Login
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline-scout-red"
-                    size="sm"
-                    onClick={handleLogout}
-                    type="button"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 001-1h10.586l-2.293 2.293a1 1 0 001.414 1.414l4-4a1 1 0 000-1.414l-4-4a1 1 0 10-1.414 1.414L15.586 3H4z" clipRule="evenodd" />
-                    </svg>
-                    Logout
-                  </Button>
-                )}
-                {isOfflineMode && (
-                  <Button
-                    variant="outline-scout-red"
-                    size="sm"
-                    onClick={handleLogout}
-                    type="button"
-                    className="opacity-75"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
-                      <path fillRule="evenodd" d="M10 15a4 4 0 01-4-4V5a4 4 0 118 0v6a4 4 0 01-4 4z" clipRule="evenodd" />
-                    </svg>
-                    Clear Data
                   </Button>
                 )}
               </div>
