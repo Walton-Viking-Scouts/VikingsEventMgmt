@@ -253,6 +253,17 @@ export function extractVikingEventFields(consolidatedData) {
 }
 
 /**
+ * Check if a member should be included in camp groups
+ * @param {Object} memberDetails - Member details object
+ * @returns {boolean} True if member should be included in camp groups
+ */
+function shouldIncludeInCampGroups(memberDetails) {
+  const personType = memberDetails.person_type;
+  // Skip Leaders and Young Leaders - flexirecords don't apply to them
+  return personType !== 'Leaders' && personType !== 'Young Leaders';
+}
+
+/**
  * Organize members by their camp groups
  * Groups attendees by their CampGroup field value and classifies by person_type
  * 
@@ -323,13 +334,11 @@ export function organizeMembersByCampGroups(attendees, allMembers, vikingEventDa
         return;
       }
 
-      // Skip Leaders and Young Leaders - flexirecords don't apply to them
-      const personType = memberDetails.person_type;
-      if (personType === 'Leaders' || personType === 'Young Leaders') {
+      if (!shouldIncludeInCampGroups(memberDetails)) {
         logger.debug('Skipping leader from camp groups', {
           scoutid: attendee.scoutid,
           name: `${attendee.firstname} ${attendee.lastname}`,
-          personType: personType,
+          personType: memberDetails.person_type,
         }, LOG_CATEGORIES.APP);
         return;
       }
