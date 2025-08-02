@@ -121,18 +121,8 @@ function AttendanceView({ events, members, onBack }) {
     try {
       const token = getToken();
       
-      // Get termId from events or fetch most recent for first section
-      let termId = events[0]?.termid;
-      if (!termId && events.length > 0) {
-        termId = await fetchMostRecentTermId(events[0]?.sectionid, token);
-      }
-
-      if (!termId) {
-        console.warn('No term ID available for Viking Event Management data');
-        return;
-      }
-
-      // Load Viking Event Management data for all sections (events contain their own termIds)
+      // Load Viking Event Management data for all sections
+      // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token);
       setVikingEventData(vikingEventMap);
       
