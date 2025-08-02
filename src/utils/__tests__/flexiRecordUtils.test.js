@@ -4,7 +4,6 @@ import {
   parseFlexiStructure,
   transformFlexiRecordData,
   getConsolidatedFlexiRecord,
-  getAllConsolidatedFlexiRecords,
   extractVikingEventFields,
 } from '../flexiRecordUtils.js';
 
@@ -282,90 +281,6 @@ describe('FlexiRecord Utilities', () => {
     });
   });
 
-  describe('getAllConsolidatedFlexiRecords', () => {
-    it('should get all consolidated flexirecords', async () => {
-      const { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } = await import('../../services/api.js');
-      
-      const mockFlexiList = {
-        items: [
-          { extraid: '72758', name: 'Viking Event Mgmt' },
-          { extraid: '59145', name: 'Lodge' },
-        ],
-      };
-
-      const mockStructure = {
-        name: 'Viking Event Mgmt',
-        extraid: '72758',
-        config: '[{"id":"f_1","name":"CampGroup","width":"150"}]',
-        structure: [],
-        archived: '0',
-        soft_deleted: '0',
-      };
-
-      const mockData = {
-        identifier: 'scoutid',
-        items: [{ scoutid: '123', firstname: 'Test', f_1: 1 }],
-      };
-
-      getFlexiRecords.mockResolvedValue(mockFlexiList);
-      getFlexiStructure.mockResolvedValue(mockStructure);
-      getSingleFlexiRecord.mockResolvedValue(mockData);
-
-      const results = await getAllConsolidatedFlexiRecords('49097', 'term123', 'token');
-
-      expect(results).toHaveLength(2);
-      expect(results[0]).toHaveProperty('_structure');
-      expect(results[0]._structure.name).toBe('Viking Event Mgmt');
-      expect(results[0].items[0]).toHaveProperty('CampGroup', 1);
-    });
-
-    it('should handle partial failures', async () => {
-      const { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } = await import('../../services/api.js');
-      
-      const mockFlexiList = {
-        items: [
-          { extraid: '72758', name: 'Viking Event Mgmt' },
-          { extraid: '59145', name: 'Lodge' },
-        ],
-      };
-
-      const mockStructure = {
-        name: 'Viking Event Mgmt',
-        extraid: '72758',
-        config: '[{"id":"f_1","name":"CampGroup","width":"150"}]',
-        structure: [],
-        archived: '0',
-        soft_deleted: '0',
-      };
-
-      const mockData = {
-        identifier: 'scoutid',
-        items: [{ scoutid: '123', f_1: 1 }],
-      };
-
-      getFlexiRecords.mockResolvedValue(mockFlexiList);
-      getFlexiStructure.mockImplementation((flexiId) => {
-        if (flexiId === '72758') return Promise.resolve(mockStructure);
-        return Promise.reject(new Error('Structure not found'));
-      });
-      getSingleFlexiRecord.mockResolvedValue(mockData);
-
-      const results = await getAllConsolidatedFlexiRecords('49097', 'term123', 'token');
-
-      expect(results).toHaveLength(1); // Only successful one
-      expect(results[0]._structure.name).toBe('Viking Event Mgmt');
-    });
-
-    it('should return empty array when no flexirecords exist', async () => {
-      const { getFlexiRecords } = await import('../../services/api.js');
-      
-      getFlexiRecords.mockResolvedValue({ items: [] });
-
-      const results = await getAllConsolidatedFlexiRecords('49097', 'term123', 'token');
-
-      expect(results).toHaveLength(0);
-    });
-  });
 
   describe('extractVikingEventFields', () => {
     it('should extract Viking-specific fields', () => {
