@@ -36,7 +36,15 @@ function Header({ user, onLogout, isOfflineMode, onLogin }) {
                 )}
               </span>
               <div className="flex items-center gap-2">
-                {isOfflineMode ? (
+                <Button 
+                  variant="scout-red"
+                  size="sm"
+                  onClick={handleLogout}
+                  data-testid="logout-button"
+                >
+                  {isOfflineMode ? 'Clear Data' : 'Logout'}
+                </Button>
+                {isOfflineMode && (
                   <Button 
                     variant="scout-green"
                     size="sm"
@@ -44,26 +52,6 @@ function Header({ user, onLogout, isOfflineMode, onLogin }) {
                     data-testid="login-button"
                   >
                     Login
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="scout-red"
-                    size="sm"
-                    onClick={handleLogout}
-                    data-testid="logout-button"
-                  >
-                    Logout
-                  </Button>
-                )}
-                {isOfflineMode && (
-                  <Button 
-                    variant="scout-red"
-                    size="sm"
-                    onClick={handleLogout}
-                    data-testid="clear-data-button"
-                    className="opacity-75"
-                  >
-                    Clear Data
                   </Button>
                 )}
               </div>

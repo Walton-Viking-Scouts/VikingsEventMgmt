@@ -1,5 +1,5 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, preloadFlexiRecordStructures } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
@@ -169,6 +169,21 @@ class SyncService {
       // Get sections from database to sync events and attendance
       const sections = await databaseService.getSections();
       
+      // Preload static flexirecord data (lists and structures) for faster access later
+      // Dynamic data (actual member values) is loaded on-demand when "View Attendees" is clicked
+      try {
+        await this.withAuthErrorHandling(async () => {
+          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord lists and structures...' });
+          await preloadFlexiRecordStructures(sections, token);
+        }, { 
+          continueOnError: true, // Don't fail sync if flexirecord preloading fails
+          contextMessage: 'Failed to preload flexirecord static data',
+        });
+      } catch (error) {
+        console.warn('FlexiRecord static data preloading failed, continuing with sync:', error.message);
+        // Continue with sync - this is optimization, not critical
+      }
+      
       // Sync events for each section
       for (const section of sections) {
         await this.syncEvents(section.sectionid, token);
@@ -296,6 +311,7 @@ class SyncService {
       contextMessage: `Failed to sync attendance for event ${eventId}`,
     });
   }
+
 
   // Get sync status
   async getSyncStatus() {
