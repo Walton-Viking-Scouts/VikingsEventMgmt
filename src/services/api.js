@@ -338,6 +338,66 @@ export async function fetchMostRecentTermId(sectionId, token) {
   });
 }
 
+/**
+ * Helper function to retrieve user info with multiple fallback strategies
+ * @param {string} token - Authentication token
+ * @returns {Promise<Object>} User info object
+ */
+async function retrieveUserInfo(token) {
+  // First try to get from startup data API which contains user info
+  try {
+    const startupData = await getStartupData(token);
+    if (startupData && startupData.globals) {
+      const userInfo = {
+        firstname: startupData.globals.firstname || 'Scout Leader',
+        lastname: startupData.globals.lastname || '',
+        userid: startupData.globals.userid || null,
+        email: startupData.globals.email || null,
+      };
+      
+      logger.info('User info found in startup data', { firstname: userInfo.firstname });
+      return userInfo;
+    } else {
+      throw new Error('No globals data in startup response');
+    }
+  } catch (startupError) {
+    logger.warn('Failed to get startup data for user info:', startupError.message);
+    
+    // Fallback: try to get from cache/localStorage  
+    const cachedStartupData = safeGetItem('viking_startup_data_offline');
+    if (cachedStartupData && cachedStartupData.globals) {
+      const userInfo = {
+        firstname: cachedStartupData.globals.firstname || 'Scout Leader',
+        lastname: cachedStartupData.globals.lastname || '',
+        userid: cachedStartupData.globals.userid || null,
+        email: cachedStartupData.globals.email || null,
+      };
+      
+      logger.info('User info found in cached startup data', { firstname: userInfo.firstname });
+      return userInfo;
+    } else {
+      // Don't overwrite existing user info if we can't find it
+      const authService = await import('./auth.js');
+      const existingUserInfo = authService.getUserInfo();
+      
+      if (!existingUserInfo) {
+        // Ultimate fallback - only if no existing user info
+        const fallbackUserInfo = {
+          firstname: 'Scout Leader',
+          lastname: '',
+          userid: null,
+          email: null,
+        };
+        logger.warn('Created fallback user info - no startup data available');
+        return fallbackUserInfo;
+      } else {
+        logger.info('Keeping existing user info', { firstname: existingUserInfo.firstname });
+        return existingUserInfo;
+      }
+    }
+  }
+}
+
 // Optimized version that uses pre-loaded terms to avoid multiple API calls
 
 export async function getUserRoles(token) {
@@ -398,59 +458,9 @@ export async function getUserRoles(token) {
         }
 
         // Get user information from startup data (getUserRoles doesn't contain user info)
-        try {
-          // First try to get from startup data API which contains user info
-          const startupData = await getStartupData(token);
-          if (startupData && startupData.globals) {
-            const userInfo = {
-              firstname: startupData.globals.firstname || 'Scout Leader',
-              lastname: startupData.globals.lastname || '',
-              userid: startupData.globals.userid || null,
-              email: startupData.globals.email || null,
-            };
-            
-            const authService = await import('./auth.js');
-            authService.setUserInfo(userInfo);
-            logger.info('User info found in startup data', { firstname: userInfo.firstname });
-          } else {
-            throw new Error('No globals data in startup response');
-          }
-        } catch (startupError) {
-          logger.warn('Failed to get startup data for user info:', startupError.message);
-          
-          // Fallback: try to get from cache/localStorage  
-          const cachedStartupData = safeGetItem('viking_startup_data_offline');
-          if (cachedStartupData && cachedStartupData.globals) {
-            const userInfo = {
-              firstname: cachedStartupData.globals.firstname || 'Scout Leader',
-              lastname: cachedStartupData.globals.lastname || '',
-              userid: cachedStartupData.globals.userid || null,
-              email: cachedStartupData.globals.email || null,
-            };
-            
-            const authService = await import('./auth.js');
-            authService.setUserInfo(userInfo);
-            logger.info('User info found in cached startup data', { firstname: userInfo.firstname });
-          } else {
-            // Don't overwrite existing user info if we can't find it
-            const authService = await import('./auth.js');
-            const existingUserInfo = authService.getUserInfo();
-            
-            if (!existingUserInfo) {
-              // Ultimate fallback - only if no existing user info
-              const fallbackUserInfo = {
-                firstname: 'Scout Leader',
-                lastname: '',
-                userid: null,
-                email: null,
-              };
-              authService.setUserInfo(fallbackUserInfo);
-              logger.warn('Created fallback user info - no startup data available');
-            } else {
-              logger.info('Keeping existing user info', { firstname: existingUserInfo.firstname });
-            }
-          }
-        }
+        const userInfo = await retrieveUserInfo(token);
+        const authService = await import('./auth.js');
+        authService.setUserInfo(userInfo);
 
         const sections = Object.keys(data)
           .filter(key => !isNaN(key))

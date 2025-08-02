@@ -23,7 +23,6 @@ import { isMobileLayout } from '../utils/platform.js';
 function CampGroupsView({ events = [], attendees = [], members = [], onError }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [_campGroupsData, setCampGroupsData] = useState(new Map());
   const [organizedGroups, setOrganizedGroups] = useState({ groups: {}, summary: {} });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
@@ -76,8 +75,6 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         
         // Check abort signal before setting state
         if (abortController.signal.aborted) return;
-        
-        setCampGroupsData(campGroups);
 
         // Organize attendees by camp groups
         // For multi-section events, we need to determine which section's camp groups to use
