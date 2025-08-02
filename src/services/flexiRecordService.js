@@ -484,7 +484,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
 
     const vikingEventPromises = sectionTermCombos.map(async ({ sectionId, termId }) => {
       try {
-        if (!termId || termId === 'undefined') {
+        if (!termId || termId === 'undefined' || termId === 'null' || termId === '') {
           throw new Error(`Event missing termId for section ${sectionId} - this should not happen`);
         }
 
