@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
+import SectionFilter from './SectionFilter.jsx';
+import CampGroupsView from './CampGroupsView.jsx';
+import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { Card, Button, Badge, Alert } from './ui';
 
 function AttendanceView({ events, members, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
+  const [vikingEventData, setVikingEventData] = useState(new Map()); // Map of sectionId to flexirecord data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('summary'); // summary, detailed
+  const [viewMode, setViewMode] = useState('summary'); // summary, detailed, campGroups
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -22,6 +26,16 @@ function AttendanceView({ events, members, onBack }) {
     no: true,
     invited: true,
     notInvited: false,
+  });
+  
+  // Section filter state - initialize with all sections enabled
+  const [sectionFilters, setSectionFilters] = useState(() => {
+    const filters = {};
+    const uniqueSections = [...new Set(events.map(e => e.sectionid))];
+    uniqueSections.forEach(sectionId => {
+      filters[sectionId] = true;
+    });
+    return filters;
   });
 
   useEffect(() => {
@@ -91,11 +105,30 @@ function AttendanceView({ events, members, onBack }) {
       
       setAttendanceData(allAttendance);
       
+      // Load Viking Event Management data (fresh when possible, cache as fallback)
+      await loadVikingEventData();
+      
     } catch (err) {
       console.error('Error loading attendance:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load Viking Event Management flexirecord data (fresh preferred, cache fallback)
+  const loadVikingEventData = async () => {
+    try {
+      const token = getToken();
+      
+      // Load Viking Event Management data for all sections
+      // getVikingEventDataForEvents handles section-term combinations correctly
+      const vikingEventMap = await getVikingEventDataForEvents(events, token);
+      setVikingEventData(vikingEventMap);
+      
+    } catch (error) {
+      console.warn('Error loading Viking Event Management data:', error);
+      // Don't set error state as this is supplementary data
     }
   };
 
@@ -109,6 +142,43 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
+  // Format date and time in UK format (DD/MM/YYYY HH:MM)
+  const formatUKDateTime = (dateString) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Create a memoized lookup map for Viking Event data to improve performance
+  // Builds once when vikingEventData changes, provides O(1) lookups instead of O(n×m) searches
+  const vikingEventLookup = useMemo(() => {
+    const lookup = new Map();
+    for (const [, sectionData] of vikingEventData.entries()) {
+      if (sectionData && sectionData.items) {
+        sectionData.items.forEach(item => {
+          lookup.set(item.scoutid, item);
+        });
+      }
+    }
+    return lookup;
+  }, [vikingEventData]);
+
+  // Get Viking Event Management data for a specific member using optimized O(1) lookup
+  const getVikingEventDataForMember = (scoutid, _memberEventData) => {
+    return vikingEventLookup.get(scoutid) || null;
+  };
+
   const getAttendanceStatus = (attending) => {
     if (attending === 'Yes' || attending === '1') return 'yes';
     if (attending === 'No') return 'no';
@@ -117,19 +187,22 @@ function AttendanceView({ events, members, onBack }) {
     return 'notInvited';
   };
 
-  // Filter attendance data based on active filters
-  const filterAttendanceData = (data, filters) => {
+  // Filter attendance data based on active filters (attendance status + sections)
+  const filterAttendanceData = (data, attendanceFilters, sectionFilters) => {
     return data.filter(record => {
-      const status = getAttendanceStatus(record.attending);
-      return filters[status];
+      const attendanceStatus = getAttendanceStatus(record.attending);
+      const attendanceMatch = attendanceFilters[attendanceStatus];
+      const sectionMatch = sectionFilters[record.sectionid];
+      
+      return attendanceMatch && sectionMatch;
     });
   };
 
   // Update filtered data when attendance data or filters change
   useEffect(() => {
-    const filtered = filterAttendanceData(attendanceData, attendanceFilters);
+    const filtered = filterAttendanceData(attendanceData, attendanceFilters, sectionFilters);
     setFilteredAttendanceData(filtered);
-  }, [attendanceData, attendanceFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [attendanceData, attendanceFilters, sectionFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getSummaryStats = () => {
     const memberStats = {};
@@ -140,12 +213,14 @@ function AttendanceView({ events, members, onBack }) {
         memberStats[memberKey] = {
           name: memberKey,
           scoutid: record.scoutid,
+          sectionid: record.sectionid, // Store section ID for Viking Event data lookup
           yes: 0,
           no: 0,
           invited: 0,
           notInvited: 0,
           total: 0,
           events: [],
+          vikingEventData: null, // Will be populated below
         };
       }
       
@@ -158,7 +233,22 @@ function AttendanceView({ events, members, onBack }) {
         date: record.eventdate,
         status: status,
         attending: record.attending,
+        sectionname: record.sectionname,
       });
+    });
+    
+    // Populate Viking Event Management data for each member
+    Object.values(memberStats).forEach(member => {
+      const vikingData = getVikingEventDataForMember(member.scoutid, member);
+      
+      if (vikingData) {
+        member.vikingEventData = {
+          SignedInBy: vikingData.SignedInBy,
+          SignedInWhen: vikingData.SignedInWhen,
+          SignedOutBy: vikingData.SignedOutBy,
+          SignedOutWhen: vikingData.SignedOutWhen,
+        };
+      }
     });
     
     return Object.values(memberStats);
@@ -382,6 +472,17 @@ function AttendanceView({ events, members, onBack }) {
   const summaryStats = getSummaryStats();
   const simplifiedSummaryStats = getSimplifiedAttendanceSummaryStats();
 
+  // Get unique sections from events for the section filter
+  const uniqueSections = events.reduce((acc, event) => {
+    if (!acc.find(section => section.sectionid === event.sectionid)) {
+      acc.push({
+        sectionid: event.sectionid,
+        sectionname: event.sectionname,
+      });
+    }
+    return acc;
+  }, []);
+
   return (
     <div>
       {/* Simplified Attendance Summary Card */}
@@ -577,10 +678,19 @@ function AttendanceView({ events, members, onBack }) {
             Back to Dashboard
             </Button>
             {attendanceData.length > 0 && (
-              <CompactAttendanceFilter
-                filters={attendanceFilters}
-                onFiltersChange={setAttendanceFilters}
-              />
+              <div className="flex flex-col gap-3">
+                <CompactAttendanceFilter
+                  filters={attendanceFilters}
+                  onFiltersChange={setAttendanceFilters}
+                />
+                {uniqueSections.length > 1 && (
+                  <SectionFilter
+                    sectionFilters={sectionFilters}
+                    onFiltersChange={setSectionFilters}
+                    sections={uniqueSections}
+                  />
+                )}
+              </div>
             )}
           </div>
         </Card.Header>
@@ -611,6 +721,17 @@ function AttendanceView({ events, members, onBack }) {
               >
               Detailed
               </button>
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'campGroups' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('campGroups')}
+                type="button"
+              >
+              Camp Groups
+              </button>
             </nav>
           </div>
 
@@ -627,12 +748,20 @@ function AttendanceView({ events, members, onBack }) {
               </p>
               <Button
                 variant="scout-blue"
-                onClick={() => setAttendanceFilters({
-                  yes: true,
-                  no: true,
-                  invited: true,
-                  notInvited: true,
-                })}
+                onClick={() => {
+                  setAttendanceFilters({
+                    yes: true,
+                    no: true,
+                    invited: true,
+                    notInvited: true,
+                  });
+                  // Also reset section filters to show all sections
+                  const allSectionsEnabled = {};
+                  uniqueSections.forEach(section => {
+                    allSectionsEnabled[section.sectionid] = true;
+                  });
+                  setSectionFilters(allSectionsEnabled);
+                }}
                 type="button"
               >
                 Show All Records
@@ -659,6 +788,18 @@ function AttendanceView({ events, members, onBack }) {
                     Attendance Status {getSortIcon('attendance')}
                       </div>
                     </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Signed In By
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Signed In When
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Signed Out By
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Signed Out When
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -677,28 +818,37 @@ function AttendanceView({ events, members, onBack }) {
                           <div className="flex gap-2 flex-wrap">
                             {member.yes > 0 && (
                               <Badge variant="scout-green" className="text-xs">
-                              Yes: {member.yes}
+                              Yes
                               </Badge>
                             )}
                             {member.no > 0 && (
                               <Badge variant="scout-red" className="text-xs">
-                              No: {member.no}
+                              No
                               </Badge>
                             )}
                             {member.invited > 0 && (
                               <Badge variant="scout-blue" className="text-xs">
-                              Invited: {member.invited}
+                              Invited
                               </Badge>
                             )}
                             {member.notInvited > 0 && (
                               <Badge variant="secondary" className="text-xs">
-                              Not Invited: {member.notInvited}
+                              Not Invited
                               </Badge>
                             )}
                           </div>
-                          <div className="text-gray-500 text-sm mt-1">
-                          Total events: {member.total}
-                          </div>
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.vikingEventData?.SignedInBy || '-'}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {member.vikingEventData?.SignedInWhen ? formatUKDateTime(member.vikingEventData.SignedInWhen) : '-'}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.vikingEventData?.SignedOutBy || '-'}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {member.vikingEventData?.SignedOutWhen ? formatUKDateTime(member.vikingEventData.SignedOutWhen) : '-'}
                         </td>
                       </tr>
                     );
@@ -796,6 +946,15 @@ function AttendanceView({ events, members, onBack }) {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {viewMode === 'campGroups' && (
+            <CampGroupsView
+              events={events}
+              attendees={filteredAttendanceData}
+              members={members}
+              onError={(error) => setError(error.message)}
+            />
           )}
         </Card.Body>
       </Card>

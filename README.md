@@ -24,6 +24,14 @@ A responsive React application for Scout event management with full offline capa
 - **Shared authentication** and API layer
 - **Real-time sync** between web and mobile versions
 
+### 🏕️ **Camp Group Management**
+- **FlexiRecord integration** for custom OSM data
+- **Camp group assignments** with member organization
+- **Sign-in/out tracking** for event attendance
+- **Offline-first caching** with smart refresh strategies
+- **Field mapping** from OSM generic fields to meaningful names
+- **Multi-section event support** with proper data isolation
+
 ## Getting Started
 
 ### Prerequisites
@@ -144,9 +152,16 @@ src/
 │   ├── api.js             # API layer with offline support
 │   ├── auth.js            # Authentication
 │   ├── database.js        # SQLite database service
+│   ├── flexiRecordService.js # FlexiRecord data management with caching
 │   └── sync.js            # Data synchronization
 ├── utils/                  # Utilities
-│   └── platform.js        # Platform detection
+│   ├── platform.js        # Platform detection
+│   ├── asyncUtils.js      # Async utility functions
+│   ├── storageUtils.js    # Safe storage operations
+│   ├── networkUtils.js    # Network status management
+│   ├── termUtils.js       # Term processing utilities
+│   ├── eventDashboardHelpers.js # Event dashboard data processing
+│   └── flexiRecordTransforms.js # FlexiRecord data transformation
 ├── test/                   # Test setup
 │   └── setup.js
 ├── App.jsx                 # Main app component
@@ -167,6 +182,7 @@ The app automatically detects the platform and adjusts the UI:
 - **Sections** - Scout sections and permissions
 - **Events** - Event details and dates
 - **Attendance** - Member attendance records
+- **FlexiRecord Data** - Camp groups and custom field data (cached)
 - **Sync Status** - Track synchronization state
 
 #### API Layer with Smart Fallbacks
@@ -218,6 +234,18 @@ User Action → Local Database → UI Update
 ```
 Network Restored → Fetch Latest Data → Update Local Storage → Sync Status → UI Update
 ```
+
+### FlexiRecord Data Flow
+```
+App Startup → Preload Static Data (Lists + Structures) → Cache with TTL
+View Attendees → Force Refresh Dynamic Data → getSingleFlexiRecord API → Transform & Display
+```
+
+#### FlexiRecord Caching Strategy
+- **Static Data** (preloaded): 30-60 minute TTL for structures and lists
+- **Dynamic Data** (on-demand): 5 minute TTL with force refresh for real-time accuracy
+- **Field Transformation**: f_1 → CampGroup, f_2 → SignedInBy, etc.
+- **Multi-section Support**: Proper data isolation and section-specific caching
 
 ## Development
 

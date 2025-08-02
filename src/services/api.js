@@ -2,7 +2,8 @@
 // React version of the original API module with enhanced mobile support and offline capabilities
 
 import databaseService from './database.js';
-import { sentryUtils, logger } from './sentry.js';
+import { sentryUtils } from './sentry.js';
+import logger, { LOG_CATEGORIES } from './logger.js';
 import { authHandler } from './simpleAuthHandler.js';
 import { sleep } from '../utils/asyncUtils.js';
 import { getMostRecentTermId } from '../utils/termUtils.js';
@@ -70,6 +71,36 @@ const apiQueue = new APIQueue();
 // Export queue stats for debugging
 export const getAPIQueueStats = () => apiQueue.getStats();
 
+// Clear all flexirecord caches (useful after fixing auth issues)
+export function clearFlexiRecordCaches() {
+  logger.info('Clearing all flexirecord caches', {}, LOG_CATEGORIES.API);
+  
+  // Clear localStorage caches (especially consolidated cache which shouldn't exist)
+  const keys = Object.keys(localStorage);
+  const flexiKeys = keys.filter(key => 
+    key.includes('viking_flexi_records_') || 
+    key.includes('viking_flexi_structure_') ||
+    key.includes('viking_flexi_consolidated_'),
+  );
+  
+  // Log what we're clearing for debugging
+  const consolidatedKeys = flexiKeys.filter(key => key.includes('viking_flexi_consolidated_'));
+  if (consolidatedKeys.length > 0) {
+    console.log('🧹 Clearing old consolidated cache entries:', consolidatedKeys);
+  }
+  
+  flexiKeys.forEach(key => {
+    localStorage.removeItem(key);
+    console.log(`🗑️ Removed localStorage key: ${key}`);
+  });
+  
+  console.log(`✅ Cleared ${flexiKeys.length} flexirecord cache entries`);
+  
+  return {
+    clearedLocalStorageKeys: flexiKeys.length,
+  };
+}
+
 // Network status checking with proper initialization
 let isOnline = true;
 
@@ -91,7 +122,7 @@ let isOnline = true;
 })();
 
 // Check if OSM API access is blocked
-function checkIfBlocked() {
+function _checkIfBlocked() {
   if (sessionStorage.getItem('osm_blocked') === 'true') {
     throw new Error('OSM API access has been blocked. Please contact the system administrator.');
   }
@@ -214,34 +245,38 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
   }
 }
 
-// Terms cache to prevent multiple API calls within same session
-let termsCache = null;
-let termsCacheTimestamp = null;
+// Terms cache TTL - localStorage only for persistence
 const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// FlexiRecord caching is now handled by flexiRecordService.js
 
 // API functions
 export async function getTerms(token, forceRefresh = false) {
   try {
-    // Check if we have a valid cache (unless force refresh)
-    if (!forceRefresh && termsCache && termsCacheTimestamp) {
-      const cacheAge = Date.now() - termsCacheTimestamp;
-      if (cacheAge < TERMS_CACHE_TTL) {
-        return termsCache;
-      }
-    }
-
+    const cacheKey = 'viking_terms_offline';
+    
     // Check network status first
     isOnline = await checkNetworkStatus();
     
-    // If offline, get from localStorage
+    // Check if we have valid cached data (unless force refresh)
+    if (!forceRefresh && isOnline) {
+      const cached = safeGetItem(cacheKey, null);
+      if (cached && cached._cacheTimestamp) {
+        const cacheAge = Date.now() - cached._cacheTimestamp;
+        if (cacheAge < TERMS_CACHE_TTL) {
+          logger.info('Using cached terms data', { 
+            cacheAgeMinutes: Math.round(cacheAge / 60000),
+          }, LOG_CATEGORIES.API);
+          return cached;
+        }
+      }
+    }
+    
+    // If offline, get from localStorage regardless of age
     if (!isOnline) {
-      const terms = safeGetItem('viking_terms_offline', {});
-      
-      // Cache in memory for this session
-      termsCache = terms;
-      termsCacheTimestamp = Date.now();
-      
-      return terms;
+      const cached = safeGetItem(cacheKey, {});
+      logger.info('Retrieved terms from localStorage while offline', {}, LOG_CATEGORIES.API);
+      return cached;
     }
 
     if (!token) {
@@ -259,30 +294,31 @@ export async function getTerms(token, forceRefresh = false) {
     const data = await handleAPIResponseWithRateLimit(response, 'getTerms');
     const terms = data || {};
     
-    // Cache terms data for offline use
-    safeSetItem('viking_terms_offline', terms);
+    // Cache terms data with timestamp
+    const cachedTerms = {
+      ...terms,
+      _cacheTimestamp: Date.now(),
+    };
+    safeSetItem(cacheKey, cachedTerms);
     
-    // Cache in memory for this session
-    termsCache = terms;
-    termsCacheTimestamp = Date.now();
+    return terms; // Return original data without timestamp
     
-    return terms;
-
   } catch (error) {
-    console.error('Error fetching terms:', error);
+    logger.error('Error fetching terms', {
+      error: error.message,
+      stack: error.stack,
+    }, LOG_CATEGORIES.ERROR);
     
     // If online request fails, try localStorage as fallback
     if (isOnline) {
       try {
-        const terms = safeGetItem('viking_terms_offline', {});
-        
-        // Cache in memory for this session
-        termsCache = terms;
-        termsCacheTimestamp = Date.now();
-        
-        return terms;
+        const cached = safeGetItem('viking_terms_offline', {});
+        logger.warn('Using cached terms after API failure', {}, LOG_CATEGORIES.API);
+        return cached;
       } catch (cacheError) {
-        console.error('Cache fallback also failed:', cacheError);
+        logger.error('Cache fallback also failed', {
+          error: cacheError.message,
+        }, LOG_CATEGORIES.ERROR);
       }
     }
     
@@ -300,6 +336,66 @@ export async function fetchMostRecentTermId(sectionId, token) {
       throw error;
     }
   });
+}
+
+/**
+ * Helper function to retrieve user info with multiple fallback strategies
+ * @param {string} token - Authentication token
+ * @returns {Promise<Object>} User info object
+ */
+async function retrieveUserInfo(token) {
+  // First try to get from startup data API which contains user info
+  try {
+    const startupData = await getStartupData(token);
+    if (startupData && startupData.globals) {
+      const userInfo = {
+        firstname: startupData.globals.firstname || 'Scout Leader',
+        lastname: startupData.globals.lastname || '',
+        userid: startupData.globals.userid || null,
+        email: startupData.globals.email || null,
+      };
+      
+      logger.info('User info found in startup data', { firstname: userInfo.firstname });
+      return userInfo;
+    } else {
+      throw new Error('No globals data in startup response');
+    }
+  } catch (startupError) {
+    logger.warn('Failed to get startup data for user info:', startupError.message);
+    
+    // Fallback: try to get from cache/localStorage  
+    const cachedStartupData = safeGetItem('viking_startup_data_offline');
+    if (cachedStartupData && cachedStartupData.globals) {
+      const userInfo = {
+        firstname: cachedStartupData.globals.firstname || 'Scout Leader',
+        lastname: cachedStartupData.globals.lastname || '',
+        userid: cachedStartupData.globals.userid || null,
+        email: cachedStartupData.globals.email || null,
+      };
+      
+      logger.info('User info found in cached startup data', { firstname: userInfo.firstname });
+      return userInfo;
+    } else {
+      // Don't overwrite existing user info if we can't find it
+      const authService = await import('./auth.js');
+      const existingUserInfo = authService.getUserInfo();
+      
+      if (!existingUserInfo) {
+        // Ultimate fallback - only if no existing user info
+        const fallbackUserInfo = {
+          firstname: 'Scout Leader',
+          lastname: '',
+          userid: null,
+          email: null,
+        };
+        logger.warn('Created fallback user info - no startup data available');
+        return fallbackUserInfo;
+      } else {
+        logger.info('Keeping existing user info', { firstname: existingUserInfo.firstname });
+        return existingUserInfo;
+      }
+    }
+  }
 }
 
 // Optimized version that uses pre-loaded terms to avoid multiple API calls
@@ -360,6 +456,11 @@ export async function getUserRoles(token) {
           logger.warn('Invalid data received from getUserRoles API');
           return [];
         }
+
+        // Get user information from startup data (getUserRoles doesn't contain user info)
+        const userInfo = await retrieveUserInfo(token);
+        const authService = await import('./auth.js');
+        authService.setUserInfo(userInfo);
 
         const sections = Object.keys(data)
           .filter(key => !isNaN(key))
@@ -543,12 +644,51 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
   }
 }
 
-export async function getFlexiRecords(sectionId, token, archived = 'n') {
+export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
-    checkIfBlocked();
+    const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
+    
+    // Check network status first
+    const isOnline = await checkNetworkStatus();
+    
+    // Check if we have valid cached data (unless force refresh)
+    if (!forceRefresh && isOnline) {
+      const cached = safeGetItem(storageKey, null);
+      if (cached && cached._cacheTimestamp) {
+        const cacheAge = Date.now() - cached._cacheTimestamp;
+        const FLEXI_RECORDS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+        if (cacheAge < FLEXI_RECORDS_CACHE_TTL) {
+          logger.info('Using cached flexi records', { 
+            cacheAgeMinutes: Math.round(cacheAge / 60000),
+          }, LOG_CATEGORIES.API);
+          return cached;
+        }
+      }
+    }
+    
+    // If offline, get from localStorage regardless of age
+    if (!isOnline) {
+      const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
+      logger.info('Retrieved flexi records from localStorage while offline', {
+        itemCount: cached.items?.length || 0,
+      }, LOG_CATEGORIES.OFFLINE);
+      return cached;
+    }
         
     if (!token) {
       throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - using cached flexi records only');
+      const cached = safeGetItem(storageKey, null);
+      // Validate cached data has meaningful content
+      if (cached && cached.items && Array.isArray(cached.items)) {
+        return cached;
+      }
+      // Return valid default structure if no meaningful cache exists
+      return { identifier: null, label: null, items: [] };
     }
 
     const response = await fetch(`${BACKEND_URL}/get-flexi-records?sectionid=${sectionId}&archived=${archived}`, {
@@ -561,15 +701,39 @@ export async function getFlexiRecords(sectionId, token, archived = 'n') {
 
     const data = await handleAPIResponseWithRateLimit(response, 'getFlexiRecords');
         
+    let flexiData;
     if (data && data._rateLimitInfo) {
-      const { _rateLimitInfo, ...flexiData } = data;
-      return flexiData || { identifier: null, label: null, items: [] };
+      const { _rateLimitInfo, ...responseData } = data;
+      flexiData = responseData || { identifier: null, label: null, items: [] };
+    } else {
+      flexiData = data || { identifier: null, label: null, items: [] };
     }
-        
-    return data || { identifier: null, label: null, items: [] };
+    
+    // Cache data with timestamp
+    const cachedData = {
+      ...flexiData,
+      _cacheTimestamp: Date.now(),
+    };
+    safeSetItem(storageKey, cachedData);
+    
+    return flexiData; // Return original data without timestamp
 
   } catch (error) {
     console.error('Error fetching flexi records:', error);
+    
+    // Don't cache error responses - only return existing cache as fallback
+    const isOnline = await checkNetworkStatus();
+    if (isOnline) {
+      try {
+        const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
+        const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
+        console.log('Using cached fallback data after API error');
+        return cached;
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }
@@ -578,6 +742,12 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
   try {
     if (!token) {
       throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - getSingleFlexiRecord blocked');
+      throw new Error('Authentication failed - unable to fetch flexi record data');
     }
 
     const response = await fetch(`${BACKEND_URL}/get-single-flexi-record?flexirecordid=${flexirecordid}&sectionid=${sectionid}&termid=${termid}`, {
@@ -603,10 +773,56 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
   }
 }
 
-export async function getFlexiStructure(extraid, sectionid, termid, token) {
+export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
+    const storageKey = `viking_flexi_structure_${extraid}_offline`;
+    
+    // Check network status first
+    const isOnline = await checkNetworkStatus();
+    
+    // Check if we have valid cached data (unless force refresh)
+    if (!forceRefresh && isOnline) {
+      const cached = safeGetItem(storageKey, null);
+      if (cached && cached._cacheTimestamp) {
+        const cacheAge = Date.now() - cached._cacheTimestamp;
+        const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
+        if (cacheAge < FLEXI_STRUCTURES_CACHE_TTL) {
+          logger.info('Using cached flexi structure', { 
+            extraid,
+            cacheAgeMinutes: Math.round(cacheAge / 60000),
+          }, LOG_CATEGORIES.API);
+          return cached;
+        }
+      }
+    }
+    
+    // If offline, get from localStorage regardless of age
+    if (!isOnline) {
+      const cached = safeGetItem(storageKey, null);
+      if (cached) {
+        logger.info('Retrieved structure from localStorage while offline', { 
+          extraid,
+          structureName: cached.name,
+        }, LOG_CATEGORIES.OFFLINE);
+        return cached;
+      }
+      return null;
+    }
+
     if (!token) {
       throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      console.log('Auth failed this session - getFlexiStructure blocked');
+      const cached = safeGetItem(storageKey, null);
+      // Validate cached data exists and has meaningful content
+      if (cached && typeof cached === 'object' && cached.name) {
+        return cached;
+      }
+      // Return null for structure - caller should handle this case
+      return null;
     }
 
     const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
@@ -618,10 +834,35 @@ export async function getFlexiStructure(extraid, sectionid, termid, token) {
     });
         
     const data = await handleAPIResponseWithRateLimit(response, 'getFlexiStructure');
-    return data || null;
-        
+    const structureData = data || null;
+    
+    // Cache data for offline use
+    if (structureData) {
+      const cachedData = {
+        ...structureData,
+        _cacheTimestamp: Date.now(),
+      };
+      safeSetItem(storageKey, cachedData);
+    }
+    
+    return structureData;
+    
   } catch (error) {
     console.error('Error fetching flexi structure:', error);
+    
+    // Don't cache error responses - only return existing cache as fallback
+    const isOnline = await checkNetworkStatus();
+    if (isOnline) {
+      try {
+        const storageKey = `viking_flexi_structure_${extraid}_offline`;
+        const cacheData = safeGetItem(storageKey, null);
+        console.log('Using cached fallback data after API error, not updating cache timestamp');
+        return cacheData;
+      } catch (cacheError) {
+        console.error('Cache fallback also failed:', cacheError);
+      }
+    }
+    
     throw error;
   }
 }
@@ -715,6 +956,17 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
     throw error;
   }
 }
+
+// FlexiRecord functions - re-export from service and transforms
+export { 
+  getConsolidatedFlexiRecord,
+} from './flexiRecordService.js';
+
+export { 
+  parseFlexiStructure,
+  transformFlexiRecordData,
+  extractVikingEventFields,
+} from '../utils/flexiRecordTransforms.js';
 
 export async function getMembersGrid(sectionId, termId, token) {
   try {
@@ -934,5 +1186,100 @@ export async function testBackendConnection() {
   } catch (error) {
     console.error('Backend connection test error:', error);
     return false;
+  }
+}
+
+/**
+ * Preload flexirecord lists and structures for all sections (startup optimization)
+ * Similar to how terms are preloaded to reduce API calls during usage
+ * 
+ * @param {Array} sections - Array of section objects with sectionid
+ * @param {string} token - Authentication token
+ * @returns {Promise<void>}
+ */
+// DEPRECATED: Use SyncService.preloadStaticFlexiRecordData() instead
+// This function has been replaced with a better implementation using the new service layer
+export async function preloadFlexiRecordStructures(sections, token) {
+  try {
+    if (!sections || !Array.isArray(sections) || sections.length === 0) {
+      console.log('No sections provided for flexirecord preloading');
+      return;
+    }
+
+    console.log(`Preloading flexirecord structures for ${sections.length} sections...`);
+    
+    // Load flexirecord lists for all sections first
+    const flexiRecordPromises = sections.map(async (section) => {
+      try {
+        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false); // Use cache if available
+        return { sectionId: section.sectionid, flexiRecords, success: true };
+      } catch (error) {
+        console.warn(`Failed to preload flexirecords for section ${section.sectionid}:`, error.message);
+        return { sectionId: section.sectionid, flexiRecords: null, success: false };
+      }
+    });
+
+    const flexiRecordResults = await Promise.all(flexiRecordPromises);
+    const successfulSections = flexiRecordResults.filter(r => r.success);
+    
+    console.log(`Loaded flexirecord lists for ${successfulSections.length}/${sections.length} sections`);
+
+    // Now load structures for all unique flexirecords found
+    const allFlexiRecords = new Map(); // extraid -> { extraid, name, sectionIds[] }
+    
+    successfulSections.forEach(({ sectionId, flexiRecords }) => {
+      if (flexiRecords?.items) {
+        flexiRecords.items.forEach(record => {
+          if (!allFlexiRecords.has(record.extraid)) {
+            allFlexiRecords.set(record.extraid, {
+              extraid: record.extraid,
+              name: record.name,
+              sectionIds: [sectionId],
+            });
+          } else {
+            allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
+          }
+        });
+      }
+    });
+
+    if (allFlexiRecords.size === 0) {
+      console.log('No flexirecords found to preload structures for');
+      return;
+    }
+
+    console.log(`Preloading structures for ${allFlexiRecords.size} unique flexirecords...`);
+
+    // Load structures for all unique flexirecords
+    const structurePromises = Array.from(allFlexiRecords.values()).map(async (record) => {
+      try {
+        // Use first section's termId for structure (structure should be same across sections)
+        const firstSectionId = record.sectionIds[0];
+        
+        // Get termId from cache (terms should already be loaded)
+        const terms = await getTerms(token);
+        const termId = getMostRecentTermId(firstSectionId, terms);
+        
+        if (!termId) {
+          throw new Error(`No termId found for section ${firstSectionId}`);
+        }
+
+        const structure = await getFlexiStructure(record.extraid, firstSectionId, termId, token, false); // Use cache if available
+        return { extraid: record.extraid, name: record.name, structure, success: true };
+      } catch (error) {
+        console.warn(`Failed to preload structure for flexirecord ${record.name} (${record.extraid}):`, error.message);
+        return { extraid: record.extraid, name: record.name, structure: null, success: false };
+      }
+    });
+
+    const structureResults = await Promise.all(structurePromises);
+    const successfulStructures = structureResults.filter(r => r.success);
+    
+    console.log(`✅ Preloaded structures for ${successfulStructures.length}/${allFlexiRecords.size} flexirecords`);
+    console.log('Flexirecord structures preloading complete');
+
+  } catch (error) {
+    console.error('Error preloading flexirecord structures:', error);
+    // Don't throw - this is optimization, not critical
   }
 }
