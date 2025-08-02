@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
@@ -170,20 +170,23 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
-  // Get Viking Event Management data for a specific member
-  // For multi-section events, search across all sections with Viking data
-  const getVikingEventDataForMember = (scoutid, _memberEventData) => {
-    // Search across all sections that have Viking Event Management data
-    for (const [_sectionid, sectionData] of vikingEventData.entries()) {
+  // Create a memoized lookup map for Viking Event data to improve performance
+  // Builds once when vikingEventData changes, provides O(1) lookups instead of O(n×m) searches
+  const vikingEventLookup = useMemo(() => {
+    const lookup = new Map();
+    for (const [, sectionData] of vikingEventData.entries()) {
       if (sectionData && sectionData.items) {
-        const result = sectionData.items.find(item => item.scoutid === scoutid);
-        if (result) {
-          return result;
-        }
+        sectionData.items.forEach(item => {
+          lookup.set(item.scoutid, item);
+        });
       }
     }
-    
-    return null;
+    return lookup;
+  }, [vikingEventData]);
+
+  // Get Viking Event Management data for a specific member using optimized O(1) lookup
+  const getVikingEventDataForMember = (scoutid, _memberEventData) => {
+    return vikingEventLookup.get(scoutid) || null;
   };
 
   const getAttendanceStatus = (attending) => {
