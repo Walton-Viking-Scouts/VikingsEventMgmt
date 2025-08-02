@@ -169,17 +169,18 @@ class SyncService {
       // Get sections from database to sync events and attendance
       const sections = await databaseService.getSections();
       
-      // Preload flexirecord structures (optimization to reduce API calls during usage)
+      // Preload static flexirecord data (lists and structures) for faster access later
+      // Dynamic data (actual member values) is loaded on-demand when "View Attendees" is clicked
       try {
         await this.withAuthErrorHandling(async () => {
-          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord structures...' });
+          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord lists and structures...' });
           await preloadFlexiRecordStructures(sections, token);
         }, { 
           continueOnError: true, // Don't fail sync if flexirecord preloading fails
-          contextMessage: 'Failed to preload flexirecord structures',
+          contextMessage: 'Failed to preload flexirecord static data',
         });
       } catch (error) {
-        console.warn('Flexirecord preloading failed, continuing with sync:', error.message);
+        console.warn('FlexiRecord static data preloading failed, continuing with sync:', error.message);
         // Continue with sync - this is optimization, not critical
       }
       
@@ -310,6 +311,7 @@ class SyncService {
       contextMessage: `Failed to sync attendance for event ${eventId}`,
     });
   }
+
 
   // Get sync status
   async getSyncStatus() {

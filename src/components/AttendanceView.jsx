@@ -6,7 +6,7 @@ import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
-import { getCampGroupsForEvents } from '../utils/campGroupUtils.js';
+import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { Card, Button, Badge, Alert } from './ui';
 
 function AttendanceView({ events, members, onBack }) {
@@ -133,7 +133,7 @@ function AttendanceView({ events, members, onBack }) {
       }
 
       // Load Viking Event Management data for all sections (events contain their own termIds)
-      const vikingEventMap = await getCampGroupsForEvents(events, token);
+      const vikingEventMap = await getVikingEventDataForEvents(events, token);
       setVikingEventData(vikingEventMap);
       
     } catch (error) {

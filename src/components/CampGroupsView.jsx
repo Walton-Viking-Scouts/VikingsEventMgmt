@@ -3,7 +3,8 @@ import { Alert, Button, Input, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
-import { getCampGroupsForEvents, organizeMembersByCampGroups } from '../utils/campGroupUtils.js';
+import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
+import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
 import { fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
@@ -33,7 +34,12 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
   // Load camp groups data on mount
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const loadCampGroups = async () => {
+      // Check if component is still mounted
+      if (abortController.signal.aborted) return;
+      
       setLoading(true);
       setError(null);
 
@@ -50,18 +56,27 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
         const token = getToken();
         
+        // Check abort signal before async operations
+        if (abortController.signal.aborted) return;
+        
         // Get termId from events or fetch most recent for first section
         let termId = events[0]?.termid;
         if (!termId) {
           termId = await fetchMostRecentTermId(events[0]?.sectionid, token);
         }
 
+        if (abortController.signal.aborted) return;
+
         if (!termId) {
           throw new Error('No term ID available - camp groups require term context');
         }
 
         // Load camp groups for all sections involved in events (events contain their own termIds)
-        const campGroups = await getCampGroupsForEvents(events, token);
+        const campGroups = await getVikingEventDataForEvents(events, token);
+        
+        // Check abort signal before setting state
+        if (abortController.signal.aborted) return;
+        
         setCampGroupsData(campGroups);
 
         // Organize attendees by camp groups
@@ -87,6 +102,10 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
         // Organize members by camp groups
         const organized = organizeMembersByCampGroups(attendees, members, primaryCampGroupData);
+        
+        // Final check before setting state
+        if (abortController.signal.aborted) return;
+        
         setOrganizedGroups(organized);
 
         logger.info('Successfully organized members by camp groups', {
@@ -96,6 +115,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         }, LOG_CATEGORIES.APP);
 
       } catch (err) {
+        // Don't set error state if component was unmounted
+        if (abortController.signal.aborted) return;
+        
         logger.error('Error loading camp groups', {
           error: err.message,
           eventsCount: events.length,
@@ -108,12 +130,21 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           onError(err);
         }
       } finally {
-        setLoading(false);
+        // Don't set loading state if component was unmounted
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     loadCampGroups();
-  }, [events, attendees, members, onError]);
+    
+    // Cleanup function to abort async operations when component unmounts
+    return () => {
+      abortController.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
