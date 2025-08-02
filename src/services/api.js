@@ -682,8 +682,13 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
       console.log('Auth failed this session - using cached flexi records only');
-      const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
-      return cached;
+      const cached = safeGetItem(storageKey, null);
+      // Validate cached data has meaningful content
+      if (cached && cached.items && Array.isArray(cached.items)) {
+        return cached;
+      }
+      // Return valid default structure if no meaningful cache exists
+      return { identifier: null, label: null, items: [] };
     }
 
     const response = await fetch(`${BACKEND_URL}/get-flexi-records?sectionid=${sectionId}&archived=${archived}`, {
@@ -812,7 +817,12 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     if (!authHandler.shouldMakeAPICall()) {
       console.log('Auth failed this session - getFlexiStructure blocked');
       const cached = safeGetItem(storageKey, null);
-      return cached;
+      // Validate cached data exists and has meaningful content
+      if (cached && typeof cached === 'object' && cached.name) {
+        return cached;
+      }
+      // Return null for structure - caller should handle this case
+      return null;
     }
 
     const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
