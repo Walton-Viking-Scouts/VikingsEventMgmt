@@ -88,7 +88,7 @@ export function clearFlexiRecordCaches() {
   if (consolidatedKeys.length > 0) {
     logger.info('Clearing old consolidated cache entries', {
       count: consolidatedKeys.length,
-      keys: consolidatedKeys
+      keys: consolidatedKeys,
     }, LOG_CATEGORIES.API);
   }
   
@@ -98,7 +98,7 @@ export function clearFlexiRecordCaches() {
   });
   
   logger.info('Cleared flexirecord cache entries', {
-    count: flexiKeys.length
+    count: flexiKeys.length,
   }, LOG_CATEGORIES.API);
   
   return {
@@ -114,19 +114,19 @@ let isOnline = true;
   try {
     isOnline = await checkNetworkStatus();
     logger.info('Initial network status', {
-      status: isOnline ? 'Online' : 'Offline'
+      status: isOnline ? 'Online' : 'Offline',
     }, LOG_CATEGORIES.API);
     
     // Then set up monitoring for changes
     addNetworkListener((status) => {
       isOnline = status.connected;
       logger.info('Network status changed', {
-        status: status.connected ? 'Online' : 'Offline'
+        status: status.connected ? 'Online' : 'Offline',
       }, LOG_CATEGORIES.API);
     });
   } catch (error) {
     logger.warn('Failed to initialize network status, assuming online', {
-      error: error.message
+      error: error.message,
     }, LOG_CATEGORIES.API);
     isOnline = true;
   }
@@ -161,7 +161,7 @@ function logRateLimitInfo(responseData, apiName) {
         logger.warn('OSM rate limit warning', {
           apiName,
           remaining: osm.remaining,
-          percentUsed
+          percentUsed,
         }, LOG_CATEGORIES.API);
       }
             
@@ -169,7 +169,7 @@ function logRateLimitInfo(responseData, apiName) {
         logger.error('CRITICAL: Low OSM requests remaining', {
           apiName,
           remaining: osm.remaining,
-          percentUsed
+          percentUsed,
         }, LOG_CATEGORIES.API);
       }
     }
@@ -246,7 +246,7 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
       if (errorLower.includes('blocked') || errorLower.includes('permanently blocked')) {
         logger.error('CRITICAL: OSM API BLOCKED', {
           apiName,
-          errorMessage
+          errorMessage,
         }, LOG_CATEGORIES.API);
         sessionStorage.setItem('osm_blocked', 'true');
         throw new Error(`OSM API BLOCKED: ${errorMessage}`);
@@ -255,7 +255,7 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
         
     logger.error('API error', {
       apiName,
-      errorMessage
+      errorMessage,
     }, LOG_CATEGORIES.API);
     throw new Error(`${apiName} failed: ${errorMessage}`);
   }

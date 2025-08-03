@@ -182,7 +182,7 @@ class SyncService {
         });
       } catch (error) {
         logger.warn('FlexiRecord static data preloading failed, continuing with sync', {
-          error: error.message
+          error: error.message,
         }, LOG_CATEGORIES.SYNC);
         // Continue with sync - this is optimization, not critical
       }
@@ -207,7 +207,7 @@ class SyncService {
     } catch (error) {
       logger.error('Sync failed', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       }, LOG_CATEGORIES.SYNC);
       
       // Check if it's an auth error and handle appropriately
@@ -349,7 +349,7 @@ class SyncService {
       }
 
       logger.info('Preloading flexirecord structures', {
-        sectionCount: sections.length
+        sectionCount: sections.length,
       }, LOG_CATEGORIES.SYNC);
       
       // Import the API function here to avoid circular dependency
@@ -363,7 +363,7 @@ class SyncService {
         } catch (error) {
           logger.warn('Failed to preload flexirecords for section', {
             sectionId: section.sectionid,
-            error: error.message
+            error: error.message,
           }, LOG_CATEGORIES.SYNC);
           return { sectionId: section.sectionid, flexiRecords: null, success: false };
         }
@@ -374,7 +374,7 @@ class SyncService {
       
       logger.info('Loaded flexirecord lists', {
         successful: successfulSections.length,
-        total: sections.length
+        total: sections.length,
       }, LOG_CATEGORIES.SYNC);
 
       // Now load structures for all unique flexirecords found
@@ -388,7 +388,7 @@ class SyncService {
                 allFlexiRecords.set(record.extraid, {
                   extraid: record.extraid,
                   name: record.name,
-                  sectionIds: []
+                  sectionIds: [],
                 });
               }
               allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
@@ -403,7 +403,7 @@ class SyncService {
       }
 
       logger.info('Preloading structures for unique flexirecords', {
-        count: allFlexiRecords.size
+        count: allFlexiRecords.size,
       }, LOG_CATEGORIES.SYNC);
 
       // Load structures in parallel with limited concurrency
@@ -417,7 +417,7 @@ class SyncService {
           logger.warn('Failed to preload structure for flexirecord', {
             recordName: record.name,
             extraid: record.extraid,
-            error: error.message
+            error: error.message,
           }, LOG_CATEGORIES.SYNC);
           return { success: false, record };
         }
@@ -428,13 +428,13 @@ class SyncService {
 
       logger.info('Preloaded flexirecord structures', {
         successful: successfulStructures.length,
-        total: allFlexiRecords.size
+        total: allFlexiRecords.size,
       }, LOG_CATEGORIES.SYNC);
 
     } catch (error) {
       logger.error('Error preloading flexirecord structures', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       }, LOG_CATEGORIES.SYNC);
       throw error;
     }
