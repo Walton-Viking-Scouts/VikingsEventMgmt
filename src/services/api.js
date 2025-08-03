@@ -86,15 +86,20 @@ export function clearFlexiRecordCaches() {
   // Log what we're clearing for debugging
   const consolidatedKeys = flexiKeys.filter(key => key.includes('viking_flexi_consolidated_'));
   if (consolidatedKeys.length > 0) {
-    console.log('🧹 Clearing old consolidated cache entries:', consolidatedKeys);
+    logger.info('Clearing old consolidated cache entries', {
+      count: consolidatedKeys.length,
+      keys: consolidatedKeys,
+    }, LOG_CATEGORIES.API);
   }
   
   flexiKeys.forEach(key => {
     localStorage.removeItem(key);
-    console.log(`🗑️ Removed localStorage key: ${key}`);
+    logger.debug('Removed localStorage key', { key }, LOG_CATEGORIES.API);
   });
   
-  console.log(`✅ Cleared ${flexiKeys.length} flexirecord cache entries`);
+  logger.info('Cleared flexirecord cache entries', {
+    count: flexiKeys.length,
+  }, LOG_CATEGORIES.API);
   
   return {
     clearedLocalStorageKeys: flexiKeys.length,
@@ -108,15 +113,21 @@ let isOnline = true;
 (async () => {
   try {
     isOnline = await checkNetworkStatus();
-    console.log('Initial network status:', isOnline ? 'Online' : 'Offline');
+    logger.info('Initial network status', {
+      status: isOnline ? 'Online' : 'Offline',
+    }, LOG_CATEGORIES.API);
     
     // Then set up monitoring for changes
     addNetworkListener((status) => {
       isOnline = status.connected;
-      console.log('Network status changed:', status.connected ? 'Online' : 'Offline');
+      logger.info('Network status changed', {
+        status: status.connected ? 'Online' : 'Offline',
+      }, LOG_CATEGORIES.API);
     });
   } catch (error) {
-    console.warn('Failed to initialize network status, assuming online:', error);
+    logger.warn('Failed to initialize network status, assuming online', {
+      error: error.message,
+    }, LOG_CATEGORIES.API);
     isOnline = true;
   }
 })();
@@ -147,11 +158,19 @@ function logRateLimitInfo(responseData, apiName) {
       });
             
       if (osm.remaining < 20 && osm.limit > 0) {
-        console.warn(`⚠️ OSM rate limit warning for ${apiName}: Only ${osm.remaining} requests remaining (${percentUsed}% used)!`);
+        logger.warn('OSM rate limit warning', {
+          apiName,
+          remaining: osm.remaining,
+          percentUsed,
+        }, LOG_CATEGORIES.API);
       }
             
       if (osm.remaining < 10 && osm.limit > 0) {
-        console.error(`🚨 CRITICAL: Only ${osm.remaining} OSM requests remaining for ${apiName}! (${percentUsed}% used)`);
+        logger.error('CRITICAL: Low OSM requests remaining', {
+          apiName,
+          remaining: osm.remaining,
+          percentUsed,
+        }, LOG_CATEGORIES.API);
       }
     }
         
@@ -225,13 +244,19 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
     if (errorMessage && typeof errorMessage === 'string') {
       const errorLower = errorMessage.toLowerCase();
       if (errorLower.includes('blocked') || errorLower.includes('permanently blocked')) {
-        console.error(`🚨 CRITICAL: OSM API BLOCKED on ${apiName}!`, errorMessage);
+        logger.error('CRITICAL: OSM API BLOCKED', {
+          apiName,
+          errorMessage,
+        }, LOG_CATEGORIES.API);
         sessionStorage.setItem('osm_blocked', 'true');
         throw new Error(`OSM API BLOCKED: ${errorMessage}`);
       }
     }
         
-    console.error(`❌ ${apiName} API error:`, errorMessage);
+    logger.error('API error', {
+      apiName,
+      errorMessage,
+    }, LOG_CATEGORIES.API);
     throw new Error(`${apiName} failed: ${errorMessage}`);
   }
     
@@ -1189,97 +1214,4 @@ export async function testBackendConnection() {
   }
 }
 
-/**
- * Preload flexirecord lists and structures for all sections (startup optimization)
- * Similar to how terms are preloaded to reduce API calls during usage
- * 
- * @param {Array} sections - Array of section objects with sectionid
- * @param {string} token - Authentication token
- * @returns {Promise<void>}
- */
-// DEPRECATED: Use SyncService.preloadStaticFlexiRecordData() instead
-// This function has been replaced with a better implementation using the new service layer
-export async function preloadFlexiRecordStructures(sections, token) {
-  try {
-    if (!sections || !Array.isArray(sections) || sections.length === 0) {
-      console.log('No sections provided for flexirecord preloading');
-      return;
-    }
 
-    console.log(`Preloading flexirecord structures for ${sections.length} sections...`);
-    
-    // Load flexirecord lists for all sections first
-    const flexiRecordPromises = sections.map(async (section) => {
-      try {
-        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false); // Use cache if available
-        return { sectionId: section.sectionid, flexiRecords, success: true };
-      } catch (error) {
-        console.warn(`Failed to preload flexirecords for section ${section.sectionid}:`, error.message);
-        return { sectionId: section.sectionid, flexiRecords: null, success: false };
-      }
-    });
-
-    const flexiRecordResults = await Promise.all(flexiRecordPromises);
-    const successfulSections = flexiRecordResults.filter(r => r.success);
-    
-    console.log(`Loaded flexirecord lists for ${successfulSections.length}/${sections.length} sections`);
-
-    // Now load structures for all unique flexirecords found
-    const allFlexiRecords = new Map(); // extraid -> { extraid, name, sectionIds[] }
-    
-    successfulSections.forEach(({ sectionId, flexiRecords }) => {
-      if (flexiRecords?.items) {
-        flexiRecords.items.forEach(record => {
-          if (!allFlexiRecords.has(record.extraid)) {
-            allFlexiRecords.set(record.extraid, {
-              extraid: record.extraid,
-              name: record.name,
-              sectionIds: [sectionId],
-            });
-          } else {
-            allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
-          }
-        });
-      }
-    });
-
-    if (allFlexiRecords.size === 0) {
-      console.log('No flexirecords found to preload structures for');
-      return;
-    }
-
-    console.log(`Preloading structures for ${allFlexiRecords.size} unique flexirecords...`);
-
-    // Load structures for all unique flexirecords
-    const structurePromises = Array.from(allFlexiRecords.values()).map(async (record) => {
-      try {
-        // Use first section's termId for structure (structure should be same across sections)
-        const firstSectionId = record.sectionIds[0];
-        
-        // Get termId from cache (terms should already be loaded)
-        const terms = await getTerms(token);
-        const termId = getMostRecentTermId(firstSectionId, terms);
-        
-        if (!termId) {
-          throw new Error(`No termId found for section ${firstSectionId}`);
-        }
-
-        const structure = await getFlexiStructure(record.extraid, firstSectionId, termId, token, false); // Use cache if available
-        return { extraid: record.extraid, name: record.name, structure, success: true };
-      } catch (error) {
-        console.warn(`Failed to preload structure for flexirecord ${record.name} (${record.extraid}):`, error.message);
-        return { extraid: record.extraid, name: record.name, structure: null, success: false };
-      }
-    });
-
-    const structureResults = await Promise.all(structurePromises);
-    const successfulStructures = structureResults.filter(r => r.success);
-    
-    console.log(`✅ Preloaded structures for ${successfulStructures.length}/${allFlexiRecords.size} flexirecords`);
-    console.log('Flexirecord structures preloading complete');
-
-  } catch (error) {
-    console.error('Error preloading flexirecord structures:', error);
-    // Don't throw - this is optimization, not critical
-  }
-}

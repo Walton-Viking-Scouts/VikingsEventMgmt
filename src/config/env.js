@@ -7,10 +7,7 @@ const requiredVars = [
   'VITE_OAUTH_CLIENT_ID',
 ];
 
-// Optional environment variables with defaults
-// const optionalVars = {
-//   VITE_SENTRY_DSN: null // Error tracking (optional)
-// };
+
 
 // Validate required environment variables
 const missingVars = requiredVars.filter(key => !import.meta.env[key]);

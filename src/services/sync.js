@@ -1,6 +1,7 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, preloadFlexiRecordStructures } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
+import logger, { LOG_CATEGORIES } from './logger.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 
@@ -174,13 +175,15 @@ class SyncService {
       try {
         await this.withAuthErrorHandling(async () => {
           this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord lists and structures...' });
-          await preloadFlexiRecordStructures(sections, token);
+          await this.preloadStaticFlexiRecordData(sections, token);
         }, { 
           continueOnError: true, // Don't fail sync if flexirecord preloading fails
           contextMessage: 'Failed to preload flexirecord static data',
         });
       } catch (error) {
-        console.warn('FlexiRecord static data preloading failed, continuing with sync:', error.message);
+        logger.warn('FlexiRecord static data preloading failed, continuing with sync', {
+          error: error.message,
+        }, LOG_CATEGORIES.SYNC);
         // Continue with sync - this is optimization, not critical
       }
       
@@ -202,7 +205,10 @@ class SyncService {
       });
 
     } catch (error) {
-      console.error('Sync failed:', error);
+      logger.error('Sync failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.SYNC);
       
       // Check if it's an auth error and handle appropriately
       try {
@@ -331,6 +337,106 @@ class SyncService {
         online: false,
         syncing: false,
       };
+    }
+  }
+
+  // Preload static flexirecord data (lists and structures) for faster access later
+  async preloadStaticFlexiRecordData(sections, token) {
+    try {
+      if (!sections || !Array.isArray(sections) || sections.length === 0) {
+        logger.info('No sections provided for flexirecord preloading', {}, LOG_CATEGORIES.SYNC);
+        return;
+      }
+
+      logger.info('Preloading flexirecord structures', {
+        sectionCount: sections.length,
+      }, LOG_CATEGORIES.SYNC);
+      
+      // Import the API function here to avoid circular dependency
+      const { getFlexiRecords, getFlexiStructure } = await import('./api.js');
+      
+      // Load flexirecord lists for all sections first
+      const flexiRecordPromises = sections.map(async (section) => {
+        try {
+          const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false);
+          return { sectionId: section.sectionid, flexiRecords, success: true };
+        } catch (error) {
+          logger.warn('Failed to preload flexirecords for section', {
+            sectionId: section.sectionid,
+            error: error.message,
+          }, LOG_CATEGORIES.SYNC);
+          return { sectionId: section.sectionid, flexiRecords: null, success: false };
+        }
+      });
+
+      const flexiRecordResults = await Promise.all(flexiRecordPromises);
+      const successfulSections = flexiRecordResults.filter(r => r.success);
+      
+      logger.info('Loaded flexirecord lists', {
+        successful: successfulSections.length,
+        total: sections.length,
+      }, LOG_CATEGORIES.SYNC);
+
+      // Now load structures for all unique flexirecords found
+      const allFlexiRecords = new Map();
+      
+      successfulSections.forEach(({ sectionId, flexiRecords }) => {
+        if (flexiRecords && flexiRecords.items) {
+          flexiRecords.items.forEach(record => {
+            if (record.extraid && record.name && record.archived !== '1' && record.soft_deleted !== '1') {
+              if (!allFlexiRecords.has(record.extraid)) {
+                allFlexiRecords.set(record.extraid, {
+                  extraid: record.extraid,
+                  name: record.name,
+                  sectionIds: [],
+                });
+              }
+              allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
+            }
+          });
+        }
+      });
+
+      if (allFlexiRecords.size === 0) {
+        logger.info('No flexirecords found to preload structures for', {}, LOG_CATEGORIES.SYNC);
+        return;
+      }
+
+      logger.info('Preloading structures for unique flexirecords', {
+        count: allFlexiRecords.size,
+      }, LOG_CATEGORIES.SYNC);
+
+      // Load structures in parallel with limited concurrency
+      const structurePromises = Array.from(allFlexiRecords.values()).map(async (record) => {
+        try {
+          // Use first section ID for the request
+          const sectionId = record.sectionIds[0];
+          await getFlexiStructure(record.extraid, sectionId, null, token);
+          return { success: true, record };
+        } catch (error) {
+          logger.warn('Failed to preload structure for flexirecord', {
+            recordName: record.name,
+            extraid: record.extraid,
+            error: error.message,
+          }, LOG_CATEGORIES.SYNC);
+          return { success: false, record };
+        }
+      });
+
+      const structureResults = await Promise.all(structurePromises);
+      const successfulStructures = structureResults.filter(r => r.success);
+
+      logger.info('Preloaded flexirecord structures', {
+        successful: successfulStructures.length,
+        total: allFlexiRecords.size,
+      }, LOG_CATEGORIES.SYNC);
+
+    } catch (error) {
+      logger.error('Error preloading flexirecord structures', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.SYNC);
+      throw error;
     }
   }
 
