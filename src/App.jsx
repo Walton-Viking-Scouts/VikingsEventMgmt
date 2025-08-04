@@ -8,7 +8,7 @@ import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
-import syncService from './services/sync.js';
+import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
 import { Alert } from './components/ui';
 import './App.css';
