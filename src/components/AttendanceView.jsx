@@ -243,6 +243,7 @@ function AttendanceView({ events, members, onBack }) {
       
       if (vikingData) {
         member.vikingEventData = {
+          CampGroup: vikingData.CampGroup,
           SignedInBy: vikingData.SignedInBy,
           SignedInWhen: vikingData.SignedInWhen,
           SignedOutBy: vikingData.SignedOutBy,
@@ -789,6 +790,9 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Camp Group
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Signed In By
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -837,6 +841,9 @@ function AttendanceView({ events, members, onBack }) {
                               </Badge>
                             )}
                           </div>
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.vikingEventData?.CampGroup || '-'}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.vikingEventData?.SignedInBy || '-'}
