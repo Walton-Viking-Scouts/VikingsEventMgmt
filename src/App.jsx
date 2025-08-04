@@ -8,7 +8,7 @@ import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
-import syncService from './services/sync.js';
+import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
 import { Alert } from './components/ui';
 import './App.css';
@@ -104,19 +104,10 @@ function App() {
       url.searchParams.delete('token_type');
       window.history.replaceState({}, '', url);
       
-      // Trigger automatic sync after successful OAuth login
+      // No post-login sync - let dashboard handle data loading
       const triggerPostLoginSync = async () => {
-        try {
-          console.log('🚀 Starting automatic sync after OAuth login...');
-          await syncService.syncAll();
-          console.log('✅ Post-login sync completed successfully');
-          // Force refresh to update UI with synced data
-          window.location.reload();
-        } catch (error) {
-          console.error('❌ Post-login sync failed:', error);
-          // Still reload to update UI even if sync fails
-          window.location.reload();
-        }
+        // Force refresh to update UI - dashboard will handle data loading
+        window.location.reload();
       };
       
       // Small delay to let token be set properly

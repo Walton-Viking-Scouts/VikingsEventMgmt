@@ -946,7 +946,7 @@ export async function getStartupData(token) {
   }
 }
 
-export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, token) {
+export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
@@ -970,6 +970,8 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
         flexirecordid,
         columnid,
         value,
+        termid,
+        section,
       }),
     });
         

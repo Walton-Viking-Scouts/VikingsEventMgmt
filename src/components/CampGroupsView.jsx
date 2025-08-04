@@ -249,7 +249,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           )}
         </div>
 
-        {!summary.campGroupDataAvailable && (
+        {!summary.vikingEventDataAvailable && (
           <Alert variant="warning" className="mb-4">
             <Alert.Title>No Viking Event Management Data</Alert.Title>
             <Alert.Description>

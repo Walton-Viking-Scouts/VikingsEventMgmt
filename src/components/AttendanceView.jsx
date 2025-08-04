@@ -1,20 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
-import { getToken } from '../services/auth.js';
+import React, { useState, useEffect } from 'react';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
-import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
+import SignInOutButton from './SignInOutButton.jsx';
 import { Card, Button, Badge, Alert } from './ui';
+import { useAttendanceData } from '../hooks/useAttendanceData.js';
+import { useSignInOut } from '../hooks/useSignInOut.js';
 
 function AttendanceView({ events, members, onBack }) {
-  const [attendanceData, setAttendanceData] = useState([]);
+  // Use custom hooks for data loading and sign-in/out functionality
+  const {
+    attendanceData,
+    loading,
+    error,
+    loadVikingEventData,
+    getVikingEventDataForMember,
+  } = useAttendanceData(events);
+  
+  const { buttonLoading, handleSignInOut } = useSignInOut(events, loadVikingEventData);
+  
+  // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
-  const [vikingEventData, setVikingEventData] = useState(new Map()); // Map of sectionId to flexirecord data
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('summary'); // summary, detailed, campGroups
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
@@ -33,104 +41,15 @@ function AttendanceView({ events, members, onBack }) {
     const filters = {};
     const uniqueSections = [...new Set(events.map(e => e.sectionid))];
     uniqueSections.forEach(sectionId => {
-      filters[sectionId] = true;
+      // Find the section name to check if it's an Adults section
+      const sectionEvent = events.find(e => e.sectionid === sectionId);
+      const sectionName = sectionEvent?.sectionname?.toLowerCase() || '';
+      
+      // Set Adults sections to false by default, all others to true
+      filters[sectionId] = !sectionName.includes('adults');
     });
     return filters;
   });
-
-  useEffect(() => {
-    loadAttendance();
-    // Note: Member data should already be loaded by dashboard background loading
-  }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadAttendance = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const allAttendance = [];
-      
-      // Check if events already have cached attendance data
-      for (const event of events) {
-        if (event.attendanceData && Array.isArray(event.attendanceData)) {
-          // Use cached attendance data
-          const attendanceWithEvent = event.attendanceData.map(record => ({
-            ...record,
-            eventid: event.eventid,
-            eventname: event.name,
-            eventdate: event.startdate,
-            sectionid: event.sectionid,
-            sectionname: event.sectionname,
-          }));
-          allAttendance.push(...attendanceWithEvent);
-        } else {
-          // Fallback to API call if no cached data
-          try {
-            const token = getToken();
-            
-            // If termid is missing, get it from API
-            let termId = event.termid;
-            if (!termId) {
-              termId = await fetchMostRecentTermId(event.sectionid, token);
-            }
-            
-            if (termId) {
-              const attendance = await getEventAttendance(
-                event.sectionid, 
-                event.eventid, 
-                termId, 
-                token,
-              );
-              
-              if (attendance && Array.isArray(attendance)) {
-                // Add event info to each attendance record
-                const attendanceWithEvent = attendance.map(record => ({
-                  ...record,
-                  eventid: event.eventid,
-                  eventname: event.name,
-                  eventdate: event.startdate,
-                  sectionid: event.sectionid,
-                  sectionname: event.sectionname,
-                }));
-                allAttendance.push(...attendanceWithEvent);
-              }
-            } else {
-              console.warn(`No termid found for event ${event.name} in section ${event.sectionid}`);
-            }
-          } catch (eventError) {
-            console.warn(`Error loading attendance for event ${event.name}:`, eventError);
-          }
-        }
-      }
-      
-      setAttendanceData(allAttendance);
-      
-      // Load Viking Event Management data (fresh when possible, cache as fallback)
-      await loadVikingEventData();
-      
-    } catch (err) {
-      console.error('Error loading attendance:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load Viking Event Management flexirecord data (fresh preferred, cache fallback)
-  const loadVikingEventData = async () => {
-    try {
-      const token = getToken();
-      
-      // Load Viking Event Management data for all sections
-      // getVikingEventDataForEvents handles section-term combinations correctly
-      const vikingEventMap = await getVikingEventDataForEvents(events, token);
-      setVikingEventData(vikingEventMap);
-      
-    } catch (error) {
-      console.warn('Error loading Viking Event Management data:', error);
-      // Don't set error state as this is supplementary data
-    }
-  };
 
   // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
 
@@ -160,24 +79,7 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
-  // Create a memoized lookup map for Viking Event data to improve performance
-  // Builds once when vikingEventData changes, provides O(1) lookups instead of O(n×m) searches
-  const vikingEventLookup = useMemo(() => {
-    const lookup = new Map();
-    for (const [, sectionData] of vikingEventData.entries()) {
-      if (sectionData && sectionData.items) {
-        sectionData.items.forEach(item => {
-          lookup.set(item.scoutid, item);
-        });
-      }
-    }
-    return lookup;
-  }, [vikingEventData]);
-
-  // Get Viking Event Management data for a specific member using optimized O(1) lookup
-  const getVikingEventDataForMember = (scoutid, _memberEventData) => {
-    return vikingEventLookup.get(scoutid) || null;
-  };
+  // Viking Event data lookup is now handled by useAttendanceData hook
 
   const getAttendanceStatus = (attending) => {
     if (attending === 'Yes' || attending === '1') return 'yes';
@@ -187,14 +89,26 @@ function AttendanceView({ events, members, onBack }) {
     return 'notInvited';
   };
 
-  // Filter attendance data based on active filters (attendance status + sections)
+  // Check if a member should be included in camp groups (same logic as Camp Groups tab)
+  const shouldIncludeInSummary = (record) => {
+    // Find member details to check person_type
+    const memberDetails = members.find(member => member.scoutid === record.scoutid);
+    if (!memberDetails) return true; // Include if we can't find member details
+    
+    const personType = memberDetails.person_type;
+    // Skip Leaders and Young Leaders - same as Camp Groups filtering
+    return personType !== 'Leaders' && personType !== 'Young Leaders';
+  };
+
+  // Filter attendance data based on active filters (attendance status + sections + person type)
   const filterAttendanceData = (data, attendanceFilters, sectionFilters) => {
     return data.filter(record => {
       const attendanceStatus = getAttendanceStatus(record.attending);
       const attendanceMatch = attendanceFilters[attendanceStatus];
       const sectionMatch = sectionFilters[record.sectionid];
+      const personTypeMatch = shouldIncludeInSummary(record);
       
-      return attendanceMatch && sectionMatch;
+      return attendanceMatch && sectionMatch && personTypeMatch;
     });
   };
 
@@ -243,6 +157,7 @@ function AttendanceView({ events, members, onBack }) {
       
       if (vikingData) {
         member.vikingEventData = {
+          CampGroup: vikingData.CampGroup,
           SignedInBy: vikingData.SignedInBy,
           SignedInWhen: vikingData.SignedInWhen,
           SignedOutBy: vikingData.SignedOutBy,
@@ -254,6 +169,8 @@ function AttendanceView({ events, members, onBack }) {
     return Object.values(memberStats);
   };
 
+  // Sign-in/out functionality is now handled by useSignInOut hook
+  // SignInOutButton component is now in separate file
 
   const getSimplifiedAttendanceSummaryStats = () => {
     const sectionStats = {};
@@ -273,7 +190,7 @@ function AttendanceView({ events, members, onBack }) {
       });
     }
     
-    filteredAttendanceData.forEach(record => {
+    attendanceData.forEach(record => {
       const sectionName = record.sectionname || 'Unknown Section';
       const personType = memberPersonTypes[record.scoutid] || 'Young People';
       const status = getAttendanceStatus(record.attending);
@@ -437,7 +354,7 @@ function AttendanceView({ events, members, onBack }) {
         <Alert.Actions>
           <Button 
             variant="scout-blue"
-            onClick={loadAttendance}
+            onClick={() => window.location.reload()}
             type="button"
           >
             Retry
@@ -789,6 +706,12 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Camp Group
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Signed In By
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -837,6 +760,16 @@ function AttendanceView({ events, members, onBack }) {
                               </Badge>
                             )}
                           </div>
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.vikingEventData?.CampGroup || '-'}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          <SignInOutButton 
+                            member={member}
+                            onSignInOut={handleSignInOut}
+                            loading={buttonLoading?.[member.scoutid] || false}
+                          />
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.vikingEventData?.SignedInBy || '-'}
@@ -953,7 +886,7 @@ function AttendanceView({ events, members, onBack }) {
               events={events}
               attendees={filteredAttendanceData}
               members={members}
-              onError={(error) => setError(error.message)}
+              onError={(error) => console.error('CampGroupsView error:', error)}
             />
           )}
         </Card.Body>
