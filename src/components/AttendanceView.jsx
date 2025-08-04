@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
+import { getEventAttendance, fetchMostRecentTermId, updateFlexiRecord, getFlexiRecords } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
-import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
+import { getVikingEventDataForEvents, getFlexiRecordStructure } from '../services/flexiRecordService.js';
+import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
 import { Card, Button, Badge, Alert } from './ui';
+import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 
 function AttendanceView({ events, members, onBack }) {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -19,6 +21,7 @@ function AttendanceView({ events, members, onBack }) {
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  const [buttonLoading, setButtonLoading] = useState({}); // Track loading state for each member button
   
   // Attendance filter state - exclude "Not Invited" by default
   const [attendanceFilters, setAttendanceFilters] = useState({
@@ -33,7 +36,12 @@ function AttendanceView({ events, members, onBack }) {
     const filters = {};
     const uniqueSections = [...new Set(events.map(e => e.sectionid))];
     uniqueSections.forEach(sectionId => {
-      filters[sectionId] = true;
+      // Find the section name to check if it's an Adults section
+      const sectionEvent = events.find(e => e.sectionid === sectionId);
+      const sectionName = sectionEvent?.sectionname?.toLowerCase() || '';
+      
+      // Set Adults sections to false by default, all others to true
+      filters[sectionId] = !sectionName.includes('adults');
     });
     return filters;
   });
@@ -243,6 +251,7 @@ function AttendanceView({ events, members, onBack }) {
       
       if (vikingData) {
         member.vikingEventData = {
+          CampGroup: vikingData.CampGroup,
           SignedInBy: vikingData.SignedInBy,
           SignedInWhen: vikingData.SignedInWhen,
           SignedOutBy: vikingData.SignedOutBy,
@@ -254,6 +263,207 @@ function AttendanceView({ events, members, onBack }) {
     return Object.values(memberStats);
   };
 
+  // Helper function to get current user info from session storage
+  const getCurrentUserInfo = () => {
+    const userInfo = safeGetSessionItem('user_info', {});
+    return {
+      firstname: userInfo.firstname || 'Unknown',
+      lastname: userInfo.lastname || 'User',
+    };
+  };
+
+  // Helper function to get field ID from field mapping
+  const getFieldId = (meaningfulName, fieldMapping) => {
+    for (const [fieldId, fieldInfo] of fieldMapping.entries()) {
+      if (fieldInfo.name === meaningfulName) {
+        return fieldId;
+      }
+    }
+    throw new Error(`Field '${meaningfulName}' not found in flexirecord structure`);
+  };
+
+  // Helper function to find Viking Event Mgmt flexirecord for a section
+  const getVikingEventFlexiRecord = async (sectionId, termId) => {
+    const token = getToken();
+    const flexiRecords = await getFlexiRecords(sectionId, token);
+    
+    // Find the "Viking Event Mgmt" flexirecord
+    const vikingRecord = flexiRecords.items.find(record => 
+      record.name && record.name.toLowerCase().includes('viking event'),
+    );
+    
+    if (!vikingRecord) {
+      throw new Error('Viking Event Mgmt flexirecord not found for this section');
+    }
+    
+    const structure = await getFlexiRecordStructure(vikingRecord.extraid, sectionId, termId, token);
+    
+    return {
+      extraid: vikingRecord.extraid,
+      structure: structure,
+      fieldMapping: parseFlexiStructure(structure),
+    };
+  };
+
+  // Main sign in/out handler
+  const handleSignInOut = async (member, action) => {
+    try {
+      // Set loading state for this specific button
+      setButtonLoading(prev => ({ ...prev, [member.scoutid]: true }));
+      
+      // Get current user info from cached startup data
+      const userInfo = getCurrentUserInfo();
+      const currentUser = `${userInfo.firstname} ${userInfo.lastname}`;
+      const timestamp = new Date().toISOString();
+      
+      // Get termId from events
+      const event = events.find(e => e.sectionid === member.sectionid);
+      const termId = event?.termid || await fetchMostRecentTermId(member.sectionid, getToken());
+      
+      if (!termId) {
+        throw new Error('No term ID available - required for flexirecord updates');
+      }
+      
+      // Get section type from cached section config
+      const cachedSections = safeGetItem('vikings_sections_offline', []);
+      const sectionConfig = cachedSections.find(section => section.sectionid == member.sectionid);
+      const sectionType = sectionConfig?.sectiontype || 'beavers'; // fallback to beavers if not found
+      
+      // Get Viking Event Mgmt flexirecord structure for this section
+      const vikingFlexiRecord = await getVikingEventFlexiRecord(member.sectionid, termId);
+      
+      if (action === 'signin') {
+        // Sign in requires two API calls: SignedInBy and SignedInWhen
+        await updateFlexiRecord(
+          member.sectionid,
+          member.scoutid,
+          vikingFlexiRecord.extraid,
+          getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
+          currentUser,
+          termId,
+          sectionType,
+          getToken(),
+        );
+        
+        await updateFlexiRecord(
+          member.sectionid,
+          member.scoutid,
+          vikingFlexiRecord.extraid,
+          getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
+          timestamp,
+          termId,
+          sectionType,
+          getToken(),
+        );
+        
+        // Clear signed out fields if they have values (only make API calls if needed)
+        const hasSignedOutBy = member.vikingEventData?.SignedOutBy && 
+                               member.vikingEventData.SignedOutBy !== '-' && 
+                               member.vikingEventData.SignedOutBy.trim() !== '';
+        const hasSignedOutWhen = member.vikingEventData?.SignedOutWhen && 
+                                 member.vikingEventData.SignedOutWhen !== '-' && 
+                                 member.vikingEventData.SignedOutWhen.trim() !== '';
+        
+        if (hasSignedOutBy) {
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+            '', // Clear the field
+            termId,
+            sectionType,
+            getToken(),
+          );
+        }
+        
+        if (hasSignedOutWhen) {
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+            '', // Clear the field
+            termId,
+            sectionType,
+            getToken(),
+          );
+        }
+        
+        console.log(`Successfully signed in ${member.name}`);
+      } else {
+        // Sign out requires two API calls: SignedOutBy and SignedOutWhen
+        await updateFlexiRecord(
+          member.sectionid,
+          member.scoutid,
+          vikingFlexiRecord.extraid,
+          getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+          currentUser,
+          termId,
+          sectionType,
+          getToken(),
+        );
+        
+        await updateFlexiRecord(
+          member.sectionid,
+          member.scoutid,
+          vikingFlexiRecord.extraid,
+          getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+          timestamp,
+          termId,
+          sectionType,
+          getToken(),
+        );
+        
+        console.log(`Successfully signed out ${member.name}`);
+      }
+      
+      // Refresh Viking Event data to show updates
+      await loadVikingEventData();
+      
+    } catch (error) {
+      console.error(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}:`, error);
+      
+      // Show toast notification for error (using console.error for now, will add proper toast)
+      alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+      
+    } finally {
+      // Clear loading state for this button
+      setButtonLoading(prev => ({ ...prev, [member.scoutid]: false }));
+    }
+  };
+
+  // SignInOutButton component
+  const SignInOutButton = ({ member, onSignInOut, loading }) => {
+    const isSignedIn = member.vikingEventData?.SignedInBy && 
+                       member.vikingEventData?.SignedInBy !== '-' &&
+                       member.vikingEventData?.SignedInBy.trim() !== '';
+    const isSignedOut = member.vikingEventData?.SignedOutBy && 
+                        member.vikingEventData?.SignedOutBy !== '-' &&
+                        member.vikingEventData?.SignedOutBy.trim() !== '';
+    
+    // Show Sign In if not signed in, Sign Out if signed in but not signed out
+    const action = isSignedIn && !isSignedOut ? 'signout' : 'signin';
+    const label = action === 'signin' ? 'Sign In' : 'Sign Out';
+    
+    // Use pill-style button like existing filter buttons
+    const baseStyles = 'px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm min-w-16';
+    const activeStyles = action === 'signin' 
+      ? 'bg-scout-green text-white hover:bg-scout-green-dark' 
+      : 'bg-scout-red text-white hover:bg-scout-red-dark';
+    
+    return (
+      <button
+        onClick={() => onSignInOut(member, action)}
+        disabled={loading}
+        className={`${baseStyles} ${activeStyles} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        type="button"
+        title={`${label} ${member.name}`}
+      >
+        {loading ? '...' : label}
+      </button>
+    );
+  };
 
   const getSimplifiedAttendanceSummaryStats = () => {
     const sectionStats = {};
@@ -273,7 +483,7 @@ function AttendanceView({ events, members, onBack }) {
       });
     }
     
-    filteredAttendanceData.forEach(record => {
+    attendanceData.forEach(record => {
       const sectionName = record.sectionname || 'Unknown Section';
       const personType = memberPersonTypes[record.scoutid] || 'Young People';
       const status = getAttendanceStatus(record.attending);
@@ -789,6 +999,12 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Camp Group
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Signed In By
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -837,6 +1053,16 @@ function AttendanceView({ events, members, onBack }) {
                               </Badge>
                             )}
                           </div>
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {member.vikingEventData?.CampGroup || '-'}
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          <SignInOutButton 
+                            member={member}
+                            onSignInOut={handleSignInOut}
+                            loading={buttonLoading?.[member.scoutid] || false}
+                          />
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.vikingEventData?.SignedInBy || '-'}

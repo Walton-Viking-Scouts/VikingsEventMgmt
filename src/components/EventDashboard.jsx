@@ -47,13 +47,25 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const initializeDashboard = async () => {
       if (!mounted) return; // Prevent duplicate calls in StrictMode
       
-      await loadInitialData();
+      // Additional StrictMode protection: use a global flag to prevent multiple initializations
+      const initKey = 'eventdashboard_initializing';
+      if (sessionStorage.getItem(initKey) === 'true') {
+        return; // Skip duplicate initialization
+      }
       
-      if (!mounted) return; // Check again after async operation
-      
-      // Check for development mode
-      const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
-      setDevelopmentMode(isDev);
+      try {
+        sessionStorage.setItem(initKey, 'true');
+        await loadInitialData();
+        
+        if (!mounted) return; // Check again after async operation
+        
+        // Check for development mode
+        const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+        setDevelopmentMode(isDev);
+      } finally {
+        // Clear the flag after initialization completes (success or failure)
+        sessionStorage.removeItem(initKey);
+      }
     };
     
     initializeDashboard();
@@ -85,7 +97,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const lastSyncTime = localStorage.getItem('viking_last_sync');
       const isDataFresh = lastSyncTime && 
         (Date.now() - new Date(lastSyncTime).getTime()) < 30 * 60 * 1000; // 30 minutes
-      
       
       if (hasOfflineData && isDataFresh) {
         // Recent cached data available - use cache
