@@ -195,14 +195,26 @@ function AttendanceView({ events, members, onBack }) {
     return 'notInvited';
   };
 
-  // Filter attendance data based on active filters (attendance status + sections)
+  // Check if a member should be included in camp groups (same logic as Camp Groups tab)
+  const shouldIncludeInSummary = (record) => {
+    // Find member details to check person_type
+    const memberDetails = members.find(member => member.scoutid === record.scoutid);
+    if (!memberDetails) return true; // Include if we can't find member details
+    
+    const personType = memberDetails.person_type;
+    // Skip Leaders and Young Leaders - same as Camp Groups filtering
+    return personType !== 'Leaders' && personType !== 'Young Leaders';
+  };
+
+  // Filter attendance data based on active filters (attendance status + sections + person type)
   const filterAttendanceData = (data, attendanceFilters, sectionFilters) => {
     return data.filter(record => {
       const attendanceStatus = getAttendanceStatus(record.attending);
       const attendanceMatch = attendanceFilters[attendanceStatus];
       const sectionMatch = sectionFilters[record.sectionid];
+      const personTypeMatch = shouldIncludeInSummary(record);
       
-      return attendanceMatch && sectionMatch;
+      return attendanceMatch && sectionMatch && personTypeMatch;
     });
   };
 
