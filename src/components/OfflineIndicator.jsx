@@ -5,6 +5,7 @@ import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
 import { isAuthenticated, getToken } from '../services/auth.js';
 import { config } from '../config/env.js';
+import { testBackendConnection } from '../services/api.js';
 
 function OfflineIndicator({ hideSync = false }) {
   const [isOnline, setIsOnline] = useState(true);
@@ -15,7 +16,7 @@ function OfflineIndicator({ hideSync = false }) {
   const [loginPromptData, setLoginPromptData] = useState(null);
   const [showSyncError, setShowSyncError] = useState(false);
 
-  // Test actual API connectivity by making a lightweight request
+  // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
     try {
       const token = getToken();
@@ -29,48 +30,36 @@ function OfflineIndicator({ hideSync = false }) {
         });
       }
       
-      // Create AbortController for timeout (this is a modern browser API)
-      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timeoutId = controller ? setTimeout(() => controller.abort(), 5000) : null; // 5 second timeout
+      // Use the rate-limited testBackendConnection function from API service
+      // This ensures all health checks go through the queue system
+      const result = await testBackendConnection();
       
-      const requestOptions = {
-        method: 'GET',
-        ...(controller && { signal: controller.signal }),
-      };
-      
-      // Always use the health endpoint for connectivity testing
-      // No need to waste API calls on token validation - just test if backend is reachable
-      const endpoint = '/health';
-      
-      if (import.meta.env.NODE_ENV === 'development') {
-        console.log('🔍 OfflineIndicator - Making API request to:', `${config.apiUrl}${endpoint}`);
-      }
-      
-      // Make the API request and validate response
-      const response = await fetch(`${config.apiUrl}${endpoint}`, requestOptions);
-      
-      if (timeoutId) clearTimeout(timeoutId);
-      
-      // Validate response status - API is reachable if we get a valid HTTP response
-      // Accept 2xx success responses and 4xx client errors (means API is up but may require auth)
-      // Reject 5xx server errors (means API is down/broken)
-      if (response.status >= 200 && response.status < 500) {
-        // API is connected - successful response or client error (like 401 auth required)
+      if (result && (result.status === 'ok' || result.status === 'healthy')) {
+        // API is connected and responding correctly
         setApiConnected(true);
         setApiTested(true);
         
         if (import.meta.env.NODE_ENV === 'development') {
-          console.log(`✅ OfflineIndicator - API connectivity confirmed (status: ${response.status})`);
+          console.log('✅ OfflineIndicator - API connectivity confirmed via queue');
         }
       } else {
-        // Server error (5xx) - API is not functioning properly
-        throw new Error(`API server error: ${response.status} ${response.statusText}`);
+        throw new Error('API health check failed');
       }
     } catch (error) {
-      // Only log non-abort errors to avoid spam
-      if (error.name !== 'AbortError') {
-        console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
+      // Handle rate limiting gracefully - don't mark as disconnected if it's just queued
+      if (error.message?.includes('Rate limited') || error.status === 429 || 
+          error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log('⏳ OfflineIndicator - Health check queued due to rate limiting, will retry automatically');
+        }
+        // Keep current connection status - don't mark as failed due to rate limiting
+        // The queue will retry automatically with backoff
+        setApiTested(true);
+        return;
       }
+      
+      // Only log non-rate-limit errors and mark as disconnected
+      console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
       setApiConnected(false);
       setApiTested(true);
     }

@@ -176,7 +176,7 @@ describe('EventDashboard Helper Functions', () => {
       expect(result).toEqual([]);
     });
 
-    it('should use development delays when developmentMode is true', async () => {
+    it('should handle development mode flag', async () => {
       const token = 'mock-token';
       const termId = 'term-123';
 
@@ -185,9 +185,9 @@ describe('EventDashboard Helper Functions', () => {
 
       await fetchSectionEvents(mockSection, token, true);
 
-      // Verify setTimeout was called with development delays
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 1500); // sectionDelay
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 1000); // eventDelay
+      // Verify API calls were made (rate limiting handled by queue)
+      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
+      expect(getEvents).toHaveBeenCalledWith(1, termId, token);
     });
   });
 
@@ -275,16 +275,15 @@ describe('EventDashboard Helper Functions', () => {
       expect(result).toBeNull();
     });
 
-    it('should use development delays when developmentMode is true', async () => {
+    it('should handle development mode flag', async () => {
       const token = 'mock-token';
 
       getEventAttendance.mockResolvedValue([]);
 
       await fetchEventAttendance(mockEvent, token, true);
 
-      // Verify setTimeout was called with development delays
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 1200); // attendanceDelay
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 800);  // finalDelay
+      // Verify API calls were made (rate limiting handled by queue)
+      expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
     });
   });
 

@@ -10,6 +10,7 @@ import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
 import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
+import { authHandler } from './services/simpleAuthHandler.js';
 import { Alert } from './components/ui';
 import './App.css';
 
@@ -104,14 +105,11 @@ function App() {
       url.searchParams.delete('token_type');
       window.history.replaceState({}, '', url);
       
-      // No post-login sync - let dashboard handle data loading
-      const triggerPostLoginSync = async () => {
-        // Force refresh to update UI - dashboard will handle data loading
-        window.location.reload();
-      };
+      // Reset auth handler to clear any previous auth failures
+      // This allows the dashboard to proceed with sync
+      authHandler.reset();
       
-      // Small delay to let token be set properly
-      setTimeout(triggerPostLoginSync, 100);
+      console.log('✅ OAuth callback processed - token stored, URL cleaned');
     }
   }, []);
 

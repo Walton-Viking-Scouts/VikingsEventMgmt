@@ -3,7 +3,6 @@
 
 import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms } from '../services/api.js';
 import { getMostRecentTermId } from './termUtils.js';
-import { sleep } from './asyncUtils.js';
 import databaseService from '../services/database.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
@@ -21,9 +20,9 @@ export const fetchAllSectionEvents = async (sections, token, developmentMode = f
   let allTerms = null;
   if (token) {
     try {
-      console.log('Loading terms once for all sections...');
+      logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.COMPONENT);
       allTerms = await getTerms(token); // This will use cache from sync process
-      console.log(`Using cached terms for ${Object.keys(allTerms).length} sections`);
+      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms).length }, LOG_CATEGORIES.COMPONENT);
     } catch (err) {
       logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
     }
@@ -54,14 +53,12 @@ export const fetchAllSectionEvents = async (sections, token, developmentMode = f
  * @param {Object|null} allTerms - Pre-loaded terms data (optional optimization)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const fetchSectionEvents = async (section, token, developmentMode = false, allTerms = null) => {
+export const fetchSectionEvents = async (section, token, _developmentMode = false, allTerms = null) => {
   try {
     let events = [];
     
     if (token) {
-      // Add delay between sections to prevent rapid API calls
-      const sectionDelay = developmentMode ? 1500 : 800;
-      await sleep(sectionDelay);
+      // Rate limiting handled by queue
       
       // Fetch from API - use cached terms if available for major optimization
       let termId;
@@ -74,8 +71,7 @@ export const fetchSectionEvents = async (section, token, developmentMode = false
       }
       
       if (termId) {
-        const eventDelay = developmentMode ? 1000 : 500;
-        await sleep(eventDelay);
+        // Rate limiting now handled by RateLimitQueue
         const sectionEvents = await getEvents(section.sectionid, termId, token);
         if (sectionEvents && Array.isArray(sectionEvents)) {
           events = sectionEvents.map(event => ({
@@ -117,25 +113,21 @@ export const fetchSectionEvents = async (section, token, developmentMode = false
  * @param {boolean} developmentMode - Whether development delays should be used
  * @returns {Promise<Array|null>} Attendance data or null if failed
  */
-export const fetchEventAttendance = async (event, token, developmentMode = false) => {
+export const fetchEventAttendance = async (event, token, _developmentMode = false) => {
   try {
     if (token) {
-      // Add delay between attendance calls to prevent rapid API calls
-      const attendanceDelay = developmentMode ? 1200 : 600;
-      await sleep(attendanceDelay);
+      // Rate limiting handled by queue
       
       // If termid is missing, get it from API
       let termId = event.termid;
       if (!termId) {
-        const termIdDelay = developmentMode ? 600 : 300;
-        await sleep(termIdDelay);
+        // Rate limiting handled by queue
         termId = await fetchMostRecentTermId(event.sectionid, token);
         event.termid = termId;
       }
       
       if (termId) {
-        const finalDelay = developmentMode ? 800 : 400;
-        await sleep(finalDelay);
+        // Rate limiting now handled by RateLimitQueue
         const attendanceData = await getEventAttendance(
           event.sectionid, 
           event.eventid, 

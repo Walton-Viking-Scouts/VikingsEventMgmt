@@ -158,7 +158,6 @@ describe('EventDashboard Integration Tests', () => {
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
         mockSections,
         null, // cache-only mode uses null token
-        false, // developmentMode
       );
       
       expect(helpers.filterEventsByDateRange).toHaveBeenCalledWith(
@@ -171,7 +170,6 @@ describe('EventDashboard Integration Tests', () => {
           eventid: 101,
         }),
         null, // cache-only mode uses null token
-        false, // developmentMode
       );
 
       expect(helpers.groupEventsByName).toHaveBeenCalledWith(
@@ -214,13 +212,11 @@ describe('EventDashboard Integration Tests', () => {
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
         expect.any(Array),
         null, // No token
-        false,
       );
 
       expect(helpers.fetchEventAttendance).toHaveBeenCalledWith(
         expect.any(Object),
         null, // No token
-        false,
       );
     });
 
@@ -233,7 +229,7 @@ describe('EventDashboard Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should not call helper functions for empty sections
-      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith([], null, false);
+      expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith([], null);
       expect(helpers.fetchEventAttendance).not.toHaveBeenCalled();
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([]);
     });
@@ -324,7 +320,6 @@ describe('EventDashboard Integration Tests', () => {
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
         expect.any(Array),
         null, // cache-only mode uses null token
-        false, // Note: cache-only mode, developmentMode determined by environment
       );
     });
   });

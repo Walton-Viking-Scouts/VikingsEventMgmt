@@ -191,9 +191,24 @@ class SyncService {
       for (const section of sections) {
         await this.syncEvents(section.sectionid, token);
         
-        // Sync attendance for each event in this section
+        // Sync attendance only for events shown on dashboard (last week + future)
         const events = await databaseService.getEvents(section.sectionid);
-        for (const event of events) {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        // Filter to dashboard-relevant events only (matches filterEventsByDateRange logic)
+        const dashboardEvents = events.filter(event => {
+          const eventDate = new Date(event.startdate);
+          return eventDate >= oneWeekAgo; // Same logic as EventDashboard filter
+        });
+        
+        logger.info('Syncing attendance for dashboard events only', {
+          sectionId: section.sectionid,
+          totalEvents: events.length,
+          dashboardEvents: dashboardEvents.length,
+        }, LOG_CATEGORIES.SYNC);
+        
+        for (const event of dashboardEvents) {
           await this.syncAttendance(section.sectionid, event.eventid, event.termid || null, token);
         }
       }

@@ -25,7 +25,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [queueStats, setQueueStats] = useState({ queueLength: 0, processing: false, totalRequests: 0 });
-  const [developmentMode, setDevelopmentMode] = useState(false);
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
   const [isOfflineMode, setIsOfflineMode] = useState(false); // Track if we're in offline mode due to auth failure
@@ -58,10 +57,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         await loadInitialData();
         
         if (!mounted) return; // Check again after async operation
-        
-        // Check for development mode
-        const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
-        setDevelopmentMode(isDev);
       } finally {
         // Clear the flag after initialization completes (success or failure)
         sessionStorage.removeItem(initKey);
@@ -98,35 +93,59 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const isDataFresh = lastSyncTime && 
         (Date.now() - new Date(lastSyncTime).getTime()) < 30 * 60 * 1000; // 30 minutes
       
+      // Debug logging for initialization flow
+      const token = getToken();
+      const authFailed = authHandler.hasAuthFailed();
+      
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 EventDashboard loadInitialData:', {
+          hasOfflineData,
+          isDataFresh,
+          lastSyncTime,
+          hasToken: !!token,
+          authFailed,
+          tokenValue: token ? `${token.substring(0, 10)}...` : null,
+        });
+      }
+      
       if (hasOfflineData && isDataFresh) {
         // Recent cached data available - use cache
+        console.log('📄 Using fresh cached data');
         await loadCachedData();
       } else if (hasOfflineData && !isDataFresh) {
         // Stale cached data - load cache first, then auto-sync in background
+        console.log('📄 Using stale cached data, will sync in background');
         await loadCachedData();
         
         // Auto-sync in background only if auth hasn't failed
         setTimeout(async () => {
           try {
             if (authHandler.hasAuthFailed()) {
+              console.log('⏹️ Background sync skipped - auth failed');
               setIsOfflineMode(true);
               return;
             }
             
             const token = getToken();
             if (!token) {
+              console.log('⏹️ Background sync skipped - no token');
               return;
             }
             
+            console.log('🔄 Starting background sync');
             await syncData();
           } catch (error) {
             // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
+            console.log('❌ Background sync failed:', error.message);
           }
         }, 1000);
       } else {
         // No cached data - check if we should attempt sync
+        console.log('📡 No cached data found - attempting sync');
+        
         if (authHandler.hasAuthFailed()) {
+          console.log('⏹️ Sync skipped - auth already failed');
           setError('Authentication expired and no cached data available. Please reconnect to OSM.');
           setIsOfflineMode(true);
           return;
@@ -134,9 +153,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         const token = getToken();
         if (!token) {
+          console.log('⏹️ Sync skipped - no token available');
           return;
         }
         
+        console.log('🔄 Starting fresh data sync');
         await syncData();
       }
     } catch (err) {
@@ -194,19 +215,25 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
     try {
+      console.log('🔄 syncData: Starting sync process');
       setSyncing(true);
       setError(null);
       setIsOfflineMode(false);
       
       const token = getToken();
+      console.log('🔄 syncData: Token available:', !!token);
       
       // 1. Fetch all sections
+      console.log('🔄 syncData: Fetching user roles/sections');
       const sectionsData = await getUserRoles(token);
+      console.log('🔄 syncData: Received sections:', sectionsData.length);
       setSections(sectionsData);
       await databaseService.saveSections(sectionsData);
       
       // 2. Fetch events for each section and build cards
+      console.log('🔄 syncData: Building event cards');
       const cards = await buildEventCards(sectionsData, token);
+      console.log('🔄 syncData: Built event cards:', cards.length);
       setEventCards(cards);
       
       // 3. Proactively load member data in background (non-blocking)
@@ -216,6 +243,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const now = new Date();
       setLastSync(now);
       localStorage.setItem('viking_last_sync', now.toISOString());
+      console.log('✅ syncData: Sync completed successfully');
       
     } catch (err) {
       logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
@@ -276,7 +304,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
     // Fetch events for all sections with optimized terms loading
-    const allEvents = await fetchAllSectionEvents(sectionsData, token, developmentMode);
+    const allEvents = await fetchAllSectionEvents(sectionsData, token);
     
     // Filter for future events and events from last week
     const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
@@ -284,7 +312,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Fetch attendance data for filtered events
     for (const event of filteredEvents) {
       try {
-        const attendanceData = await fetchEventAttendance(event, token, developmentMode);
+        const attendanceData = await fetchEventAttendance(event, token);
         event.attendanceData = attendanceData;
       } catch (err) {
         logger.error('Error fetching attendance for event {eventId}', { 
@@ -490,11 +518,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                   <p className="text-xs text-blue-600">
                     API Queue: {queueStats.processing ? 'Processing' : 'Idle'} • 
                     {queueStats.queueLength} pending • {queueStats.totalRequests} total
-                  </p>
-                )}
-                {developmentMode && (
-                  <p className="text-xs text-orange-600">
-                    🚧 Development mode: Extended delays active
                   </p>
                 )}
                 {isOfflineMode && (
