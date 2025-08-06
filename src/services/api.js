@@ -1031,19 +1031,22 @@ export async function getMembersGrid(sectionId, termId, token) {
       return cachedMembers;
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        section_id: sectionId,
-        term_id: termId,
-      }),
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          section_id: sectionId,
+          term_id: termId,
+        }),
+      });
+      
+      await checkAndHandleRateLimit(response);
+      return await handleAPIResponse(response);
     });
-
-    const data = await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
@@ -1153,9 +1156,6 @@ export async function getListOfMembers(sections, token) {
       // Use cached terms instead of calling API again
       const termId = getMostRecentTermId(section.sectionid, allTerms);
       if (!termId) continue;
-      
-      // Add delay before members grid call
-      await sleep(300);
       
       // Use the new getMembersGrid API for comprehensive data
       const members = await getMembersGrid(section.sectionid, termId, token);
