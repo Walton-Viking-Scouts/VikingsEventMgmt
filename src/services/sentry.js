@@ -3,8 +3,8 @@ import * as Sentry from '@sentry/react';
 import packageJson from '../../package.json';
 import { config } from '../config/env.js';
 
-// Environment configuration
-const environment = import.meta.env.NODE_ENV || 'development';
+// Environment configuration - Use robust detection from config
+const environment = config.actualEnvironment;
 const release = packageJson.version;
 const sentryDsn = config.sentryDsn;
 

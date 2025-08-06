@@ -49,10 +49,34 @@ export const config = {
   // Optional Configuration
   sentryDsn: import.meta.env.VITE_SENTRY_DSN,
   
-  // Environment Detection
+  // Environment Detection - More robust for deployment
   isDev: import.meta.env.DEV,
   isProd: import.meta.env.PROD,
   mode: import.meta.env.MODE,
+  
+  // Computed environment based on multiple factors
+  actualEnvironment: (() => {
+    // Check if we're in a production build
+    if (import.meta.env.PROD) return 'production';
+    
+    // Check hostname patterns for deployed environments
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const hostname = window.location.hostname;
+      if (hostname.includes('.onrender.com') || 
+          hostname.includes('.netlify.app') || 
+          hostname.includes('.vercel.app') ||
+          hostname === 'vikingeventmgmt.onrender.com') {
+        return 'production';
+      }
+      
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'development';
+      }
+    }
+    
+    // Fallback to Vite's mode
+    return import.meta.env.MODE || 'development';
+  })(),
   
   // Computed Values
   isApiUrlLocal: apiUrl?.includes('localhost'),
@@ -60,12 +84,13 @@ export const config = {
 };
 
 // Log configuration in development
-if (import.meta.env.DEV) {
+if (config.actualEnvironment === 'development') {
   console.log('🔧 Environment Configuration:');
   console.log('   API URL:', config.apiUrl);
   console.log('   OAuth Client ID:', config.oauthClientId ? '***configured***' : '❌ missing');
   console.log('   Sentry DSN:', config.sentryDsn ? '***configured***' : 'not configured');
-  console.log('   Environment:', config.mode);
+  console.log('   Environment:', config.actualEnvironment);
+  console.log('   Vite Mode:', config.mode);
   console.log('   Local API:', config.isApiUrlLocal ? 'Yes' : 'No');
   console.log('   Secure API:', config.isApiUrlSecure ? 'Yes' : 'No');
 }

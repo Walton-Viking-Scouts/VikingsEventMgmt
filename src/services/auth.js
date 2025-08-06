@@ -154,6 +154,30 @@ export function setUserInfo(userInfo) {
   sessionStorage.setItem('user_info', JSON.stringify(userInfo));
 }
 
+// Fetch user info from startup data API
+export async function fetchUserInfo() {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+    
+    // Import getUserInfoFromAPI from api.js to avoid circular dependency
+    const { getUserInfoFromAPI } = await import('./api.js');
+    const userInfo = await getUserInfoFromAPI(token);
+    
+    logger.info('Successfully fetched user info', { 
+      firstname: userInfo?.firstname, 
+      hasUserInfo: !!userInfo,
+    }, LOG_CATEGORIES.AUTH);
+    
+    return userInfo;
+  } catch (error) {
+    logger.error('Failed to fetch user info', { error: error.message }, LOG_CATEGORIES.AUTH);
+    throw error;
+  }
+}
+
 // Simple token validation - just check if we have a token
 export async function validateToken() {
   try {
@@ -296,6 +320,7 @@ export default {
   generateOAuthUrl,
   getUserInfo,
   setUserInfo,
+  fetchUserInfo,
   validateToken,
   logout,
   isBlocked,
