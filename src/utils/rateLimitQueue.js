@@ -70,22 +70,10 @@ export class RateLimitQueue {
       retryCount: this.retryCount,
       rateLimited: rateLimitRemaining > 0,
       rateLimitRemaining: Math.ceil(rateLimitRemaining / 1000), // seconds
-      estimatedWaitTime: this.calculateEstimatedWaitTime(),
+      estimatedWaitTime: this.rateLimitedUntil ? Math.max(0, Math.ceil((this.rateLimitedUntil - Date.now()) / 1000)) : 0,
     };
   }
 
-  /**
-   * Calculate estimated wait time for queued requests
-   * @returns {number} Estimated wait time in seconds
-   */
-  calculateEstimatedWaitTime() {
-    if (this.queue.length === 0) return 0;
-    
-    const rateLimitDelay = this.rateLimitedUntil ? Math.max(0, this.rateLimitedUntil - Date.now()) : 0;
-    const queueDelay = this.queue.length * 200; // 200ms between requests
-    
-    return Math.ceil((rateLimitDelay + queueDelay) / 1000);
-  }
 
   /**
    * Add a request to the queue with intelligent retry handling

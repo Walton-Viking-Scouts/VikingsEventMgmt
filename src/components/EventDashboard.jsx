@@ -97,55 +97,70 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const token = getToken();
       const authFailed = authHandler.hasAuthFailed();
       
-      if (import.meta.env.NODE_ENV === 'development') {
-        console.log('🔍 EventDashboard loadInitialData:', {
+      if (import.meta.env.DEV) {
+        logger.debug('EventDashboard loadInitialData', {
           hasOfflineData,
           isDataFresh,
           lastSyncTime,
           hasToken: !!token,
           authFailed,
-          tokenValue: token ? `${token.substring(0, 10)}...` : null,
-        });
+        }, LOG_CATEGORIES.COMPONENT);
       }
       
       if (hasOfflineData && isDataFresh) {
         // Recent cached data available - use cache
-        console.log('📄 Using fresh cached data');
+        if (import.meta.env.DEV) {
+          logger.debug('Using fresh cached data', {}, LOG_CATEGORIES.COMPONENT);
+        }
         await loadCachedData();
       } else if (hasOfflineData && !isDataFresh) {
         // Stale cached data - load cache first, then auto-sync in background
-        console.log('📄 Using stale cached data, will sync in background');
+        if (import.meta.env.DEV) {
+          logger.debug('Using stale cached data, will sync in background', {}, LOG_CATEGORIES.COMPONENT);
+        }
         await loadCachedData();
         
         // Auto-sync in background only if auth hasn't failed
         setTimeout(async () => {
           try {
             if (authHandler.hasAuthFailed()) {
-              console.log('⏹️ Background sync skipped - auth failed');
+              if (import.meta.env.DEV) {
+                logger.debug('Background sync skipped - auth failed', {}, LOG_CATEGORIES.COMPONENT);
+              }
               setIsOfflineMode(true);
               return;
             }
             
             const token = getToken();
             if (!token) {
-              console.log('⏹️ Background sync skipped - no token');
+              if (import.meta.env.DEV) {
+                logger.debug('Background sync skipped - no token', {}, LOG_CATEGORIES.COMPONENT);
+              }
               return;
             }
             
-            console.log('🔄 Starting background sync');
+            if (import.meta.env.DEV) {
+              logger.debug('Starting background sync', {}, LOG_CATEGORIES.COMPONENT);
+            }
             await syncData();
           } catch (error) {
             // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
-            console.log('❌ Background sync failed:', error.message);
+            if (import.meta.env.DEV) {
+              logger.debug('Background sync failed', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+            }
           }
         }, 1000);
       } else {
         // No cached data - check if we should attempt sync
-        console.log('📡 No cached data found - attempting sync');
+        if (import.meta.env.DEV) {
+          logger.debug('No cached data found - attempting sync', {}, LOG_CATEGORIES.COMPONENT);
+        }
         
         if (authHandler.hasAuthFailed()) {
-          console.log('⏹️ Sync skipped - auth already failed');
+          if (import.meta.env.DEV) {
+            logger.debug('Sync skipped - auth already failed', {}, LOG_CATEGORIES.COMPONENT);
+          }
           setError('Authentication expired and no cached data available. Please reconnect to OSM.');
           setIsOfflineMode(true);
           return;
@@ -153,11 +168,15 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         const token = getToken();
         if (!token) {
-          console.log('⏹️ Sync skipped - no token available');
+          if (import.meta.env.DEV) {
+            logger.debug('Sync skipped - no token available', {}, LOG_CATEGORIES.COMPONENT);
+          }
           return;
         }
         
-        console.log('🔄 Starting fresh data sync');
+        if (import.meta.env.DEV) {
+          logger.debug('Starting fresh data sync', {}, LOG_CATEGORIES.COMPONENT);
+        }
         await syncData();
       }
     } catch (err) {
@@ -215,25 +234,37 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
     try {
-      console.log('🔄 syncData: Starting sync process');
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Starting sync process', {}, LOG_CATEGORIES.SYNC);
+      }
       setSyncing(true);
       setError(null);
       setIsOfflineMode(false);
       
       const token = getToken();
-      console.log('🔄 syncData: Token available:', !!token);
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Token available', { hasToken: !!token }, LOG_CATEGORIES.SYNC);
+      }
       
       // 1. Fetch all sections
-      console.log('🔄 syncData: Fetching user roles/sections');
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Fetching user roles/sections', {}, LOG_CATEGORIES.SYNC);
+      }
       const sectionsData = await getUserRoles(token);
-      console.log('🔄 syncData: Received sections:', sectionsData.length);
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Received sections', { count: sectionsData.length }, LOG_CATEGORIES.SYNC);
+      }
       setSections(sectionsData);
       await databaseService.saveSections(sectionsData);
       
       // 2. Fetch events for each section and build cards
-      console.log('🔄 syncData: Building event cards');
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
+      }
       const cards = await buildEventCards(sectionsData, token);
-      console.log('🔄 syncData: Built event cards:', cards.length);
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Built event cards', { count: cards.length }, LOG_CATEGORIES.SYNC);
+      }
       setEventCards(cards);
       
       // 3. Proactively load member data in background (non-blocking)
@@ -243,7 +274,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const now = new Date();
       setLastSync(now);
       localStorage.setItem('viking_last_sync', now.toISOString());
-      console.log('✅ syncData: Sync completed successfully');
+      if (import.meta.env.DEV) {
+        logger.debug('syncData: Sync completed successfully', {}, LOG_CATEGORIES.SYNC);
+      }
       
     } catch (err) {
       logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
