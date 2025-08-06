@@ -86,7 +86,7 @@ export function safeSetItem(key, value) {
           key,
           valueType: typeof value,
           isArray: Array.isArray(value),
-          estimatedSize: JSON.stringify(value).length,
+          estimatedSize: 'N/A (serialization failed)',
         },
       },
     });
@@ -179,7 +179,7 @@ export function safeSetSessionItem(key, value) {
           key,
           valueType: typeof value,
           isArray: Array.isArray(value),
-          estimatedSize: JSON.stringify(value).length,
+          estimatedSize: 'N/A (serialization failed)',
         },
       },
     });
