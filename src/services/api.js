@@ -9,6 +9,7 @@ import { sleep } from '../utils/asyncUtils.js';
 import { getMostRecentTermId } from '../utils/termUtils.js';
 import { checkNetworkStatus, addNetworkListener } from '../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
+import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
@@ -148,14 +149,7 @@ function logRateLimitInfo(responseData, apiName) {
       const osm = info.osm;
       const percentUsed = osm.limit > 0 ? ((osm.limit - osm.remaining) / osm.limit * 100).toFixed(1) : 0;
             
-      console.group(`🔄 ${apiName} Rate Limit Status`);
-      console.log('📊 OSM API:', {
-        remaining: `${osm.remaining}/${osm.limit}`,
-        percentUsed: `${percentUsed}%`,
-        window: osm.window || 'per hour',
-        available: osm.available,
-        rateLimited: osm.rateLimited || false,
-      });
+      // Rate limit monitoring active
             
       if (osm.remaining < 20 && osm.limit > 0) {
         logger.warn('OSM rate limit warning', {
@@ -175,19 +169,10 @@ function logRateLimitInfo(responseData, apiName) {
     }
         
     if (info.backend) {
-      const backend = info.backend;
-      const backendPercentUsed = backend.limit > 0 ? (((backend.limit - backend.remaining) / backend.limit) * 100).toFixed(1) : 0;
-            
-      console.log('🖥️ Backend API:', {
-        remaining: `${backend.remaining}/${backend.limit}`,
-        percentUsed: `${backendPercentUsed}%`,
-        window: backend.window || 'per minute',
-      });
+      // Backend rate limit info available
     }
-        
-    console.groupEnd();
   } else {
-    console.log(`📊 ${apiName}: No rate limit info available`);
+    // No rate limit info available
   }
 }
 
@@ -215,19 +200,34 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
       retryAfter: errorData.rateLimitInfo?.retryAfter,
     });
         
+    // Create error object that RateLimitQueue can handle
+    const rateLimitError = new Error('Rate limit exceeded');
+    rateLimitError.status = 429;
+    
     if (errorData.rateLimitInfo) {
-      const retryAfter = errorData.rateLimitInfo.retryAfter || 'unknown time';
-      console.warn(`🚫 ${apiName} rate limited by OSM. Backend managing retry. Wait: ${retryAfter}s`);
-            
-      if (errorData.rateLimitInfo.retryAfter) {
-        throw new Error(`OSM API rate limit exceeded. Please wait ${errorData.rateLimitInfo.retryAfter} seconds before trying again.`);
+      const retryAfter = errorData.rateLimitInfo.retryAfter;
+      logger.warn(`${apiName} rate limited by OSM`, { retryAfter }, LOG_CATEGORIES.API);
+      
+      // Set retryAfter for RateLimitQueue to use
+      if (retryAfter) {
+        rateLimitError.retryAfter = retryAfter;
+        rateLimitError.message = `OSM API rate limit exceeded. Please wait ${retryAfter} seconds before trying again.`;
       } else {
-        throw new Error('OSM API rate limit exceeded. Please wait before trying again.');
+        rateLimitError.message = 'OSM API rate limit exceeded. Please wait before trying again.';
       }
     } else {
-      console.warn(`🚫 ${apiName} rate limited. Backend managing request flow.`);
-      throw new Error('Rate limited. The backend is managing request flow to prevent blocking.');
+      // Backend rate limiting - extract from backend response format
+      const backendRetryAfter = errorData.rateLimit?.retryAfter;
+      if (backendRetryAfter) {
+        rateLimitError.retryAfter = backendRetryAfter;
+        rateLimitError.message = `Backend rate limit exceeded. Please wait ${backendRetryAfter} seconds.`;
+      } else {
+        rateLimitError.message = 'Rate limited. The backend is managing request flow to prevent blocking.';
+      }
+      logger.warn(`${apiName} rate limited by backend`, { retryAfter: backendRetryAfter }, LOG_CATEGORIES.API);
     }
+    
+    throw rateLimitError;
   }
     
   // Simple auth handling with circuit breaker
@@ -265,7 +265,7 @@ async function handleAPIResponseWithRateLimit(response, apiName) {
     logRateLimitInfo(data, apiName);
     return data;
   } catch {
-    console.error(`❌ ${apiName} returned invalid JSON`);
+    logger.error(`${apiName} returned invalid JSON`, {}, LOG_CATEGORIES.API);
     throw new Error(`${apiName} returned invalid response`);
   }
 }
@@ -308,15 +308,17 @@ export async function getTerms(token, forceRefresh = false) {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-terms`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-terms`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    const data = await handleAPIResponseWithRateLimit(response, 'getTerms');
+      return await handleAPIResponseWithRateLimit(response, 'getTerms');
+    });
     const terms = data || {};
     
     // Cache terms data with timestamp
@@ -357,7 +359,7 @@ export async function fetchMostRecentTermId(sectionId, token) {
       const terms = await getTerms(token);
       return getMostRecentTermId(sectionId, terms);
     } catch (error) {
-      console.error(`Error fetching most recent term ID for section ${sectionId}:`, error);
+      logger.error('Error fetching most recent term ID', { sectionId, error: error.message }, LOG_CATEGORIES.API);
       throw error;
     }
   });
@@ -467,15 +469,17 @@ export async function getUserRoles(token) {
         span.setAttribute('data.source', 'api');
         logger.debug('Making API request for user roles');
 
-        const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const data = await withRateLimitQueue(async () => {
+          const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          });
 
-        const data = await handleAPIResponseWithRateLimit(response, 'getUserRoles');
+          return await handleAPIResponseWithRateLimit(response, 'getUserRoles');
+        });
 
         if (!data || typeof data !== 'object') {
           logger.warn('Invalid data received from getUserRoles API');
@@ -571,20 +575,22 @@ export async function getEvents(sectionId, termId, token) {
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - using cached events only');
+      logger.info('Auth failed - using cached events only', { sectionId, termId }, LOG_CATEGORIES.API);
       const events = await databaseService.getEvents(sectionId);
       return events;
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-events?sectionid=${sectionId}&termid=${termId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-events?sectionid=${sectionId}&termid=${termId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    const data = await handleAPIResponseWithRateLimit(response, 'getEvents');
+      return await handleAPIResponseWithRateLimit(response, 'getEvents');
+    });
     // Events are in the 'items' property of the response
     const events = (data && data.items) ? data.items : [];
     
@@ -595,7 +601,7 @@ export async function getEvents(sectionId, termId, token) {
     return events;
 
   } catch (error) {
-    console.error(`Error fetching events for section ${sectionId} and term ${termId}:`, error);
+    logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);
         
     // If online request fails, try local database as fallback
     if (isOnline) {
@@ -603,7 +609,7 @@ export async function getEvents(sectionId, termId, token) {
         const events = await databaseService.getEvents(sectionId);
         return events;
       } catch (dbError) {
-        console.error('Database fallback also failed:', dbError);
+        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
       }
     }
         
@@ -628,20 +634,22 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - using cached attendance only');
+      logger.info('Auth failed - using cached attendance only', { eventId }, LOG_CATEGORIES.API);
       const attendance = await databaseService.getAttendance(eventId);
       return attendance;
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-event-attendance?sectionid=${sectionId}&termid=${termId}&eventid=${eventId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-event-attendance?sectionid=${sectionId}&termid=${termId}&eventid=${eventId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    const data = await handleAPIResponseWithRateLimit(response, 'getEventAttendance');
+      return await handleAPIResponseWithRateLimit(response, 'getEventAttendance');
+    });
     // Attendance is in the 'items' property of the response
     const attendance = (data && data.items) ? data.items : [];
 
@@ -653,7 +661,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     return attendance;
 
   } catch (error) {
-    console.error(`Error fetching event attendance for event ${eventId}:`, error);
+    logger.error('Error fetching event attendance', { eventId, error: error.message }, LOG_CATEGORIES.API);
         
     // If online request fails, try local database as fallback
     if (isOnline) {
@@ -661,7 +669,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
         const attendance = await databaseService.getAttendance(eventId);
         return attendance;
       } catch (dbError) {
-        console.error('Database fallback also failed:', dbError);
+        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
       }
     }
         
@@ -706,7 +714,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - using cached flexi records only');
+      logger.info('Auth failed - using cached flexi records only', { sectionId }, LOG_CATEGORIES.API);
       const cached = safeGetItem(storageKey, null);
       // Validate cached data has meaningful content
       if (cached && cached.items && Array.isArray(cached.items)) {
@@ -716,15 +724,17 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       return { identifier: null, label: null, items: [] };
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-flexi-records?sectionid=${sectionId}&archived=${archived}`, {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-flexi-records?sectionid=${sectionId}&archived=${archived}`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    const data = await handleAPIResponseWithRateLimit(response, 'getFlexiRecords');
+      return await handleAPIResponseWithRateLimit(response, 'getFlexiRecords');
+    });
         
     let flexiData;
     if (data && data._rateLimitInfo) {
@@ -744,7 +754,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     return flexiData; // Return original data without timestamp
 
   } catch (error) {
-    console.error('Error fetching flexi records:', error);
+    logger.error('Error fetching flexi records', { error: error.message }, LOG_CATEGORIES.API);
     
     // Don't cache error responses - only return existing cache as fallback
     const isOnline = await checkNetworkStatus();
@@ -752,10 +762,10 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       try {
         const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
         const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
-        console.log('Using cached fallback data after API error');
+        logger.info('Using cached fallback data after API error', {}, LOG_CATEGORIES.API);
         return cached;
       } catch (cacheError) {
-        console.error('Cache fallback also failed:', cacheError);
+        logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }
     }
     
@@ -771,19 +781,21 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - getSingleFlexiRecord blocked');
+      logger.info('Auth failed - getSingleFlexiRecord blocked', { flexirecordid, sectionid, termid }, LOG_CATEGORIES.API);
       throw new Error('Authentication failed - unable to fetch flexi record data');
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-single-flexi-record?flexirecordid=${flexirecordid}&sectionid=${sectionid}&termid=${termid}`, {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-single-flexi-record?flexirecordid=${flexirecordid}&sectionid=${sectionid}&termid=${termid}`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      return await handleAPIResponseWithRateLimit(response, 'getSingleFlexiRecord');
     });
-        
-    const data = await handleAPIResponseWithRateLimit(response, 'getSingleFlexiRecord');
         
     if (data && data._rateLimitInfo) {
       const { _rateLimitInfo, ...flexiData } = data;
@@ -793,7 +805,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
     return data || { identifier: null, items: [] };
         
   } catch (error) {
-    console.error('Error fetching single flexi record:', error);
+    logger.error('Error fetching single flexi record', { error: error.message }, LOG_CATEGORIES.API);
     throw error;
   }
 }
@@ -840,7 +852,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - getFlexiStructure blocked');
+      logger.info('Auth failed - getFlexiStructure blocked', { extraid, sectionid, termid }, LOG_CATEGORIES.API);
       const cached = safeGetItem(storageKey, null);
       // Validate cached data exists and has meaningful content
       if (cached && typeof cached === 'object' && cached.name) {
@@ -850,15 +862,17 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       return null;
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
-      method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json', 
-      },
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json', 
+        },
+      });
+      
+      return await handleAPIResponseWithRateLimit(response, 'getFlexiStructure');
     });
-        
-    const data = await handleAPIResponseWithRateLimit(response, 'getFlexiStructure');
     const structureData = data || null;
     
     // Cache data for offline use
@@ -873,7 +887,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     return structureData;
     
   } catch (error) {
-    console.error('Error fetching flexi structure:', error);
+    logger.error('Error fetching flexi structure', { error: error.message }, LOG_CATEGORIES.API);
     
     // Don't cache error responses - only return existing cache as fallback
     const isOnline = await checkNetworkStatus();
@@ -881,10 +895,10 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       try {
         const storageKey = `viking_flexi_structure_${extraid}_offline`;
         const cacheData = safeGetItem(storageKey, null);
-        console.log('Using cached fallback data after API error, not updating cache timestamp');
+        logger.info('Using cached fallback data after API error, not updating cache timestamp', {}, LOG_CATEGORIES.API);
         return cacheData;
       } catch (cacheError) {
-        console.error('Cache fallback also failed:', cacheError);
+        logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }
     }
     
@@ -925,11 +939,11 @@ export async function getStartupData(token) {
     return startupData;
         
   } catch (error) {
-    console.error('Error fetching startup data:', error);
+    logger.error('Error fetching startup data', { error: error.message }, LOG_CATEGORIES.API);
     
     // Don't fall back to cache for authentication errors - these need to be handled by auth system
     if (error.status === 401 || error.status === 403) {
-      console.error('Authentication error - not using cache fallback');
+      logger.error('Authentication error - not using cache fallback', {}, LOG_CATEGORIES.API);
       throw error;
     }
     
@@ -938,7 +952,7 @@ export async function getStartupData(token) {
       try {
         return safeGetItem('viking_startup_data_offline', null);
       } catch (cacheError) {
-        console.error('Cache fallback also failed:', cacheError);
+        logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }
     }
     
@@ -979,7 +993,7 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
     return data || null;
         
   } catch (error) {
-    console.error('Error updating flexi record:', error);
+    logger.error('Error updating flexi record', { error: error.message }, LOG_CATEGORIES.API);
     throw error;
   }
 }
@@ -1012,24 +1026,26 @@ export async function getMembersGrid(sectionId, termId, token) {
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      console.log('Auth failed this session - using cached members only');
+      logger.info('Auth failed - using cached members only', { sectionId }, LOG_CATEGORIES.API);
       const cachedMembers = await databaseService.getMembers([sectionId]);
       return cachedMembers;
     }
 
-    const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        section_id: sectionId,
-        term_id: termId,
-      }),
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          section_id: sectionId,
+          term_id: termId,
+        }),
+      });
+      
+      return await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
     });
-
-    const data = await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
@@ -1082,7 +1098,7 @@ export async function getMembersGrid(sectionId, termId, token) {
     return [];
 
   } catch (error) {
-    console.error(`Error fetching members grid for section ${sectionId}:`, error);
+    logger.error('Error fetching members grid', { sectionId, error: error.message }, LOG_CATEGORIES.API);
     
     // If online request fails, try local database as fallback
     if (isOnline) {
@@ -1090,7 +1106,7 @@ export async function getMembersGrid(sectionId, termId, token) {
         const cachedMembers = await databaseService.getMembers([sectionId]);
         return cachedMembers;
       } catch (dbError) {
-        console.error('Database fallback also failed:', dbError);
+        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
       }
     }
     
@@ -1128,7 +1144,7 @@ export async function getListOfMembers(sections, token) {
   const memberMap = new Map(); // For deduplication by scoutid
   
   // Load terms once for all sections (major optimization!)
-  console.log('Loading terms once for all sections...');
+  logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.API);
   const allTerms = await getTerms(token);
   
   for (const section of sections) {
@@ -1139,9 +1155,6 @@ export async function getListOfMembers(sections, token) {
       // Use cached terms instead of calling API again
       const termId = getMostRecentTermId(section.sectionid, allTerms);
       if (!termId) continue;
-      
-      // Add delay before members grid call
-      await sleep(300);
       
       // Use the new getMembersGrid API for comprehensive data
       const members = await getMembersGrid(section.sectionid, termId, token);
@@ -1172,7 +1185,7 @@ export async function getListOfMembers(sections, token) {
       });
       
     } catch (sectionError) {
-      console.warn(`Failed to fetch members for section ${section.sectionid}:`, sectionError);
+      logger.warn('Failed to fetch members for section', { sectionId: section.sectionid, error: sectionError.message }, LOG_CATEGORIES.API);
       // Continue with other sections
     }
   }
@@ -1197,22 +1210,25 @@ export async function getListOfMembers(sections, token) {
 
 export async function testBackendConnection() {
   try {
-    const response = await fetch(`${BACKEND_URL}/health`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+    const result = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (response.ok) {
+        await response.text();
+        return { status: 'ok' };
+      } else {
+        logger.error('Backend connection test failed', { status: response.status }, LOG_CATEGORIES.API);
+        return { status: 'error', httpStatus: response.status };
+      }
     });
-        
-        
-    if (response.ok) {
-      await response.text();
-      return true;
-    } else {
-      console.error('Backend connection test failed:', response.status);
-      return false;
-    }
+    
+    return result;
   } catch (error) {
-    console.error('Backend connection test error:', error);
-    return false;
+    logger.error('Backend connection test error', { error: error.message }, LOG_CATEGORIES.API);
+    return { status: 'error', error: error.message };
   }
 }
 
