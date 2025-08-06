@@ -32,9 +32,11 @@ vi.mock('../../services/logger.js', () => ({
   default: {
     error: vi.fn(),
     info: vi.fn(),
+    debug: vi.fn(),
   },
   LOG_CATEGORIES: {
     COMPONENT: 'component',
+    SYNC: 'sync',
   },
 }));
 
