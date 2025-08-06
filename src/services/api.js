@@ -1044,8 +1044,7 @@ export async function getMembersGrid(sectionId, termId, token) {
         }),
       });
       
-      await checkAndHandleRateLimit(response);
-      return await handleAPIResponse(response);
+      return await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
     });
     
     // Transform the grid data into a more usable format
