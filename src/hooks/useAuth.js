@@ -15,6 +15,37 @@ export function useAuth() {
     setIsLoading(true);
     
     try {
+      // FIRST: Check for OAuth callback parameters in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const tokenType = urlParams.get('token_type');
+      
+      if (accessToken) {
+        // Store the token and clean up URL
+        sessionStorage.setItem('access_token', accessToken);
+        if (tokenType) {
+          sessionStorage.setItem('token_type', tokenType);
+        }
+        
+        // Clean the URL without reloading
+        const url = new URL(window.location);
+        url.searchParams.delete('access_token');
+        url.searchParams.delete('token_type');
+        window.history.replaceState({}, '', url);
+        
+        console.log('✅ OAuth callback processed - token stored, URL cleaned');
+        
+        // Fetch user info immediately after token storage
+        try {
+          const userInfo = await authService.fetchUserInfo();
+          if (userInfo) {
+            authService.setUserInfo(userInfo);
+            console.log('✅ User info fetched after OAuth:', userInfo.firstname);
+          }
+        } catch (userError) {
+          console.warn('⚠️ Could not fetch user info after OAuth, will use fallback');
+        }
+      }
       // Check if blocked first
       if (authService.isBlocked()) {
         setIsBlocked(true);

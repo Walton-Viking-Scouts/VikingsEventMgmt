@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ResponsiveLayout from './components/ResponsiveLayout.jsx';
@@ -10,7 +10,6 @@ import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
 import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
-import { authHandler } from './services/simpleAuthHandler.js';
 import { Alert } from './components/ui';
 import './App.css';
 
@@ -86,32 +85,7 @@ function App() {
     setNavigationData({});
   };
 
-  useEffect(() => {
-    // Check for OAuth callback parameters in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access_token');
-    const tokenType = urlParams.get('token_type');
-    
-    if (accessToken) {
-      // Store the token and clean up URL
-      sessionStorage.setItem('access_token', accessToken);
-      if (tokenType) {
-        sessionStorage.setItem('token_type', tokenType);
-      }
-      
-      // Clean the URL without reloading
-      const url = new URL(window.location);
-      url.searchParams.delete('access_token');
-      url.searchParams.delete('token_type');
-      window.history.replaceState({}, '', url);
-      
-      // Reset auth handler to clear any previous auth failures
-      // This allows the dashboard to proceed with sync
-      authHandler.reset();
-      
-      console.log('✅ OAuth callback processed - token stored, URL cleaned');
-    }
-  }, []);
+  // OAuth callback processing moved to useAuth hook to fix race condition
 
   if (isLoading) {
     return <LoadingScreen message="Checking authentication..." />;
