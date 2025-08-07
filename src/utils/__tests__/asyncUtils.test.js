@@ -75,7 +75,7 @@ describe('Async Utilities', () => {
           providedType: 'number',
           isFinite: true,
         },
-        'ERROR'
+        'ERROR',
       );
       
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
@@ -92,7 +92,7 @@ describe('Async Utilities', () => {
               isFinite: true,
             },
           },
-        }
+        },
       );
     });
 
@@ -106,7 +106,7 @@ describe('Async Utilities', () => {
           providedType: 'string',
           isFinite: false,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -120,7 +120,7 @@ describe('Async Utilities', () => {
           providedType: 'object',
           isFinite: true, // isFinite(null) returns true because null coerces to 0
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -134,7 +134,7 @@ describe('Async Utilities', () => {
           providedType: 'undefined',
           isFinite: false,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -148,7 +148,7 @@ describe('Async Utilities', () => {
           providedType: 'number',
           isFinite: false,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -162,7 +162,7 @@ describe('Async Utilities', () => {
           providedType: 'number',
           isFinite: false,
         },
-        'ERROR'
+        'ERROR',
       );
     });
   });
@@ -178,7 +178,7 @@ describe('Async Utilities', () => {
       expect(logger.debug).toHaveBeenCalledWith(
         'Sleep completed successfully',
         { duration: 1000 },
-        'APP'
+        'APP',
       );
     });
 
@@ -193,7 +193,7 @@ describe('Async Utilities', () => {
       expect(logger.debug).toHaveBeenCalledWith(
         'Sleep completed successfully',
         { duration: 1000 },
-        'APP'
+        'APP',
       );
     });
 
@@ -211,7 +211,7 @@ describe('Async Utilities', () => {
           duration: 1000,
           abortReason: 'Test abort reason',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -233,7 +233,7 @@ describe('Async Utilities', () => {
           duration: 2000,
           abortReason: 'Mid-flight abort',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -266,7 +266,7 @@ describe('Async Utilities', () => {
           duration: 1000,
           abortReason: expect.any(Object), // DOMException object, not 'Unknown'
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -284,7 +284,7 @@ describe('Async Utilities', () => {
           duration: 1000,
           abortReason: expect.any(Object), // DOMException object, not 'Unknown'
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -299,7 +299,7 @@ describe('Async Utilities', () => {
           isFinite: true,
           hasSignal: false,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -316,7 +316,7 @@ describe('Async Utilities', () => {
           isFinite: false,
           hasSignal: true,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 

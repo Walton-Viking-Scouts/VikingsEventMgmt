@@ -102,7 +102,7 @@ describe('Network Utilities', () => {
             connected: true,
             connectionType: 'wifi',
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -123,7 +123,7 @@ describe('Network Utilities', () => {
             connected: false,
             connectionType: 'none',
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -143,7 +143,7 @@ describe('Network Utilities', () => {
             connected: true,
             connectionType: 'cellular',
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -160,7 +160,7 @@ describe('Network Utilities', () => {
             error: 'Network plugin not available',
             stack: expect.any(String),
           },
-          'ERROR'
+          'ERROR',
         );
         expect(sentryUtils.captureException).toHaveBeenCalledWith(
           error,
@@ -175,7 +175,7 @@ describe('Network Utilities', () => {
                 isNative: true,
               },
             },
-          }
+          },
         );
       });
     });
@@ -197,7 +197,7 @@ describe('Network Utilities', () => {
           {
             connected: true,
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -212,7 +212,7 @@ describe('Network Utilities', () => {
           {
             connected: false,
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -227,7 +227,7 @@ describe('Network Utilities', () => {
           {
             connected: undefined,
           },
-          'APP'
+          'APP',
         );
       });
     });
@@ -260,7 +260,7 @@ describe('Network Utilities', () => {
             connectionType: 'wifi',
             hasWifiInfo: true,
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -281,7 +281,7 @@ describe('Network Utilities', () => {
             connectionType: 'cellular',
             hasWifiInfo: false,
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -304,7 +304,7 @@ describe('Network Utilities', () => {
             connectionType: 'wifi',
             hasWifiInfo: true,
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -321,7 +321,7 @@ describe('Network Utilities', () => {
             error: 'Permission denied',
             stack: expect.any(String),
           },
-          'ERROR'
+          'ERROR',
         );
         expect(sentryUtils.captureException).toHaveBeenCalledWith(
           error,
@@ -330,7 +330,7 @@ describe('Network Utilities', () => {
               operation: 'detailed_network_status',
               platform: 'native',
             },
-          }
+          },
         );
       });
     });
@@ -357,7 +357,7 @@ describe('Network Utilities', () => {
             connected: true,
             connectionType: 'unknown',
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -384,7 +384,7 @@ describe('Network Utilities', () => {
             downlink: 10.5,
             effectiveType: '4g',
           },
-          'APP'
+          'APP',
         );
       });
 
@@ -430,7 +430,7 @@ describe('Network Utilities', () => {
           providedType: 'string',
           isFunction: false,
         },
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(Error),
@@ -439,7 +439,7 @@ describe('Network Utilities', () => {
             operation: 'network_listener_setup',
             validation_error: true,
           },
-        }
+        },
       );
     });
 
@@ -494,7 +494,7 @@ describe('Network Utilities', () => {
                 connected: false,
                 connectionType: 'none',
               },
-              'APP'
+              'APP',
             );
             resolve();
           }, 10);
@@ -517,7 +517,7 @@ describe('Network Utilities', () => {
             error: 'Native listener setup failed',
             stack: expect.any(String),
           },
-          'ERROR'
+          'ERROR',
         );
         expect(sentryUtils.captureException).toHaveBeenCalledWith(
           error,
@@ -526,7 +526,7 @@ describe('Network Utilities', () => {
               operation: 'network_listener_setup',
               platform: 'native',
             },
-          }
+          },
         );
       });
     });
@@ -576,7 +576,7 @@ describe('Network Utilities', () => {
         expect(logger.debug).toHaveBeenCalledWith(
           'Network came online (web)',
           { connected: true, connectionType: 'unknown' },
-          'APP'
+          'APP',
         );
       });
 
@@ -602,7 +602,7 @@ describe('Network Utilities', () => {
         expect(logger.debug).toHaveBeenCalledWith(
           'Network went offline (web)',
           { connected: false, connectionType: 'unknown' },
-          'APP'
+          'APP',
         );
       });
 
@@ -622,7 +622,7 @@ describe('Network Utilities', () => {
             error: 'addEventListener failed',
             stack: expect.any(String),
           },
-          'ERROR'
+          'ERROR',
         );
         expect(sentryUtils.captureException).toHaveBeenCalledWith(
           error,
@@ -631,7 +631,7 @@ describe('Network Utilities', () => {
               operation: 'network_listener_setup',
               platform: 'web',
             },
-          }
+          },
         );
       });
 
@@ -663,7 +663,7 @@ describe('Network Utilities', () => {
       it('should work with bound function callbacks', () => {
         Capacitor.isNativePlatform.mockReturnValue(false);
         const obj = {
-          method() {}
+          method() {},
         };
         const boundCallback = obj.method.bind(obj);
 

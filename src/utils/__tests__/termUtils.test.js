@@ -60,7 +60,7 @@ describe('Term Utilities', () => {
           name: 'Spring 2024',
           totalTermsProcessed: 3,
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -71,7 +71,7 @@ describe('Term Utilities', () => {
       expect(logger.debug).toHaveBeenCalledWith(
         'No terms provided to findMostRecentTerm',
         {},
-        'APP'
+        'APP',
       );
     });
 
@@ -91,7 +91,7 @@ describe('Term Utilities', () => {
           name: 'Summer 2023',
           totalTermsProcessed: 1,
         }),
-        'APP'
+        'APP',
       );
     });
 
@@ -139,7 +139,7 @@ describe('Term Utilities', () => {
           termid: '1',
           enddate: 'invalid-date',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -159,7 +159,7 @@ describe('Term Utilities', () => {
         expect.objectContaining({
           hasEnddate: false,
         }),
-        'APP'
+        'APP',
       );
     });
 
@@ -235,7 +235,7 @@ describe('Term Utilities', () => {
           isNull: true,
           isUndefined: false,
         },
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(Error),
@@ -251,7 +251,7 @@ describe('Term Utilities', () => {
               isNull: true,
             },
           },
-        }
+        },
       );
     });
 
@@ -278,7 +278,7 @@ describe('Term Utilities', () => {
             error: 'Date processing error',
             termsCount: 1,
           }),
-          'ERROR'
+          'ERROR',
         );
         expect(sentryUtils.captureException).toHaveBeenCalled();
       } finally {
@@ -310,7 +310,7 @@ describe('Term Utilities', () => {
           termId: 'term2',
           enddate: '2024-06-30',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -325,7 +325,7 @@ describe('Term Utilities', () => {
           termId: 'term3',
           enddate: '2024-03-31',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -339,7 +339,7 @@ describe('Term Utilities', () => {
           sectionId: '999',
           availableSections: ['101', '102', '103'],
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -353,7 +353,7 @@ describe('Term Utilities', () => {
           sectionId: '103',
           termsCount: 0,
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -375,7 +375,7 @@ describe('Term Utilities', () => {
           sectionId: '104',
           termsCount: 3,
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -399,7 +399,7 @@ describe('Term Utilities', () => {
           sectionId: null,
           hasAllTerms: true,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -411,7 +411,7 @@ describe('Term Utilities', () => {
           sectionId: undefined,
           hasAllTerms: true,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -429,7 +429,7 @@ describe('Term Utilities', () => {
           allTermsType: 'object',
           isNull: true,
         },
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -448,7 +448,7 @@ describe('Term Utilities', () => {
           sectionId: '105',
           error: expect.any(String),
         }),
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(Error),
@@ -463,7 +463,7 @@ describe('Term Utilities', () => {
               termsCount: expect.any(Number),
             },
           },
-        }
+        },
       );
     });
 
@@ -503,7 +503,7 @@ describe('Term Utilities', () => {
           termId: 'term2',
           enddate: '2024-06-30',
         },
-        'APP'
+        'APP',
       );
     });
 
@@ -516,7 +516,7 @@ describe('Term Utilities', () => {
           sectionId: 'nonexistent',
           availableSections: ['101', '102', '103'],
         },
-        'APP'
+        'APP',
       );
     });
   });
