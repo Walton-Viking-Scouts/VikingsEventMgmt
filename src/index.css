@@ -310,14 +310,6 @@
     line-height: 1.25;
   }
   
-  /* Mobile-optimized member name cell styling */
-  .member-name-cell {
-    word-wrap: break-word;
-    white-space: normal;
-    line-height: 1.2;
-    max-width: 120px;
-    display: block;
-  }
 }
 
 /* Custom CSS layers for additional styles */

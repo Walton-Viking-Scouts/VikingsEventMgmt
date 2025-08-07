@@ -726,7 +726,7 @@ function AttendanceView({ events, members, onBack }) {
                         <td className="px-3 py-4">
                           <button
                             onClick={() => handleMemberClick({ scoutid: member.scoutid, firstname: member.name.split(' ')[0], lastname: member.name.split(' ').slice(1).join(' '), sectionname: member.events[0]?.sectionname })}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left member-name-cell"
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block"
                           >
                             {member.name}
                           </button>
