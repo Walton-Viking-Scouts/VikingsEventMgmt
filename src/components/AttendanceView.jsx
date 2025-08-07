@@ -690,38 +690,32 @@ function AttendanceView({ events, members, onBack }) {
                 <thead className="bg-gray-50">
                   <tr>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                       onClick={() => handleSort('member')}
                     >
                       <div className="flex items-center">
                     Member {getSortIcon('member')}
                       </div>
                     </th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
+                      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" 
                       onClick={() => handleSort('attendance')}
                     >
                       <div className="flex items-center">
-                    Attendance Status {getSortIcon('attendance')}
+                    Status {getSortIcon('attendance')}
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Camp Group
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      Signed In
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Signed In By
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Signed In When
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Signed Out By
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Signed Out When
+                      Signed Out
                     </th>
                   </tr>
                 </thead>
@@ -729,16 +723,30 @@ function AttendanceView({ events, members, onBack }) {
                   {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
                     return (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-4">
                           <button
                             onClick={() => handleMemberClick({ scoutid: member.scoutid, firstname: member.name.split(' ')[0], lastname: member.name.split(' ').slice(1).join(' '), sectionname: member.events[0]?.sectionname })}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left leading-tight"
+                            style={{ 
+                              wordWrap: 'break-word',
+                              whiteSpace: 'normal',
+                              lineHeight: '1.2',
+                              maxWidth: '120px',
+                              display: 'block',
+                            }}
                           >
                             {member.name}
                           </button>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex gap-2 flex-wrap">
+                        <td className="px-2 py-4 text-center">
+                          <SignInOutButton 
+                            member={member}
+                            onSignInOut={handleSignInOut}
+                            loading={buttonLoading?.[member.scoutid] || false}
+                          />
+                        </td>
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          <div className="flex gap-1 flex-wrap">
                             {member.yes > 0 && (
                               <Badge variant="scout-green" className="text-xs">
                               Yes
@@ -764,24 +772,33 @@ function AttendanceView({ events, members, onBack }) {
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.vikingEventData?.CampGroup || '-'}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap">
-                          <SignInOutButton 
-                            member={member}
-                            onSignInOut={handleSignInOut}
-                            loading={buttonLoading?.[member.scoutid] || false}
-                          />
+                        <td className="px-3 py-4 text-sm">
+                          {member.vikingEventData?.SignedInBy || member.vikingEventData?.SignedInWhen ? (
+                            <div className="space-y-0.5">
+                              <div className="text-gray-900 font-medium leading-tight">
+                                {member.vikingEventData?.SignedInBy || '-'}
+                              </div>
+                              <div className="text-gray-500 text-xs leading-tight">
+                                {member.vikingEventData?.SignedInWhen ? formatUKDateTime(member.vikingEventData.SignedInWhen) : '-'}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.vikingEventData?.SignedInBy || '-'}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {member.vikingEventData?.SignedInWhen ? formatUKDateTime(member.vikingEventData.SignedInWhen) : '-'}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.vikingEventData?.SignedOutBy || '-'}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {member.vikingEventData?.SignedOutWhen ? formatUKDateTime(member.vikingEventData.SignedOutWhen) : '-'}
+                        <td className="px-3 py-4 text-sm">
+                          {member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? (
+                            <div className="space-y-0.5">
+                              <div className="text-gray-900 font-medium leading-tight">
+                                {member.vikingEventData?.SignedOutBy || '-'}
+                              </div>
+                              <div className="text-gray-500 text-xs leading-tight">
+                                {member.vikingEventData?.SignedOutWhen ? formatUKDateTime(member.vikingEventData.SignedOutWhen) : '-'}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                       </tr>
                     );
