@@ -37,6 +37,16 @@ describe('Term Utilities', () => {
     sentryUtils = (await import('../../services/sentry.js')).sentryUtils;
   });
 
+  afterEach(async () => {
+    // Clean up mocked modules and resources
+    vi.clearAllMocks();
+    vi.resetModules();
+    
+    // Clear module references to prevent memory leaks
+    logger = null;
+    sentryUtils = null;
+  });
+
   describe('findMostRecentTerm', () => {
     it('should find the most recent term by end date', () => {
       const terms = [
