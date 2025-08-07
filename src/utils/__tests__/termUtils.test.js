@@ -1,17 +1,16 @@
 // Term utilities tests
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   findMostRecentTerm,
   getMostRecentTermId,
 } from '../termUtils.js';
 
 // Mock logger and sentry
-vi.mock('../../services/logger.js', () => ({
+jest.mock('../../services/logger.js', () => ({
   default: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
   },
   LOG_CATEGORIES: {
     APP: 'APP',
@@ -20,9 +19,9 @@ vi.mock('../../services/logger.js', () => ({
   },
 }));
 
-vi.mock('../../services/sentry.js', () => ({
+jest.mock('../../services/sentry.js', () => ({
   sentryUtils: {
-    captureException: vi.fn(),
+    captureException: jest.fn(),
   },
 }));
 
@@ -30,7 +29,7 @@ describe('Term Utilities', () => {
   let logger, sentryUtils;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
     
     // Import mocked modules
     logger = (await import('../../services/logger.js')).default;
@@ -39,8 +38,8 @@ describe('Term Utilities', () => {
 
   afterEach(async () => {
     // Clean up mocked modules and resources
-    vi.clearAllMocks();
-    vi.resetModules();
+    jest.clearAllMocks();
+    jest.resetModules();
     
     // Clear module references to prevent memory leaks
     logger = null;
