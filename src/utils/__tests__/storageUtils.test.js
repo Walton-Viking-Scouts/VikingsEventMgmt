@@ -90,7 +90,7 @@ describe('Storage Utilities', () => {
           hasDefaultValue: true,
           stack: expect.any(String),
         }),
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(SyntaxError),
@@ -106,7 +106,7 @@ describe('Storage Utilities', () => {
               defaultValueType: 'object',
             },
           },
-        }
+        },
       );
     });
 
@@ -128,7 +128,7 @@ describe('Storage Utilities', () => {
           error: 'Storage quota exceeded',
           hasDefaultValue: true,
         }),
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -171,7 +171,7 @@ describe('Storage Utilities', () => {
           key: 'test_key',
           operation: 'localStorage.getItem',
         }),
-        'ERROR'
+        'ERROR',
       );
     });
   });
@@ -186,7 +186,7 @@ describe('Storage Utilities', () => {
       expect(result).toBe(true);
       expect(localStorage.setItem).toHaveBeenCalledWith(
         'user_preferences',
-        JSON.stringify(testData)
+        JSON.stringify(testData),
       );
     });
 
@@ -212,6 +212,10 @@ describe('Storage Utilities', () => {
       // Test null
       expect(safeSetItem('null_key', null)).toBe(true);
       expect(localStorage.setItem).toHaveBeenLastCalledWith('null_key', 'null');
+
+      // Test undefined (should be converted to 'null' string)
+      expect(safeSetItem('undefined_key', undefined)).toBe(true);
+      expect(localStorage.setItem).toHaveBeenLastCalledWith('undefined_key', 'null');
     });
 
     it('should return false when JSON serialization fails', () => {
@@ -231,7 +235,7 @@ describe('Storage Utilities', () => {
           isArray: false,
           error: expect.stringContaining('circular'),
         }),
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(TypeError),
@@ -248,7 +252,7 @@ describe('Storage Utilities', () => {
               estimatedSize: 'N/A (serialization failed)',
             },
           },
-        }
+        },
       );
     });
 
@@ -271,7 +275,7 @@ describe('Storage Utilities', () => {
           isArray: false,
           error: 'Storage quota exceeded',
         }),
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -290,7 +294,7 @@ describe('Storage Utilities', () => {
           valueType: 'object',
           isArray: true,
         }),
-        'ERROR'
+        'ERROR',
       );
     });
   });
@@ -340,7 +344,7 @@ describe('Storage Utilities', () => {
           hasDefaultValue: true,
           stack: expect.any(String),
         }),
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(SyntaxError),
@@ -356,7 +360,7 @@ describe('Storage Utilities', () => {
               defaultValueType: 'object',
             },
           },
-        }
+        },
       );
     });
 
@@ -378,7 +382,7 @@ describe('Storage Utilities', () => {
           error: 'Session storage unavailable',
           hasDefaultValue: true,
         }),
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -411,7 +415,7 @@ describe('Storage Utilities', () => {
       expect(result).toBe(true);
       expect(sessionStorage.setItem).toHaveBeenCalledWith(
         'form_data',
-        JSON.stringify(testData)
+        JSON.stringify(testData),
       );
     });
 
@@ -437,6 +441,10 @@ describe('Storage Utilities', () => {
       // Test null
       expect(safeSetSessionItem('null_key', null)).toBe(true);
       expect(sessionStorage.setItem).toHaveBeenLastCalledWith('null_key', 'null');
+
+      // Test undefined (should be converted to 'null' string)
+      expect(safeSetSessionItem('undefined_key', undefined)).toBe(true);
+      expect(sessionStorage.setItem).toHaveBeenLastCalledWith('undefined_key', 'null');
     });
 
     it('should return false when JSON serialization fails', () => {
@@ -456,7 +464,7 @@ describe('Storage Utilities', () => {
           isArray: false,
           error: expect.stringContaining('circular'),
         }),
-        'ERROR'
+        'ERROR',
       );
       expect(sentryUtils.captureException).toHaveBeenCalledWith(
         expect.any(TypeError),
@@ -473,7 +481,7 @@ describe('Storage Utilities', () => {
               estimatedSize: 'N/A (serialization failed)',
             },
           },
-        }
+        },
       );
     });
 
@@ -496,7 +504,7 @@ describe('Storage Utilities', () => {
           isArray: false,
           error: 'Session storage quota exceeded',
         }),
-        'ERROR'
+        'ERROR',
       );
     });
 
@@ -515,7 +523,7 @@ describe('Storage Utilities', () => {
           valueType: 'object',
           isArray: true,
         }),
-        'ERROR'
+        'ERROR',
       );
     });
   });
@@ -545,10 +553,10 @@ describe('Storage Utilities', () => {
       localStorage.setItem.mockImplementation(() => {});
       localStorage.getItem.mockReturnValue('null');
 
-      // Set undefined (JSON.stringify(undefined) returns undefined, not 'null')
+      // Set undefined (now explicitly converts to 'null' string)
       const setResult = safeSetItem('undefined_key', undefined);
       expect(setResult).toBe(true);
-      expect(localStorage.setItem).toHaveBeenCalledWith('undefined_key', undefined);
+      expect(localStorage.setItem).toHaveBeenCalledWith('undefined_key', 'null');
 
       // Get returns null (not undefined)
       const getData = safeGetItem('undefined_key');

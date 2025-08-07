@@ -61,7 +61,8 @@ export function safeGetItem(key, defaultValue = null) {
  */
 export function safeSetItem(key, value) {
   try {
-    const serializedValue = JSON.stringify(value);
+    // Handle undefined values to prevent storing "undefined" string
+    const serializedValue = value === undefined ? 'null' : JSON.stringify(value);
     localStorage.setItem(key, serializedValue);
     return true;
   } catch (error) {
@@ -154,7 +155,8 @@ export function safeGetSessionItem(key, defaultValue = null) {
  */
 export function safeSetSessionItem(key, value) {
   try {
-    const serializedValue = JSON.stringify(value);
+    // Handle undefined values to prevent storing "undefined" string
+    const serializedValue = value === undefined ? 'null' : JSON.stringify(value);
     sessionStorage.setItem(key, serializedValue);
     return true;
   } catch (error) {
