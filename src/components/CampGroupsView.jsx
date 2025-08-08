@@ -326,8 +326,8 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
   // Handle member move between groups
   const handleMemberMove = useCallback(async (moveData) => {
-    if (!flexiRecordContext) {
-      showToast('error', 'Cannot move members: FlexiRecord context not available');
+    if (!flexiRecordContext && !summary.vikingEventDataAvailable) {
+      showToast('error', 'Cannot move members: FlexiRecord data not available');
       return;
     }
 
@@ -360,11 +360,32 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     }
     
     // Create member-specific FlexiRecord context
-    const memberFlexiRecordContext = {
-      ...flexiRecordContext,
-      section: memberSectionType, // Use the member's section type, not the first event's
-      sectionid: memberSectionId, // Use the member's section ID
-    };
+    let memberFlexiRecordContext = null;
+    
+    if (flexiRecordContext) {
+      // Use existing context but update section info for this specific member
+      memberFlexiRecordContext = {
+        ...flexiRecordContext,
+        section: memberSectionType, // Use the member's section type, not the first event's
+        sectionid: memberSectionId, // Use the member's section ID
+      };
+    } else if (summary.vikingEventDataAvailable && organizedGroups.campGroupData) {
+      // Extract context on-demand from the camp group data
+      const firstEvent = events[0];
+      const termId = organizedGroups.campGroupData[0]?.termid;
+      
+      memberFlexiRecordContext = extractFlexiRecordContext(
+        organizedGroups.campGroupData,
+        memberSectionId,
+        termId,
+        memberSectionType,
+      );
+    }
+    
+    if (!memberFlexiRecordContext) {
+      showToast('error', `Cannot move ${memberName}: Unable to create FlexiRecord context`);
+      return;
+    }
     
     logger.info('Processing member move (immediate OSM sync + cache update)', {
       memberId: moveData.member.scoutid,
@@ -644,7 +665,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               onDragEnd={handleDragEnd}
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
-              dragDisabled={!flexiRecordContext}
+              dragDisabled={!summary.vikingEventDataAvailable}
               className="h-fit"
             />
           ))}

@@ -53,13 +53,13 @@ function CampGroupCard({
       setIsDragOver(true);
     }
     
-    // Check if this is a valid drop target (not dropping on same group)
+    // Check if this is a valid drop target by finding the dragging member's current group
     let accept = false;
-    try {
-      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
-      accept = String(dragData.fromGroupNumber) !== String(group.number);
-    } catch { 
-      // Ignore parsing errors - will be handled in drop event
+    if (isDragInProgress && draggingMemberId) {
+      // Find which group the dragging member is currently in
+      const draggingMember = [...youngPeople, ...leaders].find(m => m.scoutid === draggingMemberId);
+      // Accept drop if member is not already in this group
+      accept = !draggingMember;
     }
     
     setCanDrop(accept);
