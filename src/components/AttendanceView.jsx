@@ -23,8 +23,8 @@ function AttendanceView({ events, members, onBack }) {
   
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
-  const [viewMode, setViewMode] = useState('summary'); // summary, detailed, campGroups
-  const [previousViewMode, setPreviousViewMode] = useState('summary'); // Track previous view mode
+  const [viewMode, setViewMode] = useState('overview'); // overview, summary, detailed, campGroups
+  const [previousViewMode, setPreviousViewMode] = useState('overview'); // Track previous view mode
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -632,6 +632,17 @@ function AttendanceView({ events, members, onBack }) {
           {/* View toggle */}
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex space-x-8">
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'overview' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('overview')}
+                type="button"
+              >
+              Overview
+              </button>
               <button 
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   viewMode === 'summary' 
