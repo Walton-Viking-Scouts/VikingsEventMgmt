@@ -211,28 +211,33 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
  * @returns {Object|null} FlexiRecord context or null if not available
  */
 export function extractFlexiRecordContext(vikingEventData, sectionId, termId, sectionName) {
-  if (!vikingEventData || !vikingEventData.structure) {
+  // Try both _structure and structure properties for compatibility
+  const structure = vikingEventData?._structure || vikingEventData?.structure;
+  
+  if (!vikingEventData || !structure) {
     logger.warn('No Viking Event data or structure available', {
       hasData: !!vikingEventData,
-      hasStructure: !!(vikingEventData?.structure),
+      hasStructure: !!structure,
+      hasUnderscoreStructure: !!(vikingEventData?._structure),
+      hasRegularStructure: !!(vikingEventData?.structure),
       sectionId,
     }, LOG_CATEGORIES.APP);
     return null;
   }
 
   // Find the CampGroup field mapping from the structure
-  const campGroupField = vikingEventData.structure.fieldMapping?.CampGroup;
+  const campGroupField = structure.fieldMapping?.CampGroup;
   
   if (!campGroupField) {
     logger.warn('No CampGroup field found in FlexiRecord structure', {
-      availableFields: Object.keys(vikingEventData.structure.fieldMapping || {}),
+      availableFields: Object.keys(structure.fieldMapping || {}),
       sectionId,
     }, LOG_CATEGORIES.APP);
     return null;
   }
 
   return {
-    flexirecordid: vikingEventData.structure.flexirecordid,
+    flexirecordid: structure.flexirecordid,
     columnid: campGroupField.columnId, // Should be f_1
     sectionid: sectionId,
     termid: termId,

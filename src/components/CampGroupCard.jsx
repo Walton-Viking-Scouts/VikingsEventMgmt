@@ -53,19 +53,9 @@ function CampGroupCard({
       setIsDragOver(true);
     }
     
-    // Check if we can accept this drop - use local variable to avoid race condition
-    let localCanDrop = false;
-    try {
-      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
-      localCanDrop = dragData.fromGroupNumber !== group.number;
-      setCanDrop(localCanDrop);
-    } catch {
-      // Invalid drag data
-      localCanDrop = false;
-      setCanDrop(false);
-    }
-    
-    e.dataTransfer.dropEffect = localCanDrop ? 'move' : 'none';
+    // Accept all drops - validation will happen during drop event
+    setCanDrop(true);
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDragLeave = (e) => {
@@ -94,7 +84,7 @@ function CampGroupCard({
       const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
       
       // Don't allow dropping on the same group
-      if (dragData.fromGroupNumber === group.number) {
+      if (String(dragData.fromGroupNumber) === String(group.number)) {
         return;
       }
       

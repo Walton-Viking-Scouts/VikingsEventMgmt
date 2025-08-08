@@ -115,12 +115,39 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
         // Extract FlexiRecord context for drag-and-drop operations
         if (primaryCampGroupData && events.length > 0) {
-          const context = extractFlexiRecordContext(
-            primaryCampGroupData,
-            events[0].sectionid,
-            termId,
-            events[0].section || 'Unknown Section',
-          );
+          // Get the correct section type from cached sections data
+          const firstEvent = events[0];
+          
+          // We need to look up the section type from the cached sections data
+          // The section type should be in the sections cache, not the event data
+          let sectionType = null;
+          
+          // Try to get section data from localStorage cache
+          try {
+            const sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
+            const sectionInfo = sectionsCache.find(s => s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid));
+            sectionType = sectionInfo?.section || null;
+            
+          } catch (error) {
+            console.error('ERROR: Could not load sections cache for section type lookup', error);
+          }
+          
+          // Only create context if we have a valid section type
+          let context = null;
+          if (sectionType) {
+            context = extractFlexiRecordContext(
+              primaryCampGroupData,
+              firstEvent.sectionid,
+              termId,
+              sectionType,
+            );
+          } else {
+            logger.error('Cannot enable drag-and-drop: section type not found', {
+              eventSectionId: firstEvent.sectionid,
+              availableSections: JSON.parse(localStorage.getItem('viking_sections_offline') || '[]').map(s => ({id: s.sectionid, section: s.section})),
+            }, LOG_CATEGORIES.ERROR);
+          }
+          
           setFlexiRecordContext(context);
           
           logger.debug('FlexiRecord context extracted for drag-and-drop', {
@@ -295,35 +322,93 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
     const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
     
-    logger.info('Processing member move', {
+    // Get the correct section type for THIS specific member
+    let memberSectionType = null;
+    const memberSectionId = moveData.member.sectionid;
+    
+    try {
+      const sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
+      const memberSectionInfo = sectionsCache.find(s => 
+        s.sectionid === memberSectionId || s.sectionid === String(memberSectionId),
+      );
+      memberSectionType = memberSectionInfo?.section || null;
+    } catch (error) {
+      logger.error('Could not load member section type', { error: error.message });
+    }
+    
+    if (!memberSectionType) {
+      showToast('error', `Cannot move ${memberName}: member section type not found`);
+      return;
+    }
+    
+    // Create member-specific FlexiRecord context
+    const memberFlexiRecordContext = {
+      ...flexiRecordContext,
+      section: memberSectionType, // Use the member's section type, not the first event's
+      sectionid: memberSectionId, // Use the member's section ID
+    };
+    
+    logger.info('Processing member move (immediate OSM sync + cache update)', {
       memberId: moveData.member.scoutid,
       memberName,
       fromGroup: moveData.fromGroupName,
       toGroup: moveData.toGroupName,
+      memberSectionId,
+      memberSectionType,
     }, LOG_CATEGORIES.APP);
 
     // 1. Optimistic UI update
     updateGroupsOptimistically(moveData);
     
-    // 2. Track pending move
+    // 2. Track pending move for API sync
     const moveId = `${moveData.member.scoutid}_${Date.now()}`;
-    setPendingMoves(prev => new Map(prev.set(moveId, moveData)));
+    setPendingMoves(prev => new Map(prev.set(moveId, {
+      ...moveData,
+      memberFlexiRecordContext,
+      timestamp: Date.now(),
+    })));
 
     try {
-      // 3. API call
-      const result = await assignMemberToCampGroup(moveData, flexiRecordContext, getToken());
+      // 3. Sync to OSM immediately (so other users see the update)
+      const result = await assignMemberToCampGroup(moveData, memberFlexiRecordContext, getToken());
       
       if (result.success) {
-        // 4. Success - remove from pending and show success message
+        // 4. Update local FlexiRecord cache after successful OSM sync
+        const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
+        const cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+        
+        if (cachedData.items) {
+          const memberItem = cachedData.items.find(item => item.scoutid === moveData.member.scoutid);
+          if (memberItem) {
+            memberItem.f_1 = moveData.toGroupNumber;
+            memberItem.CampGroup = moveData.toGroupNumber;
+            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+            
+            logger.debug('Updated local FlexiRecord cache after OSM sync', {
+              memberId: moveData.member.scoutid,
+              newGroup: moveData.toGroupNumber,
+              cacheKey,
+            }, LOG_CATEGORIES.APP);
+          }
+        }
+        
+        // 5. Update the member object in the current data
+        if (moveData.member) {
+          moveData.member.f_1 = moveData.toGroupNumber;
+          moveData.member.CampGroup = moveData.toGroupNumber;
+        }
+        
+        // 6. Show success message
+        showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+        
+        // 7. Remove from pending moves
         setPendingMoves(prev => {
           const newMap = new Map(prev);
           newMap.delete(moveId);
           return newMap;
         });
         
-        showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
-        
-        logger.info('Member move completed successfully', {
+        logger.info('Member move completed successfully - OSM updated and cache refreshed', {
           memberId: moveData.member.scoutid,
           memberName,
           fromGroup: moveData.fromGroupName,
@@ -336,8 +421,8 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       }
       
     } catch (error) {
-      // 5. Error - revert UI change and show error
-      logger.error('Member move failed', {
+      // Error syncing to OSM - revert UI change and show error
+      logger.error('Failed to sync member move to OSM', {
         memberId: moveData.member.scoutid,
         memberName,
         error: error.message,
@@ -461,14 +546,6 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           </Alert>
         )}
 
-        {summary.vikingEventDataAvailable && flexiRecordContext && (
-          <Alert variant="info" className="mb-4">
-            <Alert.Title>💡 Drag & Drop Enabled</Alert.Title>
-            <Alert.Description>
-              You can now drag Young People between camp groups. Changes will sync to OSM automatically.
-            </Alert.Description>
-          </Alert>
-        )}
       </div>
 
       {/* Search and sort controls */}
@@ -575,7 +652,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
             <span className="text-sm font-medium">
-              Syncing {pendingMoves.size} member {pendingMoves.size === 1 ? 'move' : 'moves'}...
+              Syncing {pendingMoves.size} member {pendingMoves.size === 1 ? 'move' : 'moves'} to OSM...
             </span>
           </div>
         </div>
