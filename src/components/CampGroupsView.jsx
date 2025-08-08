@@ -256,7 +256,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
   // Helper function to calculate total member count
   const calculateTotalMembers = useCallback((group) => {
-    return group.youngPeople.length + group.leaders.length;
+    return (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
   }, []);
 
   // Helper function to recalculate summary statistics from groups
@@ -264,9 +264,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     const groupsArray = Object.values(groups);
     return {
       totalGroups: groupsArray.length,
-      totalMembers: groupsArray.reduce((sum, group) => sum + (group.youngPeople.length + group.leaders.length), 0),
-      totalLeaders: groupsArray.reduce((sum, group) => sum + group.leaders.length, 0),
-      totalYoungPeople: groupsArray.reduce((sum, group) => sum + group.youngPeople.length, 0),
+      totalMembers: groupsArray.reduce((sum, group) => sum + ((group.youngPeople?.length || 0) + (group.leaders?.length || 0)), 0),
+      totalLeaders: groupsArray.reduce((sum, group) => sum + (group.leaders?.length || 0), 0),
+      totalYoungPeople: groupsArray.reduce((sum, group) => sum + (group.youngPeople?.length || 0), 0),
       hasUnassigned: !!groups['Group Unassigned'],
       vikingEventDataAvailable: organizedGroups.summary?.vikingEventDataAvailable || false,
     };
