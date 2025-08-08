@@ -239,6 +239,19 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     return group.youngPeople.length + group.leaders.length;
   }, []);
 
+  // Helper function to recalculate summary statistics from groups
+  const recalculateSummary = useCallback((groups) => {
+    const groupsArray = Object.values(groups);
+    return {
+      totalGroups: groupsArray.length,
+      totalMembers: groupsArray.reduce((sum, group) => sum + (group.youngPeople.length + group.leaders.length), 0),
+      totalLeaders: groupsArray.reduce((sum, group) => sum + group.leaders.length, 0),
+      totalYoungPeople: groupsArray.reduce((sum, group) => sum + group.youngPeople.length, 0),
+      hasUnassigned: !!groups['Group Unassigned'],
+      vikingEventDataAvailable: organizedGroups.summary?.vikingEventDataAvailable || false,
+    };
+  }, [organizedGroups.summary?.vikingEventDataAvailable]);
+
   // Optimistically update groups in local state
   const updateGroupsOptimistically = useCallback((moveData) => {
     setOrganizedGroups(prevGroups => {
@@ -267,12 +280,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
       }
       
-      // Update summary
+      // Update groups and recalculate summary
       newGroups.groups = groups;
+      newGroups.summary = recalculateSummary(groups);
       
       return newGroups;
     });
-  }, [calculateTotalMembers]);
+  }, [calculateTotalMembers, recalculateSummary]);
 
   // Revert optimistic update on error
   const revertOptimisticUpdate = useCallback((moveData) => {
@@ -302,11 +316,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
       }
       
+      // Update groups and recalculate summary
       newGroups.groups = groups;
+      newGroups.summary = recalculateSummary(groups);
       
       return newGroups;
     });
-  }, [calculateTotalMembers]);
+  }, [calculateTotalMembers, recalculateSummary]);
 
   // Handle member move between groups
   const handleMemberMove = useCallback(async (moveData) => {
