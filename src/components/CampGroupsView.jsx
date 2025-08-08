@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Alert, Button, Input, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
@@ -9,6 +9,7 @@ import { fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import { isMobileLayout } from '../utils/platform.js';
+import { assignMemberToCampGroup, extractFlexiRecordContext, validateMemberMove } from '../services/campGroupAllocationService.js';
 
 /**
  * CampGroupsView - Container component for displaying camp groups in a card layout
@@ -28,6 +29,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [sortBy, setSortBy] = useState('groupNumber'); // 'groupNumber', 'memberCount', 'name'
+  
+  // Drag and drop state
+  const [isDragInProgress, setIsDragInProgress] = useState(false);
+  const [draggingMemberId, setDraggingMemberId] = useState(null);
+  const [flexiRecordContext, setFlexiRecordContext] = useState(null);
+  const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
+  const [toastMessage, setToastMessage] = useState(null); // Success/error messages
 
   const isMobile = isMobileLayout();
 
@@ -105,6 +113,23 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         
         setOrganizedGroups(organized);
 
+        // Extract FlexiRecord context for drag-and-drop operations
+        if (primaryCampGroupData && events.length > 0) {
+          const context = extractFlexiRecordContext(
+            primaryCampGroupData,
+            events[0].sectionid,
+            termId,
+            events[0].section || 'Unknown Section',
+          );
+          setFlexiRecordContext(context);
+          
+          logger.debug('FlexiRecord context extracted for drag-and-drop', {
+            hasContext: !!context,
+            flexirecordid: context?.flexirecordid,
+            columnid: context?.columnid,
+          }, LOG_CATEGORIES.APP);
+        }
+
         logger.info('Successfully organized members by camp groups', {
           totalGroups: organized.summary.totalGroups,
           totalMembers: organized.summary.totalMembers,
@@ -154,6 +179,175 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     setShowMemberModal(false);
     setSelectedMember(null);
   };
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((dragData) => {
+    setIsDragInProgress(true);
+    setDraggingMemberId(dragData.memberId);
+    
+    logger.debug('Drag operation started', {
+      memberId: dragData.memberId,
+      memberName: dragData.memberName,
+      fromGroup: dragData.fromGroupName,
+    }, LOG_CATEGORIES.APP);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragInProgress(false);
+    setDraggingMemberId(null);
+    
+    logger.debug('Drag operation ended', {}, LOG_CATEGORIES.APP);
+  }, []);
+
+  // Show toast message temporarily
+  const showToast = useCallback((type, message) => {
+    setToastMessage({ type, message, id: Date.now() });
+    setTimeout(() => setToastMessage(null), 4000);
+  }, []);
+
+  // Optimistically update groups in local state
+  const updateGroupsOptimistically = useCallback((moveData) => {
+    setOrganizedGroups(prevGroups => {
+      const newGroups = { ...prevGroups };
+      const groups = { ...newGroups.groups };
+      
+      // Remove member from source group
+      const fromGroup = groups[moveData.fromGroupName];
+      if (fromGroup) {
+        groups[moveData.fromGroupName] = {
+          ...fromGroup,
+          youngPeople: fromGroup.youngPeople.filter(
+            member => member.scoutid !== moveData.member.scoutid,
+          ),
+        };
+        groups[moveData.fromGroupName].totalMembers = groups[moveData.fromGroupName].youngPeople.length + groups[moveData.fromGroupName].leaders.length;
+      }
+      
+      // Add member to target group
+      const toGroup = groups[moveData.toGroupName];
+      if (toGroup) {
+        groups[moveData.toGroupName] = {
+          ...toGroup,
+          youngPeople: [...toGroup.youngPeople, moveData.member],
+        };
+        groups[moveData.toGroupName].totalMembers = groups[moveData.toGroupName].youngPeople.length + groups[moveData.toGroupName].leaders.length;
+      }
+      
+      // Update summary
+      newGroups.groups = groups;
+      
+      return newGroups;
+    });
+  }, []);
+
+  // Revert optimistic update on error
+  const revertOptimisticUpdate = useCallback((moveData) => {
+    setOrganizedGroups(prevGroups => {
+      const newGroups = { ...prevGroups };
+      const groups = { ...newGroups.groups };
+      
+      // Add member back to source group
+      const fromGroup = groups[moveData.fromGroupName];
+      if (fromGroup) {
+        groups[moveData.fromGroupName] = {
+          ...fromGroup,
+          youngPeople: [...fromGroup.youngPeople, moveData.member],
+        };
+        groups[moveData.fromGroupName].totalMembers = groups[moveData.fromGroupName].youngPeople.length + groups[moveData.fromGroupName].leaders.length;
+      }
+      
+      // Remove member from target group
+      const toGroup = groups[moveData.toGroupName];
+      if (toGroup) {
+        groups[moveData.toGroupName] = {
+          ...toGroup,
+          youngPeople: toGroup.youngPeople.filter(
+            member => member.scoutid !== moveData.member.scoutid,
+          ),
+        };
+        groups[moveData.toGroupName].totalMembers = groups[moveData.toGroupName].youngPeople.length + groups[moveData.toGroupName].leaders.length;
+      }
+      
+      newGroups.groups = groups;
+      
+      return newGroups;
+    });
+  }, []);
+
+  // Handle member move between groups
+  const handleMemberMove = useCallback(async (moveData) => {
+    if (!flexiRecordContext) {
+      showToast('error', 'Cannot move members: FlexiRecord context not available');
+      return;
+    }
+
+    // Validate the move
+    const validation = validateMemberMove(moveData.member, moveData.toGroupNumber, organizedGroups.groups);
+    if (!validation.valid) {
+      showToast('error', validation.error);
+      return;
+    }
+
+    const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
+    
+    logger.info('Processing member move', {
+      memberId: moveData.member.scoutid,
+      memberName,
+      fromGroup: moveData.fromGroupName,
+      toGroup: moveData.toGroupName,
+    }, LOG_CATEGORIES.APP);
+
+    // 1. Optimistic UI update
+    updateGroupsOptimistically(moveData);
+    
+    // 2. Track pending move
+    const moveId = `${moveData.member.scoutid}_${Date.now()}`;
+    setPendingMoves(prev => new Map(prev.set(moveId, moveData)));
+
+    try {
+      // 3. API call
+      const result = await assignMemberToCampGroup(moveData, flexiRecordContext, getToken());
+      
+      if (result.success) {
+        // 4. Success - remove from pending and show success message
+        setPendingMoves(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(moveId);
+          return newMap;
+        });
+        
+        showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+        
+        logger.info('Member move completed successfully', {
+          memberId: moveData.member.scoutid,
+          memberName,
+          fromGroup: moveData.fromGroupName,
+          toGroup: moveData.toGroupName,
+          duration: result.duration,
+        }, LOG_CATEGORIES.APP);
+        
+      } else {
+        throw new Error(result.error);
+      }
+      
+    } catch (error) {
+      // 5. Error - revert UI change and show error
+      logger.error('Member move failed', {
+        memberId: moveData.member.scoutid,
+        memberName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      
+      setPendingMoves(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(moveId);
+        return newMap;
+      });
+      
+      revertOptimisticUpdate(moveData);
+      showToast('error', `Failed to move ${memberName}: ${error.message}`);
+    }
+  }, [flexiRecordContext, organizedGroups.groups, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
 
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
@@ -255,6 +449,18 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             <Alert.Description>
               No &quot;Viking Event Mgmt&quot; flexirecord found for the sections involved in these events. 
               All members will be shown in the &quot;Unassigned&quot; group.
+              {!flexiRecordContext && (
+                <><br /><strong>Note:</strong> Drag and drop functionality is not available without FlexiRecord data.</>
+              )}
+            </Alert.Description>
+          </Alert>
+        )}
+
+        {summary.vikingEventDataAvailable && flexiRecordContext && (
+          <Alert variant="info" className="mb-4">
+            <Alert.Title>💡 Drag & Drop Enabled</Alert.Title>
+            <Alert.Description>
+              You can now drag Young People between camp groups. Changes will sync to OSM automatically.
             </Alert.Description>
           </Alert>
         )}
@@ -321,9 +527,51 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               key={group.name}
               group={group}
               onMemberClick={handleMemberClick}
+              onMemberMove={handleMemberMove}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              isDragInProgress={isDragInProgress}
+              draggingMemberId={draggingMemberId}
               className="h-fit"
             />
           ))}
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className={`
+          fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300
+          ${toastMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
+          ${toastMessage.type === 'error' ? 'border-l-4 border-red-700' : 'border-l-4 border-green-700'}
+        `}>
+          <div className="flex items-center">
+            {toastMessage.type === 'success' ? (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="text-sm font-medium">{toastMessage.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Operations Indicator */}
+      {pendingMoves.size > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg">
+          <div className="flex items-center">
+            <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm font-medium">
+              Syncing {pendingMoves.size} member {pendingMoves.size === 1 ? 'move' : 'moves'}...
+            </span>
+          </div>
         </div>
       )}
 
