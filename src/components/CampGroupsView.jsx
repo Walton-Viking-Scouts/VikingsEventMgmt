@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Alert, Button, Input, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
@@ -36,6 +36,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   const [flexiRecordContext, setFlexiRecordContext] = useState(null);
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
   const [toastMessage, setToastMessage] = useState(null); // Success/error messages
+  
+  // Ref to track toast timeout for cleanup
+  const toastTimeoutRef = useRef(null);
 
   const isMobile = isMobileLayout();
 
@@ -200,6 +203,15 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
 
+  // Cleanup toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
     setSelectedMember(member);
@@ -233,8 +245,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
   // Show toast message temporarily
   const showToast = useCallback((type, message) => {
+    // Clear any existing timeout
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    
     setToastMessage({ type, message, id: Date.now() });
-    setTimeout(() => setToastMessage(null), 4000);
+    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
   // Helper function to calculate total member count
