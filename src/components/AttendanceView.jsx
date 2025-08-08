@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
@@ -24,7 +24,7 @@ function AttendanceView({ events, members, onBack }) {
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [viewMode, setViewMode] = useState('overview'); // overview, summary, detailed, campGroups
-  const [previousViewMode, setPreviousViewMode] = useState('overview'); // Track previous view mode
+  const prevViewModeRef = useRef('overview'); // Track previous view mode without extra renders
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -55,16 +55,15 @@ function AttendanceView({ events, members, onBack }) {
   // Refresh Viking Event data when switching to register view from camp groups
   // This ensures updated camp group assignments show in the register
   useEffect(() => {
-    const switchingToSummary = viewMode === 'summary' && previousViewMode !== 'summary';
-    const switchingFromCampGroups = previousViewMode === 'campGroups';
-    
+    const prev = prevViewModeRef.current;
+    const switchingToSummary = viewMode === 'summary' && prev !== 'summary';
+    const switchingFromCampGroups = prev === 'campGroups';
+
     if (switchingToSummary && switchingFromCampGroups) {
-      // Reload Viking Event data from cache to get updated camp group assignments
       loadVikingEventData();
     }
-    
-    // Update previous view mode
-    setPreviousViewMode(viewMode);
+    // Update previous view mode without triggering re-render
+    prevViewModeRef.current = viewMode;
   }, [viewMode, loadVikingEventData]);
 
   // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
