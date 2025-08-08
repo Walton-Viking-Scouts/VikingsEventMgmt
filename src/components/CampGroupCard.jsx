@@ -53,9 +53,21 @@ function CampGroupCard({
       setIsDragOver(true);
     }
     
-    // Accept all drops - validation will happen during drop event
-    setCanDrop(true);
-    e.dataTransfer.dropEffect = 'move';
+    // Check if drop is acceptable to show correct visual feedback
+    let acceptable = false;
+    if (!dragDisabled) {
+      try {
+        const dragData = JSON.parse(e.dataTransfer.getData('application/json') || '{}');
+        // Don't allow dropping on the same group
+        acceptable = String(dragData.fromGroupNumber) !== String(group.number);
+      } catch (_) {
+        // If we can't parse drag data, assume it's acceptable for visual feedback
+        acceptable = true;
+      }
+    }
+    
+    setCanDrop(acceptable);
+    e.dataTransfer.dropEffect = acceptable ? 'move' : 'none';
   };
 
   const handleDragLeave = (e) => {

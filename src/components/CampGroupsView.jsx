@@ -136,7 +136,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             sectionType = sectionInfo?.section || null;
             
           } catch (error) {
-            console.error('ERROR: Could not load sections cache for section type lookup', error);
+            logger.error('Could not load sections cache for section type lookup', {
+              error: error?.message,
+            }, LOG_CATEGORIES.ERROR);
             sectionsCache = []; // Ensure we have a safe fallback
           }
           
@@ -267,7 +269,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       totalMembers: groupsArray.reduce((sum, group) => sum + ((group.youngPeople?.length || 0) + (group.leaders?.length || 0)), 0),
       totalLeaders: groupsArray.reduce((sum, group) => sum + (group.leaders?.length || 0), 0),
       totalYoungPeople: groupsArray.reduce((sum, group) => sum + (group.youngPeople?.length || 0), 0),
-      hasUnassigned: !!groups['Group Unassigned'],
+      hasUnassigned: ((groups['Group Unassigned']?.totalMembers || 0) > 0),
       vikingEventDataAvailable: organizedGroups.summary?.vikingEventDataAvailable || false,
     };
   }, [organizedGroups.summary?.vikingEventDataAvailable]);

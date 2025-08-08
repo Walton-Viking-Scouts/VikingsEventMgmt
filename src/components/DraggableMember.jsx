@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 
+// Constants for draggable member types
+const DRAGGABLE_MEMBER_TYPES = ['Young People'];
+
 /**
  * DraggableMember - Wrapper component that makes members draggable between camp groups
  * 
@@ -26,8 +29,8 @@ function DraggableMember({
   const [dragPreview, setDragPreview] = useState(false);
   const [mouseDown, setMouseDown] = useState(false);
 
-  // Only Young People can be dragged between groups
-  const isDraggable = member.person_type === 'Young People' && !disabled;
+  // Only specific member types can be dragged between groups
+  const isDraggable = DRAGGABLE_MEMBER_TYPES.includes(member.person_type) && !disabled;
 
   const handleMouseDown = (_e) => {
     if (!isDraggable) return;
@@ -115,8 +118,9 @@ function DraggableMember({
       onDragEnd={handleDragEnd}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onTouchStart={(_e) => {
+      onTouchStart={(e) => {
         if (isDraggable) {
+          e.preventDefault(); // Prevent context menu on long press
           setMouseDown(true);
         }
       }}

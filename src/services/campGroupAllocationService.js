@@ -46,9 +46,27 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       throw new Error('Invalid FlexiRecord context: missing flexirecordid');
     }
 
+    // Validate all required FlexiRecord context fields
+    if (!flexiRecordContext.sectionid) {
+      throw new Error('Invalid FlexiRecord context: missing sectionid');
+    }
+
+    if (!flexiRecordContext.termid) {
+      throw new Error('Invalid FlexiRecord context: missing termid');
+    }
+
+    if (!flexiRecordContext.section) {
+      throw new Error('Invalid FlexiRecord context: missing section name');
+    }
+
     // Validate columnid follows the f_N pattern (e.g., f_1, f_2, f_3)
     if (!flexiRecordContext.columnid || !/^f_\d+$/.test(flexiRecordContext.columnid)) {
       throw new Error(`Invalid FlexiRecord field ID: expected format 'f_N', got '${flexiRecordContext.columnid || 'undefined'}'`);
+    }
+
+    // Validate token is provided
+    if (!token || typeof token !== 'string') {
+      throw new Error('Invalid or missing authentication token');
     }
 
     // Determine the new group value for the API
@@ -68,6 +86,11 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       flexiRecordContext.section,
       token,
     );
+
+    // Check for application-level failure (API can return HTTP 200 with ok: false)
+    if (!result || result.ok === false || result.status === 'error' || result.success === false) {
+      throw new Error(result?.message || result?.error || 'FlexiRecord update failed - API returned error status');
+    }
 
     const duration = Date.now() - startTime;
 
