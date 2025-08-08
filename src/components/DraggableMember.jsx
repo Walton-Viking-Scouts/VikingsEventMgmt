@@ -165,25 +165,25 @@ function DraggableMember({
         </div>
       </div>
       
-      {/* Smaller drag handle indicator for draggable members */}
+      {/* Drag handle indicator for draggable members */}
       {isDraggable && (
         <div 
-          className="ml-2 flex items-center text-gray-400 hover:text-blue-500 transition-colors cursor-grab"
+          className="ml-2 flex items-center text-blue-500 hover:text-blue-700 transition-colors cursor-grab flex-shrink-0"
           onMouseDown={(e) => e.stopPropagation()}
           style={{ touchAction: 'none' }}
           title="Drag to move"
         >
           <svg 
-            className="w-4 h-4" 
+            className="w-5 h-5" 
             fill="currentColor" 
             viewBox="0 0 16 16"
           >
-            <circle cx="4" cy="4" r="1" />
-            <circle cx="12" cy="4" r="1" />
-            <circle cx="4" cy="8" r="1" />
-            <circle cx="12" cy="8" r="1" />
-            <circle cx="4" cy="12" r="1" />
-            <circle cx="12" cy="12" r="1" />
+            <circle cx="4" cy="4" r="1.2" />
+            <circle cx="12" cy="4" r="1.2" />
+            <circle cx="4" cy="8" r="1.2" />
+            <circle cx="12" cy="8" r="1.2" />
+            <circle cx="4" cy="12" r="1.2" />
+            <circle cx="12" cy="12" r="1.2" />
           </svg>
         </div>
       )}
