@@ -914,7 +914,7 @@ function AttendanceView({ events, members, onBack }) {
               events={events}
               attendees={filteredAttendanceData}
               members={members}
-              onError={(error) => console.error('CampGroupsView error:', error)}
+              onError={(_error) => {/* Error handled within CampGroupsView */}}
             />
           )}
         </Card.Body>

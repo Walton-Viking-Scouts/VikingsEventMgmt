@@ -110,7 +110,7 @@ function CampGroupCard({
       });
       
     } catch (error) {
-      console.error('Error processing drop:', error);
+      // Silently ignore malformed drag data - validation happens during drop
     }
   };
 

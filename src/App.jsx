@@ -10,6 +10,7 @@ import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
 import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
+import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { Alert } from './components/ui';
 import './App.css';
 
@@ -50,7 +51,7 @@ function App() {
       try {
         membersData = await databaseService.getMembers([section.sectionid]);
       } catch (error) {
-        console.error('Error loading cached members:', error);
+        logger.error('Error loading cached members', { error: error.message }, LOG_CATEGORIES.ERROR);
         addNotification('error', 'Unable to load member data. Please try refreshing the page.');
         membersData = [];
       }
@@ -70,7 +71,7 @@ function App() {
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
       } catch (error) {
-        console.error('Error loading cached members:', error);
+        logger.error('Error loading cached members', { error: error.message }, LOG_CATEGORIES.ERROR);
         addNotification('error', 'Unable to load member data for attendance view. Please try refreshing the page.');
         membersData = [];
       }

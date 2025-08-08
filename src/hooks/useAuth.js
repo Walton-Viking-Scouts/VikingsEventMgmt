@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
 import authService from '../services/auth.js';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,17 +34,17 @@ export function useAuth() {
         url.searchParams.delete('token_type');
         window.history.replaceState({}, '', url);
         
-        console.log('✅ OAuth callback processed - token stored, URL cleaned');
+        logger.info('OAuth callback processed successfully', { tokenStored: true }, LOG_CATEGORIES.AUTH);
         
         // Fetch user info immediately after token storage
         try {
           const userInfo = await authService.fetchUserInfo();
           if (userInfo) {
             authService.setUserInfo(userInfo);
-            console.log('✅ User info fetched after OAuth:', userInfo.firstname);
+            logger.info('User info fetched after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
           }
         } catch (userError) {
-          console.warn('⚠️ Could not fetch user info after OAuth, will use fallback');
+          logger.warn('Could not fetch user info after OAuth, using fallback', {}, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first
@@ -92,7 +93,7 @@ export function useAuth() {
         setUser(null);
       }
     } catch (error) {
-      console.error('Error checking authentication:', error);
+      logger.error('Error checking authentication', { error: error.message }, LOG_CATEGORIES.ERROR);
       setIsAuthenticated(false);
       setUser(null);
       

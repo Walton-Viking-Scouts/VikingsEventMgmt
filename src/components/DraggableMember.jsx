@@ -69,7 +69,7 @@ function DraggableMember({
         onDragStart(dragData);
       }
     } catch (error) {
-      console.error('Error setting up drag start:', error);
+      // Prevent drag operation if data setup fails
       e.preventDefault();
     }
   };
