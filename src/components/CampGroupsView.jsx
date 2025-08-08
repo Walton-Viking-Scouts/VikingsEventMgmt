@@ -451,11 +451,26 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         }
         
         if (cachedData.items) {
-          const memberItem = cachedData.items.find(item => item.scoutid === moveData.member.scoutid);
-          if (memberItem) {
-            memberItem.f_1 = moveData.toGroupNumber;
-            memberItem.CampGroup = moveData.toGroupNumber;
-            localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+          const memberItemIndex = cachedData.items.findIndex(item => item.scoutid === moveData.member.scoutid);
+          if (memberItemIndex !== -1) {
+            // Create new member item with updated values (immutable update)
+            const updatedMemberItem = {
+              ...cachedData.items[memberItemIndex],
+              f_1: moveData.toGroupNumber,
+              CampGroup: moveData.toGroupNumber,
+            };
+            
+            // Create new items array with updated member item
+            const updatedItems = [...cachedData.items];
+            updatedItems[memberItemIndex] = updatedMemberItem;
+            
+            // Create new cache data object
+            const updatedCacheData = {
+              ...cachedData,
+              items: updatedItems,
+            };
+            
+            localStorage.setItem(cacheKey, JSON.stringify(updatedCacheData));
             
             logger.debug('Updated local FlexiRecord cache after OSM sync', {
               memberId: moveData.member.scoutid,
@@ -465,10 +480,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           }
         }
         
-        // 5. Update the member object in the current data
+        // 5. Update the member object in the current data (immutable update)
         if (moveData.member) {
-          moveData.member.f_1 = moveData.toGroupNumber;
-          moveData.member.CampGroup = moveData.toGroupNumber;
+          moveData.member = {
+            ...moveData.member,
+            f_1: moveData.toGroupNumber,
+            CampGroup: moveData.toGroupNumber,
+          };
         }
         
         // 6. Show success message
