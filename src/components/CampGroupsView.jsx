@@ -401,12 +401,16 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         // 6. Show success message
         showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
         
-        // 7. Remove from pending moves
+        // 7. Remove from pending moves and clear drag states
         setPendingMoves(prev => {
           const newMap = new Map(prev);
           newMap.delete(moveId);
           return newMap;
         });
+        
+        // Clear any drag-related states to ensure UI updates
+        setIsDragInProgress(false);
+        setDraggingMemberId(null);
         
         logger.info('Member move completed successfully - OSM updated and cache refreshed', {
           memberId: moveData.member.scoutid,
@@ -433,6 +437,10 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         newMap.delete(moveId);
         return newMap;
       });
+      
+      // Clear drag states on error
+      setIsDragInProgress(false);
+      setDraggingMemberId(null);
       
       revertOptimisticUpdate(moveData);
       showToast('error', `Failed to move ${memberName}: ${error.message}`);

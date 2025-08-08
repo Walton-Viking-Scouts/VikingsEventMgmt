@@ -24,6 +24,7 @@ function AttendanceView({ events, members, onBack }) {
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [viewMode, setViewMode] = useState('summary'); // summary, detailed, campGroups
+  const [previousViewMode, setPreviousViewMode] = useState('summary'); // Track previous view mode
   const [sortConfig, setSortConfig] = useState({ key: 'attendance', direction: 'desc' });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -50,6 +51,21 @@ function AttendanceView({ events, members, onBack }) {
     });
     return filters;
   });
+
+  // Refresh Viking Event data when switching to register view from camp groups
+  // This ensures updated camp group assignments show in the register
+  useEffect(() => {
+    const switchingToSummary = viewMode === 'summary' && previousViewMode !== 'summary';
+    const switchingFromCampGroups = previousViewMode === 'campGroups';
+    
+    if (switchingToSummary && switchingFromCampGroups) {
+      // Reload Viking Event data from cache to get updated camp group assignments
+      loadVikingEventData();
+    }
+    
+    // Update previous view mode
+    setPreviousViewMode(viewMode);
+  }, [viewMode, previousViewMode, loadVikingEventData]);
 
   // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
 
@@ -625,7 +641,7 @@ function AttendanceView({ events, members, onBack }) {
                 onClick={() => setViewMode('summary')}
                 type="button"
               >
-              Summary
+              Register
               </button>
               <button 
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${

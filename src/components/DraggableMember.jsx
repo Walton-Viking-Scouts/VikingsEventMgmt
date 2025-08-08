@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Badge } from './ui';
 
 /**
  * DraggableMember - Wrapper component that makes members draggable between camp groups
@@ -139,21 +138,6 @@ function DraggableMember({
     >
       <div className="flex-1" onClick={handleMemberClick}>
         <div className="flex items-center gap-2">
-          {isDraggable && (
-            <div className="flex-shrink-0 text-blue-500">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                <circle cx="3" cy="3" r="1" />
-                <circle cx="8" cy="3" r="1" />
-                <circle cx="13" cy="3" r="1" />
-                <circle cx="3" cy="8" r="1" />
-                <circle cx="8" cy="8" r="1" />
-                <circle cx="13" cy="8" r="1" />
-                <circle cx="3" cy="13" r="1" />
-                <circle cx="8" cy="13" r="1" />
-                <circle cx="13" cy="13" r="1" />
-              </svg>
-            </div>
-          )}
           <span 
             className={`text-sm font-medium ${
               isDraggable ? 'text-blue-700' : 'text-gray-700'
@@ -201,19 +185,6 @@ function DraggableMember({
             <circle cx="12" cy="12" r="1" />
           </svg>
         </div>
-      )}
-      
-      {/* Show attendance status if available */}
-      {member.attending !== undefined && (
-        <Badge 
-          variant={member.attending === 'Yes' ? 'success' : 
-            member.attending === 'No' ? 'danger' : 'secondary'} 
-          size="xs"
-          className="ml-2"
-        >
-          {member.attending === 'Yes' ? '✓' : 
-            member.attending === 'No' ? '✗' : '?'}
-        </Badge>
       )}
     </div>
   );
