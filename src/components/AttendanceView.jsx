@@ -65,7 +65,7 @@ function AttendanceView({ events, members, onBack }) {
     
     // Update previous view mode
     setPreviousViewMode(viewMode);
-  }, [viewMode, previousViewMode, loadVikingEventData]);
+  }, [viewMode, loadVikingEventData]);
 
   // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
 
