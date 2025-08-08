@@ -15,6 +15,7 @@ import DraggableMember from './DraggableMember.jsx';
  * @param {Function} props.onDragEnd - Callback when drag operation ends
  * @param {boolean} props.isDragInProgress - Whether any drag operation is in progress
  * @param {string} props.draggingMemberId - ID of member currently being dragged
+ * @param {boolean} props.dragDisabled - Whether drag & drop functionality is disabled
  * @param {string} props.className - Additional CSS classes
  */
 function CampGroupCard({ 
@@ -25,6 +26,7 @@ function CampGroupCard({
   onDragEnd,
   isDragInProgress = false,
   draggingMemberId = null,
+  dragDisabled = false,
   className = '',
 }) {
   // Drop zone state
@@ -51,17 +53,19 @@ function CampGroupCard({
       setIsDragOver(true);
     }
     
-    // Check if we can accept this drop
+    // Check if we can accept this drop - use local variable to avoid race condition
+    let localCanDrop = false;
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
-      const isDifferentGroup = dragData.fromGroupNumber !== group.number;
-      setCanDrop(isDifferentGroup);
+      localCanDrop = dragData.fromGroupNumber !== group.number;
+      setCanDrop(localCanDrop);
     } catch {
       // Invalid drag data
+      localCanDrop = false;
       setCanDrop(false);
     }
     
-    e.dataTransfer.dropEffect = canDrop ? 'move' : 'none';
+    e.dataTransfer.dropEffect = localCanDrop ? 'move' : 'none';
   };
 
   const handleDragLeave = (e) => {
@@ -202,7 +206,7 @@ function CampGroupCard({
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
                   isDragging={draggingMemberId === youngPerson.scoutid}
-                  disabled={false}
+                  disabled={dragDisabled}
                 />
               ))}
             </div>

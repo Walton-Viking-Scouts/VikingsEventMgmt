@@ -205,6 +205,11 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
+  // Helper function to calculate total member count
+  const calculateTotalMembers = useCallback((group) => {
+    return group.youngPeople.length + group.leaders.length;
+  }, []);
+
   // Optimistically update groups in local state
   const updateGroupsOptimistically = useCallback((moveData) => {
     setOrganizedGroups(prevGroups => {
@@ -220,7 +225,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             member => member.scoutid !== moveData.member.scoutid,
           ),
         };
-        groups[moveData.fromGroupName].totalMembers = groups[moveData.fromGroupName].youngPeople.length + groups[moveData.fromGroupName].leaders.length;
+        groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(groups[moveData.fromGroupName]);
       }
       
       // Add member to target group
@@ -230,7 +235,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           ...toGroup,
           youngPeople: [...toGroup.youngPeople, moveData.member],
         };
-        groups[moveData.toGroupName].totalMembers = groups[moveData.toGroupName].youngPeople.length + groups[moveData.toGroupName].leaders.length;
+        groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
       }
       
       // Update summary
@@ -238,7 +243,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       
       return newGroups;
     });
-  }, []);
+  }, [calculateTotalMembers]);
 
   // Revert optimistic update on error
   const revertOptimisticUpdate = useCallback((moveData) => {
@@ -253,7 +258,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           ...fromGroup,
           youngPeople: [...fromGroup.youngPeople, moveData.member],
         };
-        groups[moveData.fromGroupName].totalMembers = groups[moveData.fromGroupName].youngPeople.length + groups[moveData.fromGroupName].leaders.length;
+        groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(groups[moveData.fromGroupName]);
       }
       
       // Remove member from target group
@@ -265,14 +270,14 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             member => member.scoutid !== moveData.member.scoutid,
           ),
         };
-        groups[moveData.toGroupName].totalMembers = groups[moveData.toGroupName].youngPeople.length + groups[moveData.toGroupName].leaders.length;
+        groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
       }
       
       newGroups.groups = groups;
       
       return newGroups;
     });
-  }, []);
+  }, [calculateTotalMembers]);
 
   // Handle member move between groups
   const handleMemberMove = useCallback(async (moveData) => {
@@ -532,6 +537,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               onDragEnd={handleDragEnd}
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
+              dragDisabled={!flexiRecordContext}
               className="h-fit"
             />
           ))}

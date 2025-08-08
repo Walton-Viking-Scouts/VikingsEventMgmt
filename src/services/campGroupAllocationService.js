@@ -46,6 +46,11 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       throw new Error('Invalid FlexiRecord context: missing flexirecordid');
     }
 
+    // Validate columnid follows the f_N pattern (e.g., f_1, f_2, f_3)
+    if (!flexiRecordContext.columnid || !/^f_\d+$/.test(flexiRecordContext.columnid)) {
+      throw new Error(`Invalid FlexiRecord field ID: expected format 'f_N', got '${flexiRecordContext.columnid || 'undefined'}'`);
+    }
+
     // Determine the new group value for the API
     // Empty string or null for "Unassigned", otherwise the group number
     const newGroupValue = (moveData.toGroupNumber === 'Unassigned' || !moveData.toGroupNumber) 
