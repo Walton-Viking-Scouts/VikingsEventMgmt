@@ -108,6 +108,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         // Organize members by camp groups
         const organized = organizeMembersByCampGroups(attendees, members, primaryCampGroupData);
         
+        // Store the primary camp group data for on-demand FlexiRecord context creation
+        organized.campGroupData = primaryCampGroupData;
+        
         // Final check before setting state
         if (abortController.signal.aborted) return;
         
@@ -370,12 +373,13 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         sectionid: memberSectionId, // Use the member's section ID
       };
     } else if (summary.vikingEventDataAvailable && organizedGroups.campGroupData) {
-      // Extract context on-demand from the camp group data
-      const firstEvent = events[0];
-      const termId = organizedGroups.campGroupData[0]?.termid;
+      // Extract context on-demand from the stored camp group data
+      const vikingEventData = organizedGroups.campGroupData;
+      // The termId should be available in the structure or the first item
+      const termId = vikingEventData._structure?.termid || vikingEventData.items?.[0]?.termid;
       
       memberFlexiRecordContext = extractFlexiRecordContext(
-        organizedGroups.campGroupData,
+        vikingEventData,
         memberSectionId,
         termId,
         memberSectionType,
