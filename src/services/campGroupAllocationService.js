@@ -291,7 +291,7 @@ export function validateMemberMove(member, targetGroupNumber, currentGroups) {
   // Check if target group exists (unless it's "Unassigned")
   if (targetGroupNumber !== 'Unassigned' && targetGroupNumber !== '') {
     const targetGroup = Object.values(currentGroups).find(
-      group => group.number === targetGroupNumber,
+      group => String(group.number) === String(targetGroupNumber),
     );
     
     if (!targetGroup) {

@@ -711,7 +711,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               onDragEnd={handleDragEnd}
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
-              dragDisabled={!summary.vikingEventDataAvailable}
+              dragDisabled={!summary.vikingEventDataAvailable || !flexiRecordContext}
               className="h-fit"
             />
           ))}

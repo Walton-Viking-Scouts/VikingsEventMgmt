@@ -88,6 +88,11 @@ function CampGroupCard({
     setIsDragOver(false);
     setCanDrop(false);
     
+    // Don't process drops if dragging is disabled
+    if (dragDisabled) {
+      return;
+    }
+    
     if (!onMemberMove) {
       return;
     }
