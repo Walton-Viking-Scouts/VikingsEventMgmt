@@ -53,9 +53,17 @@ function CampGroupCard({
       setIsDragOver(true);
     }
     
-    // Accept all drops - validation will happen during drop event
-    setCanDrop(true);
-    e.dataTransfer.dropEffect = 'move';
+    // Check if this is a valid drop target (not dropping on same group)
+    let accept = false;
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      accept = String(dragData.fromGroupNumber) !== String(group.number);
+    } catch { 
+      // Ignore parsing errors - will be handled in drop event
+    }
+    
+    setCanDrop(accept);
+    e.dataTransfer.dropEffect = accept ? 'move' : 'none';
   };
 
   const handleDragLeave = (e) => {

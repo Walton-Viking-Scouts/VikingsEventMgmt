@@ -73,6 +73,7 @@ function DraggableMember({
 
   const handleDragEnd = () => {
     setDragPreview(false);
+    setMouseDown(false); // Reset mouseDown state to clear grabbing style
     
     // Notify parent
     if (onDragEnd) {

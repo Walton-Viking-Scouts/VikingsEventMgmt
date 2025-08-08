@@ -324,9 +324,10 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
     const consolidatedData = transformFlexiRecordData(flexiData, fieldMapping);
 
     // Convert fieldMapping Map to object for easier access
+    // Use fieldId as key to ensure uniqueness and prevent overwrites
     const fieldMappingObj = {};
     fieldMapping.forEach((fieldInfo, fieldId) => {
-      fieldMappingObj[fieldInfo.name] = {
+      fieldMappingObj[fieldId] = {
         columnId: fieldId,
         ...fieldInfo,
       };

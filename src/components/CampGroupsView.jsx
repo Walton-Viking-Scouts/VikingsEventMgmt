@@ -123,13 +123,15 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           let sectionType = null;
           
           // Try to get section data from localStorage cache
+          let sectionsCache = [];
           try {
-            const sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
+            sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
             const sectionInfo = sectionsCache.find(s => s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid));
             sectionType = sectionInfo?.section || null;
             
           } catch (error) {
             console.error('ERROR: Could not load sections cache for section type lookup', error);
+            sectionsCache = []; // Ensure we have a safe fallback
           }
           
           // Only create context if we have a valid section type
@@ -144,7 +146,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           } else {
             logger.error('Cannot enable drag-and-drop: section type not found', {
               eventSectionId: firstEvent.sectionid,
-              availableSections: JSON.parse(localStorage.getItem('viking_sections_offline') || '[]').map(s => ({id: s.sectionid, section: s.section})),
+              availableSections: sectionsCache.map(s => ({id: s.sectionid, section: s.section})),
             }, LOG_CATEGORIES.ERROR);
           }
           
@@ -362,11 +364,15 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     
     // 2. Track pending move for API sync
     const moveId = `${moveData.member.scoutid}_${Date.now()}`;
-    setPendingMoves(prev => new Map(prev.set(moveId, {
-      ...moveData,
-      memberFlexiRecordContext,
-      timestamp: Date.now(),
-    })));
+    setPendingMoves(prev => {
+      const next = new Map(prev);
+      next.set(moveId, {
+        ...moveData,
+        memberFlexiRecordContext,
+        timestamp: Date.now(),
+      });
+      return next;
+    });
 
     try {
       // 3. Sync to OSM immediately (so other users see the update)
