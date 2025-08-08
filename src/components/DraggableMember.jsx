@@ -49,8 +49,8 @@ function DraggableMember({
     const dragData = {
       memberId: member.scoutid,
       memberName: `${member.firstname} ${member.lastname}`,
-      fromGroupNumber: group.number,
-      fromGroupName: group.name,
+      fromGroupNumber: group?.number || 'Unknown',
+      fromGroupName: group?.name || 'Unknown Group',
       member: member,
     };
     

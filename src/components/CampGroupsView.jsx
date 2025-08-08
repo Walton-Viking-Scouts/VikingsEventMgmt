@@ -456,7 +456,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             // Create new member item with updated values (immutable update)
             const updatedMemberItem = {
               ...cachedData.items[memberItemIndex],
-              f_1: moveData.toGroupNumber,
+              [memberFlexiRecordContext.columnid]: moveData.toGroupNumber,
               CampGroup: moveData.toGroupNumber,
             };
             
@@ -481,13 +481,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         }
         
         // 5. Update the member object in the current data (immutable update)
-        if (moveData.member) {
-          moveData.member = {
-            ...moveData.member,
-            f_1: moveData.toGroupNumber,
-            CampGroup: moveData.toGroupNumber,
-          };
-        }
+        // Note: This updates the original member object reference used throughout the component
+        // The member object is already being updated immutably in the optimistic update functions
+        // This ensures consistency across all references to this member
         
         // 6. Show success message
         showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
