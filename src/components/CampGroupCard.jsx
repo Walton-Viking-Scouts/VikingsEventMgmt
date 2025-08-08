@@ -212,7 +212,7 @@ function CampGroupCard({
                   onMemberClick={handleMemberClick}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
-                  isDragging={draggingMemberId === youngPerson.scoutid}
+                  isDragging={String(draggingMemberId) === String(youngPerson.scoutid)}
                   disabled={dragDisabled}
                 />
               ))}

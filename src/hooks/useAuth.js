@@ -44,7 +44,7 @@ export function useAuth() {
             logger.info('User info fetched after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
           }
         } catch (userError) {
-          logger.warn('Could not fetch user info after OAuth, using fallback', {}, LOG_CATEGORIES.AUTH);
+          logger.warn('Could not fetch user info after OAuth, using fallback', { error: userError?.message }, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first

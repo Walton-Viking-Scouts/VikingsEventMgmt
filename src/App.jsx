@@ -51,7 +51,7 @@ function App() {
       try {
         membersData = await databaseService.getMembers([section.sectionid]);
       } catch (error) {
-        logger.error('Error loading cached members', { error: error.message }, LOG_CATEGORIES.ERROR);
+        logger.error('Error loading cached members', { error: error.message, sectionId: section.sectionid }, LOG_CATEGORIES.ERROR);
         addNotification('error', 'Unable to load member data. Please try refreshing the page.');
         membersData = [];
       }
@@ -71,7 +71,7 @@ function App() {
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
       } catch (error) {
-        logger.error('Error loading cached members', { error: error.message }, LOG_CATEGORIES.ERROR);
+        logger.error('Error loading cached members', { error: error.message, sectionsInvolved }, LOG_CATEGORIES.ERROR);
         addNotification('error', 'Unable to load member data for attendance view. Please try refreshing the page.');
         membersData = [];
       }

@@ -29,6 +29,12 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
   const startTime = Date.now();
   
   try {
+    // Validate required data FIRST
+    if (!moveData.member || !moveData.member.scoutid) {
+      throw new Error('Invalid member data: missing scoutid');
+    }
+
+    // Now safe to log with member data
     logger.info('Starting camp group assignment', {
       memberId: moveData.member.scoutid,
       memberName: `${moveData.member.firstname} ${moveData.member.lastname}`,
@@ -36,11 +42,6 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       toGroup: moveData.toGroupNumber,
       operation: 'assignMemberToCampGroup',
     }, LOG_CATEGORIES.API);
-
-    // Validate required data
-    if (!moveData.member || !moveData.member.scoutid) {
-      throw new Error('Invalid member data: missing scoutid');
-    }
 
     if (!flexiRecordContext || !flexiRecordContext.flexirecordid) {
       throw new Error('Invalid FlexiRecord context: missing flexirecordid');
@@ -127,7 +128,7 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
     sentryUtils.captureException(error, {
       tags: {
         operation: 'assignMemberToCampGroup',
-        memberType: 'Young People',
+        memberType: moveData.member?.person_type || 'Unknown',
       },
       contexts: {
         move: {

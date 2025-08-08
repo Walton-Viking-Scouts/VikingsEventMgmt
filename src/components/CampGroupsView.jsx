@@ -39,8 +39,21 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   
   // Ref to track toast timeout for cleanup
   const toastTimeoutRef = useRef(null);
+  
+  // Ref to track component mount status for async operations
+  const isMountedRef = useRef(true);
 
   const isMobile = isMobileLayout();
+
+  // Cache parsed sections data to avoid JSON.parse on every drag operation
+  const sectionsCache = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
+    } catch (error) {
+      logger.error('Could not parse sections cache', { error: error.message }, LOG_CATEGORIES.ERROR);
+      return [];
+    }
+  }, []); // Parse once per component mount
 
   // Load camp groups data on mount
   useEffect(() => {
@@ -128,19 +141,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           // The section type should be in the sections cache, not the event data
           let sectionType = null;
           
-          // Try to get section data from localStorage cache
-          let sectionsCache = [];
-          try {
-            sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
-            const sectionInfo = sectionsCache.find(s => s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid));
-            sectionType = sectionInfo?.section || null;
-            
-          } catch (error) {
-            logger.error('Could not load sections cache for section type lookup', {
-              error: error?.message,
-            }, LOG_CATEGORIES.ERROR);
-            sectionsCache = []; // Ensure we have a safe fallback
-          }
+          // Use cached sections data
+          const sectionInfo = sectionsCache.find(s => s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid));
+          sectionType = sectionInfo?.section || null;
           
           // Only create context if we have a valid section type
           let context = null;
@@ -205,9 +208,10 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
 
-  // Cleanup toast timeout on unmount
+  // Cleanup toast timeout and mark component as unmounted
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current);
       }
@@ -366,15 +370,10 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     let memberSectionType = null;
     const memberSectionId = moveData.member.sectionid;
     
-    try {
-      const sectionsCache = JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
-      const memberSectionInfo = sectionsCache.find(s => 
-        s.sectionid === memberSectionId || s.sectionid === String(memberSectionId),
-      );
-      memberSectionType = memberSectionInfo?.section || null;
-    } catch (error) {
-      logger.error('Could not load member section type', { error: error.message });
-    }
+    const memberSectionInfo = sectionsCache.find(s => 
+      s.sectionid === memberSectionId || s.sectionid === String(memberSectionId),
+    );
+    memberSectionType = memberSectionInfo?.section || null;
     
     if (!memberSectionType) {
       showToast('error', `Cannot move ${memberName}: member section type not found`);
@@ -490,14 +489,14 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         // 6. Show success message
         showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
         
-        // 7. Remove from pending moves and clear drag states
+        // 7. Remove from pending moves (always do this for successful operations)
         setPendingMoves(prev => {
           const newMap = new Map(prev);
           newMap.delete(moveId);
           return newMap;
         });
         
-        // Clear any drag-related states to ensure UI updates
+        // Always clear drag states to remove grey highlighting from moved member
         setIsDragInProgress(false);
         setDraggingMemberId(null);
         
@@ -521,20 +520,23 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
       
-      setPendingMoves(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(moveId);
-        return newMap;
-      });
-      
-      // Clear drag states on error
-      setIsDragInProgress(false);
-      setDraggingMemberId(null);
-      
-      revertOptimisticUpdate(moveData);
-      showToast('error', `Failed to move ${memberName}: ${error.message}`);
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setPendingMoves(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(moveId);
+          return newMap;
+        });
+        
+        // Always clear drag states on error to remove grey highlighting
+        setIsDragInProgress(false);
+        setDraggingMemberId(null);
+        
+        revertOptimisticUpdate(moveData);
+        showToast('error', `Failed to move ${memberName}: ${error.message}`);
+      }
     }
-  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, organizedGroups.summary?.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
+  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, organizedGroups.summary?.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast, sectionsCache]);
 
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
