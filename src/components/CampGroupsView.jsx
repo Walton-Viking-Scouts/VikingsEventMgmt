@@ -492,7 +492,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       revertOptimisticUpdate(moveData);
       showToast('error', `Failed to move ${memberName}: ${error.message}`);
     }
-  }, [flexiRecordContext, organizedGroups.groups, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
+  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, summary.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
 
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
