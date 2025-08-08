@@ -346,7 +346,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
   // Handle member move between groups
   const handleMemberMove = useCallback(async (moveData) => {
-    if (!flexiRecordContext && !summary.vikingEventDataAvailable) {
+    if (!flexiRecordContext && !organizedGroups.summary?.vikingEventDataAvailable) {
       showToast('error', 'Cannot move members: FlexiRecord data not available');
       return;
     }
@@ -389,7 +389,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         section: memberSectionType, // Use the member's section type, not the first event's
         sectionid: memberSectionId, // Use the member's section ID
       };
-    } else if (summary.vikingEventDataAvailable && organizedGroups.campGroupData) {
+    } else if (organizedGroups.summary?.vikingEventDataAvailable && organizedGroups.campGroupData) {
       // Extract context on-demand from the stored camp group data
       const vikingEventData = organizedGroups.campGroupData;
       // The termId should be available in the structure or the first item
@@ -439,7 +439,16 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       if (result.success) {
         // 4. Update local FlexiRecord cache after successful OSM sync
         const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
-        const cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+        let cachedData = {};
+        try {
+          cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+        } catch (error) {
+          logger.warn('Failed to parse cached FlexiRecord data, using empty object', {
+            cacheKey,
+            error: error.message,
+          }, LOG_CATEGORIES.ERROR);
+          cachedData = {};
+        }
         
         if (cachedData.items) {
           const memberItem = cachedData.items.find(item => item.scoutid === moveData.member.scoutid);
@@ -509,7 +518,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       revertOptimisticUpdate(moveData);
       showToast('error', `Failed to move ${memberName}: ${error.message}`);
     }
-  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, summary.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
+  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, organizedGroups.summary?.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast]);
 
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
