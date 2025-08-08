@@ -418,22 +418,108 @@ function AttendanceView({ events, members, onBack }) {
 
   return (
     <div>
-      {/* Simplified Attendance Summary Card */}
-      {members && members.length > 0 && (
-        <Card className="m-4">
-          <Card.Header>
-            <Card.Title>Attendance Summary</Card.Title>
-            <div className="flex gap-2 items-center">
-              <Badge variant="scout-blue">
-                {events.length} event{events.length !== 1 ? 's' : ''}
-              </Badge>
-              <Badge variant="scout-green">
-                {simplifiedSummaryStats.totals.total.total} total responses
-              </Badge>
-            </div>
-          </Card.Header>
-          <Card.Body>
+
+      {/* Attendance Data Card */}
+      <Card className="m-4">
+        <Card.Header>
+          <Card.Title>
+            Attendance Data {filteredAttendanceData.length !== attendanceData.length && (
+              <span className="text-sm font-normal text-gray-600">
+                ({filteredAttendanceData.length} of {attendanceData.length} records)
+              </span>
+            )}
+          </Card.Title>
+          <div className="flex gap-2 items-center flex-wrap">
+            <Badge variant="scout-blue">
+              {events.length} event{events.length !== 1 ? 's' : ''}
+            </Badge>
+            <Button 
+              variant="outline-scout-blue"
+              onClick={onBack}
+              type="button"
+            >
+            Back to Dashboard
+            </Button>
+            {attendanceData.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <CompactAttendanceFilter
+                  filters={attendanceFilters}
+                  onFiltersChange={setAttendanceFilters}
+                />
+                {uniqueSections.length > 1 && (
+                  <SectionFilter
+                    sectionFilters={sectionFilters}
+                    onFiltersChange={setSectionFilters}
+                    sections={uniqueSections}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </Card.Header>
+
+        <Card.Body>
+          {/* View toggle */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'overview' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('overview')}
+                type="button"
+              >
+              Overview
+              </button>
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'summary' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('summary')}
+                type="button"
+              >
+              Register
+              </button>
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'detailed' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('detailed')}
+                type="button"
+              >
+              Detailed
+              </button>
+              <button 
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  viewMode === 'campGroups' 
+                    ? 'border-scout-blue text-scout-blue' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                onClick={() => setViewMode('campGroups')}
+                type="button"
+              >
+              Camp Groups
+              </button>
+            </nav>
+          </div>
+
+          {/* Overview Tab - Attendance Summary */}
+          {viewMode === 'overview' && members && members.length > 0 && (
             <div className="overflow-x-auto">
+              <div className="flex gap-2 items-center mb-4">
+                <Badge variant="scout-blue">
+                  {events.length} event{events.length !== 1 ? 's' : ''}
+                </Badge>
+                <Badge variant="scout-green">
+                  {simplifiedSummaryStats.totals.total.total} total responses
+                </Badge>
+              </div>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -535,12 +621,11 @@ function AttendanceView({ events, members, onBack }) {
                       </td>
                     </tr>
                   ))}
-                  {/* Totals row */}
-                  <tr className="bg-gray-100 font-bold">
-                    <td className="px-3 py-3 whitespace-nowrap table-header-text font-bold text-gray-900 border-t-2 border-gray-300">
-                      Totals
+                  <tr className="bg-gray-100 font-semibold">
+                    <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
+                      Total
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.yes.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.yes.yl}</span>
@@ -548,7 +633,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.yes.total}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.no.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.no.yl}</span>
@@ -556,7 +641,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.no.total}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.invited.yl}</span>
@@ -564,7 +649,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.invited.total}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.notInvited.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.notInvited.yl}</span>
@@ -572,7 +657,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">{simplifiedSummaryStats.totals.notInvited.total}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-bold border-t-2 border-gray-300">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.total.yp}</span>
                         <span className="w-8 text-center">{simplifiedSummaryStats.totals.total.yl}</span>
@@ -584,100 +669,7 @@ function AttendanceView({ events, members, onBack }) {
                 </tbody>
               </table>
             </div>
-          </Card.Body>
-        </Card>
-      )}
-
-
-      {/* Attendance Data Card */}
-      <Card className="m-4">
-        <Card.Header>
-          <Card.Title>
-            Attendance Data {filteredAttendanceData.length !== attendanceData.length && (
-              <span className="text-sm font-normal text-gray-600">
-                ({filteredAttendanceData.length} of {attendanceData.length} records)
-              </span>
-            )}
-          </Card.Title>
-          <div className="flex gap-2 items-center flex-wrap">
-            <Badge variant="scout-blue">
-              {events.length} event{events.length !== 1 ? 's' : ''}
-            </Badge>
-            <Button 
-              variant="outline-scout-blue"
-              onClick={onBack}
-              type="button"
-            >
-            Back to Dashboard
-            </Button>
-            {attendanceData.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <CompactAttendanceFilter
-                  filters={attendanceFilters}
-                  onFiltersChange={setAttendanceFilters}
-                />
-                {uniqueSections.length > 1 && (
-                  <SectionFilter
-                    sectionFilters={sectionFilters}
-                    onFiltersChange={setSectionFilters}
-                    sections={uniqueSections}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </Card.Header>
-
-        <Card.Body>
-          {/* View toggle */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
-              <button 
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === 'overview' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setViewMode('overview')}
-                type="button"
-              >
-              Overview
-              </button>
-              <button 
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === 'summary' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setViewMode('summary')}
-                type="button"
-              >
-              Register
-              </button>
-              <button 
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === 'detailed' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setViewMode('detailed')}
-                type="button"
-              >
-              Detailed
-              </button>
-              <button 
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === 'campGroups' 
-                    ? 'border-scout-blue text-scout-blue' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setViewMode('campGroups')}
-                type="button"
-              >
-              Camp Groups
-              </button>
-            </nav>
-          </div>
+          )}
 
           {filteredAttendanceData.length === 0 ? (
             <div className="text-center py-12">
