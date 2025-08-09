@@ -19,16 +19,6 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
     return selectedSections.some(s => s.sectionid === sectionId);
   };
 
-  const _getSectionVariant = (sectionType) => {
-    const type = sectionType.toLowerCase();
-    if (type.includes('earlyyears')) return 'scout-red';         // Early Years/Squirrels - Scout Red
-    if (type.includes('beavers')) return 'scout-blue';           // Beavers - Scout Blue  
-    if (type.includes('cubs')) return 'scout-forest-green';      // Cubs - Scout Forest Green
-    if (type.includes('scouts')) return 'scout-navy';            // Scouts - Scout Navy
-    if (type.includes('adults')) return 'scout-purple';          // Adults - Scout Purple
-    if (type.includes('waitinglist')) return 'scout-teal';       // Waiting List - Scout Teal
-    return 'scout-purple'; // Default for any unknown sections (Adults)
-  };
 
 
   const getSectionOrder = (sectionType) => {

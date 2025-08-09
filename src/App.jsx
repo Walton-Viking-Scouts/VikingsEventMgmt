@@ -8,7 +8,6 @@ import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
-import _syncService from './services/sync.js';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { Alert } from './components/ui';

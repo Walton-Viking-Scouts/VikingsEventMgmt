@@ -68,13 +68,6 @@ function AttendanceView({ events, members, onBack }) {
 
   // loadEnhancedMembers function removed - member data now loaded proactively by dashboard
 
-  const _formatDate = (dateString) => {
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return dateString;
-    }
-  };
 
   // Format date and time in UK format (DD/MM/YYYY HH:MM)
   const formatUKDateTime = (dateString) => {
