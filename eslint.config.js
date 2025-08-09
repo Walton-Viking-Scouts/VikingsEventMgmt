@@ -70,6 +70,8 @@ export default [
       'eqeqeq': 'error',
       'no-var': 'error',
       'prefer-const': 'error',
+      'no-undef': 'error', // Catch undefined variables/components
+      'no-unused-expressions': 'warn', // Catch potential undefined references
       
       // React specific
       'react-hooks/exhaustive-deps': 'warn',
