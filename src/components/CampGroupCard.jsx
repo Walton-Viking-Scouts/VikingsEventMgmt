@@ -1,16 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Badge } from './ui';
+import DraggableMember from './DraggableMember.jsx';
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
  * Shows group name, leaders/young leaders in header, young people in body
+ * Enhanced with drag & drop functionality for moving members between groups
  * 
  * @param {Object} props - Component props
  * @param {Object} props.group - Group data with name, leaders, youngPeople arrays
  * @param {Function} props.onMemberClick - Optional callback when member is clicked
+ * @param {Function} props.onMemberMove - Callback when a member is dropped into this group
+ * @param {Function} props.onDragStart - Callback when drag operation starts from this group
+ * @param {Function} props.onDragEnd - Callback when drag operation ends
+ * @param {boolean} props.isDragInProgress - Whether any drag operation is in progress
+ * @param {string} props.draggingMemberId - ID of member currently being dragged
+ * @param {boolean} props.dragDisabled - Whether drag & drop functionality is disabled
  * @param {string} props.className - Additional CSS classes
  */
-function CampGroupCard({ group, onMemberClick, className = '' }) {
+function CampGroupCard({ 
+  group, 
+  onMemberClick, 
+  onMemberMove,
+  onDragStart,
+  onDragEnd,
+  isDragInProgress = false,
+  draggingMemberId = null,
+  dragDisabled = false,
+  className = '',
+}) {
+  // Drop zone state
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [canDrop, setCanDrop] = useState(false);
+
   if (!group) {
     return null;
   }
@@ -20,6 +42,80 @@ function CampGroupCard({ group, onMemberClick, className = '' }) {
   const handleMemberClick = (member) => {
     if (onMemberClick && typeof onMemberClick === 'function') {
       onMemberClick(member);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault(); // Allow drop
+    
+    if (!isDragOver) {
+      setIsDragOver(true);
+    }
+    
+    // Check if drop is acceptable to show correct visual feedback
+    let acceptable = false;
+    if (!dragDisabled) {
+      try {
+        const dragData = JSON.parse(e.dataTransfer.getData('application/json') || '{}');
+        // Don't allow dropping on the same group
+        acceptable = String(dragData.fromGroupNumber) !== String(group.number);
+      } catch (_) {
+        // If we can't parse drag data, assume it's acceptable for visual feedback
+        acceptable = true;
+      }
+    }
+    
+    setCanDrop(acceptable);
+    e.dataTransfer.dropEffect = acceptable ? 'move' : 'none';
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear if we're actually leaving the drop zone
+    // (not just moving to a child element)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragOver(false);
+      setCanDrop(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    setCanDrop(false);
+    
+    // Don't process drops if dragging is disabled
+    if (dragDisabled) {
+      return;
+    }
+    
+    if (!onMemberMove) {
+      return;
+    }
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      
+      // Don't allow dropping on the same group
+      if (String(dragData.fromGroupNumber) === String(group.number)) {
+        return;
+      }
+      
+      // Call the move handler
+      onMemberMove({
+        member: dragData.member,
+        fromGroupNumber: dragData.fromGroupNumber,
+        fromGroupName: dragData.fromGroupName,
+        toGroupNumber: group.number,
+        toGroupName: group.name,
+      });
+      
+    } catch (error) {
+      // Silently ignore malformed drag data - validation happens during drop
     }
   };
 
@@ -34,7 +130,18 @@ function CampGroupCard({ group, onMemberClick, className = '' }) {
   );
 
   return (
-    <Card className={`camp-group-card ${className}`}>
+    <Card 
+      className={`
+        camp-group-card transition-all duration-200
+        ${isDragInProgress ? 'drop-zone-available' : ''}
+        ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
+        ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
+        ${className}
+      `}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Header with group name and leaders */}
       <Card.Header className="pb-3">
         <div className="flex items-center justify-between">
@@ -98,51 +205,30 @@ function CampGroupCard({ group, onMemberClick, className = '' }) {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {youngPeople.map((youngPerson) => (
-                <div 
-                  key={youngPerson.scoutid} 
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1">
-                    <MemberName member={youngPerson} />
-                    
-                    {/* Show Viking Event Management fields if available */}
-                    <div className="text-xs text-gray-500 mt-1 space-y-1">
-                      {youngPerson.SignedInBy && (
-                        <div>Signed in by: {youngPerson.SignedInBy}</div>
-                      )}
-                      {youngPerson.SignedInWhen && (
-                        <div>Signed in: {new Date(youngPerson.SignedInWhen).toLocaleString()}</div>
-                      )}
-                      {youngPerson.SignedOutBy && (
-                        <div>Signed out by: {youngPerson.SignedOutBy}</div>
-                      )}
-                      {youngPerson.SignedOutWhen && (
-                        <div>Signed out: {new Date(youngPerson.SignedOutWhen).toLocaleString()}</div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Show attendance status if available */}
-                  {youngPerson.attending !== undefined && (
-                    <Badge 
-                      variant={youngPerson.attending === 'Yes' ? 'success' : 
-                        youngPerson.attending === 'No' ? 'danger' : 'secondary'} 
-                      size="xs"
-                    >
-                      {youngPerson.attending === 'Yes' ? '✓' : 
-                        youngPerson.attending === 'No' ? '✗' : '?'}
-                    </Badge>
-                  )}
-                </div>
+                <DraggableMember
+                  key={youngPerson.scoutid}
+                  member={youngPerson}
+                  group={group}
+                  onMemberClick={handleMemberClick}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  isDragging={String(draggingMemberId) === String(youngPerson.scoutid)}
+                  disabled={dragDisabled}
+                />
               ))}
             </div>
           </div>
         ) : (
-          <div className="text-center py-4 text-gray-500">
+          <div className={`
+            text-center py-4 text-gray-500 transition-all
+            ${isDragInProgress ? 'py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg' : ''}
+          `}>
             <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z" />
             </svg>
-            <p className="text-sm">No young people assigned</p>
+            <p className="text-sm">
+              {isDragInProgress ? 'Drop member here' : 'No young people assigned'}
+            </p>
           </div>
         )}
       </Card.Body>
