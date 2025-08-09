@@ -71,7 +71,11 @@ export default [
       'no-var': 'error',
       'prefer-const': 'error',
       'no-undef': 'error', // Catch undefined variables/components
-      'no-unused-expressions': 'warn', // Catch potential undefined references
+      'no-unused-expressions': ['error', { 
+        allowShortCircuit: true, 
+        allowTernary: true, 
+        allowTaggedTemplates: true,
+      }], // Catch unused expressions but allow common patterns
       
       // React specific
       'react-hooks/exhaustive-deps': 'warn',
@@ -106,6 +110,7 @@ export default [
     rules: {
       'cypress/no-unnecessary-waiting': 'warn',
       'cypress/no-force': 'warn',
+      'no-unused-expressions': 'off', // Allow chai assertions in tests
     },
   },
   {

@@ -486,7 +486,7 @@ export async function getUserRoles(token) {
         authService.setUserInfo(userInfo);
 
         const sections = Object.keys(data)
-          .filter(key => !isNaN(key))
+          .filter(key => Number.isInteger(Number(key)) && key !== '')
           .map(key => ({ ...data[key], originalKey: key }))
           .filter(item => item && typeof item === 'object')
           .map(item => {
@@ -518,7 +518,7 @@ export async function getUserRoles(token) {
               sectionname: item.sectionname || `Section ${parsedSectionId}`,
               section: item.section || item.sectionname,
               sectiontype: item.section || item.sectionname, // Map section to sectiontype for database
-              isDefault: item.isDefault === '1',
+              isDefault: item.isDefault === '1' || item.isDefault === 1,
               permissions: item.permissions || {},
             };
           })
