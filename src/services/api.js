@@ -487,16 +487,42 @@ export async function getUserRoles(token) {
 
         const sections = Object.keys(data)
           .filter(key => !isNaN(key))
-          .map(key => data[key])
+          .map(key => ({ ...data[key], originalKey: key }))
           .filter(item => item && typeof item === 'object')
-          .map(item => ({
-            sectionid: parseInt(item.sectionid, 10), // Standardize to number
-            sectionname: item.sectionname,
-            section: item.section,
-            sectiontype: item.section, // Map section to sectiontype for database
-            isDefault: item.isDefault === '1',
-            permissions: item.permissions,
-          }));
+          .map(item => {
+            // Robust section ID parsing with fallbacks
+            let sectionId = item.sectionid;
+            if (sectionId === null || sectionId === undefined || sectionId === '') {
+              // Try alternative field names that might be used
+              sectionId = item.section_id || item.id || item.originalKey;
+              logger.debug('Using fallback section ID', {
+                originalId: item.sectionid,
+                fallbackId: sectionId,
+                originalKey: item.originalKey,
+              }, LOG_CATEGORIES.API);
+            }
+            
+            const parsedSectionId = parseInt(sectionId, 10);
+            if (isNaN(parsedSectionId)) {
+              logger.warn('Invalid section ID detected, filtering out', {
+                originalId: item.sectionid,
+                fallbackId: sectionId,
+                originalKey: item.originalKey,
+                itemKeys: Object.keys(item),
+              }, LOG_CATEGORIES.API);
+              return null; // Will be filtered out
+            }
+            
+            return {
+              sectionid: parsedSectionId,
+              sectionname: item.sectionname || `Section ${parsedSectionId}`,
+              section: item.section || item.sectionname,
+              sectiontype: item.section || item.sectionname, // Map section to sectiontype for database
+              isDefault: item.isDefault === '1',
+              permissions: item.permissions || {},
+            };
+          })
+          .filter(Boolean); // Remove null entries
 
         // Save to local database when online
         if (sections.length > 0) {
