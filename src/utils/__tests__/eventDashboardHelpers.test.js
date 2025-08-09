@@ -78,7 +78,7 @@ describe('EventDashboard Helper Functions', () => {
       getEvents.mockResolvedValue(mockApiEvents);
       databaseService.saveEvents.mockResolvedValue();
 
-      const result = await fetchSectionEvents(mockSection, token, false);
+      const result = await fetchSectionEvents(mockSection, token);
 
       expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
       expect(getEvents).toHaveBeenCalledWith(1, termId, token);
@@ -118,7 +118,7 @@ describe('EventDashboard Helper Functions', () => {
 
       databaseService.getEvents.mockResolvedValue(cachedEvents);
 
-      const result = await fetchSectionEvents(mockSection, null, false);
+      const result = await fetchSectionEvents(mockSection, null);
 
       expect(databaseService.getEvents).toHaveBeenCalledWith(1);
       expect(fetchMostRecentTermId).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe('EventDashboard Helper Functions', () => {
 
       fetchMostRecentTermId.mockRejectedValue(error);
 
-      const result = await fetchSectionEvents(mockSection, token, false);
+      const result = await fetchSectionEvents(mockSection, token);
 
       expect(logger.error).toHaveBeenCalledWith(
         'Error fetching events for section {sectionId}',
@@ -158,7 +158,7 @@ describe('EventDashboard Helper Functions', () => {
 
       fetchMostRecentTermId.mockResolvedValue(null);
 
-      const result = await fetchSectionEvents(mockSection, token, false);
+      const result = await fetchSectionEvents(mockSection, token);
 
       expect(getEvents).not.toHaveBeenCalled();
       expect(result).toEqual([]);
@@ -171,12 +171,12 @@ describe('EventDashboard Helper Functions', () => {
       fetchMostRecentTermId.mockResolvedValue(termId);
       getEvents.mockResolvedValue(null); // Invalid response
 
-      const result = await fetchSectionEvents(mockSection, token, false);
+      const result = await fetchSectionEvents(mockSection, token);
 
       expect(result).toEqual([]);
     });
 
-    it('should handle development mode flag', async () => {
+    it('should make API calls when token provided', async () => {
       const token = 'mock-token';
       const termId = 'term-123';
 
@@ -210,7 +210,7 @@ describe('EventDashboard Helper Functions', () => {
       getEventAttendance.mockResolvedValue(mockAttendanceData);
       databaseService.saveAttendance.mockResolvedValue();
 
-      const result = await fetchEventAttendance(mockEvent, token, false);
+      const result = await fetchEventAttendance(mockEvent, token);
 
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
       expect(databaseService.saveAttendance).toHaveBeenCalledWith(101, mockAttendanceData);
@@ -224,7 +224,7 @@ describe('EventDashboard Helper Functions', () => {
       fetchMostRecentTermId.mockResolvedValue('resolved-term');
       getEventAttendance.mockResolvedValue(mockAttendanceData);
 
-      const result = await fetchEventAttendance(eventWithoutTerm, token, false);
+      const result = await fetchEventAttendance(eventWithoutTerm, token);
 
       expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'resolved-term', token);
@@ -234,7 +234,7 @@ describe('EventDashboard Helper Functions', () => {
     it('should load from cache when no token provided', async () => {
       databaseService.getAttendance.mockResolvedValue(mockAttendanceData);
 
-      const result = await fetchEventAttendance(mockEvent, null, false);
+      const result = await fetchEventAttendance(mockEvent, null);
 
       expect(databaseService.getAttendance).toHaveBeenCalledWith(101);
       expect(getEventAttendance).not.toHaveBeenCalled();
@@ -247,7 +247,7 @@ describe('EventDashboard Helper Functions', () => {
 
       getEventAttendance.mockRejectedValue(error);
 
-      const result = await fetchEventAttendance(mockEvent, token, false);
+      const result = await fetchEventAttendance(mockEvent, token);
 
       expect(logger.error).toHaveBeenCalledWith(
         'Error fetching attendance for event {eventId}',
@@ -269,13 +269,13 @@ describe('EventDashboard Helper Functions', () => {
 
       fetchMostRecentTermId.mockResolvedValue(null);
 
-      const result = await fetchEventAttendance(eventWithoutTerm, token, false);
+      const result = await fetchEventAttendance(eventWithoutTerm, token);
 
       expect(getEventAttendance).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
 
-    it('should handle development mode flag', async () => {
+    it('should make API calls when token provided', async () => {
       const token = 'mock-token';
 
       getEventAttendance.mockResolvedValue([]);

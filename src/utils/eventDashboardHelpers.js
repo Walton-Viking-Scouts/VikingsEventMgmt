@@ -21,7 +21,7 @@ export const fetchAllSectionEvents = async (sections, token) => {
     try {
       logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.COMPONENT);
       allTerms = await getTerms(token); // This will use cache from sync process
-      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms).length }, LOG_CATEGORIES.COMPONENT);
+      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
     } catch (err) {
       logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
     }
@@ -85,7 +85,7 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
       }
     } else {
       // Load from cache
-      const cachedEvents = await databaseService.getEvents(section.sectionid);
+      const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
       events = cachedEvents.map(event => ({
         ...event,
         sectionname: section.sectionname,
