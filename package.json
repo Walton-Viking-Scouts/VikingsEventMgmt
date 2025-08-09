@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
@@ -35,7 +35,7 @@
     "test:ci": "npm run test:run && npm run test:e2e:cloud",
     "test:all": "npm run test:run && npm run test:e2e",
     "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version", 
+    "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "release:create": "npx @sentry/cli releases new vikings-eventmgmt-mobile@$npm_package_version",
     "release:finalize": "npx @sentry/cli releases finalize vikings-eventmgmt-mobile@$npm_package_version",
