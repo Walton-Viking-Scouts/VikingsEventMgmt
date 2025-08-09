@@ -10,10 +10,9 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
  * Fetches events for all sections with optimized terms loading
  * @param {Array} sections - Array of section objects
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {boolean} developmentMode - Whether development delays should be used
  * @returns {Promise<Array>} Array of all events from all sections
  */
-export const fetchAllSectionEvents = async (sections, token, developmentMode = false) => {
+export const fetchAllSectionEvents = async (sections, token) => {
   const allEvents = [];
   
   // Load terms once for all sections (major optimization!)
@@ -22,7 +21,7 @@ export const fetchAllSectionEvents = async (sections, token, developmentMode = f
     try {
       logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.COMPONENT);
       allTerms = await getTerms(token); // This will use cache from sync process
-      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms).length }, LOG_CATEGORIES.COMPONENT);
+      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
     } catch (err) {
       logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
     }
@@ -31,7 +30,7 @@ export const fetchAllSectionEvents = async (sections, token, developmentMode = f
   // Fetch events for all sections using cached terms
   for (const section of sections) {
     try {
-      const sectionEvents = await fetchSectionEvents(section, token, developmentMode, allTerms);
+      const sectionEvents = await fetchSectionEvents(section, token, allTerms);
       allEvents.push(...sectionEvents);
     } catch (err) {
       logger.error('Error processing section {sectionId}', { 
@@ -49,11 +48,10 @@ export const fetchAllSectionEvents = async (sections, token, developmentMode = f
  * Fetches events for a single section from API or cache
  * @param {Object} section - Section object with sectionid and sectionname
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {boolean} developmentMode - Whether development delays should be used
  * @param {Object|null} allTerms - Pre-loaded terms data (optional optimization)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const fetchSectionEvents = async (section, token, _developmentMode = false, allTerms = null) => {
+export const fetchSectionEvents = async (section, token, allTerms = null) => {
   try {
     let events = [];
     
@@ -87,7 +85,7 @@ export const fetchSectionEvents = async (section, token, _developmentMode = fals
       }
     } else {
       // Load from cache
-      const cachedEvents = await databaseService.getEvents(section.sectionid);
+      const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
       events = cachedEvents.map(event => ({
         ...event,
         sectionname: section.sectionname,
@@ -110,10 +108,9 @@ export const fetchSectionEvents = async (section, token, _developmentMode = fals
  * Fetches attendance data for a single event from API or cache
  * @param {Object} event - Event object with eventid, sectionid, termid
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {boolean} developmentMode - Whether development delays should be used
  * @returns {Promise<Array|null>} Attendance data or null if failed
  */
-export const fetchEventAttendance = async (event, token, _developmentMode = false) => {
+export const fetchEventAttendance = async (event, token) => {
   try {
     if (token) {
       // Rate limiting handled by queue
