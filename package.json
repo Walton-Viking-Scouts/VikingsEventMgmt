@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
@@ -33,7 +33,15 @@
     "test:e2e:cloud": "start-server-and-test dev http://localhost:3001 cypress:cloud",
     "test:e2e:cloud:parallel": "start-server-and-test dev http://localhost:3001 cypress:cloud:parallel",
     "test:ci": "npm run test:run && npm run test:e2e:cloud",
-    "test:all": "npm run test:run && npm run test:e2e"
+    "test:all": "npm run test:run && npm run test:e2e",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "release:create": "npx @sentry/cli releases new vikings-eventmgmt-mobile@$npm_package_version",
+    "release:finalize": "npx @sentry/cli releases finalize vikings-eventmgmt-mobile@$npm_package_version",
+    "release:deploy": "npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new -e production",
+    "sentry:sourcemaps": "npx @sentry/cli sourcemaps inject ./dist && npx @sentry/cli sourcemaps upload --release vikings-eventmgmt-mobile@$npm_package_version ./dist",
+    "build:release": "npm run build && npm run sentry:sourcemaps && npm run release:create && npm run release:finalize && npm run release:deploy"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",
@@ -55,6 +63,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
+    "@sentry/cli": "^2.51.1",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
