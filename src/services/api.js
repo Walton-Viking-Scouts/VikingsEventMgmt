@@ -1141,7 +1141,28 @@ export async function getMembersGrid(sectionId, termId, token) {
 export async function getListOfMembers(sections, token) {
   // Check network status first
   isOnline = await checkNetworkStatus();
-  const sectionIds = sections.map(s => s.sectionid);
+  
+  // Filter out sections with invalid IDs upfront
+  const validSections = sections.filter(section => {
+    if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
+      logger.warn('Filtering out section with invalid ID', {
+        section: section,
+        sectionKeys: Object.keys(section || {}),
+      }, LOG_CATEGORIES.API);
+      return false;
+    }
+    return true;
+  });
+  
+  if (validSections.length === 0) {
+    logger.error('No valid sections provided to getListOfMembers', {
+      originalCount: sections.length,
+      sections: sections,
+    }, LOG_CATEGORIES.ERROR);
+    return [];
+  }
+  
+  const sectionIds = validSections.map(s => s.sectionid);
   
   // Try cache first (both online and offline)
   try {
@@ -1167,12 +1188,21 @@ export async function getListOfMembers(sections, token) {
   logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.API);
   const allTerms = await getTerms(token);
   
-  for (const section of sections) {
+  for (const section of validSections) {
     try {
       // Add delay between sections to prevent rapid API calls
       await sleep(600);
       
       // Use cached terms instead of calling API again
+      // Defensive check for section ID
+      if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
+        logger.warn('Skipping section with invalid ID in getListOfMembers', {
+          section: section,
+          sectionKeys: Object.keys(section),
+        }, LOG_CATEGORIES.API);
+        continue;
+      }
+      
       const termId = getMostRecentTermId(section.sectionid, allTerms);
       if (!termId) continue;
       

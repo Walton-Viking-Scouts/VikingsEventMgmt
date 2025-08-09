@@ -59,6 +59,15 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
       // Rate limiting handled by queue
       
       // Fetch from API - use cached terms if available for major optimization
+      // Defensive check for section ID
+      if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
+        logger.warn('Skipping section with invalid ID in fetchSectionEvents', {
+          section: section,
+          sectionKeys: Object.keys(section),
+        }, LOG_CATEGORIES.API);
+        return []; // Return empty array for invalid section
+      }
+      
       let termId;
       if (allTerms) {
         // Use pre-loaded terms (avoids API call per section!)
