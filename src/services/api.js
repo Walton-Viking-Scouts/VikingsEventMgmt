@@ -133,12 +133,6 @@ let isOnline = true;
   }
 })();
 
-// Check if OSM API access is blocked
-function _checkIfBlocked() {
-  if (sessionStorage.getItem('osm_blocked') === 'true') {
-    throw new Error('OSM API access has been blocked. Please contact the system administrator.');
-  }
-}
 
 // Enhanced rate limit monitoring
 function logRateLimitInfo(responseData, apiName) {

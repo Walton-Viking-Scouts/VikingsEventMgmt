@@ -183,7 +183,7 @@ describe('EventDashboard Helper Functions', () => {
       fetchMostRecentTermId.mockResolvedValue(termId);
       getEvents.mockResolvedValue([]);
 
-      await fetchSectionEvents(mockSection, token, true);
+      await fetchSectionEvents(mockSection, token);
 
       // Verify API calls were made (rate limiting handled by queue)
       expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
@@ -280,7 +280,7 @@ describe('EventDashboard Helper Functions', () => {
 
       getEventAttendance.mockResolvedValue([]);
 
-      await fetchEventAttendance(mockEvent, token, true);
+      await fetchEventAttendance(mockEvent, token);
 
       // Verify API calls were made (rate limiting handled by queue)
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
