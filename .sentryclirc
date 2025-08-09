@@ -1,0 +1,9 @@
+[defaults]
+org=walton-vikings
+project=viking-event-mgmt
+
+[auth]
+token='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'
+
+# Optional - specify your Sentry URL if using self-hosted
+# url=https://de.sentry.io
