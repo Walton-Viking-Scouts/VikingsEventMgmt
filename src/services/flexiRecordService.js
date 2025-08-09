@@ -323,13 +323,25 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
     // Transform data using field mapping
     const consolidatedData = transformFlexiRecordData(flexiData, fieldMapping);
 
+    // Convert fieldMapping Map to object for easier access
+    // Use fieldId as key to ensure uniqueness and prevent overwrites
+    const fieldMappingObj = {};
+    fieldMapping.forEach((fieldInfo, fieldId) => {
+      fieldMappingObj[fieldId] = {
+        columnId: fieldId,
+        ...fieldInfo,
+      };
+    });
+
     // Add structure metadata to result
     consolidatedData._structure = {
       name: structureData.name,
       extraid: structureData.extraid,
+      flexirecordid: structureData.extraid, // Alias for backward compatibility
       sectionid: structureData.sectionid,
       archived: structureData.archived === '1',
       softDeleted: structureData.soft_deleted === '1',
+      fieldMapping: fieldMappingObj, // Add the field mapping for drag-and-drop context
     };
 
     logger.info('Successfully consolidated flexirecord data', {

@@ -13,11 +13,11 @@ class SimpleAuthHandler {
    * @param {string} apiName - Name of the API call for logging
    * @returns {boolean} - true if auth is OK, false if auth failed
    */
-  handleAPIResponse(response, apiName) {
+  handleAPIResponse(response, _apiName) {
     if (response.status === 401 || response.status === 403) {
       if (!this.hasShownAuthError) {
         this.hasShownAuthError = true;
-        console.log(`🔐 Authentication failed on ${apiName} - blocking further API calls this session`);
+        // Authentication failed - blocked further API calls this session
         
         // Notify components about auth failure
         if (this.onAuthError) {
@@ -37,7 +37,7 @@ class SimpleAuthHandler {
     if (!this.hasShownAuthError) {
       return true;
     }
-    console.log('⏹️ Skipping API call - authentication already failed this session');
+    // Skipping API call - authentication already failed this session
     return false;
   }
 
@@ -45,7 +45,7 @@ class SimpleAuthHandler {
    * Reset auth error state (call when user gets new token or reconnects)
    */
   reset() {
-    console.log('🔄 Resetting auth error state');
+    // Resetting auth error state
     this.hasShownAuthError = false;
   }
 
