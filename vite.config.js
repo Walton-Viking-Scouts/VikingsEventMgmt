@@ -2,13 +2,28 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
+import packageJson from './package.json';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), sentryVitePlugin({
-    org: 'walton-vikings',
-    project: 'viking-event-mgmt',
-  })],
+  plugins: [
+    react(), 
+    sentryVitePlugin({
+      org: 'walton-vikings',
+      project: 'viking-event-mgmt',
+      release: {
+        name: `vikings-eventmgmt-mobile@${packageJson.version}`,
+        uploadLegacySourcemaps: false,
+        deploy: {
+          env: 'production',
+        },
+      },
+      sourcemaps: {
+        assets: ['./dist/**'],
+        ignore: ['node_modules'],
+      },
+    }),
+  ],
   server: {
     port: 3001,
     host: true,
