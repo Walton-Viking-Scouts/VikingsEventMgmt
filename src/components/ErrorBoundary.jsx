@@ -20,16 +20,58 @@ class ErrorBoundary extends React.Component {
       errorInfo,
     });
 
-    // Enhanced error context for better debugging
+    // Safe serializer for props to handle circular references and redact sensitive data
+    const safeSerialize = (obj, maxDepth = 3, currentDepth = 0) => {
+      if (currentDepth >= maxDepth) return '[Max Depth Reached]';
+      if (obj === null) return null;
+      if (typeof obj !== 'object') return obj;
+      
+      try {
+        const result = {};
+        for (const [key, value] of Object.entries(obj)) {
+          // Redact sensitive keys
+          if (['token', 'password', 'secret', 'key', 'auth', 'credential'].some(sensitive => 
+            key.toLowerCase().includes(sensitive))) {
+            result[key] = '[REDACTED]';
+          } else if (typeof value === 'object' && value !== null) {
+            result[key] = safeSerialize(value, maxDepth, currentDepth + 1);
+          } else {
+            result[key] = value;
+          }
+        }
+        return result;
+      } catch {
+        return '[Serialization Error]';
+      }
+    };
+
+    // Redact sensitive query parameters from URL
+    const redactSensitiveUrl = (url) => {
+      if (!url) return '[URL Not Available]';
+      try {
+        const urlObj = new URL(url);
+        const sensitiveParams = ['access_token', 'token', 'key', 'secret', 'auth'];
+        sensitiveParams.forEach(param => {
+          if (urlObj.searchParams.has(param)) {
+            urlObj.searchParams.set(param, '[REDACTED]');
+          }
+        });
+        return urlObj.toString();
+      } catch {
+        return '[Invalid URL]';
+      }
+    };
+
+    // Enhanced error context with SSR safety and security
     const errorContext = {
       component: this.props.name || 'Unknown Component',
       errorMessage: error.message,
       errorStack: error.stack,
       componentStack: errorInfo.componentStack,
-      props: this.props.logProps ? JSON.stringify(this.props, null, 2) : undefined,
+      props: this.props.logProps ? safeSerialize(this.props) : undefined,
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server Side',
+      url: typeof window !== 'undefined' ? redactSensitiveUrl(window.location.href) : 'Server Side',
     };
 
     // Log error with structured context

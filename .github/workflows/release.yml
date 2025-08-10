@@ -12,6 +12,7 @@ env:
   SENTRY_HOST: https://walton-vikings.sentry.io
   SENTRY_ORG: walton-vikings
   SENTRY_PROJECT: viking-event-mgmt
+  SENTRY_RELEASE_PREFIX: vikings-eventmgmt-mobile
   SENTRY_URL: https://sentry.io
 
 jobs:
@@ -45,7 +46,14 @@ jobs:
           # Extract version for build process
           VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          SENTRY_RELEASE="${{ env.SENTRY_RELEASE_PREFIX }}@$VERSION"
+          
           echo "Building release: $VERSION"
+          echo "Sentry release: $SENTRY_RELEASE"
+          
+          # Export for Vite plugin to use consistent release naming
+          export SENTRY_RELEASE="$SENTRY_RELEASE"
+          
           npm run build
 
       - name: 📤 Create and finalize Sentry release
@@ -59,7 +67,7 @@ jobs:
           # Extract version and create consistent release name (strip 'v' prefix)
           VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          RELEASE="${{ env.SENTRY_PROJECT }}@$VERSION"
+          RELEASE="${{ env.SENTRY_RELEASE_PREFIX }}@$VERSION"
           
           # Export clean version and release name to GitHub Actions environment for reuse
           echo "CLEAN_VERSION=$VERSION" >> $GITHUB_ENV
