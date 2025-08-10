@@ -14,6 +14,8 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ github.ref_name }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -47,6 +49,10 @@ jobs:
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           RELEASE="${{ env.SENTRY_PROJECT }}@$VERSION"
           
+          # Export clean version and release name to GitHub Actions environment for reuse
+          echo "CLEAN_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$RELEASE" >> $GITHUB_ENV
+          
           # Create release
           npx @sentry/cli releases new "$RELEASE"
           
@@ -72,7 +78,7 @@ jobs:
             ## 🔗 Sentry Release
             
             View detailed error tracking and performance monitoring in Sentry:
-            ${{ env.SENTRY_HOST }}/organizations/${{ env.SENTRY_ORG }}/releases/${{ env.SENTRY_PROJECT }}@${GITHUB_REF_NAME#v}/
+            ${{ env.SENTRY_HOST }}/organizations/${{ env.SENTRY_ORG }}/releases/${{ env.SENTRY_PROJECT }}@${{ env.CLEAN_VERSION }}/
             
             ## 📊 Issue Resolution
             
@@ -94,8 +100,5 @@ jobs:
         run: |
           set -euo pipefail  # Bash safety flags
           
-          VERSION="${{ github.ref_name }}"
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          RELEASE="${{ env.SENTRY_PROJECT }}@$VERSION"
-          
-          npx @sentry/cli releases deploys "$RELEASE" new -e production
+          # Reuse the exported RELEASE_NAME from previous step
+          npx @sentry/cli releases deploys "${{ env.RELEASE_NAME }}" new -e production
