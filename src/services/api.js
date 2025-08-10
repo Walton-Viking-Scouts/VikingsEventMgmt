@@ -486,17 +486,43 @@ export async function getUserRoles(token) {
         authService.setUserInfo(userInfo);
 
         const sections = Object.keys(data)
-          .filter(key => !isNaN(key))
-          .map(key => data[key])
+          .filter(key => Number.isInteger(Number(key)) && key !== '')
+          .map(key => ({ ...data[key], originalKey: key }))
           .filter(item => item && typeof item === 'object')
-          .map(item => ({
-            sectionid: parseInt(item.sectionid, 10), // Standardize to number
-            sectionname: item.sectionname,
-            section: item.section,
-            sectiontype: item.section, // Map section to sectiontype for database
-            isDefault: item.isDefault === '1',
-            permissions: item.permissions,
-          }));
+          .map(item => {
+            // Robust section ID parsing with fallbacks
+            let sectionId = item.sectionid;
+            if (sectionId === null || sectionId === undefined || sectionId === '') {
+              // Try alternative field names that might be used
+              sectionId = item.section_id || item.id || item.originalKey;
+              logger.debug('Using fallback section ID', {
+                originalId: item.sectionid,
+                fallbackId: sectionId,
+                originalKey: item.originalKey,
+              }, LOG_CATEGORIES.API);
+            }
+            
+            const parsedSectionId = parseInt(sectionId, 10);
+            if (isNaN(parsedSectionId)) {
+              logger.warn('Invalid section ID detected, filtering out', {
+                originalId: item.sectionid,
+                fallbackId: sectionId,
+                originalKey: item.originalKey,
+                itemKeys: Object.keys(item),
+              }, LOG_CATEGORIES.API);
+              return null; // Will be filtered out
+            }
+            
+            return {
+              sectionid: parsedSectionId,
+              sectionname: item.sectionname || `Section ${parsedSectionId}`,
+              section: item.section || item.sectionname,
+              sectiontype: item.section || item.sectionname, // Map section to sectiontype for database
+              isDefault: item.isDefault === '1' || item.isDefault === 1,
+              permissions: item.permissions || {},
+            };
+          })
+          .filter(Boolean); // Remove null entries
 
         // Save to local database when online
         if (sections.length > 0) {
@@ -1115,7 +1141,28 @@ export async function getMembersGrid(sectionId, termId, token) {
 export async function getListOfMembers(sections, token) {
   // Check network status first
   isOnline = await checkNetworkStatus();
-  const sectionIds = sections.map(s => s.sectionid);
+  
+  // Filter out sections with invalid IDs upfront
+  const validSections = sections.filter(section => {
+    if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
+      logger.warn('Filtering out section with invalid ID', {
+        section: section,
+        sectionKeys: Object.keys(section || {}),
+      }, LOG_CATEGORIES.API);
+      return false;
+    }
+    return true;
+  });
+  
+  if (validSections.length === 0) {
+    logger.error('No valid sections provided to getListOfMembers', {
+      originalCount: sections.length,
+      sections: sections,
+    }, LOG_CATEGORIES.ERROR);
+    return [];
+  }
+  
+  const sectionIds = validSections.map(s => s.sectionid);
   
   // Try cache first (both online and offline)
   try {
@@ -1141,12 +1188,21 @@ export async function getListOfMembers(sections, token) {
   logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.API);
   const allTerms = await getTerms(token);
   
-  for (const section of sections) {
+  for (const section of validSections) {
     try {
       // Add delay between sections to prevent rapid API calls
       await sleep(600);
       
       // Use cached terms instead of calling API again
+      // Defensive check for section ID
+      if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
+        logger.warn('Skipping section with invalid ID in getListOfMembers', {
+          section: section,
+          sectionKeys: Object.keys(section),
+        }, LOG_CATEGORIES.API);
+        continue;
+      }
+      
       const termId = getMostRecentTermId(section.sectionid, allTerms);
       if (!termId) continue;
       
