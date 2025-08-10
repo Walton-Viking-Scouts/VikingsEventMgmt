@@ -6,8 +6,10 @@ on:
       - 'v*.*.*'
 
 env:
+  SENTRY_HOST: https://walton-vikings.de.sentry.io
   SENTRY_ORG: walton-vikings
   SENTRY_PROJECT: viking-event-mgmt
+  SENTRY_URL: https://de.sentry.io
 
 jobs:
   release:
@@ -36,44 +38,46 @@ jobs:
       - name: 📤 Create Sentry release
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ env.SENTRY_URL }}
         run: |
-          # Extract version from tag
-          VERSION=${GITHUB_REF#refs/tags/v}
+          set -euo pipefail  # Bash safety flags
+          
+          # Extract version and create consistent release name
+          VERSION="${{ github.ref_name }}"
+          RELEASE="${{ env.SENTRY_PROJECT }}@$VERSION"
           
           # Create release
-          npx @sentry/cli releases new vikings-eventmgmt-mobile@$VERSION
+          npx @sentry/cli releases new "$RELEASE"
           
           # Upload source maps
           npx @sentry/cli sourcemaps inject ./dist
-          npx @sentry/cli sourcemaps upload --release vikings-eventmgmt-mobile@$VERSION ./dist
+          npx @sentry/cli sourcemaps upload --release "$RELEASE" ./dist
           
           # Finalize release
-          npx @sentry/cli releases finalize vikings-eventmgmt-mobile@$VERSION
+          npx @sentry/cli releases finalize "$RELEASE"
 
       - name: 🐙 Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           body: |
             ## 🔄 Changes
             
-            Release ${{ github.ref }}
+            Release ${{ github.ref_name }}
             
             ## 🔗 Sentry Release
             
             View detailed error tracking and performance monitoring in Sentry:
-            https://walton-vikings.de.sentry.io/releases/vikings-eventmgmt-mobile@${GITHUB_REF#refs/tags/v}/
+            ${{ env.SENTRY_HOST }}/organizations/${{ env.SENTRY_ORG }}/releases/${{ env.SENTRY_PROJECT }}@${{ github.ref_name }}/
             
             ## 📊 Issue Resolution
             
             This release may resolve the following Sentry issues:
             - Check the Sentry release page for automatic issue resolution
             - Issues first seen after the previous release will be marked as resolved
-            
-            🤖 Generated with [Claude Code](https://claude.ai/code)
           draft: false
           prerelease: false
 
@@ -85,6 +89,11 @@ jobs:
       - name: 🚀 Mark deployment in Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: ${{ env.SENTRY_URL }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$VERSION new -e production
+          set -euo pipefail  # Bash safety flags
+          
+          VERSION="${{ github.ref_name }}"
+          RELEASE="${{ env.SENTRY_PROJECT }}@$VERSION"
+          
+          npx @sentry/cli releases deploys "$RELEASE" new -e production
