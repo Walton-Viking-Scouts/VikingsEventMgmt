@@ -5,5 +5,5 @@ project=viking-event-mgmt
 # Auth token now provided via SENTRY_AUTH_TOKEN environment variable
 # See GitHub repository secrets for secure token management
 
-# Optional - specify your Sentry URL if using self-hosted
-# url=https://de.sentry.io2you ne
+# Sentry URL for CLI operations
+url=https://sentry.io

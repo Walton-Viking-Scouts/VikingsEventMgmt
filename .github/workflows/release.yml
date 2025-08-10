@@ -38,10 +38,17 @@ jobs:
           npm run test:run
           npm run lint
 
-      - name: 🔨 Build
-        run: npm run build
+      - name: 🔨 Build with Sentry integration
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          # Extract version for build process
+          VERSION="${{ github.ref_name }}"
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          echo "Building release: $VERSION"
+          npm run build
 
-      - name: 📤 Create Sentry release
+      - name: 📤 Create and finalize Sentry release
         id: sentry-release
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -62,15 +69,37 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "release-name=$RELEASE" >> $GITHUB_OUTPUT
           
-          # Create release
-          npx @sentry/cli releases new "$RELEASE"
+          echo "Processing Sentry release: $RELEASE"
           
-          # Upload source maps
-          npx @sentry/cli sourcemaps inject ./dist
-          npx @sentry/cli sourcemaps upload --release "$RELEASE" ./dist
+          # Check if release already exists (created by Vite plugin)
+          if npx @sentry/cli releases info "$RELEASE" > /dev/null 2>&1; then
+            echo "Release $RELEASE already exists, skipping creation"
+          else
+            echo "Creating new release: $RELEASE"
+            npx @sentry/cli releases new "$RELEASE"
+          fi
           
-          # Finalize release
+          # Verify source maps were uploaded
+          echo "Checking source maps..."
+          if npx @sentry/cli releases files "$RELEASE" list | grep -q ".map"; then
+            echo "Source maps found in release"
+          else
+            echo "No source maps found, uploading manually..."
+            if [ -d "./dist" ] && [ "$(find ./dist -name '*.map' | wc -l)" -gt 0 ]; then
+              echo "Found source maps in dist directory, uploading..."
+              npx @sentry/cli sourcemaps inject ./dist
+              npx @sentry/cli sourcemaps upload --release "$RELEASE" ./dist
+            else
+              echo "Warning: No source map files found in ./dist directory"
+              find ./dist -type f -name "*.js" -o -name "*.map" | head -10
+            fi
+          fi
+          
+          # Set commits and finalize
+          npx @sentry/cli releases set-commits "$RELEASE" --auto
           npx @sentry/cli releases finalize "$RELEASE"
+          
+          echo "Sentry release $RELEASE completed successfully"
 
       - name: 🐙 Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -8,6 +8,7 @@ import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
 import MembersList from './components/MembersList.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { Alert } from './components/ui';
@@ -129,31 +130,41 @@ function App() {
   };
 
   return (
-    <div className="App" data-testid="app">
-      <Router>
-        <ResponsiveLayout user={user} onLogout={logout} onLogin={login} currentView={currentView} isOfflineMode={isOfflineMode}>
-          <Routes>
-            <Route path="/" element={renderCurrentView()} />
-            <Route path="/dashboard" element={renderCurrentView()} />
-          </Routes>
-        </ResponsiveLayout>
-      </Router>
-      
-      {/* Notification System */}
-      <div className="fixed top-4 right-4 z-50 space-y-2" style={{ maxWidth: '400px' }}>
-        {notifications.map(notification => (
-          <Alert
-            key={notification.id}
-            variant={notification.type}
-            dismissible={true}
-            onDismiss={() => removeNotification(notification.id)}
-            className="shadow-lg"
-          >
-            {notification.message}
-          </Alert>
-        ))}
+    <ErrorBoundary name="App" logProps={false}>
+      <div className="App" data-testid="app">
+        <ErrorBoundary name="Router" logProps={false}>
+          <Router>
+            <ErrorBoundary name="ResponsiveLayout" logProps={false}>
+              <ResponsiveLayout user={user} onLogout={logout} onLogin={login} currentView={currentView} isOfflineMode={isOfflineMode}>
+                <ErrorBoundary name="Routes" logProps={false}>
+                  <Routes>
+                    <Route path="/" element={renderCurrentView()} />
+                    <Route path="/dashboard" element={renderCurrentView()} />
+                  </Routes>
+                </ErrorBoundary>
+              </ResponsiveLayout>
+            </ErrorBoundary>
+          </Router>
+        </ErrorBoundary>
+        
+        {/* Notification System */}
+        <ErrorBoundary name="NotificationSystem" logProps={false}>
+          <div className="fixed top-4 right-4 z-50 space-y-2" style={{ maxWidth: '400px' }}>
+            {notifications.map(notification => (
+              <Alert
+                key={notification.id}
+                variant={notification.type}
+                dismissible={true}
+                onDismiss={() => removeNotification(notification.id)}
+                className="shadow-lg"
+              >
+                {notification.message}
+              </Alert>
+            ))}
+          </div>
+        </ErrorBoundary>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
