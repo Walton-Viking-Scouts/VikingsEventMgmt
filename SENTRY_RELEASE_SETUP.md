@@ -116,13 +116,13 @@ npm run release:deploy    # Mark production deployment (uses --env production)
 npm run release:deploy
 
 # Manual staging deployment
-npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env staging
+npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$(node -p "require('./package.json').version") new --env staging
 
 # Manual production deployment (explicit)
-npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env production
+npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$(node -p "require('./package.json').version") new --env production
 
 # Using environment variable for CI/CD
-SENTRY_ENVIRONMENT=staging npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env $SENTRY_ENVIRONMENT
+SENTRY_ENVIRONMENT=staging npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$(node -p "require('./package.json').version") new --env $SENTRY_ENVIRONMENT
 ```
 
 ### **Source Maps**

@@ -237,7 +237,7 @@ export async function fetchUserInfo() {
             tags: { operation: 'sentry_user_update' },
             contexts: { 
               userInfo: { hasUserInfo: !!userInfo },
-              auth: { operation: 'update_sentry_user_context' }
+              auth: { operation: 'update_sentry_user_context' },
             },
           });
         }
