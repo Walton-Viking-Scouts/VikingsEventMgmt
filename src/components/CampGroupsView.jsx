@@ -21,17 +21,17 @@ import { assignMemberToCampGroup, extractFlexiRecordContext, validateMemberMove 
  */
 function useFlexiRecordContext(primaryCampGroupData, events, sectionsCache, termId) {
   return useMemo(() => {
-    // Early returns for missing data
-    if (!primaryCampGroupData || !events.length || !sectionsCache.length) {
+    // Early returns for missing data - guard against falsy termId
+    if (!primaryCampGroupData || !events.length || !sectionsCache.length || !termId) {
       return null;
     }
 
     // Get the correct section type from cached sections data
     const firstEvent = events[0];
     
-    // Find section info using both numeric and string sectionid comparisons
+    // Find section info using normalized string comparison
     const sectionInfo = sectionsCache.find(s => 
-      s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid),
+      String(s.sectionid) === String(firstEvent.sectionid),
     );
     
     // Log error if section not found

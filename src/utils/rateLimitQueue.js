@@ -127,6 +127,18 @@ export class RateLimitQueue {
   }
 
   /**
+   * Clear request timeout to prevent memory leaks
+   * @private
+   * @param {Object} request - Request to clear timeout for
+   */
+  _clearRequestTimeout(request) {
+    if (Object.prototype.hasOwnProperty.call(request, '_timeoutId')) {
+      clearTimeout(request._timeoutId);
+      delete request._timeoutId;
+    }
+  }
+
+  /**
    * Remove a request from the queue
    * @param {Object} request - Request to remove
    */
@@ -138,10 +150,7 @@ export class RateLimitQueue {
     }
     
     // Clear timeout to prevent memory leak and timer firing for completed requests
-    if (request._timeoutId !== null) {
-      clearTimeout(request._timeoutId);
-    }
-    delete request._timeoutId; // Remove property to avoid leaking references
+    this._clearRequestTimeout(request);
   }
 
   /**
@@ -187,10 +196,7 @@ export class RateLimitQueue {
           const result = await request.apiCall();
           
           // Clear timeout on successful completion to prevent memory leak
-          if (request._timeoutId) {
-            clearTimeout(request._timeoutId);
-            delete request._timeoutId; // Remove property to avoid leaking references
-          }
+          this._clearRequestTimeout(request);
           
           request.resolve(result);
 
@@ -220,10 +226,7 @@ export class RateLimitQueue {
             }, LOG_CATEGORIES.ERROR);
             
             // Clear timeout on final failure to prevent memory leak
-            if (request._timeoutId) {
-              clearTimeout(request._timeoutId);
-              delete request._timeoutId; // Remove property to avoid leaking references
-            }
+            this._clearRequestTimeout(request);
             
             request.reject(error);
           }
@@ -319,10 +322,7 @@ export class RateLimitQueue {
     // Reject all pending requests and clear their timeouts
     this.queue.forEach(request => {
       // Clear timeout to prevent memory leak
-      if (request._timeoutId) {
-        clearTimeout(request._timeoutId);
-        delete request._timeoutId; // Remove property to avoid leaking references
-      }
+      this._clearRequestTimeout(request);
       request.reject(new Error(`Queue cleared: ${reason}`));
     });
     

@@ -28,23 +28,37 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     emergency: false,
   });
 
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
   const loadMembers = async () => {
     if (!mountedRef.current) return;
+    
+    // Clear error state immediately so Retry hides error UI
+    setError(null);
     setLoading(true);
+    
+    // Increment requestId to guard against race conditions
+    const currentRequestId = ++requestIdRef.current;
+    
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
-      if (!mountedRef.current) return; // Check before state update
-      setMembers(members);
+      
+      // Only apply state updates if component is mounted AND this is the latest request
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
+        setMembers(members);
+      }
     } catch (e) {
-      if (!mountedRef.current) return; // Check before state update
-      setError(e.message);
+      // Only apply error state if component is mounted AND this is the latest request
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
+        setError(e.message);
+      }
     } finally {
-      if (mountedRef.current) {
+      // Only turn off loading for the matching requestId so stale requests cannot override
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
         setLoading(false);
       }
     }
