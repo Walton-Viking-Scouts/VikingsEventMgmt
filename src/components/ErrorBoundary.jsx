@@ -95,7 +95,7 @@ class ErrorBoundary extends React.Component {
     // Log error with structured context
     logger.error('React Error Boundary caught error', errorContext, LOG_CATEGORIES.ERROR);
 
-    // Capture in Sentry with enhanced context
+    // Capture in Sentry with enhanced context using React-specific capture
     Sentry.withScope((scope) => {
       scope.setTag('errorBoundary', this.props.name || 'ErrorBoundary');
       scope.setTag('component', this.props.name || 'Unknown');
@@ -104,7 +104,8 @@ class ErrorBoundary extends React.Component {
         errorInfo: errorContext,
       });
       scope.setLevel('error');
-      Sentry.captureException(error);
+      // Use captureReactException to preserve React stack traces and enable source maps
+      Sentry.captureReactException(error, errorInfo);
     });
   }
 

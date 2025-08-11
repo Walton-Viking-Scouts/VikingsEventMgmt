@@ -28,12 +28,20 @@ export function setToken(token) {
   
   // Reset auth error state when new token is set
   authHandler.reset();
-    
-  // Set user context in Sentry when token is set
-  sentryUtils.setUser({
-    id: 'authenticated-user',
-    segment: 'mobile-app-users',
-  });
+  
+  // Set user context in Sentry when token is set - with error handling
+  try {
+    sentryUtils.setUser({
+      id: 'authenticated-user',
+      segment: 'mobile-app-users',
+    });
+  } catch (sentryError) {
+    // Log the error but don't let it break authentication
+    logger.error('Failed to set Sentry user context', { 
+      error: sentryError.message,
+      hasToken: !!token, 
+    }, LOG_CATEGORIES.AUTH);
+  }
     
   logger.info('User authenticated successfully');
 }
@@ -45,9 +53,16 @@ export function clearToken() {
   
   // Reset auth handler state when token is cleared
   authHandler.reset();
-    
-  // Clear user context in Sentry when logging out
-  sentryUtils.setUser(null);
+  
+  // Clear user context in Sentry when logging out - with error handling
+  try {
+    sentryUtils.setUser(null);
+  } catch (sentryError) {
+    // Log the error but don't let it break logout
+    logger.error('Failed to clear Sentry user context', { 
+      error: sentryError.message, 
+    }, LOG_CATEGORIES.AUTH);
+  }
     
   logger.info('User logged out - token cleared');
 }
@@ -162,8 +177,39 @@ export async function fetchUserInfo() {
       throw new Error('No authentication token available');
     }
     
-    // Import getUserInfoFromAPI from api.js to avoid circular dependency
-    const { getUserInfoFromAPI } = await import('./api.js');
+    // Import getUserInfoFromAPI from api.js - use try/catch to handle import failures
+    let getUserInfoFromAPI;
+    try {
+      const apiModule = await import('./api.js');
+      getUserInfoFromAPI = apiModule.getUserInfoFromAPI;
+      
+      if (typeof getUserInfoFromAPI !== 'function') {
+        throw new Error('getUserInfoFromAPI is not a function');
+      }
+    } catch (importError) {
+      logger.error('Failed to import getUserInfoFromAPI from api.js', { 
+        error: importError.message,
+        importError: importError.name,
+      }, LOG_CATEGORIES.ERROR);
+      
+      sentryUtils.captureException(importError, {
+        tags: {
+          section: 'auth',
+          operation: 'dynamic_import',
+          category: 'auth',
+        },
+        contexts: {
+          import: {
+            module: './api.js',
+            function: 'getUserInfoFromAPI',
+            hasToken: !!token,
+          },
+        },
+      });
+      
+      throw new Error(`Failed to load user info API: ${importError.message}`);
+    }
+    
     const userInfo = await getUserInfoFromAPI(token);
     
     logger.info('Successfully fetched user info', { 

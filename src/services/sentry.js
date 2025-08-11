@@ -96,19 +96,9 @@ export function initSentry() {
   
   console.log('✅ Sentry initialized successfully');
   
-  // Configure user context if available
-  const token = sessionStorage.getItem('access_token');
-  if (token) {
-    try {
-      // You might want to decode the token to get user info
-      Sentry.setUser({
-        id: 'authenticated-user',
-        segment: 'mobile-app-users',
-      });
-    } catch {
-      // Ignore token parsing errors
-    }
-  }
+  // NOTE: Do not set user context during initialization as it can cause 
+  // "t is not a function" errors in mobile/Capacitor environments.
+  // User context is set in auth.js when login is successful.
 }
 
 // Get the logger instance

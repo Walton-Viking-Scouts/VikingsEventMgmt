@@ -35,6 +35,9 @@ jobs:
         run: npm ci
 
       - name: 🧪 Run tests
+        env:
+          VITE_API_URL: https://vikingeventmgmtapi.onrender.com
+          VITE_OAUTH_CLIENT_ID: test_client_id
         run: |
           npm run test:run
           npm run lint

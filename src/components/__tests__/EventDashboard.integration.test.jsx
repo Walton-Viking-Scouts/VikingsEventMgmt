@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import EventDashboard from '../EventDashboard.jsx';
 import * as helpers from '../../utils/eventDashboardHelpers.js';
 
@@ -148,7 +148,9 @@ describe('EventDashboard Integration Tests', () => {
       helpers.groupEventsByName.mockReturnValue(mockEventGroups);
       helpers.buildEventCard.mockReturnValue(mockEventCards[0]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       // Wait for component to load and process
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
@@ -203,7 +205,9 @@ describe('EventDashboard Integration Tests', () => {
         ['Cached Event', [mockCachedEvents[0]]],
       ]));
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
@@ -225,7 +229,9 @@ describe('EventDashboard Integration Tests', () => {
     it('should handle empty sections gracefully', async () => {
       databaseService.getSections.mockResolvedValue([]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       // Wait for the component to process
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -251,7 +257,9 @@ describe('EventDashboard Integration Tests', () => {
         ['Success Event', [{ eventid: 101, name: 'Success Event' }]],
       ]));
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
@@ -288,7 +296,9 @@ describe('EventDashboard Integration Tests', () => {
         .mockReturnValueOnce(mockCard2) // Late event returned first
         .mockReturnValueOnce(mockCard1); // Early event returned second
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
@@ -311,7 +321,9 @@ describe('EventDashboard Integration Tests', () => {
 
       helpers.fetchSectionEvents.mockResolvedValue([]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
@@ -337,7 +349,9 @@ describe('EventDashboard Integration Tests', () => {
         { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
       ]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
@@ -376,7 +390,9 @@ describe('EventDashboard Integration Tests', () => {
         .mockRejectedValue(new Error('Attendance fetch failed'))
         .mockResolvedValue([{ scoutid: 1, attended: true }]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
