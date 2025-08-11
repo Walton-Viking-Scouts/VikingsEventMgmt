@@ -32,7 +32,6 @@ export function setToken(token) {
   // Set user context in Sentry when token is set - with error handling
   try {
     sentryUtils.setUser({
-      id: 'authenticated-user',
       segment: 'mobile-app-users',
     });
   } catch (sentryError) {
@@ -43,7 +42,7 @@ export function setToken(token) {
     }, LOG_CATEGORIES.AUTH);
   }
     
-  logger.info('User authenticated successfully');
+  logger.info('User authenticated successfully', {}, LOG_CATEGORIES.AUTH);
 }
 
 export function clearToken() {
@@ -64,7 +63,7 @@ export function clearToken() {
     }, LOG_CATEGORIES.AUTH);
   }
     
-  logger.info('User logged out - token cleared');
+  logger.info('User logged out - token cleared', {}, LOG_CATEGORIES.AUTH);
 }
 
 export function isAuthenticated() {
@@ -171,14 +170,21 @@ export function setUserInfo(userInfo) {
 
 // Fetch user info from startup data API
 export async function fetchUserInfo() {
+  // Constant fallback user info to avoid duplication
+  const fallbackUserInfo = {
+    firstname: 'Scout Leader',
+    lastname: '',
+    userid: null,
+    email: null,
+    fullname: 'Scout Leader',
+  };
+
   try {
     const token = getToken();
     if (!token) {
       throw new Error('No authentication token available');
     }
     
-    // Import retrieveUserInfo from api.js (the actual function name)
-    let retrieveUserInfo;
     try {
       const apiModule = await import('./api.js');
       
@@ -204,16 +210,20 @@ export async function fetchUserInfo() {
           hasUserInfo: true,
         }, LOG_CATEGORIES.AUTH);
         
+        // Update Sentry user context with real user identity for per-user grouping
+        try {
+          sentryUtils.setUser(userInfo);
+        } catch (sentryError) {
+          logger.warn('Failed to update Sentry user identity', {
+            error: sentryError.message,
+            hasUserInfo: !!userInfo,
+          }, LOG_CATEGORIES.AUTH);
+        }
+        
         return userInfo;
       } else {
         logger.warn('No globals data in startup response - using fallback user info', {}, LOG_CATEGORIES.AUTH);
-        return {
-          firstname: 'Scout Leader',
-          lastname: '',
-          userid: null,
-          email: null,
-          fullname: 'Scout Leader',
-        };
+        return fallbackUserInfo;
       }
     } catch (importError) {
       logger.warn('Failed to fetch user info from API, using fallback', { 
@@ -221,13 +231,7 @@ export async function fetchUserInfo() {
       }, LOG_CATEGORIES.AUTH);
       
       // Don't throw error - just return fallback user info
-      return {
-        firstname: 'Scout Leader',
-        lastname: '',
-        userid: null,
-        email: null,
-        fullname: 'Scout Leader',
-      };
+      return fallbackUserInfo;
     }
   } catch (error) {
     logger.error('Failed to fetch user info', { error: error.message }, LOG_CATEGORIES.AUTH);

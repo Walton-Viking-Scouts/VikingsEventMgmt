@@ -31,28 +31,39 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
-  const loadMembers = async () => {
+  const loadMembers = async (mounted = { current: true }) => {
+    if (!mounted.current) return;
     setLoading(true);
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
+      if (!mounted.current) return; // Check before state update
       setMembers(members);
     } catch (e) {
+      if (!mounted.current) return; // Check before state update
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (mounted.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    const mounted = { current: true };
+    
     if (propsMembers) {
       // Use provided members data
       setMembers(propsMembers);
       setLoading(false);
     } else {
       // Load members if not provided
-      loadMembers();
+      loadMembers(mounted);
     }
+    
+    return () => {
+      mounted.current = false;
+    };
   }, [sections, propsMembers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate age from date of birth
@@ -228,7 +239,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         <Alert.Title>Error Loading Members</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button variant="scout-blue" onClick={loadMembers} type="button">
+          <Button variant="scout-blue" onClick={() => loadMembers({ current: true })} type="button">
             Retry
           </Button>
           <Button variant="outline" onClick={onBack} type="button">
