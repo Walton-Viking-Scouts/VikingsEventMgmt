@@ -56,6 +56,11 @@ export function clearToken() {
   // Clear user context in Sentry when logging out - with error handling
   try {
     sentryUtils.setUser(null);
+    sentryUtils.addBreadcrumb({
+      category: 'auth',
+      message: 'User logged out; cleared Sentry user context',
+      level: 'info',
+    });
   } catch (sentryError) {
     // Log the error but don't let it break logout
     logger.error('Failed to clear Sentry user context', { 
@@ -212,7 +217,13 @@ export async function fetchUserInfo() {
         
         // Update Sentry user context with real user identity for per-user grouping
         try {
-          sentryUtils.setUser(userInfo);
+          const sentryUser = {
+            username: userInfo.fullname,
+            segment: 'mobile-app-users',
+            ...(userInfo.userid ? { id: String(userInfo.userid) } : {}),
+            ...(userInfo.email ? { email: userInfo.email } : {}),
+          };
+          sentryUtils.setUser(sentryUser);
         } catch (sentryError) {
           logger.warn('Failed to update Sentry user identity', {
             error: sentryError.message,

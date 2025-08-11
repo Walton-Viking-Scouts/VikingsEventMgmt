@@ -143,8 +143,9 @@ The project uses semantic versioning:
 
 ### 4.1 Tag Creation Strategy
 
-#### ⚠️ Critical Tag Timing Rule
-**Tags MUST be created AFTER PR merge, not during development**
+#### Critical Tag Timing Rule
+
+⚠️ **Important**: Tags MUST be created AFTER PR merge, not during development
 
 ```bash
 # ✅ CORRECT: Create tag after merge
@@ -273,7 +274,7 @@ gh run view [run-id] --log
 ### 6.2 What Sentry Receives
 
 #### Source Maps
-```
+```plaintext
 Release: vikings-eventmgmt-mobile@1.0.6
 Files uploaded:
 ├── ~/assets/index-a1b2c3d4.js
@@ -283,7 +284,7 @@ Files uploaded:
 ```
 
 #### Git Integration
-```
+```plaintext
 Commits associated with release:
 - a8f68d3: 🔧 Fix VIKING-EVENT-MGMT-1K: Enhanced Error Boundaries
 - b250b92: fix: comprehensive security enhancements
@@ -291,7 +292,7 @@ Commits associated with release:
 ```
 
 #### Error Resolution
-```
+```plaintext
 Issues resolved by this release:
 ✅ VIKING-EVENT-MGMT-1K: "t is not a function"
   - Previously: Minified function names
@@ -398,7 +399,7 @@ SENTRY_PROJECT=viking-event-mgmt
 ## Best Practices
 
 ### 1. Commit Message Standards
-```
+```plaintext
 type(scope): brief description
 
 - Detailed change explanation
