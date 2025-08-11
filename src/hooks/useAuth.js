@@ -16,25 +16,114 @@ export function useAuth() {
     setIsLoading(true);
     
     try {
-      // FIRST: Check for OAuth callback parameters in URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const accessToken = urlParams.get('access_token');
-      const tokenType = urlParams.get('token_type');
+      // FIRST: Check for OAuth callback parameters in URL with enhanced error handling
+      let urlParams;
+      let accessToken;
+      let tokenType;
+      
+      try {
+        urlParams = new URLSearchParams(window.location.search);
+        accessToken = urlParams.get('access_token');
+        tokenType = urlParams.get('token_type');
+      } catch (urlError) {
+        // Redact sensitive query params before logging
+        let safeHref = '<unavailable>';
+        let safeSearch = '<unavailable>';
+        try {
+          const loc = typeof window !== 'undefined' ? window.location : null;
+          if (loc) {
+            const safeUrl = new URL(loc.href);
+            const redactKeys = ['access_token','token','token_type','id_token','refresh_token','auth','code'];
+            redactKeys.forEach(k => {
+              if (safeUrl.searchParams.has(k)) safeUrl.searchParams.set(k, '[REDACTED]');
+            });
+            safeHref = safeUrl.toString();
+            safeSearch = safeUrl.search;
+          }
+        } catch (redactError) {
+          // Silently fail - redaction is best effort
+        }
+        logger.error('Error parsing URL parameters in auth flow', {
+          error: urlError.message,
+          url: safeHref,
+          search: safeSearch,
+        }, LOG_CATEGORIES.ERROR);
+        
+        // Capture this specific error with enhanced context
+        Sentry.captureException(urlError, {
+          tags: {
+            section: 'auth',
+            operation: 'url_parsing',
+            category: 'auth',
+          },
+          contexts: {
+            url: {
+              full: safeHref,
+              search: safeSearch,
+              pathname: typeof window !== 'undefined' ? window.location.pathname : '<unavailable>',
+            },
+          },
+        });
+      }
       
       if (accessToken) {
-        // Store the token and clean up URL
-        sessionStorage.setItem('access_token', accessToken);
-        if (tokenType) {
-          sessionStorage.setItem('token_type', tokenType);
+        try {
+          // Store the token and clean up URL with enhanced error handling
+          sessionStorage.setItem('access_token', accessToken);
+          if (tokenType) {
+            sessionStorage.setItem('token_type', tokenType);
+          }
+          
+          // Clean the URL without reloading - this is a critical operation that can fail
+          try {
+            const url = new URL(window.location);
+            url.searchParams.delete('access_token');
+            url.searchParams.delete('token_type');
+            window.history.replaceState({}, '', url);
+            
+            logger.info('OAuth callback processed successfully', { 
+              tokenStored: true,
+              urlCleaned: true,
+            }, LOG_CATEGORIES.AUTH);
+          } catch (urlCleanError) {
+            // URL cleaning failed but token is stored - continue
+            logger.warn('Failed to clean URL after OAuth callback, but token stored', { 
+              error: urlCleanError.message,
+              tokenStored: true,
+            }, LOG_CATEGORIES.AUTH);
+            
+            Sentry.captureException(urlCleanError, {
+              level: 'warning',
+              tags: {
+                section: 'auth',
+                operation: 'url_cleanup',
+                category: 'auth',
+              },
+            });
+          }
+        } catch (tokenStorageError) {
+          // Token storage failed - this is critical
+          logger.error('Failed to store OAuth tokens', { 
+            error: tokenStorageError.message,
+            hasAccessToken: !!accessToken,
+            hasTokenType: !!tokenType,
+          }, LOG_CATEGORIES.ERROR);
+          
+          Sentry.captureException(tokenStorageError, {
+            tags: {
+              section: 'auth',
+              operation: 'token_storage',
+              category: 'auth',
+            },
+            contexts: {
+              auth: {
+                hasAccessToken: !!accessToken,
+                hasTokenType: !!tokenType,
+                storageAvailable: (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'),
+              },
+            },
+          });
         }
-        
-        // Clean the URL without reloading
-        const url = new URL(window.location);
-        url.searchParams.delete('access_token');
-        url.searchParams.delete('token_type');
-        window.history.replaceState({}, '', url);
-        
-        logger.info('OAuth callback processed successfully', { tokenStored: true }, LOG_CATEGORIES.AUTH);
         
         // Fetch user info immediately after token storage
         try {
