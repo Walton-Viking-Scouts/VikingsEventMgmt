@@ -107,7 +107,22 @@ npm run version:major   # Bump major version
 ```bash
 npm run release:create    # Create new Sentry release
 npm run release:finalize  # Finalize release (marks as complete)
-npm run release:deploy    # Mark production deployment
+npm run release:deploy    # Mark production deployment (uses --env production)
+```
+
+### **Environment-Specific Deployments**
+```bash
+# Production deployment (default in package.json)
+npm run release:deploy
+
+# Manual staging deployment
+npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env staging
+
+# Manual production deployment (explicit)
+npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env production
+
+# Using environment variable for CI/CD
+SENTRY_ENVIRONMENT=staging npx @sentry/cli releases deploys vikings-eventmgmt-mobile@$npm_package_version new --env $SENTRY_ENVIRONMENT
 ```
 
 ### **Source Maps**
@@ -165,7 +180,7 @@ After each release:
 npx @sentry/cli info
 
 # Manual upload
-npx @sentry/cli sourcemaps upload ./dist --release vikings-eventmgmt-mobile@1.0.1
+npx @sentry/cli sourcemaps upload ./dist --release vikings-eventmgmt-mobile@$(node -p "require('./package.json').version")
 ```
 
 ### **Release Creation Failing**

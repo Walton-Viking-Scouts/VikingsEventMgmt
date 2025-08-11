@@ -176,8 +176,8 @@ class ErrorBoundary extends React.Component {
         errorInfo: errorContext,
       });
       scope.setLevel('error');
-      // Use captureReactException to preserve React stack traces and enable source maps
-      Sentry.captureReactException(error, errorInfo);
+      // Use captureException with React component stack already attached via scope
+      Sentry.captureException(error);
     });
   }
 

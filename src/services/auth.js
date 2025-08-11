@@ -226,9 +226,20 @@ export async function fetchUserInfo() {
           sentryUtils.setUser(sentryUser);
         } catch (sentryError) {
           logger.warn('Failed to update Sentry user identity', {
-            error: sentryError.message,
+            error: sentryError,
+            stack: sentryError.stack,
+            message: sentryError.message,
             hasUserInfo: !!userInfo,
           }, LOG_CATEGORIES.AUTH);
+          
+          // Ensure error is captured by Sentry for monitoring
+          sentryUtils.captureException(sentryError, {
+            tags: { operation: 'sentry_user_update' },
+            contexts: { 
+              userInfo: { hasUserInfo: !!userInfo },
+              auth: { operation: 'update_sentry_user_context' }
+            },
+          });
         }
         
         return userInfo;

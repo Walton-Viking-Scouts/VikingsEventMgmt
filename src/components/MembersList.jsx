@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import { Button, Card, Input, Alert, Badge } from './ui';
@@ -28,29 +28,30 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     emergency: false,
   });
 
+  const mountedRef = useRef(true);
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
-  const loadMembers = async (mounted = { current: true }) => {
-    if (!mounted.current) return;
+  const loadMembers = async () => {
+    if (!mountedRef.current) return;
     setLoading(true);
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
-      if (!mounted.current) return; // Check before state update
+      if (!mountedRef.current) return; // Check before state update
       setMembers(members);
     } catch (e) {
-      if (!mounted.current) return; // Check before state update
+      if (!mountedRef.current) return; // Check before state update
       setError(e.message);
     } finally {
-      if (mounted.current) {
+      if (mountedRef.current) {
         setLoading(false);
       }
     }
   };
 
   useEffect(() => {
-    const mounted = { current: true };
+    mountedRef.current = true;
     
     if (propsMembers) {
       // Use provided members data
@@ -58,11 +59,11 @@ function MembersList({ sections, members: propsMembers, onBack }) {
       setLoading(false);
     } else {
       // Load members if not provided
-      loadMembers(mounted);
+      loadMembers();
     }
     
     return () => {
-      mounted.current = false;
+      mountedRef.current = false;
     };
   }, [sections, propsMembers]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -239,7 +240,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         <Alert.Title>Error Loading Members</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button variant="scout-blue" onClick={() => loadMembers({ current: true })} type="button">
+          <Button variant="scout-blue" onClick={loadMembers} type="button">
             Retry
           </Button>
           <Button variant="outline" onClick={onBack} type="button">
