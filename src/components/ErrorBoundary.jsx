@@ -23,17 +23,30 @@ class ErrorBoundary extends React.Component {
     // Safe serializer for props to handle circular references and redact sensitive data
     const safeSerialize = (obj, maxDepth = 3, currentDepth = 0) => {
       if (currentDepth >= maxDepth) return '[Max Depth Reached]';
-      if (obj === null) return null;
-      if (typeof obj !== 'object') return obj;
-      
+      if (obj === null || obj === undefined) return obj; // null or undefined
+      const t = typeof obj;
+      if (t === 'function') return '[Function]';
+      if (t === 'symbol') return '[Symbol]';
+      if (t === 'bigint') return '[BigInt]';
+      if (t !== 'object') return obj;
+      if (obj instanceof Date) return obj.toISOString();
+      if (Array.isArray(obj)) {
+        return obj.slice(0, 50).map((v) => safeSerialize(v, maxDepth, currentDepth + 1));
+      }
       try {
         const result = {};
         for (const [key, value] of Object.entries(obj)) {
-          // Redact sensitive keys
-          if (['token', 'password', 'secret', 'key', 'auth', 'credential'].some(sensitive => 
-            key.toLowerCase().includes(sensitive))) {
+          // Skip heavy/noisy keys
+          if (key === 'children' || key === 'fallback') {
+            result[key] = '[Skipped]';
+            continue;
+          }
+          // Redact sensitive keys (substring match, case-insensitive)
+          if (['token', 'password', 'secret', 'key', 'auth', 'credential'].some(s => key.toLowerCase().includes(s))) {
             result[key] = '[REDACTED]';
-          } else if (typeof value === 'object' && value !== null) {
+          } else if (typeof value === 'function') {
+            result[key] = '[Function]';
+          } else if (value && typeof value === 'object') {
             result[key] = safeSerialize(value, maxDepth, currentDepth + 1);
           } else {
             result[key] = value;
@@ -50,12 +63,17 @@ class ErrorBoundary extends React.Component {
       if (!url) return '[URL Not Available]';
       try {
         const urlObj = new URL(url);
-        const sensitiveParams = ['access_token', 'token', 'key', 'secret', 'auth'];
-        sensitiveParams.forEach(param => {
-          if (urlObj.searchParams.has(param)) {
-            urlObj.searchParams.set(param, '[REDACTED]');
+        const sensitives = [
+          'access_token','id_token','refresh_token','token',
+          'api_key','apikey','key','secret',
+          'auth','authorization','session','session_id',
+        ];
+        // Case-insensitive match, redact any param whose name includes a sensitive token
+        for (const [k] of urlObj.searchParams.entries()) {
+          if (sensitives.some(s => k.toLowerCase().includes(s))) {
+            urlObj.searchParams.set(k, '[REDACTED]');
           }
-        });
+        }
         return urlObj.toString();
       } catch {
         return '[Invalid URL]';
