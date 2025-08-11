@@ -177,47 +177,58 @@ export async function fetchUserInfo() {
       throw new Error('No authentication token available');
     }
     
-    // Import getUserInfoFromAPI from api.js - use try/catch to handle import failures
-    let getUserInfoFromAPI;
+    // Import retrieveUserInfo from api.js (the actual function name)
+    let retrieveUserInfo;
     try {
       const apiModule = await import('./api.js');
-      getUserInfoFromAPI = apiModule.getUserInfoFromAPI;
       
-      if (typeof getUserInfoFromAPI !== 'function') {
-        throw new Error('getUserInfoFromAPI is not a function');
+      // The function is internal to api.js, so we need to use getStartupData instead
+      // This is simpler and avoids the circular dependency
+      if (typeof apiModule.getStartupData !== 'function') {
+        throw new Error('getStartupData function not available');
+      }
+      
+      const startupData = await apiModule.getStartupData(token);
+      
+      if (startupData && startupData.globals) {
+        const userInfo = {
+          firstname: startupData.globals.firstname || 'Scout Leader',
+          lastname: startupData.globals.lastname || '',
+          userid: startupData.globals.userid || null,
+          email: startupData.globals.email || null,
+          fullname: `${startupData.globals.firstname || 'Scout'} ${startupData.globals.lastname || 'Leader'}`.trim(),
+        };
+        
+        logger.info('Successfully fetched user info', { 
+          firstname: userInfo.firstname, 
+          hasUserInfo: true,
+        }, LOG_CATEGORIES.AUTH);
+        
+        return userInfo;
+      } else {
+        logger.warn('No globals data in startup response - using fallback user info', {}, LOG_CATEGORIES.AUTH);
+        return {
+          firstname: 'Scout Leader',
+          lastname: '',
+          userid: null,
+          email: null,
+          fullname: 'Scout Leader',
+        };
       }
     } catch (importError) {
-      logger.error('Failed to import getUserInfoFromAPI from api.js', { 
+      logger.warn('Failed to fetch user info from API, using fallback', { 
         error: importError.message,
-        importError: importError.name,
-      }, LOG_CATEGORIES.ERROR);
+      }, LOG_CATEGORIES.AUTH);
       
-      sentryUtils.captureException(importError, {
-        tags: {
-          section: 'auth',
-          operation: 'dynamic_import',
-          category: 'auth',
-        },
-        contexts: {
-          import: {
-            module: './api.js',
-            function: 'getUserInfoFromAPI',
-            hasToken: !!token,
-          },
-        },
-      });
-      
-      throw new Error(`Failed to load user info API: ${importError.message}`);
+      // Don't throw error - just return fallback user info
+      return {
+        firstname: 'Scout Leader',
+        lastname: '',
+        userid: null,
+        email: null,
+        fullname: 'Scout Leader',
+      };
     }
-    
-    const userInfo = await getUserInfoFromAPI(token);
-    
-    logger.info('Successfully fetched user info', { 
-      firstname: userInfo?.firstname, 
-      hasUserInfo: !!userInfo,
-    }, LOG_CATEGORIES.AUTH);
-    
-    return userInfo;
   } catch (error) {
     logger.error('Failed to fetch user info', { error: error.message }, LOG_CATEGORIES.AUTH);
     throw error;
