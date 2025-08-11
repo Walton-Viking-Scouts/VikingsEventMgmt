@@ -99,7 +99,7 @@ jobs:
               npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix "~/" ./dist
             else
               echo "Warning: No source map files found in ./dist directory"
-              find ./dist -type f -name "*.js" -o -name "*.map" | head -10
+              find ./dist -type f \( -name "*.js" -o -name "*.map" \) | head -10
             fi
           fi
           

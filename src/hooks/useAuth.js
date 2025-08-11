@@ -26,10 +26,27 @@ export function useAuth() {
         accessToken = urlParams.get('access_token');
         tokenType = urlParams.get('token_type');
       } catch (urlError) {
-        logger.error('Error parsing URL parameters in auth flow', { 
+        // Redact sensitive query params before logging
+        let safeHref = '<unavailable>';
+        let safeSearch = '<unavailable>';
+        try {
+          const loc = typeof window !== 'undefined' ? window.location : null;
+          if (loc) {
+            const safeUrl = new URL(loc.href);
+            const redactKeys = ['access_token','token','token_type','id_token','refresh_token','auth','code'];
+            redactKeys.forEach(k => {
+              if (safeUrl.searchParams.has(k)) safeUrl.searchParams.set(k, '[REDACTED]');
+            });
+            safeHref = safeUrl.toString();
+            safeSearch = safeUrl.search;
+          }
+        } catch (redactError) {
+          // Silently fail - redaction is best effort
+        }
+        logger.error('Error parsing URL parameters in auth flow', {
           error: urlError.message,
-          url: window.location.href,
-          search: window.location.search,
+          url: safeHref,
+          search: safeSearch,
         }, LOG_CATEGORIES.ERROR);
         
         // Capture this specific error with enhanced context
@@ -76,11 +93,11 @@ export function useAuth() {
             }, LOG_CATEGORIES.AUTH);
             
             Sentry.captureException(urlCleanError, {
+              level: 'warning',
               tags: {
                 section: 'auth',
                 operation: 'url_cleanup',
                 category: 'auth',
-                severity: 'warning',
               },
             });
           }
