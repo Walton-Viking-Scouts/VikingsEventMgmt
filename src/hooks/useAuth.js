@@ -58,9 +58,9 @@ export function useAuth() {
           },
           contexts: {
             url: {
-              full: window.location.href,
-              search: window.location.search,
-              pathname: window.location.pathname,
+              full: safeHref,
+              search: safeSearch,
+              pathname: typeof window !== 'undefined' ? window.location.pathname : '<unavailable>',
             },
           },
         });
