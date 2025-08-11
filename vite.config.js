@@ -27,7 +27,7 @@ export default defineConfig({
         ignore: ['node_modules'],
         urlPrefix: '~/',
       },
-      debug: true, // Enable debug output
+      debug: process.env.SENTRY_DEBUG === 'true', // Enable debug output conditionally
     }),
   ],
   server: {
@@ -48,6 +48,7 @@ export default defineConfig({
     // Preserve function names in production for better error reporting
     minify: 'esbuild',
     target: 'esnext',
+    keepNames: true,
     rollupOptions: {
       output: {
         // Preserve function names for better stack traces

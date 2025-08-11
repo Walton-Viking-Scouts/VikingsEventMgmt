@@ -102,7 +102,7 @@ export function useAuth() {
               auth: {
                 hasAccessToken: !!accessToken,
                 hasTokenType: !!tokenType,
-                storageAvailable: typeof(Storage) !== 'undefined',
+                storageAvailable: (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'),
               },
             },
           });
