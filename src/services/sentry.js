@@ -136,6 +136,16 @@ export const sentryUtils = {
     Sentry.setUser(user);
   },
   
+  // Clear Sentry scope to avoid cross-user leakage
+  clearScope: () => {
+    Sentry.configureScope((scope) => {
+      scope.setTags({});
+      scope.setExtras({});
+      // Clear any custom contexts you may have set
+      // (No generic API to clear all contexts; overwrite known ones or leave as-is)
+    });
+  },
+  
   // Add breadcrumb
   addBreadcrumb: (breadcrumb) => {
     Sentry.addBreadcrumb(breadcrumb);

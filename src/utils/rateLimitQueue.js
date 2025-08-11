@@ -30,7 +30,11 @@ export class RateLimitQueue {
   addStatusListener(listener) {
     this.listeners.add(listener);
     // Send current status immediately
-    listener(this.getStatus());
+    try {
+      listener(this.getStatus());
+    } catch (error) {
+      logger.error('Error in rate limit queue listener (initial emit)', { error }, LOG_CATEGORIES.ERROR);
+    }
   }
 
   /**
@@ -90,7 +94,7 @@ export class RateLimitQueue {
         priority: options.priority || 0,
         attempts: 0,
         createdAt: Date.now(),
-        timeout: options.timeout || this.queueTimeout,
+        timeout: options.timeout ?? this.queueTimeout,
         id: Math.random().toString(36).substr(2, 9),
       };
 
@@ -134,10 +138,10 @@ export class RateLimitQueue {
     }
     
     // Clear timeout to prevent memory leak and timer firing for completed requests
-    if (request._timeoutId) {
+    if (request._timeoutId !== null) {
       clearTimeout(request._timeoutId);
-      delete request._timeoutId; // Remove property to avoid leaking references
     }
+    delete request._timeoutId; // Remove property to avoid leaking references
   }
 
   /**
@@ -255,9 +259,12 @@ export class RateLimitQueue {
         retryAfter = parseInt(retryAfterMatch[1]) * 1000;
       }
     }
+    // Enforce configured bounds
+    retryAfter = Math.min(Math.max(retryAfter, this.baseDelay), this.maxDelay);
 
     // Set global rate limit timeout
     this.rateLimitedUntil = Date.now() + retryAfter;
+    this.notifyListeners(this.getStatus());
 
     logger.warn('Rate limited - queuing for retry', {
       requestId: request.id,
@@ -289,12 +296,17 @@ export class RateLimitQueue {
     // Request re-queued for retry after rate limit timeout
     
     // CRITICAL FIX: Schedule automatic resume of processing after rate limit timeout
-    setTimeout(() => {
+    if (this._resumeTimerId) {
+      clearTimeout(this._resumeTimerId);
+      this._resumeTimerId = null;
+    }
+    this._resumeTimerId = setTimeout(() => {
+      this._resumeTimerId = null;
       if (this.queue.length > 0 && !this.processing) {
         // Auto-resuming processing after rate limit timeout
         this.process();
       }
-    }, retryAfter + 100); // Add small buffer to ensure rate limit has expired
+    }, retryAfter + 100); // Small buffer to ensure rate limit has expired
   }
 
   /**
@@ -332,7 +344,9 @@ export class RateLimitQueue {
   getDetailedStats() {
     return {
       ...this.getStatus(),
-      oldestRequestAge: this.queue.length > 0 ? Date.now() - (this.queue[0].createdAt || 0) : 0,
+      oldestRequestAge: this.queue.length > 0
+        ? Date.now() - Math.min(...this.queue.map(r => r.createdAt || 0))
+        : 0,
       averageRetryCount: this.requestCount > 0 ? this.retryCount / this.requestCount : 0,
       listenerCount: this.listeners.size,
     };

@@ -56,6 +56,7 @@ export function clearToken() {
   // Clear user context in Sentry when logging out - with error handling
   try {
     sentryUtils.setUser(null);
+    sentryUtils.clearScope();
     sentryUtils.addBreadcrumb({
       category: 'auth',
       message: 'User logged out; cleared Sentry user context',
