@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import { Button, Card, Input, Alert, Badge } from './ui';
@@ -28,32 +28,62 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     emergency: false,
   });
 
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
   const isMobile = isMobileLayout();
-  const sectionIds = sections.map(s => s.sectionid);
+  const sectionIds = useMemo(() => sections.map(s => s.sectionid), [sections]);
+  const sectionIdsKey = sectionIds.join(',');
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
+    if (!mountedRef.current) return;
+    
+    // Clear error state immediately so Retry hides error UI
+    setError(null);
     setLoading(true);
+    
+    // Increment requestId to guard against race conditions
+    const currentRequestId = ++requestIdRef.current;
+    
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
-      setMembers(members);
+      
+      // Only apply state updates if component is mounted AND this is the latest request
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
+        setMembers(members);
+      }
     } catch (e) {
-      setError(e.message);
+      // Only apply error state if component is mounted AND this is the latest request
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
+        setError(e?.message ?? 'Unable to load members. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      // Only turn off loading for the matching requestId so stale requests cannot override
+      if (mountedRef.current && requestIdRef.current === currentRequestId) {
+        setLoading(false);
+      }
     }
-  };
+  }, [sectionIdsKey]); // sections is stable via sectionIdsKey dependency
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (propsMembers) {
-      // Use provided members data
+      // Cancel any in-flight async load and use provided data
+      requestIdRef.current++;
       setMembers(propsMembers);
       setLoading(false);
+      setError(null);
     } else {
       // Load members if not provided
       loadMembers();
     }
-  }, [sections, propsMembers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sectionIdsKey, propsMembers, loadMembers]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {

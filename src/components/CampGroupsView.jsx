@@ -12,6 +12,56 @@ import { isMobileLayout } from '../utils/platform.js';
 import { assignMemberToCampGroup, extractFlexiRecordContext, validateMemberMove } from '../services/campGroupAllocationService.js';
 
 /**
+ * Custom hook to extract FlexiRecord context for drag-and-drop operations
+ * @param {Object|null} primaryCampGroupData - Camp group data from FlexiRecord service
+ * @param {Array} events - Array of event data
+ * @param {Array} sectionsCache - Cached sections data
+ * @param {string|number} termId - Current term ID
+ * @returns {Object|null} FlexiRecord context for drag operations or null if not available
+ */
+function useFlexiRecordContext(primaryCampGroupData, events, sectionsCache, termId) {
+  return useMemo(() => {
+    // Early returns for missing data - guard against falsy termId
+    if (!primaryCampGroupData || !events.length || !sectionsCache.length || !termId) {
+      return null;
+    }
+
+    // Get the correct section type from cached sections data
+    const firstEvent = events[0];
+    
+    // Find section info using normalized string comparison
+    const sectionInfo = sectionsCache.find(s => 
+      String(s.sectionid) === String(firstEvent.sectionid),
+    );
+    
+    // Log error if section not found
+    if (!sectionInfo?.section) {
+      logger.error('Cannot enable drag-and-drop: section type not found', {
+        eventSectionId: firstEvent.sectionid,
+        availableSections: sectionsCache.map(s => ({id: s.sectionid, section: s.section})),
+      }, LOG_CATEGORIES.ERROR);
+      return null;
+    }
+    
+    // Extract FlexiRecord context when sectionInfo.section exists
+    const context = extractFlexiRecordContext(
+      primaryCampGroupData,
+      firstEvent.sectionid,
+      termId,
+      sectionInfo.section,
+    );
+    
+    logger.debug('FlexiRecord context extracted for drag-and-drop', {
+      hasContext: !!context,
+      flexirecordid: context?.flexirecordid,
+      columnid: context?.columnid,
+    }, LOG_CATEGORIES.APP);
+    
+    return context;
+  }, [primaryCampGroupData, events, sectionsCache, termId]);
+}
+
+/**
  * CampGroupsView - Container component for displaying camp groups in a card layout
  * Shows attendees organized by their camp group assignments
  * 
@@ -29,11 +79,11 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [sortBy, setSortBy] = useState('groupNumber'); // 'groupNumber', 'memberCount', 'name'
+  const [termId, setTermId] = useState(null);
   
   // Drag and drop state
   const [isDragInProgress, setIsDragInProgress] = useState(false);
   const [draggingMemberId, setDraggingMemberId] = useState(null);
-  const [flexiRecordContext, setFlexiRecordContext] = useState(null);
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
   const [toastMessage, setToastMessage] = useState(null); // Success/error messages
   
@@ -54,6 +104,14 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       return [];
     }
   }, []); // Parse once per component mount
+
+  // Use custom hook to extract FlexiRecord context for drag-and-drop operations
+  const flexiRecordContext = useFlexiRecordContext(
+    organizedGroups.campGroupData, 
+    events, 
+    sectionsCache, 
+    termId,
+  );
 
   // Load camp groups data on mount
   useEffect(() => {
@@ -83,16 +141,19 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         if (abortController.signal.aborted) return;
         
         // Get termId from events or fetch most recent for first section
-        let termId = events[0]?.termid;
-        if (!termId) {
-          termId = await fetchMostRecentTermId(events[0]?.sectionid, token);
+        let currentTermId = events[0]?.termid;
+        if (!currentTermId) {
+          currentTermId = await fetchMostRecentTermId(events[0]?.sectionid, token);
         }
 
         if (abortController.signal.aborted) return;
 
-        if (!termId) {
+        if (!currentTermId) {
           throw new Error('No term ID available - camp groups require term context');
         }
+
+        // Set termId in state for the hook to use
+        setTermId(currentTermId);
 
         // Load camp groups for all sections involved in events (events contain their own termIds)
         const campGroups = await getVikingEventDataForEvents(events, token);
@@ -132,43 +193,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         
         setOrganizedGroups(organized);
 
-        // Extract FlexiRecord context for drag-and-drop operations
-        if (primaryCampGroupData && events.length > 0) {
-          // Get the correct section type from cached sections data
-          const firstEvent = events[0];
-          
-          // We need to look up the section type from the cached sections data
-          // The section type should be in the sections cache, not the event data
-          let sectionType = null;
-          
-          // Use cached sections data
-          const sectionInfo = sectionsCache.find(s => s.sectionid === firstEvent.sectionid || s.sectionid === String(firstEvent.sectionid));
-          sectionType = sectionInfo?.section || null;
-          
-          // Only create context if we have a valid section type
-          let context = null;
-          if (sectionType) {
-            context = extractFlexiRecordContext(
-              primaryCampGroupData,
-              firstEvent.sectionid,
-              termId,
-              sectionType,
-            );
-          } else {
-            logger.error('Cannot enable drag-and-drop: section type not found', {
-              eventSectionId: firstEvent.sectionid,
-              availableSections: sectionsCache.map(s => ({id: s.sectionid, section: s.section})),
-            }, LOG_CATEGORIES.ERROR);
-          }
-          
-          setFlexiRecordContext(context);
-          
-          logger.debug('FlexiRecord context extracted for drag-and-drop', {
-            hasContext: !!context,
-            flexirecordid: context?.flexirecordid,
-            columnid: context?.columnid,
-          }, LOG_CATEGORIES.APP);
-        }
+        // FlexiRecord context is now handled by the useFlexiRecordContext hook
 
         logger.info('Successfully organized members by camp groups', {
           totalGroups: organized.summary.totalGroups,

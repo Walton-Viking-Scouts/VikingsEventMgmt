@@ -96,19 +96,9 @@ export function initSentry() {
   
   console.log('✅ Sentry initialized successfully');
   
-  // Configure user context if available
-  const token = sessionStorage.getItem('access_token');
-  if (token) {
-    try {
-      // You might want to decode the token to get user info
-      Sentry.setUser({
-        id: 'authenticated-user',
-        segment: 'mobile-app-users',
-      });
-    } catch {
-      // Ignore token parsing errors
-    }
-  }
+  // NOTE: Do not set user context during initialization as it can cause 
+  // "t is not a function" errors in mobile/Capacitor environments.
+  // User context is set in auth.js when login is successful.
 }
 
 // Get the logger instance
@@ -116,34 +106,57 @@ export const logger = Sentry.logger;
 
 // Utility functions for common Sentry operations
 export const sentryUtils = {
-  // Capture exceptions with context
-  captureException: (error, context = {}) => {
-    Sentry.withScope((scope) => {
-      // Add context to the scope
-      Object.entries(context).forEach(([key, value]) => {
-        scope.setContext(key, value);
+  // Capture exceptions with rich context
+  captureException: (error, { tags, contexts, extra, user, level } = {}) => {
+    try {
+      Sentry.withScope((scope) => {
+        if (level) scope.setLevel(level);
+        if (user) scope.setUser(user);
+        if (tags) scope.setTags(tags);
+        if (extra) scope.setExtras(extra);
+        if (contexts) {
+          Object.entries(contexts).forEach(([name, ctx]) => scope.setContext(name, ctx));
+        }
+        Sentry.captureException(error);
       });
-      
-      Sentry.captureException(error);
-    });
+    } catch (sentryError) {
+      console.error('Failed to capture exception to Sentry:', sentryError);
+    }
   },
   
-  // Capture messages with level
-  captureMessage: (message, level = 'info', context = {}) => {
-    Sentry.withScope((scope) => {
-      scope.setLevel(level);
-      
-      Object.entries(context).forEach(([key, value]) => {
-        scope.setContext(key, value);
+  // Capture messages with level and optional context
+  captureMessage: (message, level = 'info', { tags, contexts, extra, user } = {}) => {
+    try {
+      Sentry.withScope((scope) => {
+        scope.setLevel(level);
+        if (user) scope.setUser(user);
+        if (tags) scope.setTags(tags);
+        if (extra) scope.setExtras(extra);
+        if (contexts) {
+          Object.entries(contexts).forEach(([name, ctx]) => scope.setContext(name, ctx));
+        }
+        Sentry.captureMessage(message);
       });
-      
-      Sentry.captureMessage(message);
-    });
+    } catch (sentryError) {
+      console.error('Failed to capture message to Sentry:', sentryError);
+    }
   },
   
   // Set user context
   setUser: (user) => {
     Sentry.setUser(user);
+  },
+  
+  // Clear Sentry scope to avoid cross-user leakage
+  clearScope: () => {
+    Sentry.configureScope((scope) => {
+      scope.setUser(null);
+      scope.setTags({});
+      scope.setExtras({});
+      scope.setContexts({});
+      scope.clearBreadcrumbs();
+      scope.setFingerprint([]);
+    });
   },
   
   // Add breadcrumb
