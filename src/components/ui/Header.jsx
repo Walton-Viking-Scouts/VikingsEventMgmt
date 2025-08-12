@@ -27,6 +27,7 @@ const Header = ({
         className,
       )}
       {...props}
+      data-oid="908qnt0"
     >
       {children}
     </header>
@@ -38,6 +39,7 @@ const HeaderContainer = ({ children, className = "", ...props }) => {
     <div
       className={cn("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", className)}
       {...props}
+      data-oid="4eso07l"
     >
       {children}
     </div>
@@ -49,6 +51,7 @@ const HeaderContent = ({ children, className = "", ...props }) => {
     <div
       className={cn("flex items-center justify-between h-16", className)}
       {...props}
+      data-oid="_ha7qv6"
     >
       {children}
     </div>
@@ -57,7 +60,11 @@ const HeaderContent = ({ children, className = "", ...props }) => {
 
 const HeaderLeft = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("flex items-center space-x-4", className)} {...props}>
+    <div
+      className={cn("flex items-center space-x-4", className)}
+      {...props}
+      data-oid="7wz016v"
+    >
       {children}
     </div>
   );
@@ -68,6 +75,7 @@ const HeaderCenter = ({ children, className = "", ...props }) => {
     <div
       className={cn("flex-1 flex items-center justify-center px-4", className)}
       {...props}
+      data-oid="cpk_wlx"
     >
       {children}
     </div>
@@ -76,7 +84,11 @@ const HeaderCenter = ({ children, className = "", ...props }) => {
 
 const HeaderRight = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("flex items-center space-x-4", className)} {...props}>
+    <div
+      className={cn("flex items-center space-x-4", className)}
+      {...props}
+      data-oid="9k-_4v5"
+    >
       {children}
     </div>
   );
@@ -89,7 +101,11 @@ const HeaderTitle = ({
   ...props
 }) => {
   return (
-    <Component className={cn("text-xl font-semibold", className)} {...props}>
+    <Component
+      className={cn("text-xl font-semibold", className)}
+      {...props}
+      data-oid="gntjq:7"
+    >
       {children}
     </Component>
   );
@@ -102,6 +118,7 @@ const HeaderLogo = ({ src, alt = "Logo", className = "", ...props }) => {
       alt={alt}
       className={cn("h-8 w-auto", className)}
       {...props}
+      data-oid="tih9x1_"
     />
   );
 };

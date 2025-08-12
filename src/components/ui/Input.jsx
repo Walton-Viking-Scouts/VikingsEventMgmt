@@ -62,10 +62,15 @@ const Input = forwardRef(
     );
 
     const InputElement = (
-      <div className="relative">
+      <div className="relative" data-oid="qrk:xaf">
         {leftIcon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="text-gray-500">{leftIcon}</span>
+          <div
+            className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            data-oid=".hm-ai6"
+          >
+            <span className="text-gray-500" data-oid="i5tq1ej">
+              {leftIcon}
+            </span>
           </div>
         )}
 
@@ -75,11 +80,17 @@ const Input = forwardRef(
           disabled={disabled}
           className={inputClasses}
           {...props}
+          data-oid="wn9n6am"
         />
 
         {rightIcon && (
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <span className="text-gray-500">{rightIcon}</span>
+          <div
+            className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+            data-oid="zpcb.w4"
+          >
+            <span className="text-gray-500" data-oid="a.xswbz">
+              {rightIcon}
+            </span>
           </div>
         )}
       </div>
@@ -88,7 +99,7 @@ const Input = forwardRef(
     // If no label, return just the input
     if (!label) {
       return (
-        <div>
+        <div data-oid="-ypiss5">
           {InputElement}
           {(helperText || errorText) && (
             <p
@@ -96,6 +107,7 @@ const Input = forwardRef(
                 "mt-1 text-sm",
                 error ? "text-red-600" : "text-gray-600",
               )}
+              data-oid="frx.lcf"
             >
               {error ? errorText : helperText}
             </p>
@@ -106,8 +118,11 @@ const Input = forwardRef(
 
     // Return full form group with label
     return (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div data-oid="s67iu3j">
+        <label
+          className="block text-sm font-medium text-gray-700 mb-1"
+          data-oid="k334lv1"
+        >
           {label}
         </label>
         {InputElement}
@@ -117,6 +132,7 @@ const Input = forwardRef(
               "mt-1 text-sm",
               error ? "text-red-600" : "text-gray-600",
             )}
+            data-oid="8kkcev9"
           >
             {error ? errorText : helperText}
           </p>

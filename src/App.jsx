@@ -111,11 +111,13 @@ function App() {
   // OAuth callback processing moved to useAuth hook to fix race condition
 
   if (isLoading) {
-    return <LoadingScreen message="Checking authentication..." />;
+    return (
+      <LoadingScreen message="Checking authentication..." data-oid="1mlwwph" />
+    );
   }
 
   if (isBlocked) {
-    return <BlockedScreen />;
+    return <BlockedScreen data-oid=":ei3nl1" />;
   }
 
   // Always show dashboard - authentication is now contextual via header
@@ -129,6 +131,7 @@ function App() {
             sections={navigationData.section ? [navigationData.section] : []}
             members={navigationData.members || []} // Loaded from cache
             onBack={handleBackToDashboard}
+            data-oid="fn3pvsl"
           />
         );
 
@@ -150,6 +153,7 @@ function App() {
             events={navigationData.events || []}
             members={navigationData.members || []} // Loaded from cache
             onBack={handleBackToDashboard}
+            data-oid="hjitlp1"
           />
         );
 
@@ -158,17 +162,22 @@ function App() {
           <EventDashboard
             onNavigateToMembers={handleNavigateToMembers}
             onNavigateToAttendance={handleNavigateToAttendance}
+            data-oid="fobh-a1"
           />
         );
     }
   };
 
   return (
-    <ErrorBoundary name="App" logProps={false}>
-      <div className="App" data-testid="app">
-        <ErrorBoundary name="Router" logProps={false}>
-          <Router>
-            <ErrorBoundary name="ResponsiveLayout" logProps={false}>
+    <ErrorBoundary name="App" logProps={false} data-oid="svto4.3">
+      <div className="App" data-testid="app" data-oid="w:xq503">
+        <ErrorBoundary name="Router" logProps={false} data-oid="wr:sd2x">
+          <Router data-oid="9pg_8_w">
+            <ErrorBoundary
+              name="ResponsiveLayout"
+              logProps={false}
+              data-oid="pvggx8k"
+            >
               <ResponsiveLayout
                 user={user}
                 onLogout={logout}
@@ -177,11 +186,25 @@ function App() {
                 isOfflineMode={isOfflineMode}
                 authState={authState}
                 lastSyncTime={lastSyncTime}
+                data-oid=".5qcba9"
               >
-                <ErrorBoundary name="Routes" logProps={false}>
-                  <Routes>
-                    <Route path="/" element={renderCurrentView()} />
-                    <Route path="/dashboard" element={renderCurrentView()} />
+                <ErrorBoundary
+                  name="Routes"
+                  logProps={false}
+                  data-oid="fuv46lj"
+                >
+                  <Routes data-oid="_c1urak">
+                    <Route
+                      path="/"
+                      element={renderCurrentView()}
+                      data-oid=":u:xm3o"
+                    />
+
+                    <Route
+                      path="/dashboard"
+                      element={renderCurrentView()}
+                      data-oid="p_8s_bc"
+                    />
                   </Routes>
                 </ErrorBoundary>
               </ResponsiveLayout>
@@ -190,10 +213,15 @@ function App() {
         </ErrorBoundary>
 
         {/* Notification System */}
-        <ErrorBoundary name="NotificationSystem" logProps={false}>
+        <ErrorBoundary
+          name="NotificationSystem"
+          logProps={false}
+          data-oid="0vt:-ow"
+        >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
             style={{ maxWidth: "400px" }}
+            data-oid="8tln6zh"
           >
             {notifications.map((notification) => (
               <Alert
@@ -202,6 +230,7 @@ function App() {
                 dismissible={true}
                 onDismiss={() => removeNotification(notification.id)}
                 className="shadow-lg"
+                data-oid="v0yg_d8"
               >
                 {notification.message}
               </Alert>

@@ -57,32 +57,38 @@ const Select = forwardRef(
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
+        data-oid="2pc5uhg"
       >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
           d="M19 9l-7 7-7-7"
+          data-oid="_0g5.fy"
         />
       </svg>
     );
 
     const SelectElement = (
-      <div className="relative">
+      <div className="relative" data-oid="i1kbb1l">
         <select
           ref={ref}
           disabled={disabled}
           className={selectClasses}
           {...props}
+          data-oid="pqpi5xd"
         >
           {placeholder && (
-            <option value="" disabled>
+            <option value="" disabled data-oid="cx6l2tc">
               {placeholder}
             </option>
           )}
           {children}
         </select>
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <div
+          className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
+          data-oid="ibmgpq1"
+        >
           {chevronIcon}
         </div>
       </div>
@@ -91,7 +97,7 @@ const Select = forwardRef(
     // If no label, return just the select
     if (!label) {
       return (
-        <div>
+        <div data-oid="8..m_jj">
           {SelectElement}
           {(helperText || errorText) && (
             <p
@@ -99,6 +105,7 @@ const Select = forwardRef(
                 "mt-1 text-sm",
                 error ? "text-red-600" : "text-gray-600",
               )}
+              data-oid="1wz0o.y"
             >
               {error ? errorText : helperText}
             </p>
@@ -109,8 +116,11 @@ const Select = forwardRef(
 
     // Return full form group with label
     return (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div data-oid="09jrsjv">
+        <label
+          className="block text-sm font-medium text-gray-700 mb-1"
+          data-oid="hdc:x_4"
+        >
           {label}
         </label>
         {SelectElement}
@@ -120,6 +130,7 @@ const Select = forwardRef(
               "mt-1 text-sm",
               error ? "text-red-600" : "text-gray-600",
             )}
+            data-oid="r8umyat"
           >
             {error ? errorText : helperText}
           </p>

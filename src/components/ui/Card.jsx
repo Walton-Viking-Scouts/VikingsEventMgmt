@@ -12,6 +12,7 @@ const Card = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
+      data-oid="h17s4y4"
     >
       {children}
     </div>
@@ -26,6 +27,7 @@ const CardHeader = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
+      data-oid="-dj:l.5"
     >
       {children}
     </div>
@@ -42,6 +44,7 @@ const CardTitle = ({
     <Component
       className={cn("text-lg font-semibold text-gray-900 m-0", className)}
       {...props}
+      data-oid="j3o:tfr"
     >
       {children}
     </Component>
@@ -50,7 +53,7 @@ const CardTitle = ({
 
 const CardBody = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("p-4", className)} {...props}>
+    <div className={cn("p-4", className)} {...props} data-oid="m6.-9fx">
       {children}
     </div>
   );
@@ -64,6 +67,7 @@ const CardFooter = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
+      data-oid="rl9g1xx"
     >
       {children}
     </div>

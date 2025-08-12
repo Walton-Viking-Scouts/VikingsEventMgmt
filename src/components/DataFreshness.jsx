@@ -100,17 +100,21 @@ function DataFreshness({ lastSync, authState, className = "" }) {
   return (
     <div
       className={`data-freshness flex items-center space-x-2 text-sm ${info.className} ${className}`}
+      data-oid="0qsntpc"
     >
       <span
         className="data-freshness-icon text-base"
         role="img"
         aria-label="Status"
+        data-oid="b2jv6oa"
       >
         {info.icon}
       </span>
-      <span className="data-freshness-text hidden sm:inline">{info.text}</span>
+      <span className="data-freshness-text hidden sm:inline" data-oid="tqkfizu">
+        {info.text}
+      </span>
       {/* Mobile: Show just the icon with tooltip */}
-      <span className="sm:hidden" title={info.text}>
+      <span className="sm:hidden" title={info.text} data-oid="8qnxk5s">
         {info.icon}
       </span>
     </div>

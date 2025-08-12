@@ -262,13 +262,14 @@ function OfflineIndicator({ hideSync = false }) {
       <>
         {/* Only show sync button if not hidden */}
         {!hideSync && (
-          <div className="fixed top-20 right-4 z-40">
+          <div className="fixed top-20 right-4 z-40" data-oid="s_:qaco">
             <Button
               variant="scout-blue"
               size="sm"
               onClick={handleSyncClick}
               className="shadow-lg"
               title={getSyncButtonTitle()}
+              data-oid="wftefaz"
             >
               {getSyncButtonText()}
             </Button>
@@ -276,43 +277,67 @@ function OfflineIndicator({ hideSync = false }) {
         )}
 
         {/* Login Prompt Modal */}
-        <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
-          <Modal.Header>
-            <Modal.Title>Authentication Required</Modal.Title>
+        <Modal
+          isOpen={showLoginPrompt}
+          onClose={handleLoginCancel}
+          size="md"
+          data-oid="-wv90ee"
+        >
+          <Modal.Header data-oid=".-ugcj_">
+            <Modal.Title data-oid="y3sv:g0">
+              Authentication Required
+            </Modal.Title>
           </Modal.Header>
-          <Modal.Body>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <span className="text-amber-600 text-xl">🔐</span>
+          <Modal.Body data-oid="6_juaz_">
+            <div className="space-y-4" data-oid="hjt_ul3">
+              <div className="flex items-center gap-3" data-oid="cm_pxyn">
+                <div className="flex-shrink-0" data-oid="pk-pu-2">
+                  <div
+                    className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center"
+                    data-oid="ljmt0xd"
+                  >
+                    <span className="text-amber-600 text-xl" data-oid="jzsmoqe">
+                      🔐
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <p className="text-gray-900 font-medium">
+                <div data-oid="m1ltard">
+                  <p className="text-gray-900 font-medium" data-oid="4z2cnzm">
                     {loginPromptData?.message ||
                       "Authentication required to sync data."}
                   </p>
-                  <p className="text-gray-600 text-sm mt-1">
+                  <p className="text-gray-600 text-sm mt-1" data-oid="b1iq0u-">
                     You will be redirected to Online Scout Manager to
                     authenticate.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> You can continue using the app with
-                  offline data if you prefer not to sync at this time.
+              <div
+                className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+                data-oid="_z24zrn"
+              >
+                <p className="text-blue-800 text-sm" data-oid="th54jkt">
+                  <strong data-oid="isxtl_7">Note:</strong> You can continue
+                  using the app with offline data if you prefer not to sync at
+                  this time.
                 </p>
               </div>
             </div>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline" onClick={handleLoginCancel}>
+          <Modal.Footer data-oid="v28ow86">
+            <Button
+              variant="outline"
+              onClick={handleLoginCancel}
+              data-oid="62h_zad"
+            >
               Stay Offline
             </Button>
-            <Button variant="scout-blue" onClick={handleLoginConfirm}>
+            <Button
+              variant="scout-blue"
+              onClick={handleLoginConfirm}
+              data-oid="j.dkjku"
+            >
               Login & Sync
             </Button>
           </Modal.Footer>
@@ -333,12 +358,19 @@ function OfflineIndicator({ hideSync = false }) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
+    <div className="fixed top-0 left-0 right-0 z-50" data-oid="20owd_-">
       {shouldShowBanner && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-center gap-2">
-            <span>📱</span>
-            <span>
+        <Alert
+          variant="warning"
+          className="rounded-none border-x-0 border-t-0"
+          data-oid="1bi1uxn"
+        >
+          <div
+            className="flex items-center justify-center gap-2"
+            data-oid="lahj1d5"
+          >
+            <span data-oid="rkrwxx-">📱</span>
+            <span data-oid="weob4ph">
               {!isOnline
                 ? "Offline Mode - Using cached data"
                 : "API Unavailable - Using cached data"}
@@ -357,24 +389,32 @@ function OfflineIndicator({ hideSync = false }) {
                 : "error"
           }
           className="rounded-none border-x-0 border-t-0"
+          data-oid="dv0zazk"
         >
-          <div className="flex items-center justify-center gap-2">
+          <div
+            className="flex items-center justify-center gap-2"
+            data-oid="1-l9dfo"
+          >
             {syncStatus.status === "syncing" && (
               <>
-                <span className="animate-spin">⏳</span>
-                <span>{syncStatus.message}</span>
+                <span className="animate-spin" data-oid="zo45u2e">
+                  ⏳
+                </span>
+                <span data-oid="xum153:">{syncStatus.message}</span>
               </>
             )}
             {syncStatus.status === "completed" && (
               <>
-                <span>✅</span>
-                <span>Sync completed</span>
+                <span data-oid="ozbavbu">✅</span>
+                <span data-oid="rxq255m">Sync completed</span>
               </>
             )}
             {syncStatus.status === "error" && (
               <>
-                <span>⚠️</span>
-                <span>Sync failed: {syncStatus.message}</span>
+                <span data-oid="rspzhzn">⚠️</span>
+                <span data-oid="e9_ru0k">
+                  Sync failed: {syncStatus.message}
+                </span>
               </>
             )}
           </div>
@@ -382,17 +422,24 @@ function OfflineIndicator({ hideSync = false }) {
       )}
 
       {showSyncError && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Cannot sync while offline or API is unreachable</span>
+        <Alert
+          variant="warning"
+          className="rounded-none border-x-0 border-t-0"
+          data-oid="b:a8brm"
+        >
+          <div className="flex items-center justify-between" data-oid="xfxjtk6">
+            <div className="flex items-center gap-2" data-oid="3mhoznd">
+              <span data-oid="vw.amjp">⚠️</span>
+              <span data-oid="29zliqm">
+                Cannot sync while offline or API is unreachable
+              </span>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSyncError(false)}
               className="ml-4"
+              data-oid="xgfbd3z"
             >
               Dismiss
             </Button>

@@ -19,21 +19,25 @@ function Header({
   };
 
   return (
-    <TailwindHeader variant="scout" data-testid="header">
-      <TailwindHeader.Container>
-        <TailwindHeader.Content>
-          <TailwindHeader.Left>
-            <TailwindHeader.Title data-testid="app-title">
+    <TailwindHeader variant="scout" data-testid="header" data-oid="a7nwlw6">
+      <TailwindHeader.Container data-oid="c2e0kne">
+        <TailwindHeader.Content data-oid="8q91w00">
+          <TailwindHeader.Left data-oid="v.w.ap3">
+            <TailwindHeader.Title data-testid="app-title" data-oid="vgj5fs4">
               Vikings Event Mgmt
             </TailwindHeader.Title>
           </TailwindHeader.Left>
 
-          <TailwindHeader.Right data-testid="header-controls">
+          <TailwindHeader.Right
+            data-testid="header-controls"
+            data-oid="j:8qihv"
+          >
             {/* Data freshness indicator */}
             <DataFreshness
               lastSync={lastSyncTime}
               authState={authState}
               className="mr-3"
+              data-oid="q_-nvk2"
             />
 
             {/* Authentication button - always visible */}
@@ -42,12 +46,16 @@ function Header({
               onLogin={onLogin}
               className="mr-3"
               data-testid="auth-button"
+              data-oid="o89kw5z"
             />
 
             {/* User menu (when authenticated) */}
             {user && (
-              <div className="flex items-center gap-3">
-                <span className="text-white hidden sm:inline">
+              <div className="flex items-center gap-3" data-oid="-sr.q1o">
+                <span
+                  className="text-white hidden sm:inline"
+                  data-oid="sye-lx6"
+                >
                   Hi, {user.firstname}
                 </span>
                 <Button
@@ -55,6 +63,7 @@ function Header({
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
+                  data-oid="hk0bk.c"
                 >
                   {isOfflineMode ? "Clear Data" : "Logout"}
                 </Button>
@@ -81,6 +90,7 @@ function Header({
         }}
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
+        data-oid="pa:0t1v"
       />
     </TailwindHeader>
   );

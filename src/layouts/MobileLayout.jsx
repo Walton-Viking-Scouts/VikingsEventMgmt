@@ -15,8 +15,9 @@ function MobileLayout({
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
+      data-oid="wxhc9o-"
     >
-      <OfflineIndicator hideSync={false} />
+      <OfflineIndicator hideSync={false} data-oid="uu2wo47" />
       <Header
         user={user}
         onLogout={onLogout}
@@ -24,10 +25,13 @@ function MobileLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
+        data-oid="s7_0dj5"
       />
 
-      <main className="flex-1" data-testid="mobile-main">
-        <div className="h-full">{children}</div>
+      <main className="flex-1" data-testid="mobile-main" data-oid="_::vz65">
+        <div className="h-full" data-oid="l.s.hxz">
+          {children}
+        </div>
       </main>
     </div>
   );

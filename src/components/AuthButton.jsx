@@ -87,6 +87,7 @@ function AuthButton({
       disabled={config.disabled}
       className={`auth-button ${className}`}
       data-testid="auth-button"
+      data-oid="2at8sbp"
     >
       {config.text}
     </Button>

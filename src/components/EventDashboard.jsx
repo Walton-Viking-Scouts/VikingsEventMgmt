@@ -613,16 +613,21 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading dashboard..." />;
+    return <LoadingScreen message="Loading dashboard..." data-oid="4axuzlv" />;
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4">
-        <Alert.Title>Error Loading Dashboard</Alert.Title>
-        <Alert.Description>{error}</Alert.Description>
-        <Alert.Actions>
-          <Button variant="scout-blue" onClick={loadInitialData} type="button">
+      <Alert variant="danger" className="m-4" data-oid="wb7nzrb">
+        <Alert.Title data-oid="fe6bg7b">Error Loading Dashboard</Alert.Title>
+        <Alert.Description data-oid="mneq.92">{error}</Alert.Description>
+        <Alert.Actions data-oid="c1abx_5">
+          <Button
+            variant="scout-blue"
+            onClick={loadInitialData}
+            type="button"
+            data-oid="b.q_qi4"
+          >
             Retry
           </Button>
         </Alert.Actions>
@@ -631,63 +636,78 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-oid=".3k-vlu">
       {/* Header with sync info */}
-      <div className="bg-white shadow-sm border-b border-gray-200 mb-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+      <div
+        className="bg-white shadow-sm border-b border-gray-200 mb-6"
+        data-oid="8tixe66"
+      >
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"
+          data-oid="8spiqeg"
+        >
+          <div className="flex justify-between items-center" data-oid="ds7h39w">
+            <div data-oid="oc0_llr">
+              <h1
+                className="text-2xl font-bold text-gray-900"
+                data-oid="sxjncwy"
+              >
                 Event Dashboard
               </h1>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600">
+              <div className="space-y-1" data-oid="nivcuu3">
+                <p className="text-sm text-gray-600" data-oid="fgmzfv.">
                   Last updated: {formatLastSync(lastSync)}
                   {!lastSync && " (Never synced)"}
                   {isOfflineMode && (
-                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    <span
+                      className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+                      data-oid="oyydd8v"
+                    >
                       🔒 Offline Mode
                     </span>
                   )}
                 </p>
                 {(queueStats.processing || queueStats.queueLength > 0) && (
-                  <p className="text-xs text-blue-600">
+                  <p className="text-xs text-blue-600" data-oid="d9o092a">
                     API Queue: {queueStats.processing ? "Processing" : "Idle"} •
                     {queueStats.queueLength} pending •{" "}
                     {queueStats.totalRequests} total
                   </p>
                 )}
                 {isOfflineMode && (
-                  <p className="text-xs text-amber-600">
+                  <p className="text-xs text-amber-600" data-oid="ey0hfnq">
                     🔒 Authentication expired - showing cached data only
                   </p>
                 )}
                 {!lastSync && (
-                  <p className="text-xs text-amber-600">
+                  <p className="text-xs text-amber-600" data-oid="81s.avv">
                     📡 No data cached - click Sync to load from OSM
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-oid="1ss:u4j">
               {isOfflineMode && (
                 <Button
                   variant="scout-green"
                   onClick={handleReconnect}
                   type="button"
                   className="flex items-center gap-2"
+                  data-oid="i:963fo"
                 >
                   <svg
                     className="h-4 w-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    data-oid="x_lurko"
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
                       d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      data-oid="os8wb_q"
                     />
                   </svg>
                   Reconnect
@@ -698,57 +718,73 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        data-oid=":-8h7q7"
+      >
         {/* Sections selector */}
-        <div className="mb-8" data-testid="sections-list">
+        <div className="mb-8" data-testid="sections-list" data-oid="k83r6z7">
           <SectionsList
             sections={sections}
             selectedSections={[]} // No selection needed, just for display
             onSectionToggle={handleSectionSelect}
             showContinueButton={false}
             loadingSection={loadingSection}
+            data-oid="yd-asmz"
           />
         </div>
 
         {/* Event Cards */}
-        <div className="space-y-6">
+        <div className="space-y-6" data-oid="0tll0v-">
           {eventCards.length > 0 ? (
             <>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              <h2
+                className="text-xl font-semibold text-gray-900 mb-4"
+                data-oid="03wmxb4"
+              >
                 Upcoming Events ({eventCards.length})
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                data-oid="lc5i0pe"
+              >
                 {eventCards.map((card) => (
                   <EventCard
                     key={card.id}
                     eventCard={card}
                     onViewAttendees={handleViewAttendees}
                     loading={loadingAttendees === card.id}
+                    data-oid=":9e.o6p"
                   />
                 ))}
               </div>
             </>
           ) : (
-            <div className="text-center py-12">
-              <div className="text-gray-500 mb-4">
+            <div className="text-center py-12" data-oid="wixq5s7">
+              <div className="text-gray-500 mb-4" data-oid="58.kx26">
                 <svg
                   className="mx-auto h-12 w-12 text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  data-oid="t7_jgr4"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
+                    data-oid="nmqclxu"
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3
+                className="text-lg font-semibold text-gray-900 mb-2"
+                data-oid="_tz1_mf"
+              >
                 No Upcoming Events
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-4" data-oid=".lyiuco">
                 {!lastSync
                   ? 'Click the "Sync" button (top-right) to retrieve event data from OSM.'
                   : "No events found for the next week or events from the past week. Try syncing to get the latest data."}
@@ -758,6 +794,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 onClick={syncData}
                 disabled={syncing}
                 type="button"
+                data-oid="fcpdjm9"
               >
                 {syncing ? "Syncing..." : "Sync Now"}
               </Button>
@@ -789,6 +826,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             }
           })
         }
+        data-oid="wzm2iqt"
       />
     </div>
   );

@@ -35,20 +35,32 @@ const ConfirmModal = ({
       closeOnEscape={true}
       showCloseButton={false}
       {...props}
+      data-oid="obdq_i0"
     >
-      <Modal.Header>
-        <Modal.Title>{title}</Modal.Title>
+      <Modal.Header data-oid="_69_vix">
+        <Modal.Title data-oid="cnvuh_d">{title}</Modal.Title>
       </Modal.Header>
 
-      <Modal.Body>
-        <p className="text-gray-700 whitespace-pre-line">{message}</p>
+      <Modal.Body data-oid="x5guis_">
+        <p className="text-gray-700 whitespace-pre-line" data-oid="pi0_fuj">
+          {message}
+        </p>
       </Modal.Body>
 
-      <Modal.Footer align="right">
-        <Button variant={cancelVariant} onClick={handleCancel} className="mr-3">
+      <Modal.Footer align="right" data-oid="sn3:rqx">
+        <Button
+          variant={cancelVariant}
+          onClick={handleCancel}
+          className="mr-3"
+          data-oid="pg:pi8m"
+        >
           {cancelText}
         </Button>
-        <Button variant={confirmVariant} onClick={handleConfirm}>
+        <Button
+          variant={confirmVariant}
+          onClick={handleConfirm}
+          data-oid="fs0i8js"
+        >
           {confirmText}
         </Button>
       </Modal.Footer>
