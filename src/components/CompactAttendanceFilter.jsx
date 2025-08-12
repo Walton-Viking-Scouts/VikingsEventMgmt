@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 function CompactAttendanceFilter({ filters, onFiltersChange }) {
   const handleFilterToggle = (status) => {
@@ -11,28 +11,28 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
 
   const statusConfig = [
     {
-      key: 'yes',
-      label: 'Yes',
-      activeStyles: 'bg-green-500 text-white',
-      inactiveStyles: 'bg-white text-green-500 border border-green-500',
+      key: "yes",
+      label: "Yes",
+      activeStyles: "bg-green-500 text-white",
+      inactiveStyles: "bg-white text-green-500 border border-green-500",
     },
     {
-      key: 'no',
-      label: 'No',
-      activeStyles: 'bg-red-500 text-white',
-      inactiveStyles: 'bg-white text-red-500 border border-red-500',
+      key: "no",
+      label: "No",
+      activeStyles: "bg-red-500 text-white",
+      inactiveStyles: "bg-white text-red-500 border border-red-500",
     },
     {
-      key: 'invited',
-      label: 'Invited',
-      activeStyles: 'bg-yellow-500 text-white',
-      inactiveStyles: 'bg-white text-yellow-600 border border-yellow-500',
+      key: "invited",
+      label: "Invited",
+      activeStyles: "bg-yellow-500 text-white",
+      inactiveStyles: "bg-white text-yellow-600 border border-yellow-500",
     },
     {
-      key: 'notInvited',
-      label: 'Not Invited',
-      activeStyles: 'bg-gray-500 text-white',
-      inactiveStyles: 'bg-white text-gray-500 border border-gray-500',
+      key: "notInvited",
+      label: "Not Invited",
+      activeStyles: "bg-gray-500 text-white",
+      inactiveStyles: "bg-white text-gray-500 border border-gray-500",
     },
   ];
 
@@ -42,20 +42,18 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
       role="group"
       aria-label="Attendance status filters"
     >
-      {statusConfig.map(
-        ({ key, label, activeStyles, inactiveStyles }) => (
-          <button
-            key={key}
-            onClick={() => handleFilterToggle(key)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm ${filters[key] ? activeStyles : inactiveStyles}`}
-            type="button"
-            aria-pressed={filters[key]}
-            aria-label={`Filter by ${label} attendance status`}
-          >
-            {label}
-          </button>
-        ),
-      )}
+      {statusConfig.map(({ key, label, activeStyles, inactiveStyles }) => (
+        <button
+          key={key}
+          onClick={() => handleFilterToggle(key)}
+          className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm ${filters[key] ? activeStyles : inactiveStyles}`}
+          type="button"
+          aria-pressed={filters[key]}
+          aria-label={`Filter by ${label} attendance status`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

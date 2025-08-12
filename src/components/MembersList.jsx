@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { getListOfMembers } from '../services/api.js';
-import { getToken } from '../services/auth.js';
-import { Button, Card, Input, Alert, Badge } from './ui';
-import LoadingScreen from './LoadingScreen.jsx';
-import MemberDetailModal from './MemberDetailModal.jsx';
-import { isMobileLayout } from '../utils/platform.js';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
+import { getListOfMembers } from "../services/api.js";
+import { getToken } from "../services/auth.js";
+import { Button, Card, Input, Alert, Badge } from "./ui";
+import LoadingScreen from "./LoadingScreen.jsx";
+import MemberDetailModal from "./MemberDetailModal.jsx";
+import { isMobileLayout } from "../utils/platform.js";
 
 function MembersList({ sections, members: propsMembers, onBack }) {
   const [members, setMembers] = useState(propsMembers || []);
   const [loading, setLoading] = useState(!propsMembers);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('lastname');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState("lastname");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
@@ -31,23 +37,26 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
   const isMobile = isMobileLayout();
-  const sectionIds = useMemo(() => sections.map(s => s.sectionid), [sections]);
-  const sectionIdsKey = sectionIds.join(',');
+  const sectionIds = useMemo(
+    () => sections.map((s) => s.sectionid),
+    [sections],
+  );
+  const sectionIdsKey = sectionIds.join(",");
 
   const loadMembers = useCallback(async () => {
     if (!mountedRef.current) return;
-    
+
     // Clear error state immediately so Retry hides error UI
     setError(null);
     setLoading(true);
-    
+
     // Increment requestId to guard against race conditions
     const currentRequestId = ++requestIdRef.current;
-    
+
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
-      
+
       // Only apply state updates if component is mounted AND this is the latest request
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
         setMembers(members);
@@ -55,7 +64,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     } catch (e) {
       // Only apply error state if component is mounted AND this is the latest request
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
-        setError(e?.message ?? 'Unable to load members. Please try again.');
+        setError(e?.message ?? "Unable to load members. Please try again.");
       }
     } finally {
       // Only turn off loading for the matching requestId so stale requests cannot override
@@ -87,56 +96,62 @@ function MembersList({ sections, members: propsMembers, onBack }) {
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return '';
+    if (!dateOfBirth) return "";
     try {
       const birthDate = new Date(dateOfBirth);
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
         age--;
       }
       return age;
     } catch {
-      return '';
+      return "";
     }
   };
 
   // Filter and sort members
   const filteredAndSortedMembers = useMemo(() => {
-    const filtered = members.filter(member => {
+    const filtered = members.filter((member) => {
       const searchLower = searchTerm.toLowerCase();
-      const fullName = `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
-      const email = (member.email || '').toLowerCase();
-      const sectionsText = (member.sections || []).join(' ').toLowerCase();
-      
-      return fullName.includes(searchLower) || 
-             email.includes(searchLower) || 
-             sectionsText.includes(searchLower);
+      const fullName =
+        `${member.firstname || ""} ${member.lastname || ""}`.toLowerCase();
+      const email = (member.email || "").toLowerCase();
+      const sectionsText = (member.sections || []).join(" ").toLowerCase();
+
+      return (
+        fullName.includes(searchLower) ||
+        email.includes(searchLower) ||
+        sectionsText.includes(searchLower)
+      );
     });
 
     filtered.sort((a, b) => {
-      let aValue = a[sortField] || '';
-      let bValue = b[sortField] || '';
+      let aValue = a[sortField] || "";
+      let bValue = b[sortField] || "";
 
       // Special handling for specific fields
-      if (sortField === 'name') {
-        aValue = `${a.lastname || ''} ${a.firstname || ''}`;
-        bValue = `${b.lastname || ''} ${b.firstname || ''}`;
-      } else if (sortField === 'sections') {
-        aValue = (a.sections || []).join(', ');
-        bValue = (b.sections || []).join(', ');
-      } else if (sortField === 'age') {
+      if (sortField === "name") {
+        aValue = `${a.lastname || ""} ${a.firstname || ""}`;
+        bValue = `${b.lastname || ""} ${b.firstname || ""}`;
+      } else if (sortField === "sections") {
+        aValue = (a.sections || []).join(", ");
+        bValue = (b.sections || []).join(", ");
+      } else if (sortField === "age") {
         aValue = calculateAge(a.date_of_birth);
         bValue = calculateAge(b.date_of_birth);
       }
 
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (sortDirection === 'asc') {
+      if (sortDirection === "asc") {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
@@ -148,78 +163,85 @@ function MembersList({ sections, members: propsMembers, onBack }) {
 
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
   const exportToCSV = () => {
     if (filteredAndSortedMembers.length === 0) {
-      alert('No members to export');
+      alert("No members to export");
       return;
     }
 
     // Define CSV headers based on available data
     const headers = [
-      'First Name',
-      'Last Name', 
-      'Email',
-      'Phone',
-      'Sections',
-      'Patrol',
-      'Person Type',
-      'Age',
-      'Date of Birth',
-      'Address',
-      'Postcode',
-      'Emergency Contacts',
-      'Medical Notes',
-      'Dietary Requirements',
-      'Active',
-      'Started',
-      'Joined',
+      "First Name",
+      "Last Name",
+      "Email",
+      "Phone",
+      "Sections",
+      "Patrol",
+      "Person Type",
+      "Age",
+      "Date of Birth",
+      "Address",
+      "Postcode",
+      "Emergency Contacts",
+      "Medical Notes",
+      "Dietary Requirements",
+      "Active",
+      "Started",
+      "Joined",
     ];
 
     // Convert members to CSV rows using enhanced data
     const csvRows = [
-      headers.join(','),
-      ...filteredAndSortedMembers.map(member => {
-        const emergencyContacts = (member.emergency_contacts || []).map(contact => 
-          `${contact.name} (${contact.phone}) ${contact.email}`.trim(),
-        ).join('; ');
-        
+      headers.join(","),
+      ...filteredAndSortedMembers.map((member) => {
+        const emergencyContacts = (member.emergency_contacts || [])
+          .map((contact) =>
+            `${contact.name} (${contact.phone}) ${contact.email}`.trim(),
+          )
+          .join("; ");
+
         return [
-          `"${member.firstname || ''}"`,
-          `"${member.lastname || ''}"`,
-          `"${member.email || ''}"`,
-          `"${member.phone || ''}"`,
-          `"${(member.sections || []).join('; ')}"`,
-          `"${member.patrol || ''}"`,
-          `"${member.person_type || 'Young People'}"`,
+          `"${member.firstname || ""}"`,
+          `"${member.lastname || ""}"`,
+          `"${member.email || ""}"`,
+          `"${member.phone || ""}"`,
+          `"${(member.sections || []).join("; ")}"`,
+          `"${member.patrol || ""}"`,
+          `"${member.person_type || "Young People"}"`,
           `"${calculateAge(member.date_of_birth)}"`,
-          `"${member.date_of_birth || ''}"`,
-          `"${member.address || ''}"`,
-          `"${member.postcode || ''}"`,
+          `"${member.date_of_birth || ""}"`,
+          `"${member.address || ""}"`,
+          `"${member.postcode || ""}"`,
           `"${emergencyContacts}"`,
-          `"${member.medical_notes || ''}"`,
-          `"${member.dietary_requirements || ''}"`,
-          `"${member.active ? 'Yes' : 'No'}"`,
-          `"${member.started || ''}"`,
-          `"${member.joined || ''}"`,
-        ].join(',');
+          `"${member.medical_notes || ""}"`,
+          `"${member.dietary_requirements || ""}"`,
+          `"${member.active ? "Yes" : "No"}"`,
+          `"${member.started || ""}"`,
+          `"${member.joined || ""}"`,
+        ].join(",");
       }),
     ];
 
     // Create and download CSV file
-    const csvContent = csvRows.join('\n');
-    const blob = new globalThis.Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const csvContent = csvRows.join("\n");
+    const blob = new globalThis.Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `members_${sectionIds.join('_')}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `members_${sectionIds.join("_")}_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -231,7 +253,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     }
     return (
       <span className="text-scout-blue">
-        {sortDirection === 'asc' ? '↑' : '↓'}
+        {sortDirection === "asc" ? "↑" : "↓"}
       </span>
     );
   };
@@ -278,7 +300,8 @@ function MembersList({ sections, members: propsMembers, onBack }) {
             Members ({filteredAndSortedMembers.length})
           </h1>
           <p className="mt-2 text-sm text-gray-700">
-            Members from selected sections: {sections.map(s => s.sectionname).join(', ')}
+            Members from selected sections:{" "}
+            {sections.map((s) => s.sectionname).join(", ")}
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
@@ -288,8 +311,18 @@ function MembersList({ sections, members: propsMembers, onBack }) {
             disabled={filteredAndSortedMembers.length === 0}
             type="button"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             Export CSV
           </Button>
@@ -309,16 +342,18 @@ function MembersList({ sections, members: propsMembers, onBack }) {
             className="w-full"
           />
         </div>
-        
+
         {/* Column visibility toggle for desktop */}
         {!isMobile && (
           <div className="flex flex-wrap gap-2">
             {Object.entries(visibleColumns).map(([column, visible]) => (
               <Button
                 key={column}
-                variant={visible ? 'scout-blue' : 'outline'}
+                variant={visible ? "scout-blue" : "outline"}
                 size="sm"
-                onClick={() => setVisibleColumns(prev => ({ ...prev, [column]: !visible }))}
+                onClick={() =>
+                  setVisibleColumns((prev) => ({ ...prev, [column]: !visible }))
+                }
                 type="button"
               >
                 {column}
@@ -333,12 +368,26 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         {filteredAndSortedMembers.length === 0 ? (
           <Card>
             <Card.Body className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z" />
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"
+                />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No members found</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No members found
+              </h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchTerm ? 'Try adjusting your search terms.' : 'No members available for the selected sections.'}
+                {searchTerm
+                  ? "Try adjusting your search terms."
+                  : "No members available for the selected sections."}
               </p>
             </Card.Body>
           </Card>
@@ -346,8 +395,8 @@ function MembersList({ sections, members: propsMembers, onBack }) {
           // Mobile: Card layout
           <div className="space-y-4">
             {filteredAndSortedMembers.map((member) => (
-              <Card 
-                key={member.scoutid} 
+              <Card
+                key={member.scoutid}
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handleMemberClick(member)}
               >
@@ -370,32 +419,42 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                         Age {calculateAge(member.date_of_birth)}
                       </Badge>
                     )}
-                    <Badge 
+                    <Badge
                       variant={
-                        member.person_type === 'Leaders' ? 'scout-purple' :
-                          member.person_type === 'Young Leaders' ? 'scout-blue' : 
-                            'scout-green'
-                      } 
+                        member.person_type === "Leaders"
+                          ? "scout-purple"
+                          : member.person_type === "Young Leaders"
+                            ? "scout-blue"
+                            : "scout-green"
+                      }
                       size="sm"
                     >
-                      {member.person_type || 'Young People'}
+                      {member.person_type || "Young People"}
                     </Badge>
                   </div>
-                  
+
                   <div className="mt-3 space-y-1 text-sm text-gray-600">
                     {member.email && (
                       <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                         </svg>
                         {member.email}
                       </div>
                     )}
                     {member.phone && (
                       <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
                         {member.phone}
                       </div>
@@ -405,23 +464,32 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                         <span>Patrol: {member.patrol}</span>
                       </div>
                     )}
-                    
+
                     {/* Medical info */}
                     {member.medical_notes && (
                       <div className="flex items-center text-orange-600">
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                         Medical info available
                       </div>
                     )}
-                    
+
                     {/* Emergency contacts */}
-                    {member.emergency_contacts && member.emergency_contacts.length > 0 && (
-                      <div className="text-xs text-gray-500">
-                        Emergency contacts: {member.emergency_contacts.length}
-                      </div>
-                    )}
+                    {member.emergency_contacts &&
+                      member.emergency_contacts.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Emergency contacts: {member.emergency_contacts.length}
+                        </div>
+                      )}
                   </div>
                 </Card.Body>
               </Card>
@@ -435,9 +503,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                 <thead className="bg-gray-50">
                   <tr>
                     {visibleColumns.name && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('name')}
+                        onClick={() => handleSort("name")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Name</span>
@@ -446,9 +514,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.sections && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('sections')}
+                        onClick={() => handleSort("sections")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Sections</span>
@@ -457,9 +525,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.email && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('email')}
+                        onClick={() => handleSort("email")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Email</span>
@@ -468,9 +536,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.phone && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('phone')}
+                        onClick={() => handleSort("phone")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Phone</span>
@@ -479,9 +547,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.patrol && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('patrol')}
+                        onClick={() => handleSort("patrol")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Patrol</span>
@@ -490,9 +558,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.person_type && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('person_type')}
+                        onClick={() => handleSort("person_type")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Type</span>
@@ -501,9 +569,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.address && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('address')}
+                        onClick={() => handleSort("address")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Address</span>
@@ -522,9 +590,9 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       </th>
                     )}
                     {visibleColumns.age && (
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('age')}
+                        onClick={() => handleSort("age")}
                       >
                         <div className="flex items-center space-x-1">
                           <span>Age</span>
@@ -536,8 +604,8 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredAndSortedMembers.map((member) => (
-                    <tr 
-                      key={member.scoutid} 
+                    <tr
+                      key={member.scoutid}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => handleMemberClick(member)}
                     >
@@ -576,26 +644,31 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       )}
                       {visibleColumns.person_type && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <Badge 
+                          <Badge
                             variant={
-                              member.person_type === 'Leaders' ? 'scout-purple' :
-                                member.person_type === 'Young Leaders' ? 'scout-blue' : 
-                                  'scout-green'
-                            } 
+                              member.person_type === "Leaders"
+                                ? "scout-purple"
+                                : member.person_type === "Young Leaders"
+                                  ? "scout-blue"
+                                  : "scout-green"
+                            }
                             size="sm"
                           >
-                            {member.person_type || 'Young People'}
+                            {member.person_type || "Young People"}
                           </Badge>
                         </td>
                       )}
                       {visibleColumns.address && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div className="max-w-xs truncate" title={`${member.address || ''} ${member.postcode || ''}`}>
-                            {member.address && (
-                              <div>{member.address}</div>
-                            )}
+                          <div
+                            className="max-w-xs truncate"
+                            title={`${member.address || ""} ${member.postcode || ""}`}
+                          >
+                            {member.address && <div>{member.address}</div>}
                             {member.postcode && (
-                              <div className="text-gray-500">{member.postcode}</div>
+                              <div className="text-gray-500">
+                                {member.postcode}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -604,8 +677,16 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.medical_notes ? (
                             <div className="flex items-center text-orange-600">
-                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              <svg
+                                className="w-4 h-4 mr-1"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                  clipRule="evenodd"
+                                />
                               </svg>
                               <span className="text-xs">Medical</span>
                             </div>
@@ -616,9 +697,15 @@ function MembersList({ sections, members: propsMembers, onBack }) {
                       )}
                       {visibleColumns.emergency && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {member.emergency_contacts && member.emergency_contacts.length > 0 ? (
+                          {member.emergency_contacts &&
+                          member.emergency_contacts.length > 0 ? (
                             <div className="text-xs">
-                              <div className="font-medium">{member.emergency_contacts.length} contact{member.emergency_contacts.length > 1 ? 's' : ''}</div>
+                              <div className="font-medium">
+                                {member.emergency_contacts.length} contact
+                                {member.emergency_contacts.length > 1
+                                  ? "s"
+                                  : ""}
+                              </div>
                               <div className="text-gray-500 truncate max-w-xs">
                                 {member.emergency_contacts[0].name}
                               </div>
@@ -643,7 +730,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
       </div>
 
       {/* Member Detail Modal */}
-      <MemberDetailModal 
+      <MemberDetailModal
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}

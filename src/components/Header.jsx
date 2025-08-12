@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { Header as TailwindHeader, Button } from './ui';
-import ConfirmModal from './ui/ConfirmModal';
+import React, { useState } from "react";
+import { Header as TailwindHeader, Button } from "./ui";
+import ConfirmModal from "./ui/ConfirmModal";
+import AuthButton from "./AuthButton.jsx";
+import DataFreshness from "./DataFreshness.jsx";
 
-function Header({ user, onLogout, isOfflineMode, onLogin }) {
+function Header({
+  user,
+  onLogout,
+  isOfflineMode,
+  onLogin,
+  authState = "no_data",
+  lastSyncTime = null,
+}) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  
+
   const handleLogout = () => {
     setShowLogoutModal(true);
-  };
-  
-  const handleLogin = () => {
-    if (onLogin) {
-      onLogin();
-    }
   };
 
   return (
@@ -21,55 +24,56 @@ function Header({ user, onLogout, isOfflineMode, onLogin }) {
         <TailwindHeader.Content>
           <TailwindHeader.Left>
             <TailwindHeader.Title data-testid="app-title">
-              Vikings Event Mgmt Mobile
+              Vikings Event Mgmt
             </TailwindHeader.Title>
           </TailwindHeader.Left>
-          
-          {user && (
-            <TailwindHeader.Right data-testid="user-info">
-              <span className="text-white">
-                Hi, {user.firstname}
-                {isOfflineMode && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
-                    Offline
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button 
+
+          <TailwindHeader.Right data-testid="header-controls">
+            {/* Data freshness indicator */}
+            <DataFreshness
+              lastSync={lastSyncTime}
+              authState={authState}
+              className="mr-3"
+            />
+
+            {/* Authentication button - always visible */}
+            <AuthButton
+              authState={authState}
+              onLogin={onLogin}
+              className="mr-3"
+              data-testid="auth-button"
+            />
+
+            {/* User menu (when authenticated) */}
+            {user && (
+              <div className="flex items-center gap-3">
+                <span className="text-white hidden sm:inline">
+                  Hi, {user.firstname}
+                </span>
+                <Button
                   variant="scout-red"
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
                 >
-                  {isOfflineMode ? 'Clear Data' : 'Logout'}
+                  {isOfflineMode ? "Clear Data" : "Logout"}
                 </Button>
-                {isOfflineMode && (
-                  <Button 
-                    variant="scout-green"
-                    size="sm"
-                    onClick={handleLogin}
-                    data-testid="login-button"
-                  >
-                    Login
-                  </Button>
-                )}
               </div>
-            </TailwindHeader.Right>
-          )}
+            )}
+          </TailwindHeader.Right>
         </TailwindHeader.Content>
       </TailwindHeader.Container>
-      
+
       {/* Logout/Clear Data Confirmation Modal */}
       <ConfirmModal
         isOpen={showLogoutModal}
-        title={isOfflineMode ? 'Clear Cached Data' : 'Confirm Logout'}
+        title={isOfflineMode ? "Clear Cached Data" : "Confirm Logout"}
         message={
-          isOfflineMode 
-            ? 'Are you sure you want to clear all cached data? This will remove all offline access to your events and member data.'
-            : 'Are you sure you want to logout?'
+          isOfflineMode
+            ? "Are you sure you want to clear all cached data? This will remove all offline access to your events and member data."
+            : "Are you sure you want to logout?"
         }
-        confirmText={isOfflineMode ? 'Clear Data' : 'Logout'}
+        confirmText={isOfflineMode ? "Clear Data" : "Logout"}
         cancelText="Cancel"
         onConfirm={() => {
           setShowLogoutModal(false);

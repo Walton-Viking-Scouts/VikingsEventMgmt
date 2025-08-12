@@ -1,23 +1,25 @@
-import React from 'react';
+import React from "react";
 
 function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {
     switch (status) {
-    case 'attending':
-      return 'bg-green-100 text-green-800';
-    case 'notAttending':
-      return 'bg-red-100 text-red-800';
-    case 'invited':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'notInvited':
-      return 'bg-gray-100 text-gray-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
+      case "attending":
+        return "bg-green-100 text-green-800";
+      case "notAttending":
+        return "bg-red-100 text-red-800";
+      case "invited":
+        return "bg-yellow-100 text-yellow-800";
+      case "notInvited":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const StatusCell = ({ count, status }) => (
-    <td className={`px-3 py-2 text-center text-sm font-medium ${getStatusColor(status)}`}>
+    <td
+      className={`px-3 py-2 text-center text-sm font-medium ${getStatusColor(status)}`}
+    >
       {count}
     </td>
   );
@@ -35,7 +37,10 @@ function AttendanceGrid({ data }) {
   );
 
   const getTotalByStatus = (status) => {
-    return Object.values(data).reduce((total, typeData) => total + typeData[status], 0);
+    return Object.values(data).reduce(
+      (total, typeData) => total + typeData[status],
+      0,
+    );
   };
 
   return (
@@ -76,23 +81,21 @@ function AttendanceGrid({ data }) {
           {Object.entries(data).map(([type, typeData]) => (
             <PersonTypeRow key={type} type={type} typeData={typeData} />
           ))}
-          
+
           {/* Totals row */}
           <tr className="bg-gray-50 font-medium">
-            <td className="px-3 py-2 text-sm text-gray-900">
-              Total
-            </td>
+            <td className="px-3 py-2 text-sm text-gray-900">Total</td>
             <td className="px-3 py-2 text-center text-sm text-green-800">
-              {getTotalByStatus('attending')}
+              {getTotalByStatus("attending")}
             </td>
             <td className="px-3 py-2 text-center text-sm text-red-800">
-              {getTotalByStatus('notAttending')}
+              {getTotalByStatus("notAttending")}
             </td>
             <td className="px-3 py-2 text-center text-sm text-yellow-800">
-              {getTotalByStatus('invited')}
+              {getTotalByStatus("invited")}
             </td>
             <td className="px-3 py-2 text-center text-sm text-gray-800">
-              {getTotalByStatus('notInvited')}
+              {getTotalByStatus("notInvited")}
             </td>
           </tr>
         </tbody>

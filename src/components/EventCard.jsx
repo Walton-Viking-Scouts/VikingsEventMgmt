@@ -1,15 +1,15 @@
-import React from 'react';
-import { Card, Button, Badge } from './ui';
-import AttendanceGrid from './AttendanceGrid.jsx';
+import React from "react";
+import { Card, Button, Badge } from "./ui";
+import AttendanceGrid from "./AttendanceGrid.jsx";
 
 function EventCard({ eventCard, onViewAttendees, loading = false }) {
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+      return date.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
     } catch {
       return dateString;
@@ -24,39 +24,45 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
       }
       return `${formatDate(event.startdate)} - ${formatDate(event.enddate)}`;
     }
-    
+
     // Multiple events - show range from earliest to latest
-    const sortedEvents = [...events].sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
+    const sortedEvents = [...events].sort(
+      (a, b) => new Date(a.startdate) - new Date(b.startdate),
+    );
     const firstEvent = sortedEvents[0];
     const lastEvent = sortedEvents[sortedEvents.length - 1];
-    
+
     return `${formatDate(firstEvent.startdate)} - ${formatDate(lastEvent.enddate)}`;
   };
-
 
   const buildAttendanceGrid = (events) => {
     // Initialize grid structure by section
     const grid = {};
-    
+
     // Get unique sections from events
-    const sections = [...new Set(events.map(event => event.sectionname))];
-    
+    const sections = [...new Set(events.map((event) => event.sectionname))];
+
     // Initialize each section in grid
-    sections.forEach(sectionName => {
-      grid[sectionName] = { attending: 0, notAttending: 0, invited: 0, notInvited: 0 };
+    sections.forEach((sectionName) => {
+      grid[sectionName] = {
+        attending: 0,
+        notAttending: 0,
+        invited: 0,
+        notInvited: 0,
+      };
     });
-    
+
     // Process attendance data by section
-    events.forEach(event => {
+    events.forEach((event) => {
       if (event.attendanceData && event.sectionname) {
         const sectionName = event.sectionname;
-        
-        event.attendanceData.forEach(person => {
-          if (person.attending === 'Yes') {
+
+        event.attendanceData.forEach((person) => {
+          if (person.attending === "Yes") {
             grid[sectionName].attending++;
-          } else if (person.attending === 'No') {
+          } else if (person.attending === "No") {
             grid[sectionName].notAttending++;
-          } else if (person.attending === 'Invited') {
+          } else if (person.attending === "Invited") {
             grid[sectionName].invited++;
           } else {
             // Empty string, null, or any other value means not invited
@@ -65,7 +71,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         });
       }
     });
-    
+
     return grid;
   };
 
@@ -73,37 +79,39 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     const now = new Date();
     const eventStart = new Date(event.startdate);
     const eventEnd = new Date(event.enddate);
-    
+
     // Create a date for the day after the event ends
     const dayAfterEventEnd = new Date(eventEnd);
     dayAfterEventEnd.setDate(dayAfterEventEnd.getDate() + 1);
-    
+
     if (now < eventStart) {
-      return 'upcoming';
+      return "upcoming";
     } else if (now >= eventStart && now < dayAfterEventEnd) {
-      return 'ongoing';
+      return "ongoing";
     } else {
-      return 'past';
+      return "past";
     }
   };
 
   const getStatusBadge = (event) => {
     const status = getEventStatus(event);
-    
+
     switch (status) {
-    case 'upcoming':
-      return <Badge variant="scout-blue">Upcoming</Badge>;
-    case 'ongoing':
-      return <Badge variant="scout-green">Ongoing</Badge>;
-    case 'past':
-      return <Badge variant="secondary">Past</Badge>;
-    default:
-      return null;
+      case "upcoming":
+        return <Badge variant="scout-blue">Upcoming</Badge>;
+      case "ongoing":
+        return <Badge variant="scout-green">Ongoing</Badge>;
+      case "past":
+        return <Badge variant="secondary">Past</Badge>;
+      default:
+        return null;
     }
   };
 
   const attendanceGrid = buildAttendanceGrid(eventCard.events);
-  const hasAttendanceData = eventCard.events.some(event => event.attendanceData && event.attendanceData.length > 0);
+  const hasAttendanceData = eventCard.events.some(
+    (event) => event.attendanceData && event.attendanceData.length > 0,
+  );
 
   return (
     <Card className="h-full flex flex-col">
@@ -119,17 +127,19 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           </div>
           <div className="flex flex-col items-end gap-1">
             {eventCard.events.map((event) => (
-              <div key={event.eventid}>
-                {getStatusBadge(event)}
-              </div>
+              <div key={event.eventid}>{getStatusBadge(event)}</div>
             ))}
           </div>
         </div>
-        
+
         {/* Participating Sections */}
         <div className="flex flex-wrap gap-1 mt-3">
           {eventCard.sections.map((sectionName, _index) => (
-            <Badge key={_index} variant="outline-scout-blue" className="text-xs">
+            <Badge
+              key={_index}
+              variant="outline-scout-blue"
+              className="text-xs"
+            >
               {sectionName}
             </Badge>
           ))}
@@ -139,17 +149,31 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
       <Card.Body className="flex-1 pt-0">
         {hasAttendanceData ? (
           <>
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Attendance Summary</h4>
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+              Attendance Summary
+            </h4>
             <AttendanceGrid data={attendanceGrid} />
           </>
         ) : (
           <div className="text-center py-4">
             <div className="text-gray-400 mb-2">
-              <svg className="mx-auto h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="mx-auto h-8 w-8"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
-            <p className="text-sm text-gray-500">No attendance data available</p>
+            <p className="text-sm text-gray-500">
+              No attendance data available
+            </p>
           </div>
         )}
       </Card.Body>
@@ -164,16 +188,41 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         >
           {loading ? (
             <>
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              <svg
+                className="animate-spin h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                ></path>
               </svg>
               Loading Members...
             </>
           ) : (
             <>
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
               </svg>
               View Attendees
             </>

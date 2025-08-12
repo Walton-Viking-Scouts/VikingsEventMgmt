@@ -1,34 +1,39 @@
-import React from 'react';
-import * as Sentry from '@sentry/react';
-import { Button, Card } from './ui';
+import React from "react";
+import * as Sentry from "@sentry/react";
+import { Button, Card } from "./ui";
 
 function LoginScreen({ onLogin }) {
   const handleLoginClick = () => {
     // Log login attempt for monitoring (without span to avoid OAuth interference)
     Sentry.addBreadcrumb({
-      category: 'auth',
-      message: 'User initiated OAuth login',
-      level: 'info',
+      category: "auth",
+      message: "User initiated OAuth login",
+      level: "info",
       data: {
-        component: 'LoginScreen',
-        action: 'login_button_clicked',
+        component: "LoginScreen",
+        action: "login_button_clicked",
         timestamp: new Date().toISOString(),
       },
     });
-    
+
     // Direct login call without span instrumentation to prevent OAuth interference
     onLogin();
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50" data-testid="login-screen">
+    <div
+      className="flex items-center justify-center min-h-screen p-4 bg-gray-50"
+      data-testid="login-screen"
+    >
       <Card className="w-full max-w-md">
         <Card.Body className="p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Vikings Event Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Vikings Event Management
+          </h1>
           <p className="text-gray-600 mb-6">
             Please log in with your Online Scout Manager account to continue.
           </p>
-          <Button 
+          <Button
             variant="scout-purple"
             size="lg"
             onClick={handleLoginClick}

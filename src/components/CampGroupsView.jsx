@@ -1,15 +1,25 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Alert, Button, Input, Badge } from './ui';
-import LoadingScreen from './LoadingScreen.jsx';
-import CampGroupCard from './CampGroupCard.jsx';
-import MemberDetailModal from './MemberDetailModal.jsx';
-import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
-import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
-import { fetchMostRecentTermId } from '../services/api.js';
-import { getToken } from '../services/auth.js';
-import logger, { LOG_CATEGORIES } from '../services/logger.js';
-import { isMobileLayout } from '../utils/platform.js';
-import { assignMemberToCampGroup, extractFlexiRecordContext, validateMemberMove } from '../services/campGroupAllocationService.js';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
+import { Alert, Button, Input, Badge } from "./ui";
+import LoadingScreen from "./LoadingScreen.jsx";
+import CampGroupCard from "./CampGroupCard.jsx";
+import MemberDetailModal from "./MemberDetailModal.jsx";
+import { getVikingEventDataForEvents } from "../services/flexiRecordService.js";
+import { organizeMembersByCampGroups } from "../utils/flexiRecordTransforms.js";
+import { fetchMostRecentTermId } from "../services/api.js";
+import { getToken } from "../services/auth.js";
+import logger, { LOG_CATEGORIES } from "../services/logger.js";
+import { isMobileLayout } from "../utils/platform.js";
+import {
+  assignMemberToCampGroup,
+  extractFlexiRecordContext,
+  validateMemberMove,
+} from "../services/campGroupAllocationService.js";
 
 /**
  * Custom hook to extract FlexiRecord context for drag-and-drop operations
@@ -19,30 +29,47 @@ import { assignMemberToCampGroup, extractFlexiRecordContext, validateMemberMove 
  * @param {string|number} termId - Current term ID
  * @returns {Object|null} FlexiRecord context for drag operations or null if not available
  */
-function useFlexiRecordContext(primaryCampGroupData, events, sectionsCache, termId) {
+function useFlexiRecordContext(
+  primaryCampGroupData,
+  events,
+  sectionsCache,
+  termId,
+) {
   return useMemo(() => {
     // Early returns for missing data - guard against falsy termId
-    if (!primaryCampGroupData || !events.length || !sectionsCache.length || !termId) {
+    if (
+      !primaryCampGroupData ||
+      !events.length ||
+      !sectionsCache.length ||
+      !termId
+    ) {
       return null;
     }
 
     // Get the correct section type from cached sections data
     const firstEvent = events[0];
-    
+
     // Find section info using normalized string comparison
-    const sectionInfo = sectionsCache.find(s => 
-      String(s.sectionid) === String(firstEvent.sectionid),
+    const sectionInfo = sectionsCache.find(
+      (s) => String(s.sectionid) === String(firstEvent.sectionid),
     );
-    
+
     // Log error if section not found
     if (!sectionInfo?.section) {
-      logger.error('Cannot enable drag-and-drop: section type not found', {
-        eventSectionId: firstEvent.sectionid,
-        availableSections: sectionsCache.map(s => ({id: s.sectionid, section: s.section})),
-      }, LOG_CATEGORIES.ERROR);
+      logger.error(
+        "Cannot enable drag-and-drop: section type not found",
+        {
+          eventSectionId: firstEvent.sectionid,
+          availableSections: sectionsCache.map((s) => ({
+            id: s.sectionid,
+            section: s.section,
+          })),
+        },
+        LOG_CATEGORIES.ERROR,
+      );
       return null;
     }
-    
+
     // Extract FlexiRecord context when sectionInfo.section exists
     const context = extractFlexiRecordContext(
       primaryCampGroupData,
@@ -50,13 +77,17 @@ function useFlexiRecordContext(primaryCampGroupData, events, sectionsCache, term
       termId,
       sectionInfo.section,
     );
-    
-    logger.debug('FlexiRecord context extracted for drag-and-drop', {
-      hasContext: !!context,
-      flexirecordid: context?.flexirecordid,
-      columnid: context?.columnid,
-    }, LOG_CATEGORIES.APP);
-    
+
+    logger.debug(
+      "FlexiRecord context extracted for drag-and-drop",
+      {
+        hasContext: !!context,
+        flexirecordid: context?.flexirecordid,
+        columnid: context?.columnid,
+      },
+      LOG_CATEGORIES.APP,
+    );
+
     return context;
   }, [primaryCampGroupData, events, sectionsCache, termId]);
 }
@@ -64,32 +95,40 @@ function useFlexiRecordContext(primaryCampGroupData, events, sectionsCache, term
 /**
  * CampGroupsView - Container component for displaying camp groups in a card layout
  * Shows attendees organized by their camp group assignments
- * 
+ *
  * @param {Object} props - Component props
  * @param {Array} props.events - Array of event data
  * @param {Array} props.attendees - Array of event attendees
  * @param {Array} props.members - Array of all member data (for person_type classification)
  * @param {Function} props.onError - Error callback function
  */
-function CampGroupsView({ events = [], attendees = [], members = [], onError }) {
+function CampGroupsView({
+  events = [],
+  attendees = [],
+  members = [],
+  onError,
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [organizedGroups, setOrganizedGroups] = useState({ groups: {}, summary: {} });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [organizedGroups, setOrganizedGroups] = useState({
+    groups: {},
+    summary: {},
+  });
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
-  const [sortBy, setSortBy] = useState('groupNumber'); // 'groupNumber', 'memberCount', 'name'
+  const [sortBy, setSortBy] = useState("groupNumber"); // 'groupNumber', 'memberCount', 'name'
   const [termId, setTermId] = useState(null);
-  
+
   // Drag and drop state
   const [isDragInProgress, setIsDragInProgress] = useState(false);
   const [draggingMemberId, setDraggingMemberId] = useState(null);
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
   const [toastMessage, setToastMessage] = useState(null); // Success/error messages
-  
+
   // Ref to track toast timeout for cleanup
   const toastTimeoutRef = useRef(null);
-  
+
   // Ref to track component mount status for async operations
   const isMountedRef = useRef(true);
 
@@ -98,58 +137,73 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   // Cache parsed sections data to avoid JSON.parse on every drag operation
   const sectionsCache = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem('viking_sections_offline') || '[]');
+      return JSON.parse(
+        localStorage.getItem("viking_sections_offline") || "[]",
+      );
     } catch (error) {
-      logger.error('Could not parse sections cache', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error(
+        "Could not parse sections cache",
+        { error: error.message },
+        LOG_CATEGORIES.ERROR,
+      );
       return [];
     }
   }, []); // Parse once per component mount
 
   // Use custom hook to extract FlexiRecord context for drag-and-drop operations
   const flexiRecordContext = useFlexiRecordContext(
-    organizedGroups.campGroupData, 
-    events, 
-    sectionsCache, 
+    organizedGroups.campGroupData,
+    events,
+    sectionsCache,
     termId,
   );
 
   // Load camp groups data on mount
   useEffect(() => {
     const abortController = new AbortController();
-    
+
     const loadCampGroups = async () => {
       // Check if component is still mounted
       if (abortController.signal.aborted) return;
-      
+
       setLoading(true);
       setError(null);
 
       try {
         if (!events || events.length === 0) {
-          throw new Error('No events provided for camp groups view');
+          throw new Error("No events provided for camp groups view");
         }
 
-        logger.info('Loading camp groups for events', {
-          totalEvents: events.length,
-          totalAttendees: attendees.length,
-          totalMembers: members.length,
-        }, LOG_CATEGORIES.APP);
+        logger.info(
+          "Loading camp groups for events",
+          {
+            totalEvents: events.length,
+            totalAttendees: attendees.length,
+            totalMembers: members.length,
+          },
+          LOG_CATEGORIES.APP,
+        );
 
         const token = getToken();
-        
+
         // Check abort signal before async operations
         if (abortController.signal.aborted) return;
-        
+
         // Get termId from events or fetch most recent for first section
         let currentTermId = events[0]?.termid;
         if (!currentTermId) {
-          currentTermId = await fetchMostRecentTermId(events[0]?.sectionid, token);
+          currentTermId = await fetchMostRecentTermId(
+            events[0]?.sectionid,
+            token,
+          );
         }
 
         if (abortController.signal.aborted) return;
 
         if (!currentTermId) {
-          throw new Error('No term ID available - camp groups require term context');
+          throw new Error(
+            "No term ID available - camp groups require term context",
+          );
         }
 
         // Set termId in state for the hook to use
@@ -157,7 +211,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
         // Load camp groups for all sections involved in events (events contain their own termIds)
         const campGroups = await getVikingEventDataForEvents(events, token);
-        
+
         // Check abort signal before setting state
         if (abortController.signal.aborted) return;
 
@@ -176,41 +230,56 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           }
         });
 
-        logger.info('Camp groups data loaded', {
-          totalSections: campGroups.size,
-          sectionsWithCampGroups: sectionsWithCampGroups.length,
-          hasPrimaryCampGroups: !!primaryCampGroupData,
-        }, LOG_CATEGORIES.APP);
+        logger.info(
+          "Camp groups data loaded",
+          {
+            totalSections: campGroups.size,
+            sectionsWithCampGroups: sectionsWithCampGroups.length,
+            hasPrimaryCampGroups: !!primaryCampGroupData,
+          },
+          LOG_CATEGORIES.APP,
+        );
 
         // Organize members by camp groups
-        const organized = organizeMembersByCampGroups(attendees, members, primaryCampGroupData);
-        
+        const organized = organizeMembersByCampGroups(
+          attendees,
+          members,
+          primaryCampGroupData,
+        );
+
         // Store the primary camp group data for on-demand FlexiRecord context creation
         organized.campGroupData = primaryCampGroupData;
-        
+
         // Final check before setting state
         if (abortController.signal.aborted) return;
-        
+
         setOrganizedGroups(organized);
 
         // FlexiRecord context is now handled by the useFlexiRecordContext hook
 
-        logger.info('Successfully organized members by camp groups', {
-          totalGroups: organized.summary.totalGroups,
-          totalMembers: organized.summary.totalMembers,
-          hasUnassigned: organized.summary.hasUnassigned,
-        }, LOG_CATEGORIES.APP);
-
+        logger.info(
+          "Successfully organized members by camp groups",
+          {
+            totalGroups: organized.summary.totalGroups,
+            totalMembers: organized.summary.totalMembers,
+            hasUnassigned: organized.summary.hasUnassigned,
+          },
+          LOG_CATEGORIES.APP,
+        );
       } catch (err) {
         // Don't set error state if component was unmounted
         if (abortController.signal.aborted) return;
-        
-        logger.error('Error loading camp groups', {
-          error: err.message,
-          eventsCount: events.length,
-          attendeesCount: attendees.length,
-          stack: err.stack,
-        }, LOG_CATEGORIES.ERROR);
+
+        logger.error(
+          "Error loading camp groups",
+          {
+            error: err.message,
+            eventsCount: events.length,
+            attendeesCount: attendees.length,
+            stack: err.stack,
+          },
+          LOG_CATEGORIES.ERROR,
+        );
 
         setError(err.message);
         if (onError) {
@@ -225,7 +294,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     };
 
     loadCampGroups();
-    
+
     // Cleanup function to abort async operations when component unmounts
     return () => {
       abortController.abort();
@@ -259,19 +328,23 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   const handleDragStart = useCallback((dragData) => {
     setIsDragInProgress(true);
     setDraggingMemberId(dragData.memberId);
-    
-    logger.debug('Drag operation started', {
-      memberId: dragData.memberId,
-      memberName: dragData.memberName,
-      fromGroup: dragData.fromGroupName,
-    }, LOG_CATEGORIES.APP);
+
+    logger.debug(
+      "Drag operation started",
+      {
+        memberId: dragData.memberId,
+        memberName: dragData.memberName,
+        fromGroup: dragData.fromGroupName,
+      },
+      LOG_CATEGORIES.APP,
+    );
   }, []);
 
   const handleDragEnd = useCallback(() => {
     setIsDragInProgress(false);
     setDraggingMemberId(null);
-    
-    logger.debug('Drag operation ended', {}, LOG_CATEGORIES.APP);
+
+    logger.debug("Drag operation ended", {}, LOG_CATEGORIES.APP);
   }, []);
 
   // Show toast message temporarily
@@ -280,7 +353,7 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
-    
+
     setToastMessage({ type, message, id: Date.now() });
     toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 4000);
   }, []);
@@ -291,288 +364,379 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
   }, []);
 
   // Helper function to recalculate summary statistics from groups
-  const recalculateSummary = useCallback((groups) => {
-    const groupsArray = Object.values(groups);
-    return {
-      totalGroups: groupsArray.length,
-      totalMembers: groupsArray.reduce((sum, group) => sum + ((group.youngPeople?.length || 0) + (group.leaders?.length || 0)), 0),
-      totalLeaders: groupsArray.reduce((sum, group) => sum + (group.leaders?.length || 0), 0),
-      totalYoungPeople: groupsArray.reduce((sum, group) => sum + (group.youngPeople?.length || 0), 0),
-      hasUnassigned: ((groups['Group Unassigned']?.totalMembers || 0) > 0),
-      vikingEventDataAvailable: organizedGroups.summary?.vikingEventDataAvailable || false,
-    };
-  }, [organizedGroups.summary?.vikingEventDataAvailable]);
+  const recalculateSummary = useCallback(
+    (groups) => {
+      const groupsArray = Object.values(groups);
+      return {
+        totalGroups: groupsArray.length,
+        totalMembers: groupsArray.reduce(
+          (sum, group) =>
+            sum +
+            ((group.youngPeople?.length || 0) + (group.leaders?.length || 0)),
+          0,
+        ),
+        totalLeaders: groupsArray.reduce(
+          (sum, group) => sum + (group.leaders?.length || 0),
+          0,
+        ),
+        totalYoungPeople: groupsArray.reduce(
+          (sum, group) => sum + (group.youngPeople?.length || 0),
+          0,
+        ),
+        hasUnassigned: (groups["Group Unassigned"]?.totalMembers || 0) > 0,
+        vikingEventDataAvailable:
+          organizedGroups.summary?.vikingEventDataAvailable || false,
+      };
+    },
+    [organizedGroups.summary?.vikingEventDataAvailable],
+  );
 
   // Optimistically update groups in local state
-  const updateGroupsOptimistically = useCallback((moveData) => {
-    setOrganizedGroups(prevGroups => {
-      const newGroups = { ...prevGroups };
-      const groups = { ...newGroups.groups };
-      
-      // Remove member from source group
-      const fromGroup = groups[moveData.fromGroupName];
-      if (fromGroup) {
-        groups[moveData.fromGroupName] = {
-          ...fromGroup,
-          youngPeople: fromGroup.youngPeople.filter(
-            member => member.scoutid !== moveData.member.scoutid,
-          ),
-        };
-        groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(groups[moveData.fromGroupName]);
-      }
-      
-      // Add member to target group
-      const toGroup = groups[moveData.toGroupName];
-      if (toGroup) {
-        groups[moveData.toGroupName] = {
-          ...toGroup,
-          youngPeople: [...toGroup.youngPeople, moveData.member],
-        };
-        groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
-      }
-      
-      // Update groups and recalculate summary
-      newGroups.groups = groups;
-      newGroups.summary = recalculateSummary(groups);
-      
-      return newGroups;
-    });
-  }, [calculateTotalMembers, recalculateSummary]);
+  const updateGroupsOptimistically = useCallback(
+    (moveData) => {
+      setOrganizedGroups((prevGroups) => {
+        const newGroups = { ...prevGroups };
+        const groups = { ...newGroups.groups };
+
+        // Remove member from source group
+        const fromGroup = groups[moveData.fromGroupName];
+        if (fromGroup) {
+          groups[moveData.fromGroupName] = {
+            ...fromGroup,
+            youngPeople: fromGroup.youngPeople.filter(
+              (member) => member.scoutid !== moveData.member.scoutid,
+            ),
+          };
+          groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(
+            groups[moveData.fromGroupName],
+          );
+        }
+
+        // Add member to target group
+        const toGroup = groups[moveData.toGroupName];
+        if (toGroup) {
+          groups[moveData.toGroupName] = {
+            ...toGroup,
+            youngPeople: [...toGroup.youngPeople, moveData.member],
+          };
+          groups[moveData.toGroupName].totalMembers = calculateTotalMembers(
+            groups[moveData.toGroupName],
+          );
+        }
+
+        // Update groups and recalculate summary
+        newGroups.groups = groups;
+        newGroups.summary = recalculateSummary(groups);
+
+        return newGroups;
+      });
+    },
+    [calculateTotalMembers, recalculateSummary],
+  );
 
   // Revert optimistic update on error
-  const revertOptimisticUpdate = useCallback((moveData) => {
-    setOrganizedGroups(prevGroups => {
-      const newGroups = { ...prevGroups };
-      const groups = { ...newGroups.groups };
-      
-      // Add member back to source group
-      const fromGroup = groups[moveData.fromGroupName];
-      if (fromGroup) {
-        groups[moveData.fromGroupName] = {
-          ...fromGroup,
-          youngPeople: [...fromGroup.youngPeople, moveData.member],
-        };
-        groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(groups[moveData.fromGroupName]);
-      }
-      
-      // Remove member from target group
-      const toGroup = groups[moveData.toGroupName];
-      if (toGroup) {
-        groups[moveData.toGroupName] = {
-          ...toGroup,
-          youngPeople: toGroup.youngPeople.filter(
-            member => member.scoutid !== moveData.member.scoutid,
-          ),
-        };
-        groups[moveData.toGroupName].totalMembers = calculateTotalMembers(groups[moveData.toGroupName]);
-      }
-      
-      // Update groups and recalculate summary
-      newGroups.groups = groups;
-      newGroups.summary = recalculateSummary(groups);
-      
-      return newGroups;
-    });
-  }, [calculateTotalMembers, recalculateSummary]);
+  const revertOptimisticUpdate = useCallback(
+    (moveData) => {
+      setOrganizedGroups((prevGroups) => {
+        const newGroups = { ...prevGroups };
+        const groups = { ...newGroups.groups };
+
+        // Add member back to source group
+        const fromGroup = groups[moveData.fromGroupName];
+        if (fromGroup) {
+          groups[moveData.fromGroupName] = {
+            ...fromGroup,
+            youngPeople: [...fromGroup.youngPeople, moveData.member],
+          };
+          groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(
+            groups[moveData.fromGroupName],
+          );
+        }
+
+        // Remove member from target group
+        const toGroup = groups[moveData.toGroupName];
+        if (toGroup) {
+          groups[moveData.toGroupName] = {
+            ...toGroup,
+            youngPeople: toGroup.youngPeople.filter(
+              (member) => member.scoutid !== moveData.member.scoutid,
+            ),
+          };
+          groups[moveData.toGroupName].totalMembers = calculateTotalMembers(
+            groups[moveData.toGroupName],
+          );
+        }
+
+        // Update groups and recalculate summary
+        newGroups.groups = groups;
+        newGroups.summary = recalculateSummary(groups);
+
+        return newGroups;
+      });
+    },
+    [calculateTotalMembers, recalculateSummary],
+  );
 
   // Handle member move between groups
-  const handleMemberMove = useCallback(async (moveData) => {
-    if (!flexiRecordContext && !organizedGroups.summary?.vikingEventDataAvailable) {
-      showToast('error', 'Cannot move members: FlexiRecord data not available');
-      return;
-    }
+  const handleMemberMove = useCallback(
+    async (moveData) => {
+      if (
+        !flexiRecordContext &&
+        !organizedGroups.summary?.vikingEventDataAvailable
+      ) {
+        showToast(
+          "error",
+          "Cannot move members: FlexiRecord data not available",
+        );
+        return;
+      }
 
-    // Validate the move
-    const validation = validateMemberMove(moveData.member, moveData.toGroupNumber, organizedGroups.groups);
-    if (!validation.valid) {
-      showToast('error', validation.error);
-      return;
-    }
-
-    const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
-    
-    // Get the correct section type for THIS specific member
-    let memberSectionType = null;
-    const memberSectionId = moveData.member.sectionid;
-    
-    const memberSectionInfo = sectionsCache.find(s => 
-      s.sectionid === memberSectionId || s.sectionid === String(memberSectionId),
-    );
-    memberSectionType = memberSectionInfo?.section || null;
-    
-    if (!memberSectionType) {
-      showToast('error', `Cannot move ${memberName}: member section type not found`);
-      return;
-    }
-    
-    // Create member-specific FlexiRecord context
-    let memberFlexiRecordContext = null;
-    
-    if (flexiRecordContext) {
-      // Use existing context but update section info for this specific member
-      memberFlexiRecordContext = {
-        ...flexiRecordContext,
-        section: memberSectionType, // Use the member's section type, not the first event's
-        sectionid: memberSectionId, // Use the member's section ID
-      };
-    } else if (organizedGroups.summary?.vikingEventDataAvailable && organizedGroups.campGroupData) {
-      // Extract context on-demand from the stored camp group data
-      const vikingEventData = organizedGroups.campGroupData;
-      // The termId should be available in the structure or the first item
-      const termId = vikingEventData._structure?.termid || vikingEventData.items?.[0]?.termid;
-      
-      memberFlexiRecordContext = extractFlexiRecordContext(
-        vikingEventData,
-        memberSectionId,
-        termId,
-        memberSectionType,
+      // Validate the move
+      const validation = validateMemberMove(
+        moveData.member,
+        moveData.toGroupNumber,
+        organizedGroups.groups,
       );
-    }
-    
-    if (!memberFlexiRecordContext) {
-      showToast('error', `Cannot move ${memberName}: Unable to create FlexiRecord context`);
-      return;
-    }
-    
-    logger.info('Processing member move (immediate OSM sync + cache update)', {
-      memberId: moveData.member.scoutid,
-      memberName,
-      fromGroup: moveData.fromGroupName,
-      toGroup: moveData.toGroupName,
-      memberSectionId,
-      memberSectionType,
-    }, LOG_CATEGORIES.APP);
+      if (!validation.valid) {
+        showToast("error", validation.error);
+        return;
+      }
 
-    // 1. Optimistic UI update
-    updateGroupsOptimistically(moveData);
-    
-    // 2. Track pending move for API sync
-    const moveId = `${moveData.member.scoutid}_${Date.now()}`;
-    setPendingMoves(prev => {
-      const next = new Map(prev);
-      next.set(moveId, {
-        ...moveData,
-        memberFlexiRecordContext,
-        timestamp: Date.now(),
-      });
-      return next;
-    });
+      const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
 
-    try {
-      // 3. Sync to OSM immediately (so other users see the update)
-      const result = await assignMemberToCampGroup(moveData, memberFlexiRecordContext, getToken());
-      
-      if (result.success) {
-        // 4. Update local FlexiRecord cache after successful OSM sync
-        const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
-        let cachedData = {};
-        try {
-          cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-        } catch (error) {
-          logger.warn('Failed to parse cached FlexiRecord data, using empty object', {
-            cacheKey,
-            error: error.message,
-          }, LOG_CATEGORIES.ERROR);
-          cachedData = {};
-        }
-        
-        if (cachedData.items) {
-          const memberItemIndex = cachedData.items.findIndex(item => item.scoutid === moveData.member.scoutid);
-          if (memberItemIndex !== -1) {
-            // Create new member item with updated values (immutable update)
-            const updatedMemberItem = {
-              ...cachedData.items[memberItemIndex],
-              [memberFlexiRecordContext.columnid]: moveData.toGroupNumber,
-              CampGroup: moveData.toGroupNumber,
-            };
-            
-            // Create new items array with updated member item
-            const updatedItems = [...cachedData.items];
-            updatedItems[memberItemIndex] = updatedMemberItem;
-            
-            // Create new cache data object
-            const updatedCacheData = {
-              ...cachedData,
-              items: updatedItems,
-            };
-            
-            localStorage.setItem(cacheKey, JSON.stringify(updatedCacheData));
-            
-            logger.debug('Updated local FlexiRecord cache after OSM sync', {
-              memberId: moveData.member.scoutid,
-              newGroup: moveData.toGroupNumber,
-              cacheKey,
-            }, LOG_CATEGORIES.APP);
-          }
-        }
-        
-        // 5. Update the member object in the current data (immutable update)
-        // Note: This updates the original member object reference used throughout the component
-        // The member object is already being updated immutably in the optimistic update functions
-        // This ensures consistency across all references to this member
-        
-        // 6. Show success message
-        showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
-        
-        // 7. Remove from pending moves (always do this for successful operations)
-        setPendingMoves(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(moveId);
-          return newMap;
-        });
-        
-        // Always clear drag states to remove grey highlighting from moved member
-        setIsDragInProgress(false);
-        setDraggingMemberId(null);
-        
-        logger.info('Member move completed successfully - OSM updated and cache refreshed', {
+      // Get the correct section type for THIS specific member
+      let memberSectionType = null;
+      const memberSectionId = moveData.member.sectionid;
+
+      const memberSectionInfo = sectionsCache.find(
+        (s) =>
+          s.sectionid === memberSectionId ||
+          s.sectionid === String(memberSectionId),
+      );
+      memberSectionType = memberSectionInfo?.section || null;
+
+      if (!memberSectionType) {
+        showToast(
+          "error",
+          `Cannot move ${memberName}: member section type not found`,
+        );
+        return;
+      }
+
+      // Create member-specific FlexiRecord context
+      let memberFlexiRecordContext = null;
+
+      if (flexiRecordContext) {
+        // Use existing context but update section info for this specific member
+        memberFlexiRecordContext = {
+          ...flexiRecordContext,
+          section: memberSectionType, // Use the member's section type, not the first event's
+          sectionid: memberSectionId, // Use the member's section ID
+        };
+      } else if (
+        organizedGroups.summary?.vikingEventDataAvailable &&
+        organizedGroups.campGroupData
+      ) {
+        // Extract context on-demand from the stored camp group data
+        const vikingEventData = organizedGroups.campGroupData;
+        // The termId should be available in the structure or the first item
+        const termId =
+          vikingEventData._structure?.termid ||
+          vikingEventData.items?.[0]?.termid;
+
+        memberFlexiRecordContext = extractFlexiRecordContext(
+          vikingEventData,
+          memberSectionId,
+          termId,
+          memberSectionType,
+        );
+      }
+
+      if (!memberFlexiRecordContext) {
+        showToast(
+          "error",
+          `Cannot move ${memberName}: Unable to create FlexiRecord context`,
+        );
+        return;
+      }
+
+      logger.info(
+        "Processing member move (immediate OSM sync + cache update)",
+        {
           memberId: moveData.member.scoutid,
           memberName,
           fromGroup: moveData.fromGroupName,
           toGroup: moveData.toGroupName,
-          duration: result.duration,
-        }, LOG_CATEGORIES.APP);
-        
-      } else {
-        throw new Error(result.error);
-      }
-      
-    } catch (error) {
-      // Error syncing to OSM - revert UI change and show error
-      logger.error('Failed to sync member move to OSM', {
-        memberId: moveData.member.scoutid,
-        memberName,
-        error: error.message,
-      }, LOG_CATEGORIES.ERROR);
-      
-      // Only update state if component is still mounted
-      if (isMountedRef.current) {
-        setPendingMoves(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(moveId);
-          return newMap;
+          memberSectionId,
+          memberSectionType,
+        },
+        LOG_CATEGORIES.APP,
+      );
+
+      // 1. Optimistic UI update
+      updateGroupsOptimistically(moveData);
+
+      // 2. Track pending move for API sync
+      const moveId = `${moveData.member.scoutid}_${Date.now()}`;
+      setPendingMoves((prev) => {
+        const next = new Map(prev);
+        next.set(moveId, {
+          ...moveData,
+          memberFlexiRecordContext,
+          timestamp: Date.now(),
         });
-        
-        // Always clear drag states on error to remove grey highlighting
-        setIsDragInProgress(false);
-        setDraggingMemberId(null);
-        
-        revertOptimisticUpdate(moveData);
-        showToast('error', `Failed to move ${memberName}: ${error.message}`);
+        return next;
+      });
+
+      try {
+        // 3. Sync to OSM immediately (so other users see the update)
+        const result = await assignMemberToCampGroup(
+          moveData,
+          memberFlexiRecordContext,
+          getToken(),
+        );
+
+        if (result.success) {
+          // 4. Update local FlexiRecord cache after successful OSM sync
+          const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
+          let cachedData = {};
+          try {
+            cachedData = JSON.parse(localStorage.getItem(cacheKey) || "{}");
+          } catch (error) {
+            logger.warn(
+              "Failed to parse cached FlexiRecord data, using empty object",
+              {
+                cacheKey,
+                error: error.message,
+              },
+              LOG_CATEGORIES.ERROR,
+            );
+            cachedData = {};
+          }
+
+          if (cachedData.items) {
+            const memberItemIndex = cachedData.items.findIndex(
+              (item) => item.scoutid === moveData.member.scoutid,
+            );
+            if (memberItemIndex !== -1) {
+              // Create new member item with updated values (immutable update)
+              const updatedMemberItem = {
+                ...cachedData.items[memberItemIndex],
+                [memberFlexiRecordContext.columnid]: moveData.toGroupNumber,
+                CampGroup: moveData.toGroupNumber,
+              };
+
+              // Create new items array with updated member item
+              const updatedItems = [...cachedData.items];
+              updatedItems[memberItemIndex] = updatedMemberItem;
+
+              // Create new cache data object
+              const updatedCacheData = {
+                ...cachedData,
+                items: updatedItems,
+              };
+
+              localStorage.setItem(cacheKey, JSON.stringify(updatedCacheData));
+
+              logger.debug(
+                "Updated local FlexiRecord cache after OSM sync",
+                {
+                  memberId: moveData.member.scoutid,
+                  newGroup: moveData.toGroupNumber,
+                  cacheKey,
+                },
+                LOG_CATEGORIES.APP,
+              );
+            }
+          }
+
+          // 5. Update the member object in the current data (immutable update)
+          // Note: This updates the original member object reference used throughout the component
+          // The member object is already being updated immutably in the optimistic update functions
+          // This ensures consistency across all references to this member
+
+          // 6. Show success message
+          showToast(
+            "success",
+            `${memberName} moved to ${moveData.toGroupName}`,
+          );
+
+          // 7. Remove from pending moves (always do this for successful operations)
+          setPendingMoves((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(moveId);
+            return newMap;
+          });
+
+          // Always clear drag states to remove grey highlighting from moved member
+          setIsDragInProgress(false);
+          setDraggingMemberId(null);
+
+          logger.info(
+            "Member move completed successfully - OSM updated and cache refreshed",
+            {
+              memberId: moveData.member.scoutid,
+              memberName,
+              fromGroup: moveData.fromGroupName,
+              toGroup: moveData.toGroupName,
+              duration: result.duration,
+            },
+            LOG_CATEGORIES.APP,
+          );
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        // Error syncing to OSM - revert UI change and show error
+        logger.error(
+          "Failed to sync member move to OSM",
+          {
+            memberId: moveData.member.scoutid,
+            memberName,
+            error: error.message,
+          },
+          LOG_CATEGORIES.ERROR,
+        );
+
+        // Only update state if component is still mounted
+        if (isMountedRef.current) {
+          setPendingMoves((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(moveId);
+            return newMap;
+          });
+
+          // Always clear drag states on error to remove grey highlighting
+          setIsDragInProgress(false);
+          setDraggingMemberId(null);
+
+          revertOptimisticUpdate(moveData);
+          showToast("error", `Failed to move ${memberName}: ${error.message}`);
+        }
       }
-    }
-  }, [flexiRecordContext, organizedGroups.groups, organizedGroups.campGroupData, organizedGroups.summary?.vikingEventDataAvailable, updateGroupsOptimistically, revertOptimisticUpdate, showToast, sectionsCache]);
+    },
+    [
+      flexiRecordContext,
+      organizedGroups.groups,
+      organizedGroups.campGroupData,
+      organizedGroups.summary?.vikingEventDataAvailable,
+      updateGroupsOptimistically,
+      revertOptimisticUpdate,
+      showToast,
+      sectionsCache,
+    ],
+  );
 
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
     const groupsArray = Object.values(organizedGroups.groups || {});
 
     // Filter by search term (group name or member names)
-    const filtered = groupsArray.filter(group => {
+    const filtered = groupsArray.filter((group) => {
       if (!searchTerm) return true;
 
       const searchLower = searchTerm.toLowerCase();
-      
+
       // Search in group name
       if (group.name.toLowerCase().includes(searchLower)) {
         return true;
@@ -580,8 +744,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
       // Search in member names
       const allMembers = [...group.leaders, ...group.youngPeople];
-      return allMembers.some(member => {
-        const fullName = `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
+      return allMembers.some((member) => {
+        const fullName =
+          `${member.firstname || ""} ${member.lastname || ""}`.toLowerCase();
         return fullName.includes(searchLower);
       });
     });
@@ -589,20 +754,20 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
     // Sort groups
     filtered.sort((a, b) => {
       switch (sortBy) {
-      case 'memberCount':
-        return b.totalMembers - a.totalMembers;
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'groupNumber':
-      default: {
-        // Unassigned goes last, otherwise sort by number
-        if (a.name === 'Group Unassigned') return 1;
-        if (b.name === 'Group Unassigned') return -1;
-          
-        const aNum = parseInt(a.number) || 0;
-        const bNum = parseInt(b.number) || 0;
-        return aNum - bNum;
-      }
+        case "memberCount":
+          return b.totalMembers - a.totalMembers;
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "groupNumber":
+        default: {
+          // Unassigned goes last, otherwise sort by number
+          if (a.name === "Group Unassigned") return 1;
+          if (b.name === "Group Unassigned") return -1;
+
+          const aNum = parseInt(a.number) || 0;
+          const bNum = parseInt(b.number) || 0;
+          return aNum - bNum;
+        }
       }
     });
 
@@ -619,9 +784,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
         <Alert.Title>Error Loading Camp Groups</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button 
-            variant="scout-blue" 
-            onClick={() => window.location.reload()} 
+          <Button
+            variant="scout-blue"
+            onClick={() => window.location.reload()}
             type="button"
           >
             Retry
@@ -661,15 +826,19 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
           <Alert variant="warning" className="mb-4">
             <Alert.Title>No Viking Event Management Data</Alert.Title>
             <Alert.Description>
-              No &quot;Viking Event Mgmt&quot; flexirecord found for the sections involved in these events. 
-              All members will be shown in the &quot;Unassigned&quot; group.
+              No &quot;Viking Event Mgmt&quot; flexirecord found for the
+              sections involved in these events. All members will be shown in
+              the &quot;Unassigned&quot; group.
               {!flexiRecordContext && (
-                <><br /><strong>Note:</strong> Drag and drop functionality is not available without FlexiRecord data.</>
+                <>
+                  <br />
+                  <strong>Note:</strong> Drag and drop functionality is not
+                  available without FlexiRecord data.
+                </>
               )}
             </Alert.Description>
           </Alert>
         )}
-
       </div>
 
       {/* Search and sort controls */}
@@ -682,28 +851,28 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
             className="w-full"
           />
         </div>
-        
+
         <div className="flex gap-2">
           <Button
-            variant={sortBy === 'groupNumber' ? 'scout-blue' : 'outline'}
+            variant={sortBy === "groupNumber" ? "scout-blue" : "outline"}
             size="sm"
-            onClick={() => setSortBy('groupNumber')}
+            onClick={() => setSortBy("groupNumber")}
             type="button"
           >
             By Group #
           </Button>
           <Button
-            variant={sortBy === 'memberCount' ? 'scout-blue' : 'outline'}
+            variant={sortBy === "memberCount" ? "scout-blue" : "outline"}
             size="sm"
-            onClick={() => setSortBy('memberCount')}
+            onClick={() => setSortBy("memberCount")}
             type="button"
           >
             By Size
           </Button>
           <Button
-            variant={sortBy === 'name' ? 'scout-blue' : 'outline'}
+            variant={sortBy === "name" ? "scout-blue" : "outline"}
             size="sm"
-            onClick={() => setSortBy('name')}
+            onClick={() => setSortBy("name")}
             type="button"
           >
             By Name
@@ -714,20 +883,36 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       {/* Groups grid */}
       {filteredAndSortedGroups.length === 0 ? (
         <div className="text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400 mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"
+            />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Groups Found</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No Groups Found
+          </h3>
           <p className="text-gray-600">
-            {searchTerm ? 'Try adjusting your search terms.' : 'No camp groups available for these events.'}
+            {searchTerm
+              ? "Try adjusting your search terms."
+              : "No camp groups available for these events."}
           </p>
         </div>
       ) : (
-        <div className={`grid gap-6 ${
-          isMobile 
-            ? 'grid-cols-1' 
-            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-        }`}>
+        <div
+          className={`grid gap-6 ${
+            isMobile
+              ? "grid-cols-1"
+              : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          }`}
+        >
           {filteredAndSortedGroups.map((group) => (
             <CampGroupCard
               key={group.name}
@@ -738,7 +923,9 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
               onDragEnd={handleDragEnd}
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
-              dragDisabled={!summary.vikingEventDataAvailable || !flexiRecordContext}
+              dragDisabled={
+                !summary.vikingEventDataAvailable || !flexiRecordContext
+              }
               className="h-fit"
             />
           ))}
@@ -747,19 +934,37 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className={`
+        <div
+          className={`
           fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300
-          ${toastMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
-          ${toastMessage.type === 'error' ? 'border-l-4 border-red-700' : 'border-l-4 border-green-700'}
-        `}>
+          ${toastMessage.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}
+          ${toastMessage.type === "error" ? "border-l-4 border-red-700" : "border-l-4 border-green-700"}
+        `}
+        >
           <div className="flex items-center">
-            {toastMessage.type === 'success' ? (
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            {toastMessage.type === "success" ? (
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
               </svg>
             ) : (
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
             )}
             <span className="text-sm font-medium">{toastMessage.message}</span>
@@ -771,19 +976,36 @@ function CampGroupsView({ events = [], attendees = [], members = [], onError }) 
       {pendingMoves.size > 0 && (
         <div className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg">
           <div className="flex items-center">
-            <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <svg
+              className="animate-spin w-4 h-4 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
             </svg>
             <span className="text-sm font-medium">
-              Syncing {pendingMoves.size} member {pendingMoves.size === 1 ? 'move' : 'moves'} to OSM...
+              Syncing {pendingMoves.size} member{" "}
+              {pendingMoves.size === 1 ? "move" : "moves"} to OSM...
             </span>
           </div>
         </div>
       )}
 
       {/* Member Detail Modal */}
-      <MemberDetailModal 
+      <MemberDetailModal
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}

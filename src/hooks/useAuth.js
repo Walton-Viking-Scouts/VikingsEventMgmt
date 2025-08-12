@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
 import authService from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import databaseService from '../services/database.js';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -10,6 +11,34 @@ export function useAuth() {
   const [user, setUser] = useState(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [authState, setAuthState] = useState('no_data'); // New: enhanced auth state
+  const [lastSyncTime, setLastSyncTime] = useState(null); // New: track last sync
+
+  // Helper function to determine auth state based on cached data and tokens
+  const determineAuthState = useCallback(async (isAuth, isOffline) => {
+    try {
+      // Check if we have any cached data
+      const cachedSections = await databaseService.getSections();
+      const hasCachedData = cachedSections && cachedSections.length > 0;
+      
+      // Get last sync time from cache
+      const lastSync = localStorage.getItem('last_sync_time');
+      setLastSyncTime(lastSync);
+      
+      if (isAuth && !isOffline) {
+        return 'authenticated';
+      } else if (isAuth && isOffline) {
+        return 'token_expired';
+      } else if (hasCachedData) {
+        return 'cached_only';
+      } else {
+        return 'no_data';
+      }
+    } catch (error) {
+      logger.warn('Error determining auth state', { error: error.message }, LOG_CATEGORIES.ERROR);
+      return isAuth ? 'authenticated' : 'no_data';
+    }
+  }, []);
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
@@ -181,10 +210,17 @@ export function useAuth() {
         setIsAuthenticated(false);
         setUser(null);
       }
+      
+      // Determine and set the enhanced auth state
+      const currentHasToken = authService.isAuthenticated();
+      const newAuthState = await determineAuthState(currentHasToken, sessionStorage.getItem('token_expired') === 'true');
+      setAuthState(newAuthState);
+      
     } catch (error) {
       logger.error('Error checking authentication', { error: error.message }, LOG_CATEGORIES.ERROR);
       setIsAuthenticated(false);
       setUser(null);
+      setAuthState('no_data'); // Fallback to no_data state on error
       
       // Log authentication error
       Sentry.captureException(error, {
@@ -200,7 +236,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [determineAuthState]);
 
   // Login function
   const login = useCallback(() => {
@@ -246,7 +282,7 @@ export function useAuth() {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [checkAuth]);
+  }, [checkAuth, determineAuthState]);
 
   return {
     isAuthenticated,
@@ -254,6 +290,8 @@ export function useAuth() {
     user,
     isBlocked,
     isOfflineMode,
+    authState,        // New: enhanced auth state
+    lastSyncTime,     // New: last sync timestamp
     login,
     logout,
     setToken,
