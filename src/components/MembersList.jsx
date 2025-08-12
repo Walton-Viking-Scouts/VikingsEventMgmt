@@ -12,7 +12,13 @@ import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { isMobileLayout } from '../utils/platform.js';
 
-function MembersList({ sections, members: propsMembers, onBack }) {
+function MembersList({ 
+  sections, 
+  members: propsMembers, 
+  onBack,
+  embedded = false,
+  showHeader = true,
+}) {
   const [members, setMembers] = useState(propsMembers || []);
   const [loading, setLoading] = useState(!propsMembers);
   const [error, setError] = useState(null);
@@ -292,45 +298,49 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">
-            Members ({filteredAndSortedMembers.length})
-          </h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Members from selected sections:{' '}
-            {sections.map((s) => s.sectionname).join(', ')}
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
-          <Button
-            variant="outline"
-            onClick={exportToCSV}
-            disabled={filteredAndSortedMembers.length === 0}
-            type="button"
-          >
-            <svg
-              className="w-4 h-4 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className={embedded ? '' : 'px-4 sm:px-6 lg:px-8'}>
+      {/* Header - only show if not embedded */}
+      {showHeader && (
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-xl font-semibold text-gray-900">
+              Members ({filteredAndSortedMembers.length})
+            </h1>
+            <p className="mt-2 text-sm text-gray-700">
+              Members from selected sections:{' '}
+              {sections.map((s) => s.sectionname).join(', ')}
+            </p>
+          </div>
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={filteredAndSortedMembers.length === 0}
+              type="button"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Export CSV
-          </Button>
-          <Button variant="outline" onClick={onBack} type="button">
-            Back to Dashboard
-          </Button>
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Export CSV
+            </Button>
+            {onBack && (
+              <Button variant="outline" onClick={onBack} type="button">
+                Back to Dashboard
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Search and filters */}
       <div className="mt-6 flex flex-col sm:flex-row gap-4">

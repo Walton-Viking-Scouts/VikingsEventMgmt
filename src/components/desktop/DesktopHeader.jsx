@@ -25,7 +25,7 @@ function DesktopHeader({
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         <div className="flex items-center">
           <h1 className="text-2xl font-bold text-scout-blue">
-            Vikings Event Management
+            Viking Scouts (1st Walton on Thames)
           </h1>
         </div>
 

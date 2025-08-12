@@ -6,7 +6,6 @@ import BlockedScreen from './components/BlockedScreen.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
-import MembersList from './components/MembersList.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
@@ -26,26 +25,31 @@ function App() {
   } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Refresh function - triggers a data refresh via sync service
   const handleRefresh = async () => {
+    // Short-circuit when offline for better UX
+    if (isOfflineMode) {
+      addNotification('info', 'Refresh is unavailable while offline.');
+      return;
+    }
+    // Prevent concurrent refreshes
+    if (isRefreshing) return;
+    setIsRefreshing(true);
     try {
       // Import sync service dynamically to avoid circular dependencies
       const { default: syncService } = await import('./services/sync.js');
-      
       // Trigger comprehensive data sync
       await syncService.syncAll();
-      
       logger.info('Manual refresh completed successfully', {}, LOG_CATEGORIES.APP);
-      
       addNotification('success', 'Data refreshed successfully');
     } catch (error) {
-      logger.error('Manual refresh failed', {
-        error: error.message,
-        stack: error.stack,
-      }, LOG_CATEGORIES.ERROR);
-      
-      addNotification('error', `Refresh failed: ${error.message}`);
+      logger.error('Manual refresh failed', { error: error.message, stack: error.stack }, LOG_CATEGORIES.ERROR);
+      // Avoid leaking raw error messages to end users
+      addNotification('error', 'Refresh failed. Please try again.');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -72,31 +76,6 @@ function App() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const handleNavigateToMembers = async (section, members = null) => {
-    // If members are provided (from fresh API call), use them
-    // Otherwise, load cached members data for the selected section
-    let membersData = members;
-
-    if (!membersData) {
-      try {
-        membersData = await databaseService.getMembers([section.sectionid]);
-      } catch (error) {
-        logger.error(
-          'Error loading cached members',
-          { error: error.message, sectionId: section.sectionid },
-          LOG_CATEGORIES.ERROR,
-        );
-        addNotification(
-          'error',
-          'Unable to load member data. Please try refreshing the page.',
-        );
-        membersData = [];
-      }
-    }
-
-    setNavigationData({ section, members: membersData });
-    setCurrentView('members');
-  };
 
   const handleNavigateToAttendance = async (events, members = null) => {
     // If members are provided (from fresh API call), use them
@@ -147,15 +126,6 @@ function App() {
 
   const renderCurrentView = () => {
     switch (currentView) {
-    case 'members':
-      return (
-        <MembersList
-          sections={navigationData.section ? [navigationData.section] : []}
-          members={navigationData.members || []} // Loaded from cache
-          onBack={handleBackToDashboard}
-          data-oid="xohl2s0"
-        />
-      );
 
     case 'attendance':
       return (
@@ -182,7 +152,6 @@ function App() {
     default:
       return (
         <EventDashboard
-          onNavigateToMembers={handleNavigateToMembers}
           onNavigateToAttendance={handleNavigateToAttendance}
           data-oid="zfo-c6t"
         />
@@ -209,6 +178,7 @@ function App() {
                 isOfflineMode={isOfflineMode}
                 authState={authState}
                 lastSyncTime={lastSyncTime}
+                isRefreshing={isRefreshing}
                 data-oid="2c61drc"
               >
                 <ErrorBoundary

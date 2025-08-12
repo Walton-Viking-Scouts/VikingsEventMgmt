@@ -11,7 +11,6 @@ import PropTypes from 'prop-types';
 function TokenCountdown({ authState, className = '' }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [displayText, setDisplayText] = useState('');
-  const [colorClass, setColorClass] = useState('text-gray-400');
 
   useEffect(() => {
     // Only show countdown when authenticated
@@ -36,7 +35,6 @@ function TokenCountdown({ authState, className = '' }) {
       if (msRemaining <= 0) {
         setTimeRemaining(0);
         setDisplayText('Expired');
-        setColorClass('text-red-400');
         return;
       }
 
@@ -50,20 +48,10 @@ function TokenCountdown({ authState, className = '' }) {
         const hoursRemaining = Math.floor(minutesRemaining / 60);
         const remainingMinutes = minutesRemaining % 60;
         setDisplayText(`${hoursRemaining}h ${remainingMinutes}m`);
-        setColorClass('text-green-400');
       } else if (minutesRemaining >= 1) {
         setDisplayText(`${minutesRemaining}m ${secondsRemaining}s`);
-        // Color coding based on remaining time
-        if (minutesRemaining > 15) {
-          setColorClass('text-green-400');
-        } else if (minutesRemaining > 5) {
-          setColorClass('text-yellow-400');
-        } else {
-          setColorClass('text-red-400');
-        }
       } else {
         setDisplayText(`${secondsRemaining}s`);
-        setColorClass('text-red-400');
       }
     };
 
@@ -82,7 +70,7 @@ function TokenCountdown({ authState, className = '' }) {
   }
 
   return (
-    <div className={`text-xs ${colorClass} ${className}`}>
+    <div className={`text-sm text-gray-600 ${className}`}>
       <span className="hidden sm:inline">Session: </span>
       <span>{displayText}</span>
     </div>

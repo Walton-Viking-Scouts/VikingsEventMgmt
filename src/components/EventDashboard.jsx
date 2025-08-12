@@ -10,7 +10,7 @@ import LoadingScreen from './LoadingScreen.jsx';
 import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
-import { Button, Alert } from './ui';
+import { Button, Alert, Card } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import {
@@ -35,6 +35,24 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
   const [isOfflineMode, setIsOfflineMode] = useState(false); // Track if we're in offline mode due to auth failure
+  
+  // Simple view toggle state
+  const [currentView, setCurrentView] = useState('events'); // 'events' or 'sections'
+  
+  // Section selection state for the Sections card
+  const [selectedSections, setSelectedSections] = useState([]);
+
+  // Handle section selection for the Sections card
+  const handleSectionToggleForCard = (section) => {
+    setSelectedSections(prev => {
+      const isSelected = prev.some(s => s.sectionid === section.sectionid);
+      if (isSelected) {
+        return prev.filter(s => s.sectionid !== section.sectionid);
+      } else {
+        return [...prev, section];
+      }
+    });
+  };
 
   // Modal state for confirmation dialogs
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -423,7 +441,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     return cards;
   };
 
-  const handleSectionSelect = async (section) => {
+  const _handleSectionSelect = async (section) => {
     try {
       // Set loading state for this specific section
       setLoadingSection(section.sectionid);
@@ -548,20 +566,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  const formatLastSync = (date) => {
-    if (!date) return 'Never';
-
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
 
   if (loading) {
     return <LoadingScreen message="Loading dashboard..." />;
@@ -588,37 +592,40 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Event Dashboard
-              </h1>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600">
-                  Last updated: {formatLastSync(lastSync)}
-                  {!lastSync && ' (Never synced)'}
-                  {isOfflineMode && (
-                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                      🔒 Offline Mode
-                    </span>
-                  )}
-                </p>
-                {(queueStats.processing || queueStats.queueLength > 0) && (
+              {/* Clean tab-style navigation */}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentView('events')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentView === 'events'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📅 Events
+                </button>
+                <button
+                  onClick={() => setCurrentView('sections')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentView === 'sections'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  👥 Sections
+                </button>
+              </div>
+              
+              {/* Show queue stats if active */}
+              {(queueStats.processing || queueStats.queueLength > 0) && (
+                <div className="mt-2">
                   <p className="text-xs text-blue-600">
                     API Queue: {queueStats.processing ? 'Processing' : 'Idle'} •
                     {queueStats.queueLength} pending •{' '}
                     {queueStats.totalRequests} total
                   </p>
-                )}
-                {isOfflineMode && (
-                  <p className="text-xs text-amber-600">
-                    🔒 Authentication expired - showing cached data only
-                  </p>
-                )}
-                {!lastSync && (
-                  <p className="text-xs text-amber-600">
-                    📡 No data cached - click Sync to load from OSM
-                  </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {isOfflineMode && (
@@ -650,63 +657,70 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Sections selector */}
-        <div className="mb-8" data-testid="sections-list">
-          <SectionsList
-            sections={sections}
-            selectedSections={[]} // No selection needed, just for display
-            onSectionToggle={handleSectionSelect}
-            showContinueButton={false}
-            loadingSection={loadingSection}
-          />
-        </div>
+        {/* Sections Card */}
+        {currentView === 'sections' && (
+          <div className="mb-8" data-testid="sections-list">
+            <SectionsList
+              sections={sections}
+              selectedSections={selectedSections}
+              onSectionToggle={handleSectionToggleForCard}
+              showContinueButton={false}
+              loadingSection={loadingSection}
+            />
+          </div>
+        )}
 
-        {/* Event Cards */}
-        <div className="space-y-6">
-          {eventCards.length > 0 ? (
-            <>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Upcoming Events ({eventCards.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {eventCards.map((card) => (
-                  <EventCard
-                    key={card.id}
-                    eventCard={card}
-                    onViewAttendees={handleViewAttendees}
-                    loading={loadingAttendees === card.id}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-gray-500 mb-4">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No Upcoming Events
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {!lastSync
-                  ? 'Click "Sign in to OSM" in the header to retrieve event data.'
-                  : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
-              </p>
-            </div>
-          )}
-        </div>
+        {/* Events Card */}
+        {currentView === 'events' && (
+          <Card>
+            <Card.Header>
+              <Card.Title>
+                Upcoming Events {eventCards.length > 0 && `(${eventCards.length})`}
+              </Card.Title>
+            </Card.Header>
+
+            <Card.Body>
+              {eventCards.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {eventCards.map((card) => (
+                    <EventCard
+                      key={card.id}
+                      eventCard={card}
+                      onViewAttendees={handleViewAttendees}
+                      loading={loadingAttendees === card.id}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-gray-500 mb-4">
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No Upcoming Events
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {!lastSync
+                      ? 'Click "Sign in to OSM" in the header to retrieve event data.'
+                      : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
+                  </p>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        )}
       </div>
 
       {/* Confirmation Modal */}

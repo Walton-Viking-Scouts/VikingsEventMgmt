@@ -1,12 +1,11 @@
 import React from 'react';
-import { Button, Card, Badge } from './ui';
+import { Card } from './ui';
+import MembersList from './MembersList.jsx';
 
 function SectionsList({
   sections,
   selectedSections = [],
   onSectionToggle,
-  onContinueToEvents,
-  showContinueButton = true,
   loadingSection = null,
 }) {
   if (!sections || sections.length === 0) {
@@ -66,8 +65,8 @@ function SectionsList({
   });
 
   return (
-    <Card className="border-0 shadow-none">
-      <Card.Header className="border-b-0">
+    <Card>
+      <Card.Header>
         <Card.Title>Select Sections</Card.Title>
       </Card.Header>
 
@@ -170,20 +169,27 @@ function SectionsList({
         </div>
       </Card.Body>
 
-      {selectedSections.length > 0 && showContinueButton && (
-        <Card.Footer className="text-center">
-          <Button
-            variant="scout-green"
-            size="lg"
-            onClick={onContinueToEvents}
-            className="flex items-center justify-center gap-2"
-          >
-            <span>Continue to Events</span>
-            <Badge variant="outline-scout-green" className="bg-white">
-              {`${selectedSections.length} section${selectedSections.length === 1 ? '' : 's'}`}
-            </Badge>
-          </Button>
-        </Card.Footer>
+      {/* Members Area - Show when sections are selected */}
+      {selectedSections && selectedSections.length > 0 && (
+        <Card.Body className="border-t border-gray-200 bg-gray-50">
+          <div className="mb-4">
+            <h4 className="text-lg font-semibold text-gray-900">
+              Members from {selectedSections.length} section{selectedSections.length === 1 ? '' : 's'}
+            </h4>
+            <p className="text-sm text-gray-600">
+              {selectedSections.map(s => s.sectionname).join(', ')}
+            </p>
+          </div>
+          
+          {/* Embedded Members List */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <MembersList
+              embedded={true}
+              showHeader={false}
+              sections={selectedSections}
+            />
+          </div>
+        </Card.Body>
       )}
     </Card>
   );

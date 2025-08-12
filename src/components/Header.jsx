@@ -26,7 +26,7 @@ function Header({
         <TailwindHeader.Content>
           <TailwindHeader.Left>
             <TailwindHeader.Title data-testid="app-title">
-              Vikings Event Mgmt
+              Viking Scouts (1st Walton on Thames)
             </TailwindHeader.Title>
           </TailwindHeader.Left>
 

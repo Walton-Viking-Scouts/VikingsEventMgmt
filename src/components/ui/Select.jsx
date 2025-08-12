@@ -134,7 +134,7 @@ const Select = forwardRef(
         {SelectElement}
         {(helperText || errorText) && (
           <p
-            id={error ? `${selectId}-error` : `${selectId}-help`}
+            id={error ? `${finalSelectId}-error` : `${finalSelectId}-help`}
             className={cn(
               'mt-1 text-sm',
               error ? 'text-red-600' : 'text-gray-600',
