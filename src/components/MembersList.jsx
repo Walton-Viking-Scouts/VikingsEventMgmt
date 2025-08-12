@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import { Button, Card, Input, Alert, Badge } from './ui';
@@ -33,7 +33,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   const isMobile = isMobileLayout();
   const sectionIds = sections.map(s => s.sectionid);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     if (!mountedRef.current) return;
     
     // Clear error state immediately so Retry hides error UI
@@ -62,7 +62,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         setLoading(false);
       }
     }
-  };
+  }, [sections]);
 
   useEffect(() => {
     mountedRef.current = true;
