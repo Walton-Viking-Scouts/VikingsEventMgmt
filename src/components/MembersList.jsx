@@ -54,7 +54,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
     } catch (e) {
       // Only apply error state if component is mounted AND this is the latest request
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
-        setError(e.message);
+        setError(e?.message ?? 'Unable to load members. Please try again.');
       }
     } finally {
       // Only turn off loading for the matching requestId so stale requests cannot override
@@ -66,20 +66,23 @@ function MembersList({ sections, members: propsMembers, onBack }) {
 
   useEffect(() => {
     mountedRef.current = true;
-    
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (propsMembers) {
-      // Use provided members data
+      // Cancel any in-flight async load and use provided data
+      requestIdRef.current++;
       setMembers(propsMembers);
       setLoading(false);
+      setError(null);
     } else {
       // Load members if not provided
       loadMembers();
     }
-    
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [sections, propsMembers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sections, propsMembers, loadMembers]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
