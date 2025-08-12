@@ -31,7 +31,8 @@ function MembersList({ sections, members: propsMembers, onBack }) {
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
   const isMobile = isMobileLayout();
-  const sectionIds = sections.map(s => s.sectionid);
+  const sectionIds = useMemo(() => sections.map(s => s.sectionid), [sections]);
+  const sectionIdsKey = sectionIds.join(',');
 
   const loadMembers = useCallback(async () => {
     if (!mountedRef.current) return;
@@ -62,7 +63,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         setLoading(false);
       }
     }
-  }, [sections]);
+  }, [sectionIdsKey]); // sections is stable via sectionIdsKey dependency
 
   useEffect(() => {
     mountedRef.current = true;
@@ -82,7 +83,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
       // Load members if not provided
       loadMembers();
     }
-  }, [sections, propsMembers, loadMembers]);
+  }, [sectionIdsKey, propsMembers, loadMembers]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
