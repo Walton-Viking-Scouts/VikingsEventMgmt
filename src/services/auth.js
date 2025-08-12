@@ -49,6 +49,7 @@ export function clearToken() {
   sessionStorage.removeItem('access_token');
   sessionStorage.removeItem('token_invalid');
   sessionStorage.removeItem('token_expired');
+  sessionStorage.removeItem('token_expires_at');
   
   // Reset auth handler state when token is cleared
   authHandler.reset();

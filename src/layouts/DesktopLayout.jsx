@@ -1,12 +1,13 @@
-import React from "react";
-import DesktopHeader from "../components/desktop/DesktopHeader.jsx";
-import OfflineIndicator from "../components/OfflineIndicator.jsx";
+import React from 'react';
+import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
+import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
 function DesktopLayout({
   children,
   user,
   onLogout,
   onLogin,
+  onRefresh,
   isOfflineMode,
   authState,
   lastSyncTime,
@@ -15,30 +16,51 @@ function DesktopLayout({
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="desktop-layout"
-      data-oid="e44km7p"
     >
-      <OfflineIndicator hideSync={false} data-oid="k6wol5r" />
+      <OfflineIndicator hideSync={true} hideBanner={true} />
 
       <DesktopHeader
         user={user}
         onLogout={onLogout}
         onLogin={onLogin}
+        onRefresh={onRefresh}
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="pu76e9g"
       />
 
-      <div className="flex-1" data-oid="4_vcgx8">
-        <main
-          className="h-full w-full"
-          data-testid="desktop-main"
-          data-oid="h-xky:d"
+      {isOfflineMode && (
+        <div
+          role="alert"
+          className="bg-amber-50 border-b border-amber-200 text-amber-800 p-4"
         >
-          <div
-            className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-            data-oid="_4o6169"
-          >
+          <div className="flex">
+            <div>
+              <svg
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                className="block fill-current h-5 w-5"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 ml-3">
+              <div className="flex items-center justify-center gap-2">
+                <span>📱</span>
+                <span>API Unavailable - Using cached data</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1">
+        <main className="h-full w-full" data-testid="desktop-main">
+          <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

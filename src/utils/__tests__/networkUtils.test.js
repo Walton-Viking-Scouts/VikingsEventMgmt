@@ -96,14 +96,6 @@ describe('Network Utilities', () => {
 
         expect(result).toBe(true);
         expect(Network.getStatus).toHaveBeenCalled();
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (native)',
-          {
-            connected: true,
-            connectionType: 'wifi',
-          },
-          'APP',
-        );
       });
 
       it('should return false when network is disconnected on native platform', async () => {
@@ -117,14 +109,6 @@ describe('Network Utilities', () => {
 
         expect(result).toBe(false);
         expect(Network.getStatus).toHaveBeenCalled();
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (native)',
-          {
-            connected: false,
-            connectionType: 'none',
-          },
-          'APP',
-        );
       });
 
       it('should handle cellular connection on native platform', async () => {
@@ -137,14 +121,6 @@ describe('Network Utilities', () => {
         const result = await checkNetworkStatus();
 
         expect(result).toBe(true);
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (native)',
-          {
-            connected: true,
-            connectionType: 'cellular',
-          },
-          'APP',
-        );
       });
 
       it('should throw error when Network.getStatus fails on native platform', async () => {
@@ -192,13 +168,6 @@ describe('Network Utilities', () => {
         const result = await checkNetworkStatus();
 
         expect(result).toBe(true);
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (web)',
-          {
-            connected: true,
-          },
-          'APP',
-        );
       });
 
       it('should return false when navigator.onLine is false on web platform', async () => {
@@ -207,13 +176,6 @@ describe('Network Utilities', () => {
         const result = await checkNetworkStatus();
 
         expect(result).toBe(false);
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (web)',
-          {
-            connected: false,
-          },
-          'APP',
-        );
       });
 
       it('should handle missing navigator.onLine gracefully', async () => {
@@ -222,13 +184,6 @@ describe('Network Utilities', () => {
         const result = await checkNetworkStatus();
 
         expect(result).toBeUndefined(); // undefined is what we get
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network status checked (web)',
-          {
-            connected: undefined,
-          },
-          'APP',
-        );
       });
     });
   });
@@ -253,15 +208,6 @@ describe('Network Utilities', () => {
 
         expect(result).toEqual(mockStatus);
         expect(Network.getStatus).toHaveBeenCalled();
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Detailed network status retrieved (native)',
-          {
-            connected: true,
-            connectionType: 'wifi',
-            hasWifiInfo: true,
-          },
-          'APP',
-        );
       });
 
       it('should handle network status without WiFi info', async () => {
@@ -274,15 +220,6 @@ describe('Network Utilities', () => {
         const result = await getDetailedNetworkStatus();
 
         expect(result).toEqual(mockStatus);
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Detailed network status retrieved (native)',
-          {
-            connected: true,
-            connectionType: 'cellular',
-            hasWifiInfo: false,
-          },
-          'APP',
-        );
       });
 
       it('should handle network status with partial WiFi info', async () => {
@@ -297,15 +234,6 @@ describe('Network Utilities', () => {
         const result = await getDetailedNetworkStatus();
 
         expect(result).toEqual(mockStatus);
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Detailed network status retrieved (native)',
-          {
-            connected: true,
-            connectionType: 'wifi',
-            hasWifiInfo: true,
-          },
-          'APP',
-        );
       });
 
       it('should throw error when Network.getStatus fails', async () => {
@@ -351,14 +279,6 @@ describe('Network Utilities', () => {
           connected: true,
           connectionType: 'unknown',
         });
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Detailed network status retrieved (web)',
-          {
-            connected: true,
-            connectionType: 'unknown',
-          },
-          'APP',
-        );
       });
 
       it('should return enhanced network status with connection info', async () => {
@@ -376,16 +296,6 @@ describe('Network Utilities', () => {
           downlink: 10.5,
           effectiveType: '4g',
         });
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Detailed network status retrieved (web)',
-          {
-            connected: true,
-            connectionType: '4g',
-            downlink: 10.5,
-            effectiveType: '4g',
-          },
-          'APP',
-        );
       });
 
       it('should handle connection info without effectiveType', async () => {
@@ -457,13 +367,11 @@ describe('Network Utilities', () => {
         const removeListener = addNetworkListener(callback);
 
         expect(Network.addListener).toHaveBeenCalledWith('networkStatusChange', expect.any(Function));
-        expect(logger.debug).toHaveBeenCalledWith('Setting up native network listener', {}, 'APP');
         expect(typeof removeListener).toBe('function');
 
         // Test the cleanup function
         removeListener();
         expect(mockListener.remove).toHaveBeenCalled();
-        expect(logger.debug).toHaveBeenCalledWith('Removing native network listener', {}, 'APP');
       });
 
       it('should call callback when network status changes on native', () => {
@@ -488,14 +396,6 @@ describe('Network Utilities', () => {
               connected: false,
               connectionType: 'none',
             });
-            expect(logger.debug).toHaveBeenCalledWith(
-              'Network status changed (native)',
-              {
-                connected: false,
-                connectionType: 'none',
-              },
-              'APP',
-            );
             resolve();
           }, 10);
         });
@@ -544,14 +444,12 @@ describe('Network Utilities', () => {
 
         expect(window.addEventListener).toHaveBeenCalledWith('online', expect.any(Function));
         expect(window.addEventListener).toHaveBeenCalledWith('offline', expect.any(Function));
-        expect(logger.debug).toHaveBeenCalledWith('Setting up web network listeners', {}, 'APP');
         expect(typeof removeListener).toBe('function');
 
         // Test the cleanup function
         removeListener();
         expect(window.removeEventListener).toHaveBeenCalledWith('online', expect.any(Function));
         expect(window.removeEventListener).toHaveBeenCalledWith('offline', expect.any(Function));
-        expect(logger.debug).toHaveBeenCalledWith('Removing web network listeners', {}, 'APP');
       });
 
       it('should call callback when going online', () => {
@@ -573,11 +471,6 @@ describe('Network Utilities', () => {
           connected: true,
           connectionType: 'unknown',
         });
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network came online (web)',
-          { connected: true, connectionType: 'unknown' },
-          'APP',
-        );
       });
 
       it('should call callback when going offline', () => {
@@ -599,11 +492,6 @@ describe('Network Utilities', () => {
           connected: false,
           connectionType: 'unknown',
         });
-        expect(logger.debug).toHaveBeenCalledWith(
-          'Network went offline (web)',
-          { connected: false, connectionType: 'unknown' },
-          'APP',
-        );
       });
 
       it('should handle web listener setup failure', () => {

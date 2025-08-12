@@ -5,6 +5,18 @@ import authService from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import databaseService from '../services/database.js';
 
+// Configuration for token expiration monitoring
+const TOKEN_CONFIG = {
+  // Default token expiration time when OAuth server doesn't provide expires_in
+  DEFAULT_EXPIRATION_SECONDS: 60 * 60, // 1 hour (typical for OSM)
+  
+  // How often to check for token expiration (in milliseconds)
+  CHECK_INTERVAL_MS: 60 * 1000, // 1 minute
+  
+  // How early to warn about upcoming expiration (in milliseconds)
+  EXPIRATION_WARNING_MS: 5 * 60 * 1000, // 5 minutes
+};
+
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,8 +26,41 @@ export function useAuth() {
   const [authState, setAuthState] = useState('no_data'); // New: enhanced auth state
   const [lastSyncTime, setLastSyncTime] = useState(null); // New: track last sync
 
+  // Helper function to check if token has expired based on stored expiration time
+  const isTokenExpired = useCallback(() => {
+    const expiresAt = sessionStorage.getItem('token_expires_at');
+    if (!expiresAt) {
+      // No expiration time stored - fall back to existing token_expired flag
+      return sessionStorage.getItem('token_expired') === 'true';
+    }
+    
+    const expirationTime = parseInt(expiresAt);
+    const now = Date.now();
+    const timeUntilExpiry = expirationTime - now;
+    const isExpired = timeUntilExpiry <= 0;
+    
+    // Log upcoming expiration as a warning
+    if (!isExpired && timeUntilExpiry <= TOKEN_CONFIG.EXPIRATION_WARNING_MS) {
+      logger.warn('Token will expire soon', {
+        expiresAt: new Date(expirationTime).toISOString(),
+        timeUntilExpiryMinutes: Math.round(timeUntilExpiry / (60 * 1000)),
+      }, LOG_CATEGORIES.AUTH);
+    }
+    
+    // If expired, set the token_expired flag for consistency with existing code
+    if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
+      logger.info('Token has expired based on stored expiration time', {
+        expiresAt: new Date(expirationTime).toISOString(),
+        expiredMinutesAgo: Math.round(-timeUntilExpiry / (60 * 1000)),
+      }, LOG_CATEGORIES.AUTH);
+      sessionStorage.setItem('token_expired', 'true');
+    }
+    
+    return isExpired;
+  }, []);
+
   // Helper function to determine auth state based on cached data and tokens
-  const determineAuthState = useCallback(async (isAuth, isOffline) => {
+  const determineAuthState = useCallback(async (isAuth) => {
     try {
       // Check if we have any cached data
       const cachedSections = await databaseService.getSections();
@@ -25,9 +70,12 @@ export function useAuth() {
       const lastSync = localStorage.getItem('last_sync_time');
       setLastSyncTime(lastSync);
       
-      if (isAuth && !isOffline) {
+      // Check if token has expired based on stored expiration time
+      const tokenExpired = isTokenExpired();
+      
+      if (isAuth && !tokenExpired) {
         return 'authenticated';
-      } else if (isAuth && isOffline) {
+      } else if (isAuth && tokenExpired && hasCachedData) {
         return 'token_expired';
       } else if (hasCachedData) {
         return 'cached_only';
@@ -38,7 +86,7 @@ export function useAuth() {
       logger.warn('Error determining auth state', { error: error.message }, LOG_CATEGORIES.ERROR);
       return isAuth ? 'authenticated' : 'no_data';
     }
-  }, []);
+  }, [isTokenExpired]);
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
@@ -49,11 +97,26 @@ export function useAuth() {
       let urlParams;
       let accessToken;
       let tokenType;
+      let expiresIn;
       
       try {
         urlParams = new URLSearchParams(window.location.search);
         accessToken = urlParams.get('access_token');
         tokenType = urlParams.get('token_type');
+        expiresIn = urlParams.get('expires_in');
+        
+        // Debug: Log all OAuth parameters we receive
+        if (accessToken && import.meta.env.DEV) {
+          const allParams = {};
+          for (const [key, value] of urlParams.entries()) {
+            if (key === 'access_token') {
+              allParams[key] = '[REDACTED]';
+            } else {
+              allParams[key] = value;
+            }
+          }
+          logger.debug('OAuth callback parameters received', allParams, LOG_CATEGORIES.AUTH);
+        }
       } catch (urlError) {
         // Redact sensitive query params before logging
         let safeHref = '<unavailable>';
@@ -103,11 +166,33 @@ export function useAuth() {
             sessionStorage.setItem('token_type', tokenType);
           }
           
+          // Store token expiration time for proactive monitoring
+          let expirationTime;
+          if (expiresIn) {
+            // Use provided expires_in parameter
+            expirationTime = Date.now() + (parseInt(expiresIn) * 1000);
+            logger.info('Token expiration time stored from OAuth response', { 
+              expiresInSeconds: expiresIn,
+              expiresAt: new Date(expirationTime).toISOString(),
+            }, LOG_CATEGORIES.AUTH);
+          } else {
+            // Fallback: OSM tokens typically expire after 1 hour
+            expirationTime = Date.now() + (TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS * 1000);
+            logger.info('Token expiration time estimated (OSM default)', { 
+              expiresInSeconds: TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS,
+              expiresAt: new Date(expirationTime).toISOString(),
+              note: 'expires_in not provided by OAuth server, using configured default expiration',
+            }, LOG_CATEGORIES.AUTH);
+          }
+          
+          sessionStorage.setItem('token_expires_at', expirationTime.toString());
+          
           // Clean the URL without reloading - this is a critical operation that can fail
           try {
             const url = new URL(window.location);
             url.searchParams.delete('access_token');
             url.searchParams.delete('token_type');
+            url.searchParams.delete('expires_in');
             window.history.replaceState({}, '', url);
             
             logger.info('OAuth callback processed successfully', { 
@@ -189,8 +274,8 @@ export function useAuth() {
         setUser(userInfo);
         
         // Check if user is in offline mode with expired token
-        const isTokenExpired = sessionStorage.getItem('token_expired') === 'true';
-        setIsOfflineMode(isTokenExpired);
+        const tokenExpired = isTokenExpired();
+        setIsOfflineMode(tokenExpired);
         
         // Token expiry is already handled by setting isOfflineMode above
         
@@ -213,7 +298,7 @@ export function useAuth() {
       
       // Determine and set the enhanced auth state
       const currentHasToken = authService.isAuthenticated();
-      const newAuthState = await determineAuthState(currentHasToken, sessionStorage.getItem('token_expired') === 'true');
+      const newAuthState = await determineAuthState(currentHasToken);
       setAuthState(newAuthState);
       
     } catch (error) {
@@ -245,12 +330,16 @@ export function useAuth() {
   }, []);
 
   // Logout function
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     authService.logout();
     setIsAuthenticated(false);
     setUser(null);
     setIsBlocked(false);
-  }, []);
+    
+    // Recalculate auth state after logout
+    const newAuthState = await determineAuthState(false);
+    setAuthState(newAuthState);
+  }, [determineAuthState]);
 
   // Set token (for OAuth callback handling)
   const setToken = useCallback((token) => {
@@ -282,7 +371,49 @@ export function useAuth() {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [checkAuth, determineAuthState]);
+  }, [checkAuth, isTokenExpired]);
+
+  // Periodic token expiration monitoring
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      return; // No token to monitor
+    }
+
+    // Check token expiration every minute
+    const intervalId = setInterval(async () => {
+      const tokenExpired = isTokenExpired();
+      const currentAuthState = authState;
+      
+      // If token expired and we're not already in token_expired state
+      if (tokenExpired && currentAuthState === 'authenticated') {
+        logger.info('Token expired - updating auth state', {}, LOG_CATEGORIES.AUTH);
+        
+        // Determine new auth state
+        const currentHasToken = authService.isAuthenticated();
+        const newAuthState = await determineAuthState(currentHasToken);
+        setAuthState(newAuthState);
+        setIsOfflineMode(true);
+        
+        // Check if we have cached data for user feedback
+        try {
+          const cachedSections = await databaseService.getSections();
+          const hasCachedData = cachedSections && cachedSections.length > 0;
+          
+          if (hasCachedData) {
+            logger.info('Token expired but cached data available - offline mode enabled', {}, LOG_CATEGORIES.AUTH);
+          } else {
+            logger.warn('Token expired with no cached data - user needs to re-authenticate', {}, LOG_CATEGORIES.AUTH);
+          }
+        } catch (error) {
+          logger.warn('Could not check cached data after token expiration', { error: error.message }, LOG_CATEGORIES.ERROR);
+        }
+      }
+    }, TOKEN_CONFIG.CHECK_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isTokenExpired, authState, determineAuthState]);
 
   return {
     isAuthenticated,

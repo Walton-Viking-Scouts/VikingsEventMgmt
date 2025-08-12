@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { fetchMostRecentTermId, updateFlexiRecord, getFlexiRecords } from '../services/api.js';
 import { getFlexiRecordStructure } from '../services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
-import { getToken } from '../services/auth.js';
+import { getToken, handleApiAuthError } from '../services/auth.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 
 /**
@@ -110,30 +110,37 @@ export function useSignInOut(events, onDataRefresh) {
       }
       
       if (action === 'signin') {
-        // Sign in requires two API calls: SignedInBy and SignedInWhen
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
-          currentUser,
-          termId,
-          sectionType,
-          getToken(),
+        // Batch all required API calls to let rate limiting queue handle them properly
+        const apiCalls = [];
+        
+        // Required calls: SignedInBy and SignedInWhen
+        apiCalls.push(
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
+            currentUser,
+            termId,
+            sectionType,
+            getToken(),
+          ),
         );
         
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
-          timestamp,
-          termId,
-          sectionType,
-          getToken(),
+        apiCalls.push(
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
+            timestamp,
+            termId,
+            sectionType,
+            getToken(),
+          ),
         );
         
-        // Clear signed out fields if they have values (only make API calls if needed)
+        // Optional calls: Clear signed out fields if they have values
         const hasSignedOutBy = member.vikingEventData?.SignedOutBy && 
                                member.vikingEventData.SignedOutBy !== '-' && 
                                member.vikingEventData.SignedOutBy.trim() !== '';
@@ -142,29 +149,42 @@ export function useSignInOut(events, onDataRefresh) {
                                  member.vikingEventData.SignedOutWhen.trim() !== '';
         
         if (hasSignedOutBy) {
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
-            termId,
-            sectionType,
-            getToken(),
+          apiCalls.push(
+            updateFlexiRecord(
+              member.sectionid,
+              member.scoutid,
+              vikingFlexiRecord.extraid,
+              getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+              '', // Clear the field
+              termId,
+              sectionType,
+              getToken(),
+            ),
           );
         }
         
         if (hasSignedOutWhen) {
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
-            termId,
-            sectionType,
-            getToken(),
+          apiCalls.push(
+            updateFlexiRecord(
+              member.sectionid,
+              member.scoutid,
+              vikingFlexiRecord.extraid,
+              getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+              '', // Clear the field
+              termId,
+              sectionType,
+              getToken(),
+            ),
           );
+        }
+        
+        // Execute API calls sequentially with delays to prevent rate limiting
+        for (let i = 0; i < apiCalls.length; i++) {
+          await apiCalls[i];
+          // Add delay between calls to prevent rate limiting (except for last call)
+          if (i < apiCalls.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+          }
         }
         
         // Check if component is still mounted after sign-in operations
@@ -174,28 +194,38 @@ export function useSignInOut(events, onDataRefresh) {
         
         console.log(`Successfully signed in ${member.name}`);
       } else {
-        // Sign out requires two API calls: SignedOutBy and SignedOutWhen
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-          currentUser,
-          termId,
-          sectionType,
-          getToken(),
-        );
+        // Batch sign-out API calls for better rate limiting
+        const apiCalls = [
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+            currentUser,
+            termId,
+            sectionType,
+            getToken(),
+          ),
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+            timestamp,
+            termId,
+            sectionType,
+            getToken(),
+          ),
+        ];
         
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-          timestamp,
-          termId,
-          sectionType,
-          getToken(),
-        );
+        // Execute API calls sequentially with delays to prevent rate limiting
+        for (let i = 0; i < apiCalls.length; i++) {
+          await apiCalls[i];
+          // Add delay between calls to prevent rate limiting (except for last call)
+          if (i < apiCalls.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+          }
+        }
         
         // Check if component is still mounted after sign-out operations
         if (abortControllerRef.current?.signal.aborted) {
@@ -223,8 +253,29 @@ export function useSignInOut(events, onDataRefresh) {
       
       console.error(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}:`, error);
       
-      // TODO: Replace with proper toast notification system
-      alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+      // Check if this is a token expiration error
+      if (error.message?.includes('No authentication token')) {
+        // Handle authentication failure to trigger auth state update
+        const authResult = handleApiAuthError(error);
+        
+        if (authResult.offline) {
+          // Token expired but we have cached data - user can still use app offline
+          alert('Your session has expired. Please sign in again to refresh data from OSM, or continue using cached data offline.');
+        } else {
+          // No cached data available - user needs to log in
+          alert('Your session has expired. Please sign in to OSM to continue.');
+        }
+        
+        // Force a page reload to trigger auth state re-evaluation
+        if (authResult.shouldReload) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
+        }
+      } else {
+        // Regular error - show generic message
+        alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+      }
       
     } finally {
       // Only clear loading state if component is still mounted

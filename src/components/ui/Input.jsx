@@ -1,5 +1,5 @@
-import React, { forwardRef } from "react";
-import { cn } from "../../utils/cn";
+import React, { forwardRef } from 'react';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Input component with Scout theming
@@ -8,13 +8,13 @@ import { cn } from "../../utils/cn";
 const Input = forwardRef(
   (
     {
-      type = "text",
-      size = "md",
-      variant = "default",
+      type = 'text',
+      size = 'md',
+      variant = 'default',
       error = false,
       success = false,
       disabled = false,
-      className = "",
+      className = '',
       label,
       helperText,
       errorText,
@@ -25,26 +25,26 @@ const Input = forwardRef(
     ref,
   ) => {
     const baseClasses =
-      "w-full rounded-md border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed";
+      'w-full rounded-md border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
       default:
-        "border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-scout-blue focus:ring-scout-blue/20",
+        'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-scout-blue focus:ring-scout-blue/20',
       scout:
-        "border-scout-blue bg-white text-gray-900 placeholder-gray-500 focus:border-scout-blue-dark focus:ring-scout-blue/30",
+        'border-scout-blue bg-white text-gray-900 placeholder-gray-500 focus:border-scout-blue-dark focus:ring-scout-blue/30',
     };
 
     const sizes = {
-      sm: "px-3 py-1.5 text-sm",
-      md: "px-4 py-2 text-base",
-      lg: "px-4 py-3 text-lg",
+      sm: 'px-3 py-1.5 text-sm',
+      md: 'px-4 py-2 text-base',
+      lg: 'px-4 py-3 text-lg',
     };
 
     const states = {
       error:
-        "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50",
+        'border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50',
       success:
-        "border-green-500 focus:border-green-500 focus:ring-green-500/20 bg-green-50",
+        'border-green-500 focus:border-green-500 focus:ring-green-500/20 bg-green-50',
     };
 
     // Determine state styling
@@ -56,21 +56,16 @@ const Input = forwardRef(
       baseClasses,
       stateClasses,
       sizes[size],
-      leftIcon && "pl-10",
-      rightIcon && "pr-10",
+      leftIcon && 'pl-10',
+      rightIcon && 'pr-10',
       className,
     );
 
     const InputElement = (
-      <div className="relative" data-oid="qrk:xaf">
+      <div className="relative">
         {leftIcon && (
-          <div
-            className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            data-oid=".hm-ai6"
-          >
-            <span className="text-gray-500" data-oid="i5tq1ej">
-              {leftIcon}
-            </span>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500">{leftIcon}</span>
           </div>
         )}
 
@@ -80,17 +75,11 @@ const Input = forwardRef(
           disabled={disabled}
           className={inputClasses}
           {...props}
-          data-oid="wn9n6am"
         />
 
         {rightIcon && (
-          <div
-            className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
-            data-oid="zpcb.w4"
-          >
-            <span className="text-gray-500" data-oid="a.xswbz">
-              {rightIcon}
-            </span>
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <span className="text-gray-500">{rightIcon}</span>
           </div>
         )}
       </div>
@@ -99,15 +88,14 @@ const Input = forwardRef(
     // If no label, return just the input
     if (!label) {
       return (
-        <div data-oid="-ypiss5">
+        <div>
           {InputElement}
           {(helperText || errorText) && (
             <p
               className={cn(
-                "mt-1 text-sm",
-                error ? "text-red-600" : "text-gray-600",
+                'mt-1 text-sm',
+                error ? 'text-red-600' : 'text-gray-600',
               )}
-              data-oid="frx.lcf"
             >
               {error ? errorText : helperText}
             </p>
@@ -118,21 +106,17 @@ const Input = forwardRef(
 
     // Return full form group with label
     return (
-      <div data-oid="s67iu3j">
-        <label
-          className="block text-sm font-medium text-gray-700 mb-1"
-          data-oid="k334lv1"
-        >
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           {label}
         </label>
         {InputElement}
         {(helperText || errorText) && (
           <p
             className={cn(
-              "mt-1 text-sm",
-              error ? "text-red-600" : "text-gray-600",
+              'mt-1 text-sm',
+              error ? 'text-red-600' : 'text-gray-600',
             )}
-            data-oid="8kkcev9"
           >
             {error ? errorText : helperText}
           </p>
@@ -142,6 +126,6 @@ const Input = forwardRef(
   },
 );
 
-Input.displayName = "Input";
+Input.displayName = 'Input';
 
 export default Input;

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { Capacitor } from "@capacitor/core";
-import { Network } from "@capacitor/network";
-import { Alert, Button, Modal } from "./ui";
-import syncService from "../services/sync.js";
-import { isAuthenticated, getToken } from "../services/auth.js";
-import { config } from "../config/env.js";
-import { testBackendConnection } from "../services/api.js";
+import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Network } from '@capacitor/network';
+import { Alert, Button, Modal } from './ui';
+import syncService from '../services/sync.js';
+import { isAuthenticated, getToken } from '../services/auth.js';
+import { config } from '../config/env.js';
+import { testBackendConnection } from '../services/api.js';
 
-function OfflineIndicator({ hideSync = false }) {
+function OfflineIndicator({ hideSync = false, hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
   const [apiConnected, setApiConnected] = useState(true);
   const [apiTested, setApiTested] = useState(false); // Track if we've tested API yet
@@ -20,8 +20,8 @@ function OfflineIndicator({ hideSync = false }) {
   const testApiConnectivity = async () => {
     try {
       const token = getToken();
-      if (import.meta.env.NODE_ENV === "development") {
-        console.log("🔍 OfflineIndicator - Testing API connectivity...", {
+      if (import.meta.env.NODE_ENV === 'development') {
+        console.log('🔍 OfflineIndicator - Testing API connectivity...', {
           hasToken: !!token,
           apiUrl: config.apiUrl,
           isOnline,
@@ -34,30 +34,30 @@ function OfflineIndicator({ hideSync = false }) {
       // This ensures all health checks go through the queue system
       const result = await testBackendConnection();
 
-      if (result && (result.status === "ok" || result.status === "healthy")) {
+      if (result && (result.status === 'ok' || result.status === 'healthy')) {
         // API is connected and responding correctly
         setApiConnected(true);
         setApiTested(true);
 
-        if (import.meta.env.NODE_ENV === "development") {
+        if (import.meta.env.NODE_ENV === 'development') {
           console.log(
-            "✅ OfflineIndicator - API connectivity confirmed via queue",
+            '✅ OfflineIndicator - API connectivity confirmed via queue',
           );
         }
       } else {
-        throw new Error("API health check failed");
+        throw new Error('API health check failed');
       }
     } catch (error) {
       // Handle rate limiting gracefully - don't mark as disconnected if it's just queued
       if (
-        error.message?.includes("Rate limited") ||
+        error.message?.includes('Rate limited') ||
         error.status === 429 ||
-        error.message?.includes("429") ||
-        error.message?.includes("Too Many Requests")
+        error.message?.includes('429') ||
+        error.message?.includes('Too Many Requests')
       ) {
-        if (import.meta.env.NODE_ENV === "development") {
+        if (import.meta.env.NODE_ENV === 'development') {
           console.log(
-            "⏳ OfflineIndicator - Health check queued due to rate limiting, will retry automatically",
+            '⏳ OfflineIndicator - Health check queued due to rate limiting, will retry automatically',
           );
         }
         // Keep current connection status - don't mark as failed due to rate limiting
@@ -66,9 +66,29 @@ function OfflineIndicator({ hideSync = false }) {
         return;
       }
 
-      // Only log non-rate-limit errors and mark as disconnected
+      // Handle SSL/TLS and network errors more gracefully in development
+      if (
+        error.message?.includes('Failed to fetch') ||
+        error.message?.includes('SSL') ||
+        error.message?.includes('certificate') ||
+        error.message?.includes('net::ERR_') ||
+        error.name === 'TypeError'
+      ) {
+        if (import.meta.env.NODE_ENV === 'development') {
+          console.log(
+            '🔒 OfflineIndicator - Network/SSL connectivity issue detected:',
+            error.message,
+            '\nThis is normal in development with self-signed certificates',
+          );
+        }
+        setApiConnected(false);
+        setApiTested(true);
+        return;
+      }
+
+      // Only log other errors as warnings
       console.warn(
-        "❌ OfflineIndicator - API connectivity test failed:",
+        '❌ OfflineIndicator - API connectivity test failed:',
         error,
       );
       setApiConnected(false);
@@ -138,17 +158,17 @@ function OfflineIndicator({ hideSync = false }) {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
-        if (import.meta.env.NODE_ENV === "development") {
+        if (import.meta.env.NODE_ENV === 'development') {
           console.log(
-            "🔍 OfflineIndicator - Capacitor network status:",
+            '🔍 OfflineIndicator - Capacitor network status:',
             status,
           );
         }
         setIsOnline(status.connected);
       } else {
-        if (import.meta.env.NODE_ENV === "development") {
+        if (import.meta.env.NODE_ENV === 'development') {
           console.log(
-            "🔍 OfflineIndicator - Navigator online status:",
+            '🔍 OfflineIndicator - Navigator online status:',
             navigator.onLine,
           );
         }
@@ -156,7 +176,7 @@ function OfflineIndicator({ hideSync = false }) {
       }
     } catch (error) {
       console.error(
-        "❌ OfflineIndicator - Error checking network status:",
+        '❌ OfflineIndicator - Error checking network status:',
         error,
       );
     }
@@ -164,7 +184,7 @@ function OfflineIndicator({ hideSync = false }) {
 
   const setupNetworkListeners = () => {
     if (Capacitor.isNativePlatform()) {
-      Network.addListener("networkStatusChange", (status) => {
+      Network.addListener('networkStatusChange', (status) => {
         setIsOnline(status.connected);
         // Test API connectivity when network status changes
         if (status.connected) {
@@ -184,13 +204,13 @@ function OfflineIndicator({ hideSync = false }) {
         setApiConnected(false);
       };
 
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
       // Return cleanup function
       return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
       };
     }
   };
@@ -200,7 +220,7 @@ function OfflineIndicator({ hideSync = false }) {
       setSyncStatus(status);
 
       // Clear status after a delay if completed or error
-      if (status.status === "completed" || status.status === "error") {
+      if (status.status === 'completed' || status.status === 'error') {
         setTimeout(() => {
           setSyncStatus(null);
         }, 3000);
@@ -238,22 +258,22 @@ function OfflineIndicator({ hideSync = false }) {
     try {
       await syncService.syncAll();
     } catch (error) {
-      console.error("Manual sync failed:", error);
+      console.error('Manual sync failed:', error);
     }
   };
 
   const getSyncButtonText = () => {
     if (!isAuthenticated()) {
-      return "🔐 Login & Sync";
+      return '🔐 Login & Sync';
     }
-    return "🔄 Sync";
+    return '🔄 Sync';
   };
 
   const getSyncButtonTitle = () => {
     if (!isAuthenticated()) {
-      return "Login to OSM and sync data";
+      return 'Login to OSM and sync data';
     }
-    return "Sync data";
+    return 'Sync data';
   };
 
   // Don't show anything if both network and API are connected and no sync status
@@ -262,14 +282,13 @@ function OfflineIndicator({ hideSync = false }) {
       <>
         {/* Only show sync button if not hidden */}
         {!hideSync && (
-          <div className="fixed top-20 right-4 z-40" data-oid="s_:qaco">
+          <div className="fixed top-20 right-4 z-40">
             <Button
               variant="scout-blue"
               size="sm"
               onClick={handleSyncClick}
               className="shadow-lg"
               title={getSyncButtonTitle()}
-              data-oid="wftefaz"
             >
               {getSyncButtonText()}
             </Button>
@@ -277,67 +296,43 @@ function OfflineIndicator({ hideSync = false }) {
         )}
 
         {/* Login Prompt Modal */}
-        <Modal
-          isOpen={showLoginPrompt}
-          onClose={handleLoginCancel}
-          size="md"
-          data-oid="-wv90ee"
-        >
-          <Modal.Header data-oid=".-ugcj_">
-            <Modal.Title data-oid="y3sv:g0">
-              Authentication Required
-            </Modal.Title>
+        <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
+          <Modal.Header>
+            <Modal.Title>Authentication Required</Modal.Title>
           </Modal.Header>
-          <Modal.Body data-oid="6_juaz_">
-            <div className="space-y-4" data-oid="hjt_ul3">
-              <div className="flex items-center gap-3" data-oid="cm_pxyn">
-                <div className="flex-shrink-0" data-oid="pk-pu-2">
-                  <div
-                    className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center"
-                    data-oid="ljmt0xd"
-                  >
-                    <span className="text-amber-600 text-xl" data-oid="jzsmoqe">
-                      🔐
-                    </span>
+          <Modal.Body>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <span className="text-amber-600 text-xl">🔐</span>
                   </div>
                 </div>
-                <div data-oid="m1ltard">
-                  <p className="text-gray-900 font-medium" data-oid="4z2cnzm">
+                <div>
+                  <p className="text-gray-900 font-medium">
                     {loginPromptData?.message ||
-                      "Authentication required to sync data."}
+                      'Authentication required to sync data.'}
                   </p>
-                  <p className="text-gray-600 text-sm mt-1" data-oid="b1iq0u-">
+                  <p className="text-gray-600 text-sm mt-1">
                     You will be redirected to Online Scout Manager to
                     authenticate.
                   </p>
                 </div>
               </div>
 
-              <div
-                className="bg-blue-50 border border-blue-200 rounded-lg p-3"
-                data-oid="_z24zrn"
-              >
-                <p className="text-blue-800 text-sm" data-oid="th54jkt">
-                  <strong data-oid="isxtl_7">Note:</strong> You can continue
-                  using the app with offline data if you prefer not to sync at
-                  this time.
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> You can continue using the app with
+                  offline data if you prefer not to sync at this time.
                 </p>
               </div>
             </div>
           </Modal.Body>
-          <Modal.Footer data-oid="v28ow86">
-            <Button
-              variant="outline"
-              onClick={handleLoginCancel}
-              data-oid="62h_zad"
-            >
+          <Modal.Footer>
+            <Button variant="outline" onClick={handleLoginCancel}>
               Stay Offline
             </Button>
-            <Button
-              variant="scout-blue"
-              onClick={handleLoginConfirm}
-              data-oid="j.dkjku"
-            >
+            <Button variant="scout-blue" onClick={handleLoginConfirm}>
               Login & Sync
             </Button>
           </Modal.Footer>
@@ -348,8 +343,8 @@ function OfflineIndicator({ hideSync = false }) {
 
   const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
 
-  if (import.meta.env.NODE_ENV === "development") {
-    console.log("🔍 Offline Indicator - Banner visibility:", {
+  if (import.meta.env.NODE_ENV === 'development') {
+    console.log('🔍 Offline Indicator - Banner visibility:', {
       apiTested,
       isOnline,
       apiConnected,
@@ -357,23 +352,81 @@ function OfflineIndicator({ hideSync = false }) {
     });
   }
 
+  // If hideBanner is true, only return sync button and modals, no banner
+  if (hideBanner) {
+    return (
+      <>
+        {/* Only show sync button if not hidden */}
+        {!hideSync && (
+          <div className="fixed top-20 right-4 z-40">
+            <Button
+              variant="scout-blue"
+              size="sm"
+              onClick={handleSyncClick}
+              className="shadow-lg"
+              title={getSyncButtonTitle()}
+            >
+              {getSyncButtonText()}
+            </Button>
+          </div>
+        )}
+
+        {/* Login Prompt Modal */}
+        <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
+          <Modal.Header>
+            <Modal.Title>Authentication Required</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <span className="text-amber-600 text-xl">🔐</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-gray-900 font-medium">
+                    {loginPromptData?.message ||
+                      'Authentication required to sync data.'}
+                  </p>
+                  <p className="text-gray-600 text-sm mt-1">
+                    You will be redirected to Online Scout Manager to
+                    authenticate.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> You can continue using the app with
+                  offline data if you prefer not to sync at this time.
+                </p>
+              </div>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline" onClick={handleLoginCancel}>
+              Stay Offline
+            </Button>
+            <Button variant="scout-blue" onClick={handleLoginConfirm}>
+              Login & Sync
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </>
+    );
+  }
+
   return (
-    <div className="fixed top-0 left-0 right-0 z-50" data-oid="20owd_-">
+    <div className="fixed top-0 left-0 right-0 z-50">
       {shouldShowBanner && (
-        <Alert
-          variant="warning"
-          className="rounded-none border-x-0 border-t-0"
-          data-oid="1bi1uxn"
-        >
-          <div
-            className="flex items-center justify-center gap-2"
-            data-oid="lahj1d5"
-          >
-            <span data-oid="rkrwxx-">📱</span>
-            <span data-oid="weob4ph">
+        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
+          <div className="flex items-center justify-center gap-2">
+            <span>📱</span>
+            <span>
               {!isOnline
-                ? "Offline Mode - Using cached data"
-                : "API Unavailable - Using cached data"}
+                ? 'Offline Mode - Using cached data'
+                : 'API Unavailable - Using cached data'}
             </span>
           </div>
         </Alert>
@@ -382,39 +435,31 @@ function OfflineIndicator({ hideSync = false }) {
       {syncStatus && (
         <Alert
           variant={
-            syncStatus.status === "syncing"
-              ? "info"
-              : syncStatus.status === "completed"
-                ? "success"
-                : "error"
+            syncStatus.status === 'syncing'
+              ? 'info'
+              : syncStatus.status === 'completed'
+                ? 'success'
+                : 'error'
           }
           className="rounded-none border-x-0 border-t-0"
-          data-oid="dv0zazk"
         >
-          <div
-            className="flex items-center justify-center gap-2"
-            data-oid="1-l9dfo"
-          >
-            {syncStatus.status === "syncing" && (
+          <div className="flex items-center justify-center gap-2">
+            {syncStatus.status === 'syncing' && (
               <>
-                <span className="animate-spin" data-oid="zo45u2e">
-                  ⏳
-                </span>
-                <span data-oid="xum153:">{syncStatus.message}</span>
+                <span className="animate-spin">⏳</span>
+                <span>{syncStatus.message}</span>
               </>
             )}
-            {syncStatus.status === "completed" && (
+            {syncStatus.status === 'completed' && (
               <>
-                <span data-oid="ozbavbu">✅</span>
-                <span data-oid="rxq255m">Sync completed</span>
+                <span>✅</span>
+                <span>Sync completed</span>
               </>
             )}
-            {syncStatus.status === "error" && (
+            {syncStatus.status === 'error' && (
               <>
-                <span data-oid="rspzhzn">⚠️</span>
-                <span data-oid="e9_ru0k">
-                  Sync failed: {syncStatus.message}
-                </span>
+                <span>⚠️</span>
+                <span>Sync failed: {syncStatus.message}</span>
               </>
             )}
           </div>
@@ -422,24 +467,17 @@ function OfflineIndicator({ hideSync = false }) {
       )}
 
       {showSyncError && (
-        <Alert
-          variant="warning"
-          className="rounded-none border-x-0 border-t-0"
-          data-oid="b:a8brm"
-        >
-          <div className="flex items-center justify-between" data-oid="xfxjtk6">
-            <div className="flex items-center gap-2" data-oid="3mhoznd">
-              <span data-oid="vw.amjp">⚠️</span>
-              <span data-oid="29zliqm">
-                Cannot sync while offline or API is unreachable
-              </span>
+        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Cannot sync while offline or API is unreachable</span>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSyncError(false)}
               className="ml-4"
-              data-oid="xgfbd3z"
             >
               Dismiss
             </Button>

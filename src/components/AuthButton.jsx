@@ -1,5 +1,5 @@
-import React from "react";
-import { Button } from "./ui";
+import React from 'react';
+import { Button } from './ui';
 
 /**
  * AuthButton - Context-aware authentication button for header
@@ -15,66 +15,66 @@ function AuthButton({
   onLogin,
   onRefresh,
   isLoading = false,
-  className = "",
+  className = '',
 }) {
   const getButtonConfig = () => {
     if (isLoading) {
       return {
-        text: "Syncing...",
+        text: 'Syncing...',
         onClick: null,
         disabled: true,
-        variant: "outline",
+        variant: 'outline',
       };
     }
 
     switch (authState) {
-      case "no_data":
-        return {
-          text: "Sign in to OSM",
-          onClick: onLogin,
-          disabled: false,
-          variant: "scout-blue",
-        };
+    case 'no_data':
+      return {
+        text: 'Sign in to OSM',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-blue',
+      };
 
-      case "cached_only":
-        return {
-          text: "Refresh data",
-          onClick: onLogin, // Login to get fresh data
-          disabled: false,
-          variant: "outline",
-        };
+    case 'cached_only':
+      return {
+        text: 'Refresh data',
+        onClick: onLogin, // Login to get fresh data
+        disabled: false,
+        variant: 'outline',
+      };
 
-      case "token_expired":
-        return {
-          text: "Sign in to refresh",
-          onClick: onLogin,
-          disabled: false,
-          variant: "scout-purple",
-        };
+    case 'token_expired':
+      return {
+        text: 'Sign in to refresh',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-purple',
+      };
 
-      case "authenticated":
-        return {
-          text: "Refresh",
-          onClick: onRefresh || onLogin,
-          disabled: false,
-          variant: "outline",
-        };
+    case 'authenticated':
+      return {
+        text: 'Refresh',
+        onClick: onRefresh || onLogin,
+        disabled: false,
+        variant: 'outline',
+      };
 
-      case "syncing":
-        return {
-          text: "Syncing...",
-          onClick: null,
-          disabled: true,
-          variant: "outline",
-        };
+    case 'syncing':
+      return {
+        text: 'Syncing...',
+        onClick: null,
+        disabled: true,
+        variant: 'outline',
+      };
 
-      default:
-        return {
-          text: "Sign in",
-          onClick: onLogin,
-          disabled: false,
-          variant: "scout-blue",
-        };
+    default:
+      return {
+        text: 'Sign in',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-blue',
+      };
     }
   };
 
@@ -87,7 +87,6 @@ function AuthButton({
       disabled={config.disabled}
       className={`auth-button ${className}`}
       data-testid="auth-button"
-      data-oid="2at8sbp"
     >
       {config.text}
     </Button>

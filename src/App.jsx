@@ -1,17 +1,17 @@
-import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useAuth } from "./hooks/useAuth.js";
-import ResponsiveLayout from "./components/ResponsiveLayout.jsx";
-import BlockedScreen from "./components/BlockedScreen.jsx";
-import LoadingScreen from "./components/LoadingScreen.jsx";
-import EventDashboard from "./components/EventDashboard.jsx";
-import AttendanceView from "./components/AttendanceView.jsx";
-import MembersList from "./components/MembersList.jsx";
-import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import databaseService from "./services/database.js";
-import logger, { LOG_CATEGORIES } from "./services/logger.js";
-import { Alert } from "./components/ui";
-import "./App.css";
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth.js';
+import ResponsiveLayout from './components/ResponsiveLayout.jsx';
+import BlockedScreen from './components/BlockedScreen.jsx';
+import LoadingScreen from './components/LoadingScreen.jsx';
+import EventDashboard from './components/EventDashboard.jsx';
+import AttendanceView from './components/AttendanceView.jsx';
+import MembersList from './components/MembersList.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import databaseService from './services/database.js';
+import logger, { LOG_CATEGORIES } from './services/logger.js';
+import { Alert } from './components/ui';
+import './App.css';
 
 function App() {
   const {
@@ -24,8 +24,15 @@ function App() {
     login,
     logout,
   } = useAuth();
-  const [currentView, setCurrentView] = useState("dashboard");
+  const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
+
+  // Refresh function - triggers a data refresh without OAuth redirect
+  const handleRefresh = () => {
+    // For now, reload the page to get fresh data - this preserves existing tokens
+    // A more sophisticated approach would trigger data sync without full reload
+    window.location.reload();
+  };
 
   // Notification system state
   const [notifications, setNotifications] = useState([]);
@@ -60,20 +67,20 @@ function App() {
         membersData = await databaseService.getMembers([section.sectionid]);
       } catch (error) {
         logger.error(
-          "Error loading cached members",
+          'Error loading cached members',
           { error: error.message, sectionId: section.sectionid },
           LOG_CATEGORIES.ERROR,
         );
         addNotification(
-          "error",
-          "Unable to load member data. Please try refreshing the page.",
+          'error',
+          'Unable to load member data. Please try refreshing the page.',
         );
         membersData = [];
       }
     }
 
     setNavigationData({ section, members: membersData });
-    setCurrentView("members");
+    setCurrentView('members');
   };
 
   const handleNavigateToAttendance = async (events, members = null) => {
@@ -87,24 +94,24 @@ function App() {
         membersData = await databaseService.getMembers(sectionsInvolved);
       } catch (error) {
         logger.error(
-          "Error loading cached members",
+          'Error loading cached members',
           { error: error.message, sectionsInvolved },
           LOG_CATEGORIES.ERROR,
         );
         addNotification(
-          "error",
-          "Unable to load member data for attendance view. Please try refreshing the page.",
+          'error',
+          'Unable to load member data for attendance view. Please try refreshing the page.',
         );
         membersData = [];
       }
     }
 
     setNavigationData({ events, members: membersData });
-    setCurrentView("attendance");
+    setCurrentView('attendance');
   };
 
   const handleBackToDashboard = () => {
-    setCurrentView("dashboard");
+    setCurrentView('dashboard');
     setNavigationData({});
   };
 
@@ -112,12 +119,12 @@ function App() {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Checking authentication..." data-oid="1mlwwph" />
+      <LoadingScreen message="Checking authentication..." data-oid="82rsimx" />
     );
   }
 
   if (isBlocked) {
-    return <BlockedScreen data-oid=":ei3nl1" />;
+    return <BlockedScreen data-oid="8np6w_z" />;
   }
 
   // Always show dashboard - authentication is now contextual via header
@@ -125,85 +132,86 @@ function App() {
 
   const renderCurrentView = () => {
     switch (currentView) {
-      case "members":
-        return (
-          <MembersList
-            sections={navigationData.section ? [navigationData.section] : []}
-            members={navigationData.members || []} // Loaded from cache
-            onBack={handleBackToDashboard}
-            data-oid="fn3pvsl"
-          />
-        );
+    case 'members':
+      return (
+        <MembersList
+          sections={navigationData.section ? [navigationData.section] : []}
+          members={navigationData.members || []} // Loaded from cache
+          onBack={handleBackToDashboard}
+          data-oid="xohl2s0"
+        />
+      );
 
-      case "attendance":
-        return (
-          <AttendanceView
-            sections={
-              navigationData.events
-                ? [
-                    ...new Set(
-                      navigationData.events.map((e) => ({
-                        sectionid: e.sectionid,
-                        sectionname: e.sectionname,
-                      })),
-                    ),
-                  ]
-                : []
-            }
-            events={navigationData.events || []}
-            members={navigationData.members || []} // Loaded from cache
-            onBack={handleBackToDashboard}
-            data-oid="hjitlp1"
-          />
-        );
+    case 'attendance':
+      return (
+        <AttendanceView
+          sections={
+            navigationData.events
+              ? [
+                ...new Set(
+                  navigationData.events.map((e) => ({
+                    sectionid: e.sectionid,
+                    sectionname: e.sectionname,
+                  })),
+                ),
+              ]
+              : []
+          }
+          events={navigationData.events || []}
+          members={navigationData.members || []} // Loaded from cache
+          onBack={handleBackToDashboard}
+          data-oid="zrtob7_"
+        />
+      );
 
-      default:
-        return (
-          <EventDashboard
-            onNavigateToMembers={handleNavigateToMembers}
-            onNavigateToAttendance={handleNavigateToAttendance}
-            data-oid="fobh-a1"
-          />
-        );
+    default:
+      return (
+        <EventDashboard
+          onNavigateToMembers={handleNavigateToMembers}
+          onNavigateToAttendance={handleNavigateToAttendance}
+          data-oid="zfo-c6t"
+        />
+      );
     }
   };
 
   return (
-    <ErrorBoundary name="App" logProps={false} data-oid="svto4.3">
-      <div className="App" data-testid="app" data-oid="w:xq503">
-        <ErrorBoundary name="Router" logProps={false} data-oid="wr:sd2x">
-          <Router data-oid="9pg_8_w">
+    <ErrorBoundary name="App" logProps={false} data-oid="b3kc7nt">
+      <div className="App" data-testid="app" data-oid="bmzu2xc">
+        <ErrorBoundary name="Router" logProps={false} data-oid="bx5pemu">
+          <Router data-oid="ztwbw:3">
             <ErrorBoundary
               name="ResponsiveLayout"
               logProps={false}
-              data-oid="pvggx8k"
+              data-oid="1y4:f9s"
             >
               <ResponsiveLayout
                 user={user}
                 onLogout={logout}
                 onLogin={login}
+                onRefresh={handleRefresh}
                 currentView={currentView}
                 isOfflineMode={isOfflineMode}
                 authState={authState}
                 lastSyncTime={lastSyncTime}
-                data-oid=".5qcba9"
+                data-oid="2c61drc"
               >
                 <ErrorBoundary
                   name="Routes"
                   logProps={false}
-                  data-oid="fuv46lj"
+                  data-oid=":m15jt7"
                 >
-                  <Routes data-oid="_c1urak">
+                  <Routes data-oid="c3k12d.">
                     <Route
                       path="/"
                       element={renderCurrentView()}
-                      data-oid=":u:xm3o"
+                      data-oid="ibytcl:"
                     />
 
                     <Route
                       path="/dashboard"
                       element={renderCurrentView()}
-                      data-oid="p_8s_bc"
+                      data-oid="z8vjxij"
                     />
                   </Routes>
                 </ErrorBoundary>
@@ -216,12 +224,12 @@ function App() {
         <ErrorBoundary
           name="NotificationSystem"
           logProps={false}
-          data-oid="0vt:-ow"
+          data-oid="sqerlt5"
         >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
-            style={{ maxWidth: "400px" }}
-            data-oid="8tln6zh"
+            style={{ maxWidth: '400px' }}
+            data-oid="qcv7.ct"
           >
             {notifications.map((notification) => (
               <Alert
@@ -230,7 +238,7 @@ function App() {
                 dismissible={true}
                 onDismiss={() => removeNotification(notification.id)}
                 className="shadow-lg"
-                data-oid="v0yg_d8"
+                data-oid="tzwwc4s"
               >
                 {notification.message}
               </Alert>

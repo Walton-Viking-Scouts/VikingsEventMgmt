@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect } from "react";
-import { cn } from "../../utils/cn";
+import React, { useState, useRef, useEffect } from 'react';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Menu components (Dropdown, Navigation)
  */
 
-const Menu = ({ children, className = "", ...props }) => {
+const Menu = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn("relative", className)} {...props} data-oid="cqbc6bb">
+    <div className={cn('relative', className)} {...props}>
       {children}
     </div>
   );
@@ -16,26 +16,25 @@ const Menu = ({ children, className = "", ...props }) => {
 const MenuButton = ({
   children,
   onClick,
-  variant = "ghost",
-  className = "",
+  variant = 'ghost',
+  className = '',
   ...props
 }) => {
   const variants = {
-    ghost: "text-gray-700 hover:bg-gray-100 focus:bg-gray-100",
-    scout: "text-white hover:bg-scout-blue-light focus:bg-scout-blue-light",
-    solid: "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:bg-gray-300",
+    ghost: 'text-gray-700 hover:bg-gray-100 focus:bg-gray-100',
+    scout: 'text-white hover:bg-scout-blue-light focus:bg-scout-blue-light',
+    solid: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:bg-gray-300',
   };
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue",
+        'inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue',
         variants[variant],
         className,
       )}
       {...props}
-      data-oid="k71eh6j"
     >
       {children}
     </button>
@@ -44,16 +43,16 @@ const MenuButton = ({
 
 const MenuItems = ({
   isOpen = false,
-  position = "bottom-left",
-  className = "",
+  position = 'bottom-left',
+  className = '',
   children,
   ...props
 }) => {
   const positions = {
-    "bottom-left": "top-full left-0 mt-1",
-    "bottom-right": "top-full right-0 mt-1",
-    "top-left": "bottom-full left-0 mb-1",
-    "top-right": "bottom-full right-0 mb-1",
+    'bottom-left': 'top-full left-0 mt-1',
+    'bottom-right': 'top-full right-0 mt-1',
+    'top-left': 'bottom-full left-0 mb-1',
+    'top-right': 'bottom-full right-0 mb-1',
   };
 
   if (!isOpen) return null;
@@ -61,16 +60,13 @@ const MenuItems = ({
   return (
     <div
       className={cn(
-        "absolute z-50 min-w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none",
+        'absolute z-50 min-w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none',
         positions[position],
         className,
       )}
       {...props}
-      data-oid="p1lio0u"
     >
-      <div className="py-1" data-oid="pio-3q_">
-        {children}
-      </div>
+      <div className="py-1">{children}</div>
     </div>
   );
 };
@@ -79,14 +75,14 @@ const MenuItem = ({
   children,
   onClick,
   disabled = false,
-  variant = "default",
-  className = "",
+  variant = 'default',
+  className = '',
   ...props
 }) => {
   const variants = {
-    default: "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
-    scout: "text-scout-blue hover:bg-scout-blue hover:text-white",
-    danger: "text-red-600 hover:bg-red-50 hover:text-red-700",
+    default: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
+    scout: 'text-scout-blue hover:bg-scout-blue hover:text-white',
+    danger: 'text-red-600 hover:bg-red-50 hover:text-red-700',
   };
 
   return (
@@ -94,24 +90,22 @@ const MenuItem = ({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-full text-left px-4 py-2 text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+        'w-full text-left px-4 py-2 text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
         variants[variant],
         className,
       )}
       {...props}
-      data-oid="---2u0-"
     >
       {children}
     </button>
   );
 };
 
-const MenuDivider = ({ className = "", ...props }) => {
+const MenuDivider = ({ className = '', ...props }) => {
   return (
     <div
-      className={cn("border-t border-gray-100 my-1", className)}
+      className={cn('border-t border-gray-100 my-1', className)}
       {...props}
-      data-oid="mra62.a"
     />
   );
 };
@@ -120,9 +114,9 @@ const MenuDivider = ({ className = "", ...props }) => {
 const Dropdown = ({
   trigger,
   children,
-  position = "bottom-left",
+  position = 'bottom-left',
   closeOnClick = true,
-  className = "",
+  className = '',
   ...props
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -136,20 +130,20 @@ const Dropdown = ({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Close on escape key
   useEffect(() => {
     const handleEscape = (event) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
   const handleToggle = () => {
@@ -168,11 +162,9 @@ const Dropdown = ({
   };
 
   return (
-    <Menu ref={dropdownRef} className={className} {...props} data-oid="e10jy28">
-      <div onClick={handleToggle} data-oid="5bdpn28">
-        {trigger}
-      </div>
-      <MenuItems isOpen={isOpen} position={position} data-oid="skr5hde">
+    <Menu ref={dropdownRef} className={className} {...props}>
+      <div onClick={handleToggle}>{trigger}</div>
+      <MenuItems isOpen={isOpen} position={position}>
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === MenuItem) {
             return React.cloneElement(child, {
@@ -189,21 +181,17 @@ const Dropdown = ({
 // Navigation components
 const Nav = ({
   children,
-  className = "",
-  variant = "horizontal",
+  className = '',
+  variant = 'horizontal',
   ...props
 }) => {
   const variants = {
-    horizontal: "flex space-x-1",
-    vertical: "flex flex-col space-y-1",
+    horizontal: 'flex space-x-1',
+    vertical: 'flex flex-col space-y-1',
   };
 
   return (
-    <nav
-      className={cn(variants[variant], className)}
-      {...props}
-      data-oid="jec3qss"
-    >
+    <nav className={cn(variants[variant], className)} {...props}>
       {children}
     </nav>
   );
@@ -213,31 +201,30 @@ const NavItem = ({
   children,
   href,
   active = false,
-  variant = "default",
-  className = "",
+  variant = 'default',
+  className = '',
   ...props
 }) => {
   const variants = {
-    default: "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
-    scout: "text-white hover:bg-scout-blue-light",
+    default: 'text-gray-700 hover:text-gray-900 hover:bg-gray-100',
+    scout: 'text-white hover:bg-scout-blue-light',
     pills: active
-      ? "bg-scout-blue text-white"
-      : "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
+      ? 'bg-scout-blue text-white'
+      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100',
   };
 
-  const Component = href ? "a" : "button";
+  const Component = href ? 'a' : 'button';
 
   return (
     <Component
       href={href}
       className={cn(
-        "px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200",
+        'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
         variants[variant],
-        active && variant !== "pills" && "bg-scout-blue text-white",
+        active && variant !== 'pills' && 'bg-scout-blue text-white',
         className,
       )}
       {...props}
-      data-oid="lhscr5f"
     >
       {children}
     </Component>

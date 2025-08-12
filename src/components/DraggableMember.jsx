@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 
 // Constants for draggable member types
-const DRAGGABLE_MEMBER_TYPES = ["Young People"];
+const DRAGGABLE_MEMBER_TYPES = ['Young People'];
 
 /**
  * DraggableMember - Wrapper component that makes members draggable between camp groups
@@ -24,7 +24,7 @@ function DraggableMember({
   onDragEnd,
   isDragging = false,
   disabled = false,
-  className = "",
+  className = '',
 }) {
   const [dragPreview, setDragPreview] = useState(false);
   const [mouseDown, setMouseDown] = useState(false);
@@ -52,14 +52,14 @@ function DraggableMember({
     const dragData = {
       memberId: member.scoutid,
       memberName: `${member.firstname} ${member.lastname}`,
-      fromGroupNumber: group?.number || "Unknown",
-      fromGroupName: group?.name || "Unknown Group",
+      fromGroupNumber: group?.number || 'Unknown',
+      fromGroupName: group?.name || 'Unknown Group',
       member: member,
     };
 
     try {
-      e.dataTransfer.setData("application/json", JSON.stringify(dragData));
-      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+      e.dataTransfer.effectAllowed = 'move';
 
       // Visual feedback
       setDragPreview(true);
@@ -92,7 +92,7 @@ function DraggableMember({
     }
 
     // Ensure click only fires on the actual name span, not drag handle
-    if (onMemberClick && typeof onMemberClick === "function") {
+    if (onMemberClick && typeof onMemberClick === 'function') {
       onMemberClick(member);
     }
   };
@@ -104,13 +104,13 @@ function DraggableMember({
       className={`
         flex items-center justify-between p-3 rounded-lg transition-all duration-200 select-none
         ${
-          isDraggable
-            ? "cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]"
-            : "cursor-default bg-gray-50 border-2 border-gray-200"
-        }
-        ${mouseDown ? "cursor-grabbing scale-[1.01] shadow-lg" : ""}
-        ${dragPreview ? "opacity-60 transform rotate-1 scale-95 shadow-xl" : ""}
-        ${isDragging ? "opacity-40" : ""}
+    isDraggable
+      ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
+      : 'cursor-default bg-gray-50 border-2 border-gray-200'
+    }
+        ${mouseDown ? 'cursor-grabbing scale-[1.01] shadow-lg' : ''}
+        ${dragPreview ? 'opacity-60 transform rotate-1 scale-95 shadow-xl' : ''}
+        ${isDragging ? 'opacity-40' : ''}
         ${className}
       `}
       draggable={isDraggable}
@@ -130,52 +130,43 @@ function DraggableMember({
         }
       }}
       style={{
-        touchAction: isDraggable ? "none" : "auto",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        msUserSelect: "none",
-        MozUserSelect: "none",
+        touchAction: isDraggable ? 'none' : 'auto',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        msUserSelect: 'none',
+        MozUserSelect: 'none',
       }}
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
       data-member-id={member.scoutid}
       data-member-name={memberName}
-      data-oid="4dijmym"
     >
-      <div className="flex-1" onClick={handleMemberClick} data-oid="zb7bo3m">
-        <div className="flex items-center gap-2" data-oid="9_99:uk">
+      <div className="flex-1" onClick={handleMemberClick}>
+        <div className="flex items-center gap-2">
           <span
             className={`text-sm font-medium ${
-              isDraggable ? "text-blue-700" : "text-gray-700"
+              isDraggable ? 'text-blue-700' : 'text-gray-700'
             } ${
               onMemberClick
-                ? "cursor-pointer hover:text-scout-blue hover:underline"
-                : ""
+                ? 'cursor-pointer hover:text-scout-blue hover:underline'
+                : ''
             }`}
-            data-oid="ub7b5b3"
           >
             {memberName}
           </span>
         </div>
 
         {/* Show Viking Event Management fields if available */}
-        <div
-          className="text-xs text-gray-500 mt-1 space-y-1"
-          data-oid="f:x44hd"
-        >
-          {member.SignedInBy && (
-            <div data-oid="s3x8_r_">Signed in by: {member.SignedInBy}</div>
-          )}
+        <div className="text-xs text-gray-500 mt-1 space-y-1">
+          {member.SignedInBy && <div>Signed in by: {member.SignedInBy}</div>}
           {member.SignedInWhen && (
-            <div data-oid="ze-gh-h">
+            <div>
               Signed in: {new Date(member.SignedInWhen).toLocaleString()}
             </div>
           )}
-          {member.SignedOutBy && (
-            <div data-oid="7.0qdt4">Signed out by: {member.SignedOutBy}</div>
-          )}
+          {member.SignedOutBy && <div>Signed out by: {member.SignedOutBy}</div>}
           {member.SignedOutWhen && (
-            <div data-oid="t8aiu3y">
+            <div>
               Signed out: {new Date(member.SignedOutWhen).toLocaleString()}
             </div>
           )}
@@ -187,22 +178,16 @@ function DraggableMember({
         <div
           className="ml-2 flex items-center text-blue-500 hover:text-blue-700 transition-colors cursor-grab flex-shrink-0"
           onMouseDown={(e) => e.stopPropagation()}
-          style={{ touchAction: "none" }}
+          style={{ touchAction: 'none' }}
           title="Drag to move"
-          data-oid="mair7vz"
         >
-          <svg
-            className="w-5 h-5"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-            data-oid="t8_.91k"
-          >
-            <circle cx="4" cy="4" r="1.2" data-oid="b:4m4kv" />
-            <circle cx="12" cy="4" r="1.2" data-oid="o4wrfmz" />
-            <circle cx="4" cy="8" r="1.2" data-oid="9g4pwoo" />
-            <circle cx="12" cy="8" r="1.2" data-oid="1m5hjil" />
-            <circle cx="4" cy="12" r="1.2" data-oid="3j4ya:o" />
-            <circle cx="12" cy="12" r="1.2" data-oid="_cmn.0-" />
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
+            <circle cx="4" cy="4" r="1.2" />
+            <circle cx="12" cy="4" r="1.2" />
+            <circle cx="4" cy="8" r="1.2" />
+            <circle cx="12" cy="8" r="1.2" />
+            <circle cx="4" cy="12" r="1.2" />
+            <circle cx="12" cy="12" r="1.2" />
           </svg>
         </div>
       )}

@@ -461,7 +461,7 @@ export async function getUserRoles(token) {
         }
 
         span.setAttribute('data.source', 'api');
-        logger.debug('Making API request for user roles');
+        // Making request to fetch user roles
 
         const data = await withRateLimitQueue(async () => {
           const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
@@ -1190,8 +1190,8 @@ export async function getListOfMembers(sections, token) {
   
   for (const section of validSections) {
     try {
-      // Add delay between sections to prevent rapid API calls
-      await sleep(600);
+      // Add delay between sections to prevent rapid API calls - increased for rate limiting
+      await sleep(1200);
       
       // Use cached terms instead of calling API again
       // Defensive check for section ID

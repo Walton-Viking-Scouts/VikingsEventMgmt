@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 /**
  * SignInOutButton - Handles sign in/out actions for camp attendance
@@ -11,35 +11,34 @@ import React from "react";
 function SignInOutButton({ member, onSignInOut, loading }) {
   const isSignedIn =
     member.vikingEventData?.SignedInBy &&
-    member.vikingEventData?.SignedInBy !== "-" &&
-    member.vikingEventData?.SignedInBy.trim() !== "";
+    member.vikingEventData?.SignedInBy !== '-' &&
+    member.vikingEventData?.SignedInBy.trim() !== '';
   const isSignedOut =
     member.vikingEventData?.SignedOutBy &&
-    member.vikingEventData?.SignedOutBy !== "-" &&
-    member.vikingEventData?.SignedOutBy.trim() !== "";
+    member.vikingEventData?.SignedOutBy !== '-' &&
+    member.vikingEventData?.SignedOutBy.trim() !== '';
 
   // Show Sign In if not signed in, Sign Out if signed in but not signed out
-  const action = isSignedIn && !isSignedOut ? "signout" : "signin";
-  const label = action === "signin" ? "Sign In" : "Sign Out";
+  const action = isSignedIn && !isSignedOut ? 'signout' : 'signin';
+  const label = action === 'signin' ? 'Sign In' : 'Sign Out';
 
   // Use pill-style button like existing filter buttons
   const baseStyles =
-    "px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm min-w-16";
+    'px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm min-w-16';
   const activeStyles =
-    action === "signin"
-      ? "bg-scout-green text-white hover:bg-scout-green-dark"
-      : "bg-scout-red text-white hover:bg-scout-red-dark";
+    action === 'signin'
+      ? 'bg-scout-green text-white hover:bg-scout-green-dark'
+      : 'bg-scout-red text-white hover:bg-scout-red-dark';
 
   return (
     <button
       onClick={() => onSignInOut(member, action)}
       disabled={loading}
-      className={`${baseStyles} ${activeStyles} ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+      className={`${baseStyles} ${activeStyles} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
       type="button"
       title={`${label} ${member.name}`}
-      data-oid="ggmkejp"
     >
-      {loading ? "..." : label}
+      {loading ? '...' : label}
     </button>
   );
 }

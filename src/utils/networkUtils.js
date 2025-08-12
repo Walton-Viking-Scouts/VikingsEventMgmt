@@ -26,19 +26,14 @@ export async function checkNetworkStatus() {
       // Native platform - use Capacitor Network plugin
       const status = await Network.getStatus();
       
-      logger.debug('Network status checked (native)', {
-        connected: status.connected,
-        connectionType: status.connectionType,
-      }, LOG_CATEGORIES.APP);
+      // Only log when network status changes (not every check)
       
       return status.connected;
     } else {
       // Web browser - use navigator.onLine
       const isOnline = navigator.onLine;
       
-      logger.debug('Network status checked (web)', {
-        connected: isOnline,
-      }, LOG_CATEGORIES.APP);
+      // Only log network changes, not routine checks
       
       return isOnline;
     }
