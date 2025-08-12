@@ -30,7 +30,11 @@ export class RateLimitQueue {
   addStatusListener(listener) {
     this.listeners.add(listener);
     // Send current status immediately
-    listener(this.getStatus());
+    try {
+      listener(this.getStatus());
+    } catch (error) {
+      logger.error('Error in rate limit queue listener (initial emit)', { error }, LOG_CATEGORIES.ERROR);
+    }
   }
 
   /**
@@ -90,7 +94,7 @@ export class RateLimitQueue {
         priority: options.priority || 0,
         attempts: 0,
         createdAt: Date.now(),
-        timeout: options.timeout || this.queueTimeout,
+        timeout: options.timeout ?? this.queueTimeout,
         id: Math.random().toString(36).substr(2, 9),
       };
 
@@ -112,14 +116,26 @@ export class RateLimitQueue {
       this.notifyListeners(this.getStatus());
       this.process();
 
-      // Set timeout for request
-      setTimeout(() => {
+      // Set timeout for request and store timeout ID to prevent memory leaks
+      request._timeoutId = setTimeout(() => {
         if (this.queue.includes(request)) {
           this.removeFromQueue(request);
           reject(new Error('Request timeout: queued too long'));
         }
       }, request.timeout);
     });
+  }
+
+  /**
+   * Clear request timeout to prevent memory leaks
+   * @private
+   * @param {Object} request - Request to clear timeout for
+   */
+  _clearRequestTimeout(request) {
+    if (Object.prototype.hasOwnProperty.call(request, '_timeoutId')) {
+      clearTimeout(request._timeoutId);
+      delete request._timeoutId;
+    }
   }
 
   /**
@@ -132,6 +148,9 @@ export class RateLimitQueue {
       this.queue.splice(index, 1);
       this.notifyListeners(this.getStatus());
     }
+    
+    // Clear timeout to prevent memory leak and timer firing for completed requests
+    this._clearRequestTimeout(request);
   }
 
   /**
@@ -175,6 +194,10 @@ export class RateLimitQueue {
           }, LOG_CATEGORIES.API);
 
           const result = await request.apiCall();
+          
+          // Clear timeout on successful completion to prevent memory leak
+          this._clearRequestTimeout(request);
+          
           request.resolve(result);
 
           // Small delay between successful requests to ensure proper ordering
@@ -201,6 +224,9 @@ export class RateLimitQueue {
               error: error.message,
               is429,
             }, LOG_CATEGORIES.ERROR);
+            
+            // Clear timeout on final failure to prevent memory leak
+            this._clearRequestTimeout(request);
             
             request.reject(error);
           }
@@ -236,9 +262,12 @@ export class RateLimitQueue {
         retryAfter = parseInt(retryAfterMatch[1]) * 1000;
       }
     }
+    // Enforce configured bounds
+    retryAfter = Math.min(Math.max(retryAfter, this.baseDelay), this.maxDelay);
 
     // Set global rate limit timeout
     this.rateLimitedUntil = Date.now() + retryAfter;
+    this.notifyListeners(this.getStatus());
 
     logger.warn('Rate limited - queuing for retry', {
       requestId: request.id,
@@ -270,12 +299,17 @@ export class RateLimitQueue {
     // Request re-queued for retry after rate limit timeout
     
     // CRITICAL FIX: Schedule automatic resume of processing after rate limit timeout
-    setTimeout(() => {
+    if (this._resumeTimerId) {
+      clearTimeout(this._resumeTimerId);
+      this._resumeTimerId = null;
+    }
+    this._resumeTimerId = setTimeout(() => {
+      this._resumeTimerId = null;
       if (this.queue.length > 0 && !this.processing) {
         // Auto-resuming processing after rate limit timeout
         this.process();
       }
-    }, retryAfter + 100); // Add small buffer to ensure rate limit has expired
+    }, retryAfter + 100); // Small buffer to ensure rate limit has expired
   }
 
   /**
@@ -285,8 +319,10 @@ export class RateLimitQueue {
   clear(reason = 'Manual clear') {
     const clearedCount = this.queue.length;
     
-    // Reject all pending requests
+    // Reject all pending requests and clear their timeouts
     this.queue.forEach(request => {
+      // Clear timeout to prevent memory leak
+      this._clearRequestTimeout(request);
       request.reject(new Error(`Queue cleared: ${reason}`));
     });
     
@@ -308,7 +344,9 @@ export class RateLimitQueue {
   getDetailedStats() {
     return {
       ...this.getStatus(),
-      oldestRequestAge: this.queue.length > 0 ? Date.now() - this.queue[this.queue.length - 1].createdAt : 0,
+      oldestRequestAge: this.queue.length > 0
+        ? Date.now() - Math.min(...this.queue.map(r => r.createdAt || 0))
+        : 0,
       averageRetryCount: this.requestCount > 0 ? this.retryCount / this.requestCount : 0,
       listenerCount: this.listeners.size,
     };

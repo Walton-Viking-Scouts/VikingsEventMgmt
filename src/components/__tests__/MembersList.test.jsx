@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MembersList from '../MembersList.jsx';
 
@@ -58,14 +58,22 @@ describe('MembersList', () => {
     vi.mocked(getListOfMembers).mockResolvedValue(mockMembers);
   });
 
-  it('renders loading screen initially', () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+  it('renders loading screen initially', async () => {
+    // Mock API to be slower so we can catch loading state
+    const { getListOfMembers } = await import('../../services/api.js');
+    vi.mocked(getListOfMembers).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(mockMembers), 100)));
+
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     expect(screen.getByText('Loading members...')).toBeInTheDocument();
   });
 
   it('displays members count after loading', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Members (2)')).toBeInTheDocument();
@@ -73,7 +81,9 @@ describe('MembersList', () => {
   });
 
   it('displays section information', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Members from selected sections: Beavers, Cubs')).toBeInTheDocument();
@@ -81,7 +91,9 @@ describe('MembersList', () => {
   });
 
   it('shows member names after loading', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
@@ -90,7 +102,9 @@ describe('MembersList', () => {
   });
 
   it('displays member email addresses', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('john.doe@example.com')).toBeInTheDocument();
@@ -99,7 +113,9 @@ describe('MembersList', () => {
   });
 
   it('shows search input', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search members by name, email, or section...')).toBeInTheDocument();
@@ -107,7 +123,9 @@ describe('MembersList', () => {
   });
 
   it('filters members when searching', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
@@ -123,7 +141,9 @@ describe('MembersList', () => {
   });
 
   it('shows back button', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
@@ -131,7 +151,9 @@ describe('MembersList', () => {
   });
 
   it('calls onBack when back button is clicked', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
@@ -144,7 +166,9 @@ describe('MembersList', () => {
   });
 
   it('shows export button', async () => {
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Export CSV')).toBeInTheDocument();
@@ -156,7 +180,9 @@ describe('MembersList', () => {
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockRejectedValue(new Error('Failed to load members'));
     
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Error Loading Members')).toBeInTheDocument();
@@ -169,7 +195,9 @@ describe('MembersList', () => {
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockRejectedValue(new Error('API Error'));
     
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Retry')).toBeInTheDocument();
@@ -182,7 +210,9 @@ describe('MembersList', () => {
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockResolvedValue([]);
     
-    render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    await act(async () => {
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
+    });
     
     await waitFor(() => {
       expect(screen.getByText('Members (0)')).toBeInTheDocument();

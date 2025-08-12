@@ -28,14 +28,21 @@ export function setToken(token) {
   
   // Reset auth error state when new token is set
   authHandler.reset();
+  
+  // Set user context in Sentry when token is set - with error handling
+  try {
+    sentryUtils.setUser({
+      segment: 'mobile-app-users',
+    });
+  } catch (sentryError) {
+    // Log the error but don't let it break authentication
+    logger.error('Failed to set Sentry user context', { 
+      error: sentryError.message,
+      hasToken: !!token, 
+    }, LOG_CATEGORIES.AUTH);
+  }
     
-  // Set user context in Sentry when token is set
-  sentryUtils.setUser({
-    id: 'authenticated-user',
-    segment: 'mobile-app-users',
-  });
-    
-  logger.info('User authenticated successfully');
+  logger.info('User authenticated successfully', {}, LOG_CATEGORIES.AUTH);
 }
 
 export function clearToken() {
@@ -45,11 +52,24 @@ export function clearToken() {
   
   // Reset auth handler state when token is cleared
   authHandler.reset();
+  
+  // Clear user context in Sentry when logging out - with error handling
+  try {
+    sentryUtils.setUser(null);
+    sentryUtils.clearScope();
+    sentryUtils.addBreadcrumb({
+      category: 'auth',
+      message: 'User logged out; cleared Sentry user context',
+      level: 'info',
+    });
+  } catch (sentryError) {
+    // Log the error but don't let it break logout
+    logger.error('Failed to clear Sentry user context', { 
+      error: sentryError.message, 
+    }, LOG_CATEGORIES.AUTH);
+  }
     
-  // Clear user context in Sentry when logging out
-  sentryUtils.setUser(null);
-    
-  logger.info('User logged out - token cleared');
+  logger.info('User logged out - token cleared', {}, LOG_CATEGORIES.AUTH);
 }
 
 export function isAuthenticated() {
@@ -156,22 +176,86 @@ export function setUserInfo(userInfo) {
 
 // Fetch user info from startup data API
 export async function fetchUserInfo() {
+  // Constant fallback user info to avoid duplication
+  const fallbackUserInfo = {
+    firstname: 'Scout Leader',
+    lastname: '',
+    userid: null,
+    email: null,
+    fullname: 'Scout Leader',
+  };
+
   try {
     const token = getToken();
     if (!token) {
       throw new Error('No authentication token available');
     }
     
-    // Import getUserInfoFromAPI from api.js to avoid circular dependency
-    const { getUserInfoFromAPI } = await import('./api.js');
-    const userInfo = await getUserInfoFromAPI(token);
-    
-    logger.info('Successfully fetched user info', { 
-      firstname: userInfo?.firstname, 
-      hasUserInfo: !!userInfo,
-    }, LOG_CATEGORIES.AUTH);
-    
-    return userInfo;
+    try {
+      const apiModule = await import('./api.js');
+      
+      // The function is internal to api.js, so we need to use getStartupData instead
+      // This is simpler and avoids the circular dependency
+      if (typeof apiModule.getStartupData !== 'function') {
+        throw new Error('getStartupData function not available');
+      }
+      
+      const startupData = await apiModule.getStartupData(token);
+      
+      if (startupData && startupData.globals) {
+        const userInfo = {
+          firstname: startupData.globals.firstname || 'Scout Leader',
+          lastname: startupData.globals.lastname || '',
+          userid: startupData.globals.userid || null,
+          email: startupData.globals.email || null,
+          fullname: `${startupData.globals.firstname || 'Scout'} ${startupData.globals.lastname || 'Leader'}`.trim(),
+        };
+        
+        logger.info('Successfully fetched user info', { 
+          firstname: userInfo.firstname, 
+          hasUserInfo: true,
+        }, LOG_CATEGORIES.AUTH);
+        
+        // Update Sentry user context with real user identity for per-user grouping
+        try {
+          const sentryUser = {
+            username: userInfo.fullname,
+            segment: 'mobile-app-users',
+            ...(userInfo.userid ? { id: String(userInfo.userid) } : {}),
+            ...(userInfo.email ? { email: userInfo.email } : {}),
+          };
+          sentryUtils.setUser(sentryUser);
+        } catch (sentryError) {
+          logger.warn('Failed to update Sentry user identity', {
+            error: sentryError,
+            stack: sentryError.stack,
+            message: sentryError.message,
+            hasUserInfo: !!userInfo,
+          }, LOG_CATEGORIES.AUTH);
+          
+          // Ensure error is captured by Sentry for monitoring
+          sentryUtils.captureException(sentryError, {
+            tags: { operation: 'sentry_user_update' },
+            contexts: { 
+              userInfo: { hasUserInfo: !!userInfo },
+              auth: { operation: 'update_sentry_user_context' },
+            },
+          });
+        }
+        
+        return userInfo;
+      } else {
+        logger.warn('No globals data in startup response - using fallback user info', {}, LOG_CATEGORIES.AUTH);
+        return fallbackUserInfo;
+      }
+    } catch (importError) {
+      logger.warn('Failed to fetch user info from API, using fallback', { 
+        error: importError.message,
+      }, LOG_CATEGORIES.AUTH);
+      
+      // Don't throw error - just return fallback user info
+      return fallbackUserInfo;
+    }
   } catch (error) {
     logger.error('Failed to fetch user info', { error: error.message }, LOG_CATEGORIES.AUTH);
     throw error;

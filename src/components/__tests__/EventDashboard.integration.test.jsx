@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import EventDashboard from '../EventDashboard.jsx';
 import * as helpers from '../../utils/eventDashboardHelpers.js';
 
@@ -148,13 +148,17 @@ describe('EventDashboard Integration Tests', () => {
       helpers.groupEventsByName.mockReturnValue(mockEventGroups);
       helpers.buildEventCard.mockReturnValue(mockEventCards[0]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       // Wait for component to load and process
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
       
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Verify helper functions were called in correct order (cache-only mode)
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
@@ -203,12 +207,16 @@ describe('EventDashboard Integration Tests', () => {
         ['Cached Event', [mockCachedEvents[0]]],
       ]));
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Verify cache-only calls
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
@@ -225,10 +233,14 @@ describe('EventDashboard Integration Tests', () => {
     it('should handle empty sections gracefully', async () => {
       databaseService.getSections.mockResolvedValue([]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       // Wait for the component to process
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Should not call helper functions for empty sections
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith([], null);
@@ -251,12 +263,16 @@ describe('EventDashboard Integration Tests', () => {
         ['Success Event', [{ eventid: 101, name: 'Success Event' }]],
       ]));
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Should process available sections
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledTimes(1);
@@ -288,12 +304,16 @@ describe('EventDashboard Integration Tests', () => {
         .mockReturnValueOnce(mockCard2) // Late event returned first
         .mockReturnValueOnce(mockCard1); // Early event returned second
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Verify both cards were built
       expect(helpers.buildEventCard).toHaveBeenCalledTimes(2);
@@ -311,12 +331,16 @@ describe('EventDashboard Integration Tests', () => {
 
       helpers.fetchSectionEvents.mockResolvedValue([]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Verify development mode was passed to helper functions (cache-only mode)
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
@@ -337,12 +361,16 @@ describe('EventDashboard Integration Tests', () => {
         { eventid: 102, name: 'Success Event', startdate: '2024-02-16' },
       ]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => {
+        expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
+      });
 
       // Should call fetchAllSectionEvents once
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledTimes(1);
@@ -376,12 +404,16 @@ describe('EventDashboard Integration Tests', () => {
         .mockRejectedValue(new Error('Attendance fetch failed'))
         .mockResolvedValue([{ scoutid: 1, attended: true }]);
 
-      render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      await act(async () => {
+        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+      });
 
       await screen.findByTestId('sections-list', {}, { timeout: 3000 });
 
       // Wait longer for all async operations including potential auto-sync
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await waitFor(() => {
+        expect(helpers.fetchEventAttendance).toHaveBeenCalled();
+      }, { timeout: 3000 });
 
       // Should call attendance (allow for both cache-only and auto-sync scenarios)
       expect(helpers.fetchEventAttendance).toHaveBeenCalled();
