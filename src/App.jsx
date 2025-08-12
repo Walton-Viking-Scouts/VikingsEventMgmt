@@ -27,11 +27,26 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
 
-  // Refresh function - triggers a data refresh without OAuth redirect
-  const handleRefresh = () => {
-    // For now, reload the page to get fresh data - this preserves existing tokens
-    // A more sophisticated approach would trigger data sync without full reload
-    window.location.reload();
+  // Refresh function - triggers a data refresh via sync service
+  const handleRefresh = async () => {
+    try {
+      // Import sync service dynamically to avoid circular dependencies
+      const { default: syncService } = await import('./services/sync.js');
+      
+      // Trigger comprehensive data sync
+      await syncService.syncAll();
+      
+      logger.info('Manual refresh completed successfully', {}, LOG_CATEGORIES.APP);
+      
+      addNotification('success', 'Data refreshed successfully');
+    } catch (error) {
+      logger.error('Manual refresh failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+      
+      addNotification('error', `Refresh failed: ${error.message}`);
+    }
   };
 
   // Notification system state

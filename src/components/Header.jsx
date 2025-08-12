@@ -21,7 +21,7 @@ function Header({
   };
 
   return (
-    <TailwindHeader variant="scout" data-testid="header">
+    <TailwindHeader variant="scout" fixed={false} data-testid="header">
       <TailwindHeader.Container>
         <TailwindHeader.Content>
           <TailwindHeader.Left>

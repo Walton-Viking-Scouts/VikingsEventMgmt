@@ -67,7 +67,7 @@ export function useAuth() {
       const hasCachedData = cachedSections && cachedSections.length > 0;
       
       // Get last sync time from cache
-      const lastSync = localStorage.getItem('last_sync_time');
+      const lastSync = localStorage.getItem('viking_last_sync');
       setLastSyncTime(lastSync);
       
       // Check if token has expired based on stored expiration time
@@ -321,7 +321,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [determineAuthState]);
+  }, [determineAuthState]); // determineAuthState already depends on isTokenExpired
 
   // Login function
   const login = useCallback(() => {
@@ -372,6 +372,40 @@ export function useAuth() {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [checkAuth, isTokenExpired]);
+
+  // Listen for sync completion to update lastSyncTime
+  useEffect(() => {
+    const handleSyncComplete = (syncStatus) => {
+      if (syncStatus.status === 'completed') {
+        // Use the timestamp from sync status, or get from localStorage as fallback
+        const timestamp = syncStatus.timestamp || localStorage.getItem('viking_last_sync');
+        setLastSyncTime(timestamp);
+        logger.debug('Updated lastSyncTime after sync completion', { timestamp }, LOG_CATEGORIES.AUTH);
+      }
+    };
+
+    // Import and setup sync listener
+    const setupSyncListener = async () => {
+      try {
+        const { default: syncService } = await import('../services/sync.js');
+        syncService.addSyncListener(handleSyncComplete);
+        
+        return () => {
+          syncService.removeSyncListener(handleSyncComplete);
+        };
+      } catch (error) {
+        logger.error('Failed to setup sync listener in useAuth', { error: error.message }, LOG_CATEGORIES.ERROR);
+      }
+    };
+
+    setupSyncListener().then(cleanup => {
+      // Store cleanup function for later use
+      return cleanup;
+    });
+
+    // Return empty cleanup function as fallback
+    return () => {};
+  }, []);
 
   // Periodic token expiration monitoring
   useEffect(() => {

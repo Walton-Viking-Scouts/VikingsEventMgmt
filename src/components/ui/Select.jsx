@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { cn } from '../../utils/cn';
 
 /**
@@ -44,12 +44,25 @@ const Select = forwardRef(
         'border-green-500 focus:border-green-500 focus:ring-green-500/20',
     };
 
-    // Determine state styling
+    // Determine state styling - error takes precedence over success
     let stateClasses = variants[variant];
-    if (error) stateClasses = states.error;
-    if (success) stateClasses = states.success;
+    if (error) {
+      stateClasses = states.error;
+    } else if (success) {
+      stateClasses = states.success;
+    }
 
     const selectClasses = cn(baseClasses, stateClasses, sizes[size], className);
+    
+    // Accessibility: stable id for label association and hint text
+    const selectId = useId();
+    const finalSelectId = props.id ?? selectId;
+    const describedById =
+      error && errorText
+        ? `${finalSelectId}-error`
+        : helperText
+          ? `${finalSelectId}-help`
+          : undefined;
 
     const chevronIcon = (
       <svg
@@ -71,8 +84,12 @@ const Select = forwardRef(
       <div className="relative">
         <select
           ref={ref}
+          id={finalSelectId}
           disabled={disabled}
           className={selectClasses}
+          aria-invalid={error || undefined}
+          aria-describedby={describedById}
+          {...(placeholder && props.value === null && props.defaultValue === null ? { defaultValue: '' } : {})}
           {...props}
         >
           {placeholder && (
@@ -95,6 +112,7 @@ const Select = forwardRef(
           {SelectElement}
           {(helperText || errorText) && (
             <p
+              id={error ? `${finalSelectId}-error` : `${finalSelectId}-help`}
               className={cn(
                 'mt-1 text-sm',
                 error ? 'text-red-600' : 'text-gray-600',
@@ -110,12 +128,13 @@ const Select = forwardRef(
     // Return full form group with label
     return (
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={finalSelectId} className="block text-sm font-medium text-gray-700 mb-1">
           {label}
         </label>
         {SelectElement}
         {(helperText || errorText) && (
           <p
+            id={error ? `${selectId}-error` : `${selectId}-help`}
             className={cn(
               'mt-1 text-sm',
               error ? 'text-red-600' : 'text-gray-600',

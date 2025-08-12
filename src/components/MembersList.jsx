@@ -72,7 +72,7 @@ function MembersList({ sections, members: propsMembers, onBack }) {
         setLoading(false);
       }
     }
-  }, [sectionIdsKey]); // sections is stable via sectionIdsKey dependency
+  }, [sectionIdsKey]); // sections is stable via sectionIdsKey dependency - sections changes are captured
 
   useEffect(() => {
     mountedRef.current = true;

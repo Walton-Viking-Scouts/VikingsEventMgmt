@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { cn } from '../../utils/cn';
 
 /**
@@ -61,6 +61,17 @@ const Input = forwardRef(
       className,
     );
 
+    // Accessibility: generate stable ids and aria linkage
+    const generatedId = useId();
+    const inputId = props.id ?? generatedId;
+    const helperId = helperText ? `${inputId}-help` : undefined;
+    const errorId = errorText ? `${inputId}-error` : undefined;
+    const userDescribedBy = props['aria-describedby'];
+    const describedBy =
+      [userDescribedBy, error && errorId, helperText && helperId]
+        .filter(Boolean)
+        .join(' ') || undefined;
+
     const InputElement = (
       <div className="relative">
         {leftIcon && (
@@ -75,6 +86,9 @@ const Input = forwardRef(
           disabled={disabled}
           className={inputClasses}
           {...props}
+          id={inputId}
+          aria-invalid={error || undefined}
+          aria-describedby={describedBy}
         />
 
         {rightIcon && (
@@ -92,10 +106,13 @@ const Input = forwardRef(
           {InputElement}
           {(helperText || errorText) && (
             <p
+              id={error ? errorId : helperId}
               className={cn(
                 'mt-1 text-sm',
                 error ? 'text-red-600' : 'text-gray-600',
               )}
+              aria-live={error ? 'polite' : undefined}
+              role={error ? 'alert' : undefined}
             >
               {error ? errorText : helperText}
             </p>
@@ -107,16 +124,22 @@ const Input = forwardRef(
     // Return full form group with label
     return (
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          className="block text-sm font-medium text-gray-700 mb-1"
+          htmlFor={inputId}
+        >
           {label}
         </label>
         {InputElement}
         {(helperText || errorText) && (
           <p
+            id={error ? errorId : helperId}
             className={cn(
               'mt-1 text-sm',
               error ? 'text-red-600' : 'text-gray-600',
             )}
+            aria-live={error ? 'polite' : undefined}
+            role={error ? 'alert' : undefined}
           >
             {error ? errorText : helperText}
           </p>

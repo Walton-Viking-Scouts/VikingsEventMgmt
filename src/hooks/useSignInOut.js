@@ -192,7 +192,7 @@ export function useSignInOut(events, onDataRefresh) {
           return;
         }
         
-        console.log(`Successfully signed in ${member.name}`);
+        // Member signed in successfully
       } else {
         // Batch sign-out API calls for better rate limiting
         const apiCalls = [
@@ -232,7 +232,7 @@ export function useSignInOut(events, onDataRefresh) {
           return;
         }
         
-        console.log(`Successfully signed out ${member.name}`);
+        // Member signed out successfully
       }
       
       // Check if component is still mounted before refreshing data

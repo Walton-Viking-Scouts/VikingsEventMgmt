@@ -29,17 +29,15 @@ function DesktopLayout({
         lastSyncTime={lastSyncTime}
       />
 
+      {/* Offline banner - positioned below header */}
       {isOfflineMode && (
-        <div
-          role="alert"
-          className="bg-amber-50 border-b border-amber-200 text-amber-800 p-4"
-        >
-          <div className="flex">
-            <div>
+        <div className="bg-amber-100 border-b border-amber-200 text-amber-800 px-6 py-3">
+          <div className="flex items-center max-w-7xl mx-auto">
+            <div className="flex-shrink-0">
               <svg
+                className="h-5 w-5 text-amber-500"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                className="block fill-current h-5 w-5"
               >
                 <path
                   fillRule="evenodd"
@@ -48,11 +46,12 @@ function DesktopLayout({
                 />
               </svg>
             </div>
-            <div className="flex-1 ml-3">
-              <div className="flex items-center justify-center gap-2">
-                <span>📱</span>
-                <span>API Unavailable - Using cached data</span>
-              </div>
+            <div className="ml-3">
+              <p className="text-sm">
+                <strong>Offline Mode:</strong> Your authentication has expired,
+                but you can still access cached data. Connect to WiFi and
+                refresh to re-authenticate with OSM.
+              </p>
             </div>
           </div>
         </div>

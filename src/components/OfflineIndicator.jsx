@@ -3,14 +3,12 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
-import { isAuthenticated, getToken } from '../services/auth.js';
-import { config } from '../config/env.js';
+import { isAuthenticated } from '../services/auth.js';
 import { testBackendConnection } from '../services/api.js';
 
 function OfflineIndicator({ hideSync = false, hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
   const [apiConnected, setApiConnected] = useState(true);
-  const [apiTested, setApiTested] = useState(false); // Track if we've tested API yet
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
@@ -19,16 +17,6 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
   // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
     try {
-      const token = getToken();
-      if (import.meta.env.NODE_ENV === 'development') {
-        console.log('🔍 OfflineIndicator - Testing API connectivity...', {
-          hasToken: !!token,
-          apiUrl: config.apiUrl,
-          isOnline,
-          apiConnected,
-          apiTested,
-        });
-      }
 
       // Use the rate-limited testBackendConnection function from API service
       // This ensures all health checks go through the queue system
@@ -37,13 +25,7 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
       if (result && (result.status === 'ok' || result.status === 'healthy')) {
         // API is connected and responding correctly
         setApiConnected(true);
-        setApiTested(true);
 
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log(
-            '✅ OfflineIndicator - API connectivity confirmed via queue',
-          );
-        }
       } else {
         throw new Error('API health check failed');
       }
@@ -55,14 +37,8 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
         error.message?.includes('429') ||
         error.message?.includes('Too Many Requests')
       ) {
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log(
-            '⏳ OfflineIndicator - Health check queued due to rate limiting, will retry automatically',
-          );
-        }
         // Keep current connection status - don't mark as failed due to rate limiting
         // The queue will retry automatically with backoff
-        setApiTested(true);
         return;
       }
 
@@ -74,25 +50,13 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
         error.message?.includes('net::ERR_') ||
         error.name === 'TypeError'
       ) {
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log(
-            '🔒 OfflineIndicator - Network/SSL connectivity issue detected:',
-            error.message,
-            '\nThis is normal in development with self-signed certificates',
-          );
-        }
         setApiConnected(false);
-        setApiTested(true);
         return;
       }
 
-      // Only log other errors as warnings
-      console.warn(
-        '❌ OfflineIndicator - API connectivity test failed:',
-        error,
-      );
+      // Log API connectivity failures as warnings
+      console.warn('API connectivity test failed:', error.message);
       setApiConnected(false);
-      setApiTested(true);
     }
   };
 
@@ -158,27 +122,12 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log(
-            '🔍 OfflineIndicator - Capacitor network status:',
-            status,
-          );
-        }
         setIsOnline(status.connected);
       } else {
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log(
-            '🔍 OfflineIndicator - Navigator online status:',
-            navigator.onLine,
-          );
-        }
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
-      console.error(
-        '❌ OfflineIndicator - Error checking network status:',
-        error,
-      );
+      console.error('Network status check failed:', error);
     }
   };
 
@@ -341,16 +290,6 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
     );
   }
 
-  const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
-
-  if (import.meta.env.NODE_ENV === 'development') {
-    console.log('🔍 Offline Indicator - Banner visibility:', {
-      apiTested,
-      isOnline,
-      apiConnected,
-      shouldShowBanner,
-    });
-  }
 
   // If hideBanner is true, only return sync button and modals, no banner
   if (hideBanner) {
@@ -419,18 +358,6 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
-      {shouldShowBanner && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-center gap-2">
-            <span>📱</span>
-            <span>
-              {!isOnline
-                ? 'Offline Mode - Using cached data'
-                : 'API Unavailable - Using cached data'}
-            </span>
-          </div>
-        </Alert>
-      )}
 
       {syncStatus && (
         <Alert

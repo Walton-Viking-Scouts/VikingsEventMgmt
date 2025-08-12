@@ -398,6 +398,16 @@ function CampGroupsView({
         const newGroups = { ...prevGroups };
         const groups = { ...newGroups.groups };
 
+        // Check if member already exists in target group
+        const targetGroup = groups[moveData.toGroupName];
+        if (targetGroup?.youngPeople?.some(m => m.scoutid === moveData.member.scoutid)) {
+          logger.warn('Member already in target group, skipping optimistic update', {
+            memberId: moveData.member.scoutid,
+            targetGroup: moveData.toGroupName,
+          }, LOG_CATEGORIES.APP);
+          return prevGroups;
+        }
+
         // Remove member from source group
         const fromGroup = groups[moveData.fromGroupName];
         if (fromGroup) {
@@ -510,8 +520,7 @@ function CampGroupsView({
 
       const memberSectionInfo = sectionsCache.find(
         (s) =>
-          s.sectionid === memberSectionId ||
-          s.sectionid === String(memberSectionId),
+          String(s.sectionid) === String(memberSectionId),
       );
       memberSectionType = memberSectionInfo?.section || null;
 

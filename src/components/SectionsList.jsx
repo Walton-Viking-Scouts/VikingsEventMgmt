@@ -180,8 +180,7 @@ function SectionsList({
           >
             <span>Continue to Events</span>
             <Badge variant="outline-scout-green" className="bg-white">
-              {selectedSections.length} section
-              {selectedSections.length === 1 ? '' : 's'}
+              {`${selectedSections.length} section${selectedSections.length === 1 ? '' : 's'}`}
             </Badge>
           </Button>
         </Card.Footer>

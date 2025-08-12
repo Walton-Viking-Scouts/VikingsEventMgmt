@@ -213,10 +213,15 @@ class SyncService {
         }
       }
 
+      const completionTimestamp = new Date().toISOString();
+      
+      // Store last sync time for UI display
+      localStorage.setItem('viking_last_sync', completionTimestamp);
+      
       this.notifyListeners({ 
         status: 'completed', 
         message: 'Sync completed successfully',
-        timestamp: new Date().toISOString(),
+        timestamp: completionTimestamp,
       });
 
     } catch (error) {

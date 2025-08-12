@@ -11,8 +11,9 @@ function DataFreshness({ lastSync, authState, className = '' }) {
     if (!timestamp) return null;
 
     const now = Date.now();
-    const syncTime = new Date(timestamp).getTime();
-    const diffMs = now - syncTime;
+    const syncTimeMs = new Date(timestamp).getTime();
+    if (Number.isNaN(syncTimeMs)) return null; // invalid timestamp
+    const diffMs = Math.max(0, now - syncTimeMs); // clamp future values to 0
 
     const minutes = Math.floor(diffMs / (1000 * 60));
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -28,8 +29,9 @@ function DataFreshness({ lastSync, authState, className = '' }) {
     if (!timestamp) return 'unknown';
 
     const now = Date.now();
-    const syncTime = new Date(timestamp).getTime();
-    const diffMs = now - syncTime;
+    const syncTimeMs = new Date(timestamp).getTime();
+    if (Number.isNaN(syncTimeMs)) return 'unknown'; // invalid timestamp
+    const diffMs = Math.max(0, now - syncTimeMs); // clamp future values to 0
 
     // Different staleness thresholds based on our design
     const HOUR = 60 * 60 * 1000;
