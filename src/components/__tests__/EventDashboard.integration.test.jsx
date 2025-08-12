@@ -159,8 +159,8 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      // Wait for component to load and process
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      // Wait for component to load and process  
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -222,7 +222,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -288,7 +288,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -336,7 +336,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -368,7 +368,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -403,7 +403,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -453,7 +453,7 @@ describe('EventDashboard Integration Tests', () => {
         );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait longer for all async operations including potential auto-sync
       await waitFor(

@@ -349,6 +349,8 @@ export function handleApiAuthError(error) {
     if (hasCachedData) {
       logger.info('API auth failed but cached data available - enabling offline mode', {}, LOG_CATEGORIES.AUTH);
       sessionStorage.setItem('token_expired', 'true');
+      // Prevent stale/negative countdown while offline
+      sessionStorage.removeItem('token_expires_at');
       return { offline: true, shouldReload: true };
     } else {
       logger.info('API auth failed with no cached data - full logout required', {}, LOG_CATEGORIES.AUTH);

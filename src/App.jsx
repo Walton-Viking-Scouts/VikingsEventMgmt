@@ -22,6 +22,7 @@ function App() {
     lastSyncTime,
     login,
     logout,
+    checkAuth,
   } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
@@ -125,23 +126,30 @@ function App() {
   // No more blocking LoginScreen!
 
   const renderCurrentView = () => {
+    // Helper to extract unique sections from events
+    const getUniqueSections = (events) => {
+      if (!events || !Array.isArray(events)) return [];
+      
+      const sectionMap = new Map();
+      events.forEach((event) => {
+        if (event.sectionid && !sectionMap.has(event.sectionid)) {
+          sectionMap.set(event.sectionid, {
+            sectionid: event.sectionid,
+            sectionname: event.sectionname,
+          });
+        }
+      });
+      return Array.from(sectionMap.values());
+    };
+
     switch (currentView) {
 
     case 'attendance':
+      const uniqueSections = getUniqueSections(navigationData.events);
+      
       return (
         <AttendanceView
-          sections={
-            navigationData.events
-              ? [
-                ...new Set(
-                  navigationData.events.map((e) => ({
-                    sectionid: e.sectionid,
-                    sectionname: e.sectionname,
-                  })),
-                ),
-              ]
-              : []
-          }
+          sections={uniqueSections}
           events={navigationData.events || []}
           members={navigationData.members || []} // Loaded from cache
           onBack={handleBackToDashboard}

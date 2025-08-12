@@ -114,10 +114,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const hasOfflineData = await databaseService.hasOfflineData();
 
       // Check if data is recent enough (less than 30 minutes old)
-      const lastSyncTime = localStorage.getItem('viking_last_sync');
+      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+      const lastSyncMs = Number(lastSyncEpoch);
       const isDataFresh =
-        lastSyncTime &&
-        Date.now() - new Date(lastSyncTime).getTime() < 30 * 60 * 1000; // 30 minutes
+        lastSyncEpoch &&
+        Number.isFinite(lastSyncMs) &&
+        Date.now() - lastSyncMs < 30 * 60 * 1000; // 30 minutes
 
       // EventDashboard initialization - minimal logging
 
@@ -215,10 +217,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         .getSections()
         .catch(() => []);
       if (
-        (err.status === 401 ||
+        err &&
+        typeof err === 'object' &&
+        ((err.status === 401 ||
           err.status === 403 ||
           err.message?.includes('Authentication failed')) &&
-        cachedSections.length > 0
+        cachedSections.length > 0)
       ) {
         logger.info(
           'Auth error during initial load but cached data available - enabling offline mode',
@@ -237,9 +241,15 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         }
 
         // Set last sync time from localStorage if available
-        const lastSyncTime = localStorage.getItem('viking_last_sync');
-        if (lastSyncTime) {
-          setLastSync(new Date(lastSyncTime));
+        const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+        if (lastSyncEpoch) {
+          const lastSyncMs = Number(lastSyncEpoch);
+          if (Number.isFinite(lastSyncMs)) {
+            setLastSync(new Date(lastSyncMs));
+          } else {
+            // Fallback for old ISO string format
+            setLastSync(new Date(lastSyncEpoch));
+          }
         }
       } else {
         setError(err.message);
@@ -260,9 +270,15 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setEventCards(cards);
 
       // Set last sync time from localStorage
-      const lastSyncTime = localStorage.getItem('viking_last_sync');
-      if (lastSyncTime) {
-        setLastSync(new Date(lastSyncTime));
+      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+      if (lastSyncEpoch) {
+        const lastSyncMs = Number(lastSyncEpoch);
+        if (Number.isFinite(lastSyncMs)) {
+          setLastSync(new Date(lastSyncMs));
+        } else {
+          // Fallback for old ISO string format
+          setLastSync(new Date(lastSyncEpoch));
+        }
       }
     } catch (err) {
       logger.error(
@@ -276,6 +292,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
+    let dataSource = 'api'; // Track whether data came from API or cache
+    
     try {
       // Starting sync process
       setError(null);
@@ -329,13 +347,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Update last sync time
       const now = new Date();
       setLastSync(now);
-      localStorage.setItem('viking_last_sync', now.toISOString());
+      localStorage.setItem('viking_last_sync', now.getTime().toString());
 
-      // Check if we used cached data (auth failure would have been caught earlier)
-      const usedCachedData = authHandler.hasAuthFailed();
+      // Log based on explicit data source
       if (import.meta.env.DEV) {
         logger.debug(
-          usedCachedData
+          dataSource === 'cache'
             ? 'syncData: Loaded cached data (offline mode)'
             : 'syncData: Sync completed successfully',
           {},
@@ -352,6 +369,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         );
         setIsOfflineMode(true);
         setError(null); // Clear error since we can show cached data
+        dataSource = 'cache'; // Explicitly mark as cached data
 
         // Load cached event cards instead of making more API calls
         try {
@@ -533,11 +551,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         } catch (apiError) {
           // Check if it's an authentication error
           if (
-            apiError.status === 401 ||
+            apiError &&
+            typeof apiError === 'object' &&
+            (apiError.status === 401 ||
             apiError.status === 403 ||
-            apiError.message.includes('Invalid access token') ||
-            apiError.message.includes('Token expired') ||
-            apiError.message.includes('Unauthorized')
+            apiError.message?.includes('Invalid access token') ||
+            apiError.message?.includes('Token expired') ||
+            apiError.message?.includes('Unauthorized'))
           ) {
             const oauthUrl = generateOAuthUrl();
             window.location.href = oauthUrl;
