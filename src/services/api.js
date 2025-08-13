@@ -316,11 +316,33 @@ export async function getTerms(token, forceRefresh = false) {
     const terms = data || {};
     
     // Cache terms data with timestamp
-    const cachedTerms = {
-      ...terms,
-      _cacheTimestamp: Date.now(),
-    };
-    safeSetItem(cacheKey, cachedTerms);
+    // Cache terms data - enhanced error handling for visibility  
+    try {
+      const cachedTerms = {
+        ...terms,
+        _cacheTimestamp: Date.now(),
+      };
+      const success = safeSetItem(cacheKey, cachedTerms);
+      if (success) {
+        logger.info('Terms successfully cached', {
+          cacheKey,
+          termCount: terms.length,
+          dataSize: JSON.stringify(cachedTerms).length,
+        }, LOG_CATEGORIES.API);
+      } else {
+        logger.error('Terms caching failed - safeSetItem returned false', {
+          cacheKey,
+          termCount: terms.length,
+          dataSize: JSON.stringify(cachedTerms).length,
+        }, LOG_CATEGORIES.ERROR);
+      }
+    } catch (cacheError) {
+      logger.error('Terms caching error', {
+        cacheKey,
+        error: cacheError.message,
+        termCount: terms.length,
+      }, LOG_CATEGORIES.ERROR);
+    }
     
     return terms; // Return original data without timestamp
     
@@ -993,9 +1015,27 @@ export async function getStartupData(token) {
     const data = await handleAPIResponseWithRateLimit(response, 'getStartupData');
     const startupData = data || null;
     
-    // Cache startup data for offline use
+    // Cache startup data for offline use - enhanced error handling
     if (startupData) {
-      safeSetItem('viking_startup_data_offline', startupData);
+      try {
+        const success = safeSetItem('viking_startup_data_offline', startupData);
+        if (success) {
+          logger.info('Startup data successfully cached', {
+            dataSize: JSON.stringify(startupData).length,
+            hasRoles: !!(startupData.roles),
+            roleCount: startupData.roles?.length || 0,
+          }, LOG_CATEGORIES.API);
+        } else {
+          logger.error('Startup data caching failed - safeSetItem returned false', {
+            dataSize: JSON.stringify(startupData).length,
+          }, LOG_CATEGORIES.ERROR);
+        }
+      } catch (cacheError) {
+        logger.error('Startup data caching error', {
+          error: cacheError.message,
+          hasRoles: !!(startupData.roles),
+        }, LOG_CATEGORIES.ERROR);
+      }
     }
     
     return startupData;
