@@ -72,15 +72,9 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     return cleanPhone;
   };
 
-  // Helper function to validate phone number
+  // Helper function to validate phone number with proper NANP validation
   const isValidPhoneNumber = (phoneDigits) => {
     if (!phoneDigits || typeof phoneDigits !== 'string') {
-      return false;
-    }
-
-    // Check length: most phone numbers are between 7-15 digits
-    // UK numbers: 10-11 digits, US: 10 digits, International: up to 15 digits
-    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
       return false;
     }
 
@@ -89,23 +83,56 @@ function MemberDetailModal({ member, isOpen, onClose }) {
       return false;
     }
 
-    // Additional validation: avoid obvious invalid patterns
     // Reject numbers with all same digits (e.g., 0000000000)
     if (/^(\d)\1+$/.test(phoneDigits)) {
       return false;
     }
 
-    // Reject numbers starting with 0 or 1 for international format
-    // (unless it's a UK number which can start with 0)
-    if (
-      phoneDigits.length >= 10 &&
-      phoneDigits.startsWith('1') &&
-      phoneDigits.length === 10
-    ) {
-      return false; // US numbers starting with 1 (area code can't be 1)
+    // NANP (North American Numbering Plan) validation for 10-11 digit numbers
+    if (phoneDigits.length === 10 || phoneDigits.length === 11) {
+      let number = phoneDigits;
+      
+      // Handle 11-digit numbers with country code 1
+      if (phoneDigits.length === 11) {
+        if (!phoneDigits.startsWith('1')) {
+          return false; // 11-digit numbers must start with 1 for NANP
+        }
+        number = phoneDigits.substring(1); // Remove country code for validation
+      }
+      
+      // Validate 10-digit NANP format: NXX-NXX-XXXX
+      // N = 2-9 (area code and exchange code first digit)
+      // X = 0-9 (any digit)
+      const areaCode = number.substring(0, 3);
+      const exchangeCode = number.substring(3, 6);
+      
+      // Area code validation: first digit 2-9, second and third digits 0-9
+      if (!/^[2-9][0-9][0-9]$/.test(areaCode)) {
+        return false;
+      }
+      
+      // Exchange code validation: first digit 2-9, second and third digits 0-9
+      if (!/^[2-9][0-9][0-9]$/.test(exchangeCode)) {
+        return false;
+      }
+      
+      return true;
     }
 
-    return true;
+    // International numbers: 7-15 digits (excluding NANP)
+    if (phoneDigits.length >= 7 && phoneDigits.length <= 15) {
+      // UK numbers can start with 0
+      if (phoneDigits.length === 11 && phoneDigits.startsWith('0')) {
+        return true; // UK mobile or landline
+      }
+      
+      // Other international formats
+      if (phoneDigits.length >= 8) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   // Helper function to handle phone call

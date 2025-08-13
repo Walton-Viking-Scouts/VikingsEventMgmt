@@ -33,7 +33,7 @@ function AuthButton({
         text: 'Sign in to OSM',
         onClick: onLogin,
         disabled: false,
-        variant: 'scout-blue',
+        variant: 'scout-purple',
       };
 
     case 'cached_only':

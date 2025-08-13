@@ -72,8 +72,9 @@ export function useAuth() {
       
       // Check if token has expired based on stored expiration time
       const tokenExpired = isTokenExpired();
+      const hasValidToken = authService.isAuthenticated(); // This checks if token is valid (not expired)
       
-      if (isAuth && !tokenExpired) {
+      if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
       } else if (isAuth && tokenExpired && hasCachedData) {
         return 'token_expired';
@@ -162,6 +163,8 @@ export function useAuth() {
         try {
           // Store the token and clean up URL with enhanced error handling
           sessionStorage.setItem('access_token', accessToken);
+          // Clear any expired token flags when storing a new token
+          sessionStorage.removeItem('token_expired');
           if (tokenType) {
             sessionStorage.setItem('token_type', tokenType);
           }
@@ -239,15 +242,25 @@ export function useAuth() {
           });
         }
         
-        // Fetch user info immediately after token storage
+        // Try to get fresh user info from API after successful OAuth
         try {
-          const userInfo = await authService.fetchUserInfo();
+          const userInfo = await authService.fetchUserInfoFromAPI();
           if (userInfo) {
             authService.setUserInfo(userInfo);
-            logger.info('User info fetched after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
+            logger.info('User info fetched from API after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
           }
         } catch (userError) {
-          logger.warn('Could not fetch user info after OAuth, using fallback', { error: userError?.message }, LOG_CATEGORIES.AUTH);
+          logger.warn('Could not fetch fresh user info after OAuth, will use cached data if available', { error: userError?.message }, LOG_CATEGORIES.AUTH);
+        }
+
+        // Trigger a full data sync after successful OAuth to get fresh sections/events/members
+        try {
+          const { default: syncService } = await import('../services/sync.js');
+          logger.info('Starting data sync after successful OAuth', {}, LOG_CATEGORIES.AUTH);
+          await syncService.syncAll();
+          logger.info('Data sync completed after OAuth', {}, LOG_CATEGORIES.AUTH);
+        } catch (syncError) {
+          logger.warn('Could not sync data after OAuth, using cached data', { error: syncError?.message }, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first
@@ -262,42 +275,60 @@ export function useAuth() {
       // Clear blocked state if not blocked
       setIsBlocked(false);
 
-      // Check if token exists
-      const hasToken = authService.isAuthenticated();
+      // Check if token exists (including expired tokens stored in sessionStorage)
+      const hasValidToken = authService.isAuthenticated();
+      const hasStoredToken = !!sessionStorage.getItem('access_token'); // Check for any stored token
+      const tokenExpired = isTokenExpired();
       
-      if (hasToken) {
-        // Skip redundant token validation - just trust the token exists
-        // Real validation happens on first actual API call (getUserRoles, etc.)
-        
+      if (hasValidToken) {
+        // Valid token - normal authenticated state
         setIsAuthenticated(true);
         const userInfo = authService.getUserInfo();
         setUser(userInfo);
+        setIsOfflineMode(false);
         
-        // Check if user is in offline mode with expired token
-        const tokenExpired = isTokenExpired();
-        setIsOfflineMode(tokenExpired);
-        
-        // Token expiry is already handled by setting isOfflineMode above
         
         // Log successful authentication
         Sentry.addBreadcrumb({
           category: 'auth',
-          message: isTokenExpired ? 'User authentication successful (offline mode)' : 'User authentication successful',
+          message: 'User authentication successful',
           level: 'info',
           data: {
             hasUserInfo: !!userInfo,
             userFullname: userInfo?.fullname || 'Unknown',
-            isOfflineMode: isTokenExpired,
+            isOfflineMode: false,
+          },
+        });
+      } else if (hasStoredToken && tokenExpired) {
+        // Expired token but we have cached data - offline mode
+        setIsAuthenticated(true); // Keep authenticated for UI purposes
+        const userInfo = authService.getUserInfo();
+        setUser(userInfo);
+        setIsOfflineMode(true);
+        
+        // Note: Toast will be shown in App.jsx after loading completes
+        
+        // Log offline mode
+        Sentry.addBreadcrumb({
+          category: 'auth',
+          message: 'User authentication successful (offline mode)',
+          level: 'info',
+          data: {
+            hasUserInfo: !!userInfo,
+            userFullname: userInfo?.fullname || 'Unknown',
+            isOfflineMode: true,
           },
         });
       } else {
         // No token exists - show login
         setIsAuthenticated(false);
         setUser(null);
+        setIsOfflineMode(false);
       }
       
       // Determine and set the enhanced auth state
-      const currentHasToken = authService.isAuthenticated();
+      // For authState determination, consider both valid and expired tokens as "having a token"
+      const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired);
       const newAuthState = await determineAuthState(currentHasToken);
       setAuthState(newAuthState);
       
@@ -321,7 +352,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [determineAuthState]); // determineAuthState already depends on isTokenExpired
+  }, [determineAuthState, isTokenExpired]); // determineAuthState already depends on isTokenExpired
 
   // Login function
   const login = useCallback(() => {
@@ -350,6 +381,7 @@ export function useAuth() {
   // Check auth on mount and when storage changes
   useEffect(() => {
     let mounted = true;
+    
     
     const initializeAuth = async () => {
       if (!mounted) return; // Prevent duplicate calls in StrictMode
@@ -448,6 +480,7 @@ export function useAuth() {
       clearInterval(intervalId);
     };
   }, [isTokenExpired, authState, determineAuthState]);
+
 
   return {
     isAuthenticated,

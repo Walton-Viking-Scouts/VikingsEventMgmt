@@ -20,6 +20,12 @@ if (!clientId) {
 
 // Token management
 export function getToken() {
+  // Don't return a token if it's been marked as expired
+  const tokenExpired = sessionStorage.getItem('token_expired') === 'true';
+  if (tokenExpired) {
+    return null;
+  }
+  
   return sessionStorage.getItem('access_token');
 }
 
@@ -175,9 +181,8 @@ export function setUserInfo(userInfo) {
   sessionStorage.setItem('user_info', JSON.stringify(userInfo));
 }
 
-// Fetch user info from startup data API
-export async function fetchUserInfo() {
-  // Constant fallback user info to avoid duplication
+// Fetch fresh user info from OSM startup data API
+export async function fetchUserInfoFromAPI() {
   const fallbackUserInfo = {
     firstname: 'Scout Leader',
     lastname: '',
@@ -187,7 +192,7 @@ export async function fetchUserInfo() {
   };
 
   try {
-    const token = getToken();
+    const token = sessionStorage.getItem('access_token');
     if (!token) {
       throw new Error('No authentication token available');
     }
@@ -195,8 +200,6 @@ export async function fetchUserInfo() {
     try {
       const apiModule = await import('./api.js');
       
-      // The function is internal to api.js, so we need to use getStartupData instead
-      // This is simpler and avoids the circular dependency
       if (typeof apiModule.getStartupData !== 'function') {
         throw new Error('getStartupData function not available');
       }
@@ -212,12 +215,12 @@ export async function fetchUserInfo() {
           fullname: `${startupData.globals.firstname || 'Scout'} ${startupData.globals.lastname || 'Leader'}`.trim(),
         };
         
-        logger.info('Successfully fetched user info', { 
+        logger.info('Successfully fetched user info from API', { 
           firstname: userInfo.firstname, 
           hasUserInfo: true,
         }, LOG_CATEGORIES.AUTH);
         
-        // Update Sentry user context with real user identity for per-user grouping
+        // Update Sentry user context with real user identity
         try {
           const sentryUser = {
             username: userInfo.fullname,
@@ -228,13 +231,10 @@ export async function fetchUserInfo() {
           sentryUtils.setUser(sentryUser);
         } catch (sentryError) {
           logger.warn('Failed to update Sentry user identity', {
-            error: sentryError,
-            stack: sentryError.stack,
-            message: sentryError.message,
+            error: sentryError.message,
             hasUserInfo: !!userInfo,
           }, LOG_CATEGORIES.AUTH);
           
-          // Ensure error is captured by Sentry for monitoring
           sentryUtils.captureException(sentryError, {
             tags: { operation: 'sentry_user_update' },
             contexts: { 
@@ -254,13 +254,18 @@ export async function fetchUserInfo() {
         error: importError.message,
       }, LOG_CATEGORIES.AUTH);
       
-      // Don't throw error - just return fallback user info
       return fallbackUserInfo;
     }
   } catch (error) {
-    logger.error('Failed to fetch user info', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.error('Failed to fetch user info from API', { error: error.message }, LOG_CATEGORIES.AUTH);
     throw error;
   }
+}
+
+// Get user info from cache or return null
+// This function never makes API calls - it's for retrieving cached data only
+export function fetchUserInfo() {
+  return getUserInfo();
 }
 
 // Simple token validation - just check if we have a token

@@ -11,40 +11,89 @@ function DataFreshness({ lastSync, authState, className = '' }) {
     if (!timestamp) return null;
 
     const now = Date.now();
-    const syncTimeMs = new Date(timestamp).getTime();
-    if (Number.isNaN(syncTimeMs)) return null; // invalid timestamp
-    const diffMs = Math.max(0, now - syncTimeMs); // clamp future values to 0
+    
+    // Convert timestamp to epoch milliseconds
+    let syncTimeMs;
+    if (typeof timestamp === 'string') {
+      if (/^\d+$/.test(timestamp)) {
+        // Epoch timestamp as string (standard format)
+        syncTimeMs = parseInt(timestamp, 10);
+      } else {
+        // ISO string (legacy format) 
+        syncTimeMs = new Date(timestamp).getTime();
+      }
+    } else if (typeof timestamp === 'number') {
+      // Epoch timestamp as number
+      syncTimeMs = timestamp;
+    } else {
+      // Date object or other
+      syncTimeMs = new Date(timestamp).getTime();
+    }
+    
+    if (Number.isNaN(syncTimeMs) || syncTimeMs <= 0) return null; // invalid timestamp
+    
+    // Sanity check: reject timestamps too far in the future (more than 1 day)
+    if (syncTimeMs > now + 24 * 60 * 60 * 1000) {
+      console.warn('DataFreshness: Timestamp is far in the future, ignoring:', new Date(syncTimeMs));
+      return null;
+    }
+    
+    const diffMs = Math.max(0, now - syncTimeMs);
 
     const minutes = Math.floor(diffMs / (1000 * 60));
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const months = Math.floor(days / 30);
 
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+    if (days < 30) return `${days}d ago`;
+    return `${months}mo ago`;
   };
 
   const getStalenessLevel = (timestamp) => {
     if (!timestamp) return 'unknown';
 
     const now = Date.now();
-    const syncTimeMs = new Date(timestamp).getTime();
-    if (Number.isNaN(syncTimeMs)) return 'unknown'; // invalid timestamp
-    const diffMs = Math.max(0, now - syncTimeMs); // clamp future values to 0
+    
+    // Convert timestamp to epoch milliseconds (same logic as getDataAge)
+    let syncTimeMs;
+    if (typeof timestamp === 'string') {
+      if (/^\d+$/.test(timestamp)) {
+        syncTimeMs = parseInt(timestamp, 10);
+      } else {
+        syncTimeMs = new Date(timestamp).getTime();
+      }
+    } else if (typeof timestamp === 'number') {
+      syncTimeMs = timestamp;
+    } else {
+      syncTimeMs = new Date(timestamp).getTime();
+    }
+    
+    if (Number.isNaN(syncTimeMs) || syncTimeMs <= 0) return 'unknown';
+    
+    // Sanity check: reject far future timestamps
+    if (syncTimeMs > now + 24 * 60 * 60 * 1000) return 'unknown';
+    
+    const diffMs = Math.max(0, now - syncTimeMs);
 
     // Different staleness thresholds based on our design
     const HOUR = 60 * 60 * 1000;
+    const DAY = 24 * HOUR;
+    const WEEK = 7 * DAY;
 
     if (diffMs < HOUR) return 'fresh'; // < 1 hour
-    if (diffMs < 4 * HOUR) return 'moderate'; // < 4 hours
-    if (diffMs < 24 * HOUR) return 'stale'; // < 24 hours
-    return 'very-stale'; // > 24 hours
+    if (diffMs < 4 * HOUR) return 'moderate'; // < 4 hours  
+    if (diffMs < DAY) return 'stale'; // < 1 day
+    if (diffMs < WEEK) return 'very-stale'; // < 1 week
+    return 'ancient'; // > 1 week
   };
 
   const getDisplayInfo = () => {
     const age = getDataAge(lastSync);
     const staleness = getStalenessLevel(lastSync);
+    
 
     switch (authState) {
     case 'no_data':
@@ -73,6 +122,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
             moderate: 'text-orange-600',
             stale: 'text-red-600',
             'very-stale': 'text-red-700',
+            ancient: 'text-red-900',
           }[staleness] || 'text-gray-600';
 
       return {

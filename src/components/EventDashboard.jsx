@@ -34,7 +34,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   });
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
-  const [isOfflineMode, setIsOfflineMode] = useState(false); // Track if we're in offline mode due to auth failure
   
   // Simple view toggle state
   const [currentView, setCurrentView] = useState('events'); // 'events' or 'sections'
@@ -136,7 +135,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setTimeout(async () => {
           try {
             if (authHandler.hasAuthFailed()) {
-              setIsOfflineMode(true);
               return;
             }
 
@@ -180,7 +178,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           setError(
             'Authentication expired and no cached data available. Please reconnect to OSM.',
           );
-          setIsOfflineMode(true);
           return;
         }
 
@@ -228,7 +225,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           'Auth error during initial load but cached data available - enabling offline mode',
         );
         setSections(cachedSections);
-        setIsOfflineMode(true);
 
         // Try to load cached event cards
         try {
@@ -297,7 +293,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       // Starting sync process
       setError(null);
-      setIsOfflineMode(false);
 
       const token = getToken();
       if (import.meta.env.DEV) {
@@ -367,7 +362,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         logger.info(
           'Auth failed but cached data available - enabling offline mode',
         );
-        setIsOfflineMode(true);
         setError(null); // Clear error since we can show cached data
         dataSource = 'cache'; // Explicitly mark as cached data
 
@@ -408,12 +402,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  // Reconnect function to handle authentication refresh
-  const handleReconnect = () => {
-    logger.info('User requested reconnection - redirecting to OAuth');
-    const oauthUrl = generateOAuthUrl();
-    window.location.href = oauthUrl;
-  };
 
   const buildEventCards = async (sectionsData, token = null) => {
     const now = new Date();
@@ -648,29 +636,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {isOfflineMode && (
-                <Button
-                  variant="scout-green"
-                  onClick={handleReconnect}
-                  type="button"
-                  className="flex items-center gap-2"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  Reconnect
-                </Button>
-              )}
             </div>
           </div>
         </div>
@@ -752,18 +717,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         cancelText={confirmModalData.cancelText}
         onConfirm={confirmModalData.onConfirm}
         onCancel={
-          confirmModalData.onCancel ||
+          confirmModalData.onCancel || 
           (() => {
             setShowConfirmModal(false);
-            // Safe fallback - only navigate if we have a valid section
-            if (loadingSection && sections.length > 0) {
-              const section = sections.find(
-                (s) => s.sectionid === loadingSection,
-              );
-              if (section) {
-                onNavigateToMembers(section, []);
-              }
-            }
+            setLoadingSection(null);
           })
         }
       />

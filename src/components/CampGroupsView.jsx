@@ -20,6 +20,7 @@ import {
   extractFlexiRecordContext,
   validateMemberMove,
 } from '../services/campGroupAllocationService.js';
+import { checkNetworkStatus } from '../utils/networkUtils.js';
 
 /**
  * Custom hook to extract FlexiRecord context for drag-and-drop operations
@@ -935,6 +936,13 @@ function CampGroupsView({
               dragDisabled={
                 !summary.vikingEventDataAvailable || !flexiRecordContext
               }
+              onOfflineError={async (memberName) => {
+                const isOnline = await checkNetworkStatus();
+                const errorMessage = !isOnline 
+                  ? `Cannot move ${memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
+                  : `Cannot move ${memberName}: Authentication expired. Please sign in to OSM to move members.`;
+                showToast('error', errorMessage);
+              }}
               className="h-fit"
             />
           ))}

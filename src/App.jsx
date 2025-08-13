@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ResponsiveLayout from './components/ResponsiveLayout.jsx';
@@ -22,11 +22,34 @@ function App() {
     lastSyncTime,
     login,
     logout,
-    checkAuth,
   } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Notification system state
+  const [notifications, setNotifications] = useState([]);
+
+  // Helper function to add notifications
+  const addNotification = useCallback((type, message, duration = 5000) => {
+    const id = Date.now();
+    const notification = { id, type, message, duration };
+
+    setNotifications((prev) => [...prev, notification]);
+
+    // Auto-dismiss after duration
+    if (duration > 0) {
+      setTimeout(() => {
+        removeNotification(id);
+      }, duration);
+    }
+  }, []);
+
+  // Helper function to remove notifications
+  const removeNotification = (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   // Refresh function - triggers a data refresh via sync service
   const handleRefresh = async () => {
@@ -54,31 +77,57 @@ function App() {
     }
   };
 
-  // Notification system state
-  const [notifications, setNotifications] = useState([]);
-
-  // Helper function to add notifications
-  const addNotification = (type, message, duration = 5000) => {
-    const id = Date.now();
-    const notification = { id, type, message, duration };
-
-    setNotifications((prev) => [...prev, notification]);
-
-    // Auto-dismiss after duration
-    if (duration > 0) {
-      setTimeout(() => {
-        removeNotification(id);
-      }, duration);
+  // Show offline toast when loading completes and we're in offline mode
+  useEffect(() => {
+    if (!isLoading && isOfflineMode && user) {
+      const userName = user?.firstname ? `, ${user.firstname}` : '';
+      addNotification(
+        'info', 
+        `Offline Mode${userName}: Using cached data. Your authentication has expired - sign in to refresh.`,
+        8000, // Show for 8 seconds
+      );
+      
+      logger.debug('Offline mode toast notification shown', {
+        hasUserInfo: !!user,
+        userName: user?.firstname || 'Unknown',
+      }, LOG_CATEGORIES.AUTH);
     }
-  };
+  }, [isLoading, isOfflineMode, user, addNotification]);
 
-  // Helper function to remove notifications
-  const removeNotification = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  // Listen for sync status changes
+  useEffect(() => {
+    const setupSyncListener = async () => {
+      try {
+        const { default: syncService } = await import('./services/sync.js');
+        
+        const handleSyncStatus = (status) => {
+          setIsSyncing(status.status === 'syncing');
+        };
+        
+        syncService.addSyncListener(handleSyncStatus);
+        
+        return () => {
+          syncService.removeSyncListener(handleSyncStatus);
+        };
+      } catch (error) {
+        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.ERROR);
+      }
+    };
 
+    setupSyncListener();
+  }, []);
 
   const handleNavigateToAttendance = async (events, members = null) => {
+    // If sync is in progress, show a helpful message and don't navigate
+    if (isSyncing) {
+      addNotification(
+        'info',
+        'Please wait for data sync to complete before viewing attendance details.',
+        4000,
+      );
+      return;
+    }
+
     // If members are provided (from fresh API call), use them
     // Otherwise, load cached members data for the attendance view
     let membersData = members;
@@ -87,6 +136,16 @@ function App() {
       const sectionsInvolved = [...new Set(events.map((e) => e.sectionid))];
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
+        
+        // If no cached members found, the sync might not have completed yet
+        if (!membersData || membersData.length === 0) {
+          addNotification(
+            'warning',
+            'Member data not yet available. Please wait for sync to complete or try refreshing.',
+            6000,
+          );
+          return;
+        }
       } catch (error) {
         logger.error(
           'Error loading cached members',
@@ -97,7 +156,7 @@ function App() {
           'error',
           'Unable to load member data for attendance view. Please try refreshing the page.',
         );
-        membersData = [];
+        return;
       }
     }
 
@@ -143,8 +202,7 @@ function App() {
     };
 
     switch (currentView) {
-
-    case 'attendance':
+    case 'attendance': {
       const uniqueSections = getUniqueSections(navigationData.events);
       
       return (
@@ -156,7 +214,7 @@ function App() {
           data-oid="zrtob7_"
         />
       );
-
+    }
     default:
       return (
         <EventDashboard

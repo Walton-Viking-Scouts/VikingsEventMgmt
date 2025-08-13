@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Badge } from './ui';
 import DraggableMember from './DraggableMember.jsx';
+import { checkNetworkStatus } from '../utils/networkUtils.js';
+import { getToken } from '../services/auth.js';
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
@@ -16,6 +18,7 @@ import DraggableMember from './DraggableMember.jsx';
  * @param {boolean} props.isDragInProgress - Whether any drag operation is in progress
  * @param {string} props.draggingMemberId - ID of member currently being dragged
  * @param {boolean} props.dragDisabled - Whether drag & drop functionality is disabled
+ * @param {Function} props.onOfflineError - Callback when move fails due to offline/auth issues
  * @param {string} props.className - Additional CSS classes
  */
 function CampGroupCard({
@@ -27,6 +30,7 @@ function CampGroupCard({
   isDragInProgress = false,
   draggingMemberId = null,
   dragDisabled = false,
+  onOfflineError,
   className = '',
 }) {
   // Drop zone state
@@ -85,7 +89,7 @@ function CampGroupCard({
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     setIsDragOver(false);
     setCanDrop(false);
@@ -104,6 +108,26 @@ function CampGroupCard({
 
       // Don't allow dropping on the same group
       if (String(dragData.fromGroupNumber) === String(group.number)) {
+        return;
+      }
+
+      // Check if we can perform the move (network + auth validation)
+      const isOnline = await checkNetworkStatus();
+      const token = getToken();
+      
+      if (!isOnline || !token) {
+        const errorMessage = !isOnline 
+          ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
+          : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
+        
+        // Call the error handler if provided, otherwise log to console
+        if (onOfflineError) {
+          onOfflineError(dragData.memberName);
+        } else {
+          console.warn(errorMessage);
+        }
+        
+        // Don't call onMemberMove - this prevents the optimistic update
         return;
       }
 

@@ -46,7 +46,7 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
         <button
           key={key}
           onClick={() => handleFilterToggle(key)}
-          className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm ${filters[key] ? activeStyles : inactiveStyles}`}
+          className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-300 ${filters[key] ? activeStyles : inactiveStyles}`}
           type="button"
           aria-pressed={filters[key]}
           aria-label={`Filter by ${label} attendance status`}

@@ -45,10 +45,10 @@ const ConfirmModal = ({
       </Modal.Body>
 
       <Modal.Footer align="right">
-        <Button variant={cancelVariant} onClick={handleCancel} className="mr-3">
+        <Button type="button" variant={cancelVariant} onClick={handleCancel} className="mr-3">
           {cancelText}
         </Button>
-        <Button variant={confirmVariant} onClick={handleConfirm}>
+        <Button type="button" variant={confirmVariant} onClick={handleConfirm}>
           {confirmText}
         </Button>
       </Modal.Footer>

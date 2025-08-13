@@ -78,7 +78,7 @@ function MembersList({
         setLoading(false);
       }
     }
-  }, [sectionIdsKey]); // sections is stable via sectionIdsKey dependency - sections changes are captured
+  }, [sections]); // sections changes are captured directly
 
   useEffect(() => {
     mountedRef.current = true;

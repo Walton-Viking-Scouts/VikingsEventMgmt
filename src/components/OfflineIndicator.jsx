@@ -3,16 +3,14 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
-import { isAuthenticated } from '../services/auth.js';
 import { testBackendConnection } from '../services/api.js';
 
-function OfflineIndicator({ hideSync = false, hideBanner = false }) {
+function OfflineIndicator({ hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
   const [apiConnected, setApiConnected] = useState(true);
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
-  const [showSyncError, setShowSyncError] = useState(false);
 
   // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
@@ -198,52 +196,11 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
     }
   };
 
-  const handleSyncClick = async () => {
-    if (!isOnline || !apiConnected) {
-      setShowSyncError(true);
-      return;
-    }
-
-    try {
-      await syncService.syncAll();
-    } catch (error) {
-      console.error('Manual sync failed:', error);
-    }
-  };
-
-  const getSyncButtonText = () => {
-    if (!isAuthenticated()) {
-      return '🔐 Login & Sync';
-    }
-    return '🔄 Sync';
-  };
-
-  const getSyncButtonTitle = () => {
-    if (!isAuthenticated()) {
-      return 'Login to OSM and sync data';
-    }
-    return 'Sync data';
-  };
 
   // Don't show anything if both network and API are connected and no sync status
   if (isOnline && apiConnected && !syncStatus) {
     return (
       <>
-        {/* Only show sync button if not hidden */}
-        {!hideSync && (
-          <div className="fixed top-20 right-4 z-40">
-            <Button
-              variant="scout-blue"
-              size="sm"
-              onClick={handleSyncClick}
-              className="shadow-lg"
-              title={getSyncButtonTitle()}
-            >
-              {getSyncButtonText()}
-            </Button>
-          </div>
-        )}
-
         {/* Login Prompt Modal */}
         <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
           <Modal.Header>
@@ -291,25 +248,10 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
   }
 
 
-  // If hideBanner is true, only return sync button and modals, no banner
+  // If hideBanner is true, only return modals, no banner
   if (hideBanner) {
     return (
       <>
-        {/* Only show sync button if not hidden */}
-        {!hideSync && (
-          <div className="fixed top-20 right-4 z-40">
-            <Button
-              variant="scout-blue"
-              size="sm"
-              onClick={handleSyncClick}
-              className="shadow-lg"
-              title={getSyncButtonTitle()}
-            >
-              {getSyncButtonText()}
-            </Button>
-          </div>
-        )}
-
         {/* Login Prompt Modal */}
         <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
           <Modal.Header>
@@ -393,24 +335,6 @@ function OfflineIndicator({ hideSync = false, hideBanner = false }) {
         </Alert>
       )}
 
-      {showSyncError && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Cannot sync while offline or API is unreachable</span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSyncError(false)}
-              className="ml-4"
-            >
-              Dismiss
-            </Button>
-          </div>
-        </Alert>
-      )}
     </div>
   );
 }
