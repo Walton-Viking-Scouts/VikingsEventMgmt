@@ -764,12 +764,33 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       flexiData = data || { identifier: null, label: null, items: [] };
     }
     
-    // Cache data with timestamp
-    const cachedData = {
-      ...flexiData,
-      _cacheTimestamp: Date.now(),
-    };
-    safeSetItem(storageKey, cachedData);
+    // Cache data with timestamp - enhanced error handling like getMembersGrid fix
+    try {
+      const cachedData = {
+        ...flexiData,
+        _cacheTimestamp: Date.now(),
+      };
+      const success = safeSetItem(storageKey, cachedData);
+      if (success) {
+        logger.info('FlexiRecord list successfully cached', {
+          storageKey,
+          itemCount: flexiData.items?.length || 0,
+          dataSize: JSON.stringify(cachedData).length,
+        }, LOG_CATEGORIES.API);
+      } else {
+        logger.error('FlexiRecord list caching failed - safeSetItem returned false', {
+          storageKey,
+          itemCount: flexiData.items?.length || 0,
+          dataSize: JSON.stringify(cachedData).length,
+        }, LOG_CATEGORIES.ERROR);
+      }
+    } catch (cacheError) {
+      logger.error('FlexiRecord list caching error', {
+        storageKey,
+        error: cacheError.message,
+        itemCount: flexiData.items?.length || 0,
+      }, LOG_CATEGORIES.ERROR);
+    }
     
     return flexiData; // Return original data without timestamp
 
@@ -895,13 +916,34 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     });
     const structureData = data || null;
     
-    // Cache data for offline use
+    // Cache data for offline use - enhanced error handling like getMembersGrid fix
     if (structureData) {
-      const cachedData = {
-        ...structureData,
-        _cacheTimestamp: Date.now(),
-      };
-      safeSetItem(storageKey, cachedData);
+      try {
+        const cachedData = {
+          ...structureData,
+          _cacheTimestamp: Date.now(),
+        };
+        const success = safeSetItem(storageKey, cachedData);
+        if (success) {
+          logger.info('FlexiRecord structure successfully cached', {
+            storageKey,
+            structureName: structureData.name || 'Unknown',
+            dataSize: JSON.stringify(cachedData).length,
+          }, LOG_CATEGORIES.API);
+        } else {
+          logger.error('FlexiRecord structure caching failed - safeSetItem returned false', {
+            storageKey,
+            structureName: structureData.name || 'Unknown',
+            dataSize: JSON.stringify(cachedData).length,
+          }, LOG_CATEGORIES.ERROR);
+        }
+      } catch (cacheError) {
+        logger.error('FlexiRecord structure caching error', {
+          storageKey,
+          error: cacheError.message,
+          structureName: structureData.name || 'Unknown',
+        }, LOG_CATEGORIES.ERROR);
+      }
     }
     
     return structureData;
