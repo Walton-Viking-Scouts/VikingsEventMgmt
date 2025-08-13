@@ -1069,7 +1069,7 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
-      return data.data.members.map(member => {
+      const transformedMembers = data.data.members.map(member => {
         // Map patrol_id to person type
         let person_type = 'Young People'; // default
         if (member.patrol_id === -2) {
@@ -1113,6 +1113,24 @@ export async function getMembersGrid(sectionId, termId, token) {
           contact_groups: member.contact_groups,
         };
       });
+      
+      // CRITICAL FIX: Save the transformed members to cache
+      try {
+        await databaseService.saveMembers([sectionId], transformedMembers);
+        logger.info('Members successfully cached', {
+          sectionId,
+          memberCount: transformedMembers.length,
+        }, LOG_CATEGORIES.API);
+      } catch (saveError) {
+        logger.error('Failed to save members to cache', {
+          sectionId,
+          error: saveError.message,
+          memberCount: transformedMembers.length,
+        }, LOG_CATEGORIES.ERROR);
+        // Don't throw - return the data even if caching fails
+      }
+      
+      return transformedMembers;
     }
 
     return [];

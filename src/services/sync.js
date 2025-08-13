@@ -313,7 +313,9 @@ class SyncService {
       // Get the most recent term
       const termId = await fetchMostRecentTermId(sectionId, token);
       if (!termId) {
-        console.warn(`No term found for section ${sectionId}`);
+        logger.info(`No term found for section ${sectionId} - skipping events sync (this is normal for waiting lists)`, {
+          sectionId,
+        }, LOG_CATEGORIES.SYNC);
         return;
       }
 
@@ -336,7 +338,10 @@ class SyncService {
       }
 
       if (!termId) {
-        console.warn(`No term ID available for event ${eventId} in section ${sectionId}`);
+        logger.info(`No term ID available for event ${eventId} in section ${sectionId} - skipping attendance sync (this is normal for waiting lists)`, {
+          sectionId,
+          eventId,
+        }, LOG_CATEGORIES.SYNC);
         return;
       }
 
@@ -356,7 +361,9 @@ class SyncService {
       // Get the most recent term for this section
       const termId = await fetchMostRecentTermId(sectionId, token);
       if (!termId) {
-        console.warn(`No term found for section ${sectionId} - skipping members sync`);
+        logger.info(`No term found for section ${sectionId} - skipping members sync (this is normal for waiting lists)`, {
+          sectionId,
+        }, LOG_CATEGORIES.SYNC);
         return;
       }
 
