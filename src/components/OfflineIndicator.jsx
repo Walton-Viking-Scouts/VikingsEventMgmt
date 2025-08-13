@@ -23,10 +23,16 @@ function OfflineIndicator({ hideBanner = false }) {
       if (result && (result.status === 'ok' || result.status === 'healthy')) {
         // API is connected and responding correctly
         setApiConnected(true);
-
-      } else {
-        throw new Error('API health check failed');
+        return true;
       }
+      // Check for rate-limiting specifically
+      if (result && result.httpStatus === 429) {
+        // Don't change connectivity status for rate-limited requests
+        return null;
+      }
+      // API health check failed
+      setApiConnected(false);
+      return false;
     } catch (error) {
       // Handle rate limiting gracefully - don't mark as disconnected if it's just queued
       if (
@@ -37,7 +43,7 @@ function OfflineIndicator({ hideBanner = false }) {
       ) {
         // Keep current connection status - don't mark as failed due to rate limiting
         // The queue will retry automatically with backoff
-        return;
+        return null;
       }
 
       // Handle SSL/TLS and network errors more gracefully in development
@@ -49,12 +55,13 @@ function OfflineIndicator({ hideBanner = false }) {
         error.name === 'TypeError'
       ) {
         setApiConnected(false);
-        return;
+        return false;
       }
 
       // Log API connectivity failures as warnings
       console.warn('API connectivity test failed:', error.message);
       setApiConnected(false);
+      return false;
     }
   };
 
@@ -80,28 +87,23 @@ function OfflineIndicator({ hideBanner = false }) {
 
     const scheduleNextCheck = () => {
       connectivityTimeoutId = setTimeout(() => {
-        if (!apiConnected || !isOnline) {
-          testApiConnectivity()
-            .then(() => {
-              if (!apiConnected || !isOnline) {
-                // Still offline, increase backoff delay
-                backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
-              } else {
-                // Back online, reset backoff delay
-                backoffDelay = 30000;
-              }
-              scheduleNextCheck();
-            })
-            .catch(() => {
-              // Error in connectivity test, continue with backoff
+        testApiConnectivity()
+          .then((status) => {
+            if (status === true && isOnline) {
+              // Connected, reset backoff
+              backoffDelay = 30000;
+            } else if (status === false) {
+              // Hard failure, increase backoff
               backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
-              scheduleNextCheck();
-            });
-        } else {
-          // Online, continue checking at base interval
-          backoffDelay = 30000;
-          scheduleNextCheck();
-        }
+            }
+            // status === null means rate-limited, keep current backoff
+            scheduleNextCheck();
+          })
+          .catch(() => {
+            // Error in connectivity test, continue with backoff
+            backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            scheduleNextCheck();
+          });
       }, backoffDelay);
     };
 
@@ -196,53 +198,58 @@ function OfflineIndicator({ hideBanner = false }) {
     }
   };
 
+  // Helper function for rendering the Login Prompt Modal (reused in multiple places)
+  const renderLoginPromptModal = () => (
+    <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
+      <Modal.Header>
+        <Modal.Title>Authentication Required</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <span className="text-amber-600 text-xl">🔐</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-900 font-medium">
+                {loginPromptData?.message ||
+                  'Authentication required to sync data.'}
+              </p>
+              <p className="text-gray-600 text-sm mt-1">
+                You will be redirected to Online Scout Manager to
+                authenticate.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-blue-800 text-sm">
+              <strong>Note:</strong> You can continue using the app with
+              offline data if you prefer not to sync at this time.
+            </p>
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline" onClick={handleLoginCancel}>
+          Stay Offline
+        </Button>
+        <Button variant="scout-blue" onClick={handleLoginConfirm}>
+          Login & Sync
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+
 
   // Don't show anything if both network and API are connected and no sync status
   if (isOnline && apiConnected && !syncStatus) {
     return (
       <>
         {/* Login Prompt Modal */}
-        <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
-          <Modal.Header>
-            <Modal.Title>Authentication Required</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <span className="text-amber-600 text-xl">🔐</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-900 font-medium">
-                    {loginPromptData?.message ||
-                      'Authentication required to sync data.'}
-                  </p>
-                  <p className="text-gray-600 text-sm mt-1">
-                    You will be redirected to Online Scout Manager to
-                    authenticate.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> You can continue using the app with
-                  offline data if you prefer not to sync at this time.
-                </p>
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline" onClick={handleLoginCancel}>
-              Stay Offline
-            </Button>
-            <Button variant="scout-blue" onClick={handleLoginConfirm}>
-              Login & Sync
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        {renderLoginPromptModal()}
       </>
     );
   }
@@ -253,47 +260,7 @@ function OfflineIndicator({ hideBanner = false }) {
     return (
       <>
         {/* Login Prompt Modal */}
-        <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
-          <Modal.Header>
-            <Modal.Title>Authentication Required</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <span className="text-amber-600 text-xl">🔐</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-900 font-medium">
-                    {loginPromptData?.message ||
-                      'Authentication required to sync data.'}
-                  </p>
-                  <p className="text-gray-600 text-sm mt-1">
-                    You will be redirected to Online Scout Manager to
-                    authenticate.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> You can continue using the app with
-                  offline data if you prefer not to sync at this time.
-                </p>
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline" onClick={handleLoginCancel}>
-              Stay Offline
-            </Button>
-            <Button variant="scout-blue" onClick={handleLoginConfirm}>
-              Login & Sync
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        {renderLoginPromptModal()}
       </>
     );
   }

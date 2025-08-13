@@ -96,6 +96,8 @@ function App() {
 
   // Listen for sync status changes
   useEffect(() => {
+    let cleanup = null;
+
     const setupSyncListener = async () => {
       try {
         const { default: syncService } = await import('./services/sync.js');
@@ -106,7 +108,7 @@ function App() {
         
         syncService.addSyncListener(handleSyncStatus);
         
-        return () => {
+        cleanup = () => {
           syncService.removeSyncListener(handleSyncStatus);
         };
       } catch (error) {
@@ -115,6 +117,13 @@ function App() {
     };
 
     setupSyncListener();
+
+    // Return cleanup function that will be called on unmount
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
   }, []);
 
   const handleNavigateToAttendance = async (events, members = null) => {

@@ -407,6 +407,8 @@ export function useAuth() {
 
   // Listen for sync completion to update lastSyncTime
   useEffect(() => {
+    let cleanupFn = null;
+    
     const handleSyncComplete = (syncStatus) => {
       if (syncStatus.status === 'completed') {
         // Use the timestamp from sync status, or get from localStorage as fallback
@@ -427,16 +429,19 @@ export function useAuth() {
         };
       } catch (error) {
         logger.error('Failed to setup sync listener in useAuth', { error: error.message }, LOG_CATEGORIES.ERROR);
+        return null;
       }
     };
 
-    setupSyncListener().then(cleanup => {
-      // Store cleanup function for later use
-      return cleanup;
+    setupSyncListener().then((cleanup) => {
+      cleanupFn = cleanup;
     });
 
-    // Return empty cleanup function as fallback
-    return () => {};
+    return () => {
+      if (cleanupFn) {
+        cleanupFn();
+      }
+    };
   }, []);
 
   // Periodic token expiration monitoring

@@ -146,7 +146,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
 
   return (
     <div
-      className={`data-freshness text-sm text-gray-600 ${className}`}
+      className={`data-freshness text-sm ${info.className} ${className}`}
     >
       <span className="data-freshness-text hidden sm:inline">{info.text}</span>
       {/* Mobile: Show abbreviated text */}

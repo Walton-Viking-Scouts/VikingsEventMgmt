@@ -223,10 +223,10 @@ class SyncService {
         // Continue with sync - this is optimization, not critical
       }
 
-      const completionTimestamp = new Date().toISOString();
+      const completionTimestamp = Date.now(); // Epoch milliseconds for UI compatibility
       
-      // Store last sync time for UI display
-      localStorage.setItem('viking_last_sync', completionTimestamp);
+      // Store last sync time for UI display (convert to string for localStorage)
+      localStorage.setItem('viking_last_sync', completionTimestamp.toString());
       
       this.notifyListeners({ 
         status: 'completed', 

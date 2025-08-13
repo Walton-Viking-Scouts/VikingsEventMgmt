@@ -192,6 +192,8 @@ export async function fetchUserInfoFromAPI() {
   };
 
   try {
+    // Direct sessionStorage access intentional - this function fetches user info 
+    // regardless of token expiration status (for API calls vs general auth checks)
     const token = sessionStorage.getItem('access_token');
     if (!token) {
       throw new Error('No authentication token available');

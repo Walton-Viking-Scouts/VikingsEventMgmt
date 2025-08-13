@@ -72,12 +72,22 @@ function useFlexiRecordContext(
     }
 
     // Extract FlexiRecord context when sectionInfo.section exists
-    const context = extractFlexiRecordContext(
-      primaryCampGroupData,
-      firstEvent.sectionid,
-      termId,
-      sectionInfo.section,
-    );
+    let context = null;
+    try {
+      context = extractFlexiRecordContext(
+        primaryCampGroupData,
+        firstEvent.sectionid,
+        termId,
+        sectionInfo.section,
+      );
+    } catch (err) {
+      logger.error(
+        'Failed to extract FlexiRecord context',
+        { error: err.message },
+        LOG_CATEGORIES.ERROR,
+      );
+      return null;
+    }
 
     logger.debug(
       'FlexiRecord context extracted for drag-and-drop',
@@ -401,7 +411,15 @@ function CampGroupsView({
 
         // Check if member already exists in target group
         const targetGroup = groups[moveData.toGroupName];
-        if (targetGroup?.youngPeople?.some(m => m.scoutid === moveData.member.scoutid)) {
+        if (!targetGroup) {
+          logger.warn('Target group not found, skipping optimistic update', {
+            toGroupName: moveData.toGroupName,
+          }, LOG_CATEGORIES.APP);
+          return prevGroups;
+        }
+        
+        const targetYoungPeople = Array.isArray(targetGroup.youngPeople) ? targetGroup.youngPeople : [];
+        if (targetYoungPeople.some(m => m.scoutid === moveData.member.scoutid)) {
           logger.warn('Member already in target group, skipping optimistic update', {
             memberId: moveData.member.scoutid,
             targetGroup: moveData.toGroupName,
@@ -753,7 +771,10 @@ function CampGroupsView({
       }
 
       // Search in member names
-      const allMembers = [...group.leaders, ...group.youngPeople];
+      const allMembers = [
+        ...(Array.isArray(group.leaders) ? group.leaders : []),
+        ...(Array.isArray(group.youngPeople) ? group.youngPeople : []),
+      ];
       return allMembers.some((member) => {
         const fullName =
           `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
