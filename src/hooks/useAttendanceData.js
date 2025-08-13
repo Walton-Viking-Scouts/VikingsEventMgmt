@@ -98,13 +98,38 @@ export function useAttendanceData(events) {
     try {
       const token = getToken();
       
+      // Enhanced logging for debugging deployed environment issues
+      console.log('useAttendanceData: Loading Viking Event data', {
+        eventsCount: events?.length || 0,
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
+      });
+      
+      if (!token) {
+        console.warn('useAttendanceData: No token available for FlexiRecord loading');
+        return;
+      }
+      
       // Load Viking Event Management data for all sections
       // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token);
+      
+      console.log('useAttendanceData: Viking Event data loaded successfully', {
+        sectionsWithData: Array.from(vikingEventMap.entries())
+          .filter(([_, data]) => data !== null)
+          .map(([sectionId, _]) => sectionId),
+        totalSections: vikingEventMap.size,
+      });
+      
       setVikingEventData(vikingEventMap);
       
     } catch (error) {
-      console.warn('Error loading Viking Event Management data:', error);
+      console.error('useAttendanceData: Error loading Viking Event Management data', {
+        error: error.message,
+        stack: error.stack,
+        eventsCount: events?.length || 0,
+      });
       // Don't set error state as this is supplementary data
     }
   };
