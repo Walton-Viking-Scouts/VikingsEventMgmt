@@ -958,11 +958,16 @@ function CampGroupsView({
                 !summary.vikingEventDataAvailable || !flexiRecordContext
               }
               onOfflineError={async (memberName) => {
-                const isOnline = await checkNetworkStatus();
-                const errorMessage = !isOnline 
-                  ? `Cannot move ${memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
-                  : `Cannot move ${memberName}: Authentication expired. Please sign in to OSM to move members.`;
-                showToast('error', errorMessage);
+                try {
+                  const isOnline = await checkNetworkStatus();
+                  const errorMessage = !isOnline 
+                    ? `Cannot move ${memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
+                    : `Cannot move ${memberName}: Authentication expired. Please sign in to OSM to move members.`;
+                  showToast('error', errorMessage);
+                } catch (networkError) {
+                  console.error('Network status check failed in onOfflineError:', networkError);
+                  showToast('error', `Cannot move ${memberName}: Unable to verify network status.`);
+                }
               }}
               className="h-fit"
             />

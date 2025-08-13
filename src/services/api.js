@@ -1069,47 +1069,36 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
-      const transformedMembers = data.data.members.map(member => {
-        // Map patrol_id to person type
-        let person_type = 'Young People'; // default
-        if (member.patrol_id === -2) {
-          person_type = 'Leaders';
-        } else if (member.patrol_id === -3) {
-          person_type = 'Young Leaders';
-        }
-        
-        // The backend now provides flattened fields, so we can use them directly
-        // All custom_data fields are now available as flattened properties like:
-        // primary_contact_1_email_1, primary_contact_1_phone_1, etc.
-        
+      const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : []).map(member => {
+        const scoutId = Number(member.member_id);
+        const sectionIdNum = Number(member.section_id);
+        const patrolId = Number(member.patrol_id);
+        let person_type = 'Young People';
+        if (patrolId === -2) person_type = 'Leaders';
+        else if (patrolId === -3) person_type = 'Young Leaders';
+
         return {
-          // Core member info
-          scoutid: member.member_id,
-          member_id: member.member_id,
-          firstname: member.first_name,
-          lastname: member.last_name,
-          date_of_birth: member.date_of_birth,
-          age: member.age,
-          
+          ...member,
+          // Core member info (normalised)
+          scoutid: scoutId,
+          member_id: scoutId,
+          firstname: member.first_name ?? member.firstname,
+          lastname: member.last_name ?? member.lastname,
+          date_of_birth: member.date_of_birth ?? member.dob,
+          age: typeof member.age === 'string' ? Number(member.age) : member.age,
           // Section info
-          sectionid: member.section_id,
+          sectionid: sectionIdNum,
           patrol: member.patrol,
-          patrol_id: member.patrol_id,
-          person_type: person_type, // New field for person classification
+          patrol_id: patrolId,
+          person_type,
           started: member.started,
           joined: member.joined,
           active: member.active,
           end_date: member.end_date,
-          
           // Photo info
           photo_guid: member.photo_guid,
-          has_photo: member.pic,
-          
-          // All flattened custom fields are now available directly on the member object
-          // No need to extract them - they're already flattened by the backend
-          ...member, // Spread all fields including flattened custom_data fields
-          
-          // Keep grouped contact data for backward compatibility
+          has_photo: Boolean(member.pic),
+          // Backward-compatible grouped contacts
           contact_groups: member.contact_groups,
         };
       });

@@ -112,22 +112,32 @@ function CampGroupCard({
       }
 
       // Check if we can perform the move (network + auth validation)
-      const isOnline = await checkNetworkStatus();
-      const token = getToken();
-      
-      if (!isOnline || !token) {
-        const errorMessage = !isOnline 
-          ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
-          : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
+      try {
+        const isOnline = await checkNetworkStatus();
+        const token = getToken();
         
-        // Call the error handler if provided, otherwise log to console
+        if (!isOnline || !token) {
+          const errorMessage = !isOnline 
+            ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
+            : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
+          
+          // Call the error handler if provided, otherwise log to console
+          if (onOfflineError) {
+            onOfflineError(dragData.memberName);
+          } else {
+            console.warn(errorMessage);
+          }
+          
+          // Don't call onMemberMove - this prevents the optimistic update
+          return;
+        }
+      } catch (networkError) {
+        console.error('Network status check failed:', networkError);
         if (onOfflineError) {
           onOfflineError(dragData.memberName);
         } else {
-          console.warn(errorMessage);
+          console.warn(`Cannot move ${dragData.memberName}: Unable to verify network status.`);
         }
-        
-        // Don't call onMemberMove - this prevents the optimistic update
         return;
       }
 

@@ -40,15 +40,24 @@ function App() {
 
     // Auto-dismiss after duration
     if (duration > 0) {
-      setTimeout(() => {
-        removeNotification(id);
+      const timeoutId = setTimeout(() => {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
       }, duration);
+      
+      // Store timeout ID for potential cleanup
+      notification.timeoutId = timeoutId;
     }
   }, []);
 
   // Helper function to remove notifications
   const removeNotification = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setNotifications((prev) => {
+      const notification = prev.find((n) => n.id === id);
+      if (notification?.timeoutId) {
+        clearTimeout(notification.timeoutId);
+      }
+      return prev.filter((n) => n.id !== id);
+    });
   };
 
   // Refresh function - triggers a data refresh via sync service

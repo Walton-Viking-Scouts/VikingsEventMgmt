@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseTimestamp } from '../utils/asyncUtils.js';
 
 /**
  * DataFreshness - Shows data age and sync status
@@ -8,37 +9,10 @@ import React from 'react';
  */
 function DataFreshness({ lastSync, authState, className = '' }) {
   const getDataAge = (timestamp) => {
-    if (!timestamp) return null;
-
-    const now = Date.now();
+    const syncTimeMs = parseTimestamp(timestamp);
+    if (!syncTimeMs) return null;
     
-    // Convert timestamp to epoch milliseconds
-    let syncTimeMs;
-    if (typeof timestamp === 'string') {
-      if (/^\d+$/.test(timestamp)) {
-        // Epoch timestamp as string (standard format)
-        syncTimeMs = parseInt(timestamp, 10);
-      } else {
-        // ISO string (legacy format) 
-        syncTimeMs = new Date(timestamp).getTime();
-      }
-    } else if (typeof timestamp === 'number') {
-      // Epoch timestamp as number
-      syncTimeMs = timestamp;
-    } else {
-      // Date object or other
-      syncTimeMs = new Date(timestamp).getTime();
-    }
-    
-    if (Number.isNaN(syncTimeMs) || syncTimeMs <= 0) return null; // invalid timestamp
-    
-    // Sanity check: reject timestamps too far in the future (more than 1 day)
-    if (syncTimeMs > now + 24 * 60 * 60 * 1000) {
-      console.warn('DataFreshness: Timestamp is far in the future, ignoring:', new Date(syncTimeMs));
-      return null;
-    }
-    
-    const diffMs = Math.max(0, now - syncTimeMs);
+    const diffMs = Math.max(0, Date.now() - syncTimeMs);
 
     const minutes = Math.floor(diffMs / (1000 * 60));
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -53,30 +27,10 @@ function DataFreshness({ lastSync, authState, className = '' }) {
   };
 
   const getStalenessLevel = (timestamp) => {
-    if (!timestamp) return 'unknown';
-
-    const now = Date.now();
+    const syncTimeMs = parseTimestamp(timestamp);
+    if (!syncTimeMs) return 'unknown';
     
-    // Convert timestamp to epoch milliseconds (same logic as getDataAge)
-    let syncTimeMs;
-    if (typeof timestamp === 'string') {
-      if (/^\d+$/.test(timestamp)) {
-        syncTimeMs = parseInt(timestamp, 10);
-      } else {
-        syncTimeMs = new Date(timestamp).getTime();
-      }
-    } else if (typeof timestamp === 'number') {
-      syncTimeMs = timestamp;
-    } else {
-      syncTimeMs = new Date(timestamp).getTime();
-    }
-    
-    if (Number.isNaN(syncTimeMs) || syncTimeMs <= 0) return 'unknown';
-    
-    // Sanity check: reject far future timestamps
-    if (syncTimeMs > now + 24 * 60 * 60 * 1000) return 'unknown';
-    
-    const diffMs = Math.max(0, now - syncTimeMs);
+    const diffMs = Math.max(0, Date.now() - syncTimeMs);
 
     // Different staleness thresholds based on our design
     const HOUR = 60 * 60 * 1000;
