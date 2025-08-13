@@ -1208,9 +1208,6 @@ export async function getListOfMembers(sections, token) {
   
   for (const section of validSections) {
     try {
-      // Add delay between sections to prevent rapid API calls - increased for rate limiting
-      await sleep(1200);
-      
       // Use cached terms instead of calling API again
       // Defensive check for section ID
       if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
