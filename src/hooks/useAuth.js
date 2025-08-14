@@ -34,7 +34,27 @@ export function useAuth() {
       return sessionStorage.getItem('token_expired') === 'true';
     }
     
-    const expirationTime = parseInt(expiresAt);
+    const expirationTime = parseInt(expiresAt, 10);
+    
+    // Validate the parsed expiration time
+    if (!Number.isFinite(expirationTime)) {
+      logger.warn('Corrupt token expiration time detected, falling back to token_expired flag', {
+        corruptValue: expiresAt,
+        tokenExpiredFlag: sessionStorage.getItem('token_expired'),
+      }, LOG_CATEGORIES.AUTH);
+      
+      // Treat corrupt expiration as expired and set flag for consistency
+      const fallbackExpired = sessionStorage.getItem('token_expired') === 'true';
+      if (!fallbackExpired) {
+        logger.info('Setting token_expired flag due to corrupt expiration time', {
+          corruptValue: expiresAt,
+        }, LOG_CATEGORIES.AUTH);
+        sessionStorage.setItem('token_expired', 'true');
+        return true;
+      }
+      return fallbackExpired;
+    }
+    
     const now = Date.now();
     const timeUntilExpiry = expirationTime - now;
     const isExpired = timeUntilExpiry <= 0;
