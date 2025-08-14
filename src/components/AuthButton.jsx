@@ -39,7 +39,7 @@ function AuthButton({
     case 'cached_only':
       return {
         text: 'Refresh data',
-        onClick: onLogin, // Login to get fresh data
+        onClick: onRefresh || onLogin, // Prefer onRefresh for cached data
         disabled: false,
         variant: 'outline',
       };

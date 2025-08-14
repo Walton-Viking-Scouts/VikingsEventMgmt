@@ -91,16 +91,17 @@ function App() {
   useEffect(() => {
     if (!isLoading && isOfflineMode && user) {
       const userName = user?.firstname ? `, ${user.firstname}` : '';
+      
+      const offlineMessage = 
+        authState === 'token_expired' || authState === 'cached_only'
+          ? 'Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM.'
+          : 'You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.';
+      
       addNotification(
         'info', 
-        `Offline Mode${userName}: Using cached data. Your authentication has expired - sign in to refresh.`,
+        `Offline Mode${userName}: ${offlineMessage}`,
         8000, // Show for 8 seconds
       );
-      
-      logger.debug('Offline mode toast notification shown', {
-        hasUserInfo: !!user,
-        userName: user?.firstname || 'Unknown',
-      }, LOG_CATEGORIES.AUTH);
     }
   }, [isLoading, isOfflineMode, user, addNotification]);
 

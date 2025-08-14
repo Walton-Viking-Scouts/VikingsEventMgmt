@@ -5,16 +5,16 @@ import authService from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import databaseService from '../services/database.js';
 
-// Configuration for token expiration monitoring
+// Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
   // Default token expiration time when OAuth server doesn't provide expires_in
-  DEFAULT_EXPIRATION_SECONDS: 60 * 60, // 1 hour (typical for OSM)
+  DEFAULT_EXPIRATION_SECONDS: import.meta.env.DEV ? 60 * 60 : 60 * 60, // 1 hour (both environments - OSM typical)
   
   // How often to check for token expiration (in milliseconds)
-  CHECK_INTERVAL_MS: 60 * 1000, // 1 minute
+  CHECK_INTERVAL_MS: import.meta.env.DEV ? 30 * 1000 : 60 * 1000, // 30s dev, 60s prod
   
   // How early to warn about upcoming expiration (in milliseconds)
-  EXPIRATION_WARNING_MS: 5 * 60 * 1000, // 5 minutes
+  EXPIRATION_WARNING_MS: import.meta.env.DEV ? 2 * 60 * 1000 : 5 * 60 * 1000, // 2min dev, 5min prod
 };
 
 export function useAuth() {

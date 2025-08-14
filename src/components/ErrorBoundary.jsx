@@ -3,6 +3,27 @@ import * as Sentry from '@sentry/react';
 import { Alert } from './ui';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
+// Shared configuration for sensitive data patterns
+const SENSITIVE_PATTERNS = {
+  // Sensitive key patterns for prop redaction
+  PROP_KEYS: ['token', 'password', 'secret', 'key', 'auth', 'credential'],
+  // Sensitive URL parameter patterns
+  URL_PARAMS: [
+    'access_token',
+    'id_token', 
+    'refresh_token',
+    'token',
+    'api_key',
+    'apikey',
+    'key',
+    'secret',
+    'auth',
+    'authorization',
+    'session',
+    'session_id',
+  ],
+};
+
 // Enhanced Sentry ErrorBoundary with custom fallback and security features
 export const EnhancedSentryErrorBoundary = ({
   children,
@@ -129,7 +150,7 @@ class ErrorBoundary extends React.Component {
           }
           // Redact sensitive keys (substring match, case-insensitive)
           if (
-            ['token', 'password', 'secret', 'key', 'auth', 'credential'].some(
+            SENSITIVE_PATTERNS.PROP_KEYS.some(
               (s) => key.toLowerCase().includes(s),
             )
           ) {
@@ -153,20 +174,7 @@ class ErrorBoundary extends React.Component {
       if (!url) return '[URL Not Available]';
       try {
         const urlObj = new URL(url);
-        const sensitives = [
-          'access_token',
-          'id_token',
-          'refresh_token',
-          'token',
-          'api_key',
-          'apikey',
-          'key',
-          'secret',
-          'auth',
-          'authorization',
-          'session',
-          'session_id',
-        ];
+        const sensitives = SENSITIVE_PATTERNS.URL_PARAMS;
 
         // Case-insensitive match, redact any param whose name includes a sensitive token
         for (const [k] of urlObj.searchParams.entries()) {

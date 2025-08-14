@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -137,7 +138,24 @@ export function useAttendanceData(events) {
       });
       
       if (!token) {
-        console.warn('useAttendanceData: No token available for FlexiRecord loading');
+        logger.info(
+          'useAttendanceData: No token available for FlexiRecord loading; attempting cache-only read',
+          {},
+          LOG_CATEGORIES.APP,
+        );
+        try {
+          // forceRefresh=false to use only local cache
+          const cachedMap = await getVikingEventDataForEvents(events, null, false);
+          if (cachedMap) {
+            setVikingEventData(cachedMap);
+          }
+        } catch (cacheErr) {
+          logger.warn(
+            'useAttendanceData: Cache-only Viking Event data load failed',
+            { error: cacheErr.message },
+            LOG_CATEGORIES.APP,
+          );
+        }
         return;
       }
       

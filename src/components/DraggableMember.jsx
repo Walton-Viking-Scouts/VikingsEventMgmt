@@ -29,6 +29,13 @@ function DraggableMember({
   const [dragPreview, setDragPreview] = useState(false);
   const [mouseDown, setMouseDown] = useState(false);
 
+  // Compute member name once (DRY principle)
+  // Debug: Check different name field possibilities
+  const memberName = member.name || 
+                    member.displayName ||
+                    `${member.firstname || member.first_name || ''} ${member.lastname || member.last_name || ''}`.trim() ||
+                    'Unknown Member';
+
   // Only specific member types can be dragged between groups
   const isDraggable =
     DRAGGABLE_MEMBER_TYPES.includes(member.person_type) && !disabled;
@@ -51,11 +58,24 @@ function DraggableMember({
     // Set drag data
     const dragData = {
       memberId: member.scoutid,
-      memberName: member.name || `${member.firstname || ''} ${member.lastname || ''}`.trim(),
+      memberName: memberName,
       fromGroupNumber: group?.number || 'Unknown',
       fromGroupName: group?.name || 'Unknown Group',
-      member: member,
     };
+
+    // Debug logging for name issues
+    if (!memberName || memberName === 'Unknown Member') {
+      console.warn('DraggableMember: Member name issue detected', {
+        memberName,
+        memberKeys: Object.keys(member),
+        memberNameField: member.name,
+        memberFirstname: member.firstname,
+        memberLastname: member.lastname,
+        memberFirstName: member.first_name,
+        memberLastName: member.last_name,
+        memberId: member.scoutid,
+      });
+    }
 
     try {
       e.dataTransfer.setData('application/json', JSON.stringify(dragData));
@@ -96,8 +116,6 @@ function DraggableMember({
       onMemberClick(member);
     }
   };
-
-  const memberName = member.name || `${member.firstname || ''} ${member.lastname || ''}`.trim();
 
   return (
     <div
@@ -140,7 +158,7 @@ function DraggableMember({
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
       data-member-id={member.scoutid}
-      data-member-name={memberName}
+      aria-grabbed={isDraggable ? (isDragging ? 'true' : 'false') : undefined}
     >
       {/* Drag handle indicator for draggable members - top corner */}
       {isDraggable && (

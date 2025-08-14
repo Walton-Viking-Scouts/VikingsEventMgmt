@@ -62,27 +62,14 @@ describe('Term Utilities', () => {
         enddate: '2024-03-31',
         name: 'Spring 2024',
       });
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Found most recent term',
-        {
-          termid: '3',
-          enddate: '2024-03-31',
-          name: 'Spring 2024',
-          totalTermsProcessed: 3,
-        },
-        'APP',
-      );
+      // Debug logging removed from production code
     });
 
     it('should return null for empty array', () => {
       const result = findMostRecentTerm([]);
 
       expect(result).toBeNull();
-      expect(logger.debug).toHaveBeenCalledWith(
-        'No terms provided to findMostRecentTerm',
-        {},
-        'APP',
-      );
+      // Debug logging removed from production code
     });
 
     it('should return single term when only one term provided', () => {
@@ -93,16 +80,7 @@ describe('Term Utilities', () => {
       const result = findMostRecentTerm(terms);
 
       expect(result).toEqual(terms[0]);
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Found most recent term',
-        expect.objectContaining({
-          termid: '1',
-          enddate: '2023-07-31',
-          name: 'Summer 2023',
-          totalTermsProcessed: 1,
-        }),
-        'APP',
-      );
+      // Debug logging removed from production code
     });
 
     it('should handle terms with same end date', () => {
@@ -313,44 +291,21 @@ describe('Term Utilities', () => {
       const result = getMostRecentTermId(101, sampleAllTerms);
 
       expect(result).toBe('term2');
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Retrieved most recent term ID for section',
-        {
-          sectionId: '101',
-          termId: 'term2',
-          enddate: '2024-06-30',
-        },
-        'APP',
-      );
+      // Debug logging removed from production code
     });
 
     it('should handle string section IDs', () => {
       const result = getMostRecentTermId('102', sampleAllTerms);
 
       expect(result).toBe('term3');
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Retrieved most recent term ID for section',
-        {
-          sectionId: '102',
-          termId: 'term3',
-          enddate: '2024-03-31',
-        },
-        'APP',
-      );
+      // Debug logging removed from production code
     });
 
     it('should return null for non-existent section', () => {
       const result = getMostRecentTermId(999, sampleAllTerms);
 
       expect(result).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        'No terms found for section',
-        {
-          sectionId: '999',
-          availableSections: ['101', '102', '103'],
-        },
-        'APP',
-      );
+      // Warn logging removed from production code
     });
 
     it('should return null for section with empty terms array', () => {
@@ -504,30 +459,17 @@ describe('Term Utilities', () => {
     });
 
     it('should provide detailed logging for successful lookups', () => {
-      getMostRecentTermId('101', sampleAllTerms);
+      const result = getMostRecentTermId('101', sampleAllTerms);
 
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Retrieved most recent term ID for section',
-        {
-          sectionId: '101',
-          termId: 'term2',
-          enddate: '2024-06-30',
-        },
-        'APP',
-      );
+      expect(result).toBe('term2');
+      // Debug logging removed from production code
     });
 
     it('should provide available sections in warning when section not found', () => {
-      getMostRecentTermId('nonexistent', sampleAllTerms);
+      const result = getMostRecentTermId('nonexistent', sampleAllTerms);
 
-      expect(logger.warn).toHaveBeenCalledWith(
-        'No terms found for section',
-        {
-          sectionId: 'nonexistent',
-          availableSections: ['101', '102', '103'],
-        },
-        'APP',
-      );
+      expect(result).toBeNull();
+      // Warn logging removed from production code
     });
   });
 });

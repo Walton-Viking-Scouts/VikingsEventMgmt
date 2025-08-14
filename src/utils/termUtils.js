@@ -55,7 +55,7 @@ export function findMostRecentTerm(terms) {
   }
 
   if (terms.length === 0) {
-    logger.debug('No terms provided to findMostRecentTerm', {}, LOG_CATEGORIES.APP);
+    // No terms provided - this is a normal condition, not worth logging
     return null;
   }
 
@@ -85,14 +85,7 @@ export function findMostRecentTerm(terms) {
       return termEndDate > latestEndDate ? term : latest;
     }, null);
 
-    if (mostRecentTerm) {
-      logger.debug('Found most recent term', {
-        termid: mostRecentTerm.termid,
-        enddate: mostRecentTerm.enddate,
-        name: mostRecentTerm.name,
-        totalTermsProcessed: terms.length,
-      }, LOG_CATEGORIES.APP);
-    }
+    // Successfully found most recent term - no need to log routine operations
 
     return mostRecentTerm;
   } catch (error) {
@@ -171,10 +164,7 @@ export function getMostRecentTermId(sectionId, allTerms) {
   const sectionKey = String(sectionId);
   
   if (!allTerms[sectionKey]) {
-    logger.warn('No terms found for section', {
-      sectionId: sectionKey,
-      availableSections: Object.keys(allTerms),
-    }, LOG_CATEGORIES.APP);
+    // No terms for this section - expected for some sections
     return null;
   }
 
@@ -189,11 +179,7 @@ export function getMostRecentTermId(sectionId, allTerms) {
       return null;
     }
 
-    logger.debug('Retrieved most recent term ID for section', {
-      sectionId: sectionKey,
-      termId: mostRecentTerm.termid,
-      enddate: mostRecentTerm.enddate,
-    }, LOG_CATEGORIES.APP);
+    // Successfully retrieved term ID - routine operation, no logging needed
 
     return mostRecentTerm.termid;
   } catch (error) {

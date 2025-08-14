@@ -277,12 +277,13 @@ export function organizeMembersByCampGroups(processedMembers) {
       return { groups: {}, summary: { totalGroups: 0, totalMembers: 0 } };
     }
 
-    logger.info('Organizing members by camp groups', {
+    logger.debug('Organizing members by camp groups', {
       totalProcessedMembers: processedMembers.length,
     }, LOG_CATEGORIES.APP);
 
     const groups = {};
     let processedCount = 0;
+    let allHaveVikingEventData = true;
 
     // Process each member (they already have vikingEventData from getSummaryStats)
     processedMembers.forEach(member => {
@@ -309,7 +310,7 @@ export function organizeMembersByCampGroups(processedMembers) {
       if (!groups[groupName]) {
         groups[groupName] = {
           name: groupName,
-          number: campGroupNumber || 'Unassigned',
+          number: Number.isFinite(Number(campGroupNumber)) ? Number(campGroupNumber) : null,
           leaders: [], // Keep empty - no leaders in camp groups
           youngPeople: [],
           totalMembers: 0,
@@ -335,6 +336,10 @@ export function organizeMembersByCampGroups(processedMembers) {
       
       groups[groupName].youngPeople.push(memberWithGroup);
       groups[groupName].totalMembers++;
+      
+      // Track viking event data availability
+      allHaveVikingEventData &&= !!member.vikingEventData;
+      
       processedCount++;
     });
 
@@ -375,10 +380,10 @@ export function organizeMembersByCampGroups(processedMembers) {
       totalLeaders: Object.values(sortedGroups).reduce((sum, group) => sum + group.leaders.length, 0),
       totalYoungPeople: Object.values(sortedGroups).reduce((sum, group) => sum + group.youngPeople.length, 0),
       hasUnassigned: !!sortedGroups['Group Unassigned'],
-      vikingEventDataAvailable: true, // Data is pre-processed and attached to members
+      vikingEventDataAvailable: allHaveVikingEventData, // Derived from actual member data
     };
 
-    logger.info('Successfully organized members by camp groups', {
+    logger.debug('Successfully organized members by camp groups', {
       totalGroups: summary.totalGroups,
       totalMembers: summary.totalMembers,
       totalLeaders: summary.totalLeaders,

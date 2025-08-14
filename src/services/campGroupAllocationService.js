@@ -281,6 +281,24 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
  * @returns {Object} Validation result with success/error details
  */
 export function validateMemberMove(member, targetGroupNumber, currentGroups) {
+  // Debug: Log validation input to diagnose undefined member
+  console.log('validateMemberMove called with:', {
+    member,
+    memberDefined: !!member,
+    memberType: typeof member,
+    personType: member?.person_type,
+    targetGroupNumber,
+    hasCurrentGroups: !!currentGroups,
+  });
+
+  // Validate member object exists
+  if (!member) {
+    return {
+      valid: false,
+      error: 'Cannot find member: member object is undefined',
+    };
+  }
+
   // Only Young People can be moved between camp groups
   if (member.person_type !== 'Young People') {
     return {

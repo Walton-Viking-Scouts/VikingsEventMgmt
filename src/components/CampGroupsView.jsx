@@ -10,7 +10,7 @@ import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
-import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
+// import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
 import { fetchMostRecentTermId } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
@@ -28,8 +28,6 @@ import { findMemberSectionType } from '../utils/sectionHelpers.js';
  * getSummaryStats() returns: { name, scoutid, person_type, vikingEventData: { CampGroup } }
  */
 function organizeAttendeesSimple(attendees) {
-  console.log('CampGroupsView: organizeAttendeesSimple called');
-  
   const groups = {};
   let totalMembers = 0;
   
@@ -217,7 +215,9 @@ function CampGroupsView({
   // Drag and drop state
   const [isDragInProgress, setIsDragInProgress] = useState(false);
   const [draggingMemberId, setDraggingMemberId] = useState(null);
+
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
+  
   const [toastMessage, setToastMessage] = useState(null); // Success/error messages
 
   // Ref to track toast timeout for cleanup
@@ -435,27 +435,9 @@ function CampGroupsView({
         has_photo: cachedMember.has_photo,
         sections: [member.sectionname || 'Unknown'],
       };
-      
-      console.log('CampGroupsView - Member clicked, enriched with cached data:', {
-        memberScoutId: enrichedMember.scoutid,
-        memberName: `${enrichedMember.firstname} ${enrichedMember.lastname}`,
-        memberKeys: Object.keys(enrichedMember),
-        hasContactInfo: !!(enrichedMember.primary_contact_1__first_name || enrichedMember.emergency_contact__first_name),
-        hasMedicalInfo: !!(enrichedMember.essential_information__medical_details || enrichedMember.essential_information__dietary_requirements || enrichedMember.essential_information__allergies),
-        totalFields: Object.keys(enrichedMember).length,
-        source: 'enriched from cached member data',
-      });
     } else {
       // Fallback to the simplified member data if no cached member found
       enrichedMember = member;
-      
-      console.log('CampGroupsView - Member clicked, no cached data found:', {
-        memberScoutId: member.scoutid,
-        memberName: member.name || `${member.firstname} ${member.lastname}`,
-        memberKeys: Object.keys(member),
-        totalFields: Object.keys(member).length,
-        source: 'fallback to simplified data',
-      });
     }
     
     setSelectedMember(enrichedMember);
@@ -470,6 +452,11 @@ function CampGroupsView({
 
   // Drag and drop handlers
   const handleDragStart = useCallback((dragData) => {
+    // Prevent overlapping drag operations
+    if (pendingMoves.size > 0) {
+      return;
+    }
+
     setIsDragInProgress(true);
     setDraggingMemberId(dragData.memberId);
 
@@ -482,17 +469,37 @@ function CampGroupsView({
       },
       LOG_CATEGORIES.APP,
     );
-  }, []);
+  }, [pendingMoves.size]);
 
   const handleDragEnd = useCallback(() => {
+    // Only clear the drag-in-progress state, but keep draggingMemberId
+    // The draggingMemberId will be cleared by the move handler after OSM responds
     setIsDragInProgress(false);
-    setDraggingMemberId(null);
 
-    logger.debug('Drag operation ended', {}, LOG_CATEGORIES.APP);
+    // Safety timeout: Clear drag state if no move operation occurs within 3 seconds
+    // This handles cases like dropping on the same group or invalid drops
+    setTimeout(() => {
+      setDraggingMemberId((currentId) => {
+        if (currentId !== null) {
+          logger.debug('Drag state cleared by safety timeout - no move operation occurred', {}, LOG_CATEGORIES.APP);
+          return null;
+        }
+        return currentId;
+      });
+    }, 3000); // Increased to 3 seconds to allow for slower API responses
   }, []);
 
   // Show toast message temporarily
   const showToast = useCallback((type, message) => {
+    // Log error toast messages for debugging
+    if (type === 'error') {
+      logger.error('Toast Error Message', {
+        message,
+        type,
+        timestamp: new Date().toISOString(),
+      }, LOG_CATEGORIES.COMPONENT);
+    }
+    
     // Clear any existing timeout
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
@@ -664,7 +671,7 @@ function CampGroupsView({
         return;
       }
 
-      const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
+      const memberName = moveData.member.name || `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() || 'Unknown Member';
 
       // Get the correct section type for THIS specific member
       const memberSectionId = moveData.member.sectionid;
@@ -751,7 +758,27 @@ function CampGroupsView({
           getToken(),
         );
 
-        if (result.success) {
+        if (result && result.success === true) {
+          // Always clear drag states on success, even if component is unmounting
+          // This prevents stuck drag states when component remounts
+          setDraggingMemberId(null);
+          setIsDragInProgress(false);
+          
+          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
+          setPendingMoves((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(moveId);
+            return newMap;
+          });
+          
+          // Show success toast
+          showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+          
+          // Only do heavy cache updates if component is still mounted
+          if (!isMountedRef.current) {
+            return;
+          }
+          
           // 4. Update local FlexiRecord cache after successful OSM sync
           const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
           let cachedData = {};
@@ -805,27 +832,7 @@ function CampGroupsView({
             }
           }
 
-          // 5. Update the member object in the current data (immutable update)
-          // Note: This updates the original member object reference used throughout the component
-          // The member object is already being updated immutably in the optimistic update functions
-          // This ensures consistency across all references to this member
-
-          // 6. Show success message
-          showToast(
-            'success',
-            `${memberName} moved to ${moveData.toGroupName}`,
-          );
-
-          // 7. Remove from pending moves (always do this for successful operations)
-          setPendingMoves((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(moveId);
-            return newMap;
-          });
-
-          // Always clear drag states to remove grey highlighting from moved member
-          setIsDragInProgress(false);
-          setDraggingMemberId(null);
+          // Cache updates completed successfully
 
           logger.info(
             'Member move completed successfully - OSM updated and cache refreshed',
@@ -839,7 +846,7 @@ function CampGroupsView({
             LOG_CATEGORIES.APP,
           );
         } else {
-          throw new Error(result.error);
+          throw new Error(result?.error || result?.message || 'API call failed');
         }
       } catch (error) {
         // Error syncing to OSM - revert UI change and show error
@@ -855,15 +862,16 @@ function CampGroupsView({
 
         // Only update state if component is still mounted
         if (isMountedRef.current) {
+          // Clear ALL drag states and pending moves on error
+          setIsDragInProgress(false);
+          setDraggingMemberId(null);
+          
+          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
             newMap.delete(moveId);
             return newMap;
           });
-
-          // Always clear drag states on error to remove grey highlighting
-          setIsDragInProgress(false);
-          setDraggingMemberId(null);
 
           revertOptimisticUpdate(moveData);
           showToast('error', `Failed to move ${memberName}: ${error.message}`);
@@ -1082,7 +1090,7 @@ function CampGroupsView({
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
               dragDisabled={
-                !summary.vikingEventDataAvailable || !flexiRecordContext
+                !summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0
               }
               onOfflineError={async (memberName) => {
                 try {

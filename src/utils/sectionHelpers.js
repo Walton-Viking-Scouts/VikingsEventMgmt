@@ -20,7 +20,7 @@ export function findMemberSectionType(memberSectionId, sectionsCache) {
   const memberSectionInfo = sectionsCache.find(
     (s) => 
       String(s.sectionid) === String(memberSectionId) ||
-      s.sectionid === memberSectionId
+      s.sectionid === memberSectionId,
   );
   
   const sectionType = memberSectionInfo?.section || null;
@@ -30,8 +30,8 @@ export function findMemberSectionType(memberSectionId, sectionsCache) {
       memberSectionId,
       availableSections: sectionsCache.map(s => ({
         id: s.sectionid,
-        section: s.section
-      }))
+        section: s.section,
+      })),
     }, LOG_CATEGORIES.APP);
   }
   

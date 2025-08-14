@@ -36,25 +36,36 @@ function cacheData(cacheKey, data) {
     _cacheTimestamp: Date.now(),
   };
   
+  // Pre-compute once; guard against (de)serialisation errors in logs
+  const itemCount = Array.isArray(cachedData.items) ? cachedData.items.length : 0;
+  let dataSize;
+  try {
+    dataSize = new globalThis.TextEncoder().encode(JSON.stringify(cachedData)).length;
+  } catch {
+    dataSize = null; // not JSON-serialisable
+  }
+
   try {
     const success = safeSetItem(cacheKey, cachedData);
     if (success) {
       logger.info('FlexiRecord data successfully cached', {
         cacheKey,
-        dataSize: JSON.stringify(cachedData).length,
-        itemCount: cachedData.items?.length || 0,
+        dataSize,
+        itemCount,
       }, LOG_CATEGORIES.API);
     } else {
-      logger.error('FlexiRecord caching failed - safeSetItem returned false', {
+      logger.error('FlexiRecord caching failed - safeSetItem returned falsy', {
         cacheKey,
-        dataSize: JSON.stringify(cachedData).length,
+        dataSize,
+        itemCount,
       }, LOG_CATEGORIES.ERROR);
     }
   } catch (cacheError) {
     logger.error('FlexiRecord caching error', {
       cacheKey,
       error: cacheError.message,
-      dataSize: JSON.stringify(cachedData).length,
+      dataSize,
+      itemCount,
     }, LOG_CATEGORIES.ERROR);
     
     sentryUtils.captureException(cacheError, {
@@ -64,9 +75,9 @@ function cacheData(cacheKey, data) {
       },
       contexts: {
         data: {
-          size: JSON.stringify(cachedData).length,
-          hasItems: !!(cachedData.items),
-          itemCount: cachedData.items?.length || 0,
+          size: dataSize,
+          hasItems: itemCount > 0,
+          itemCount,
         },
       },
     });

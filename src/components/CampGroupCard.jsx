@@ -98,6 +98,7 @@ function CampGroupCard({
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
 
+
       // Don't allow dropping on the same group
       if (String(dragData.fromGroupNumber) === String(group.number)) {
         return;
@@ -132,9 +133,23 @@ function CampGroupCard({
         }
         return;
       }
+      // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
+      // we can safely create a member object with person_type: 'Young People'
+      // Try to get sectionid from any member in this group as they should all be from the same section
+      const sampleMember = [...(group.leaders || []), ...(group.youngPeople || [])][0];
+      const sectionid = sampleMember?.sectionid || sampleMember?.section_id;
+      
+      const member = {
+        scoutid: dragData.memberId,
+        name: dragData.memberName,
+        person_type: 'Young People', // Safe assumption since only Young People can be dragged
+        sectionid: sectionid, // Derived from group members
+      };
+
+
       // Call the move handler
       onMemberMove({
-        member: dragData.member,
+        member: member,
         fromGroupNumber: dragData.fromGroupNumber,
         fromGroupName: dragData.fromGroupName,
         toGroupNumber: group.number,

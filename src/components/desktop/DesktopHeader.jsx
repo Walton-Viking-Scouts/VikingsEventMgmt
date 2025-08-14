@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui';
 import ConfirmModal from '../ui/ConfirmModal';
+// Auth-related components
 import AuthButton from '../AuthButton.jsx';
 import DataFreshness from '../DataFreshness.jsx';
 import TokenCountdown from '../TokenCountdown.jsx';

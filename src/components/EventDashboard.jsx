@@ -214,12 +214,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         .getSections()
         .catch(() => []);
       if (
-        err &&
-        typeof err === 'object' &&
-        ((err.status === 401 ||
+        err && (
+          err.status === 401 ||
           err.status === 403 ||
-          err.message?.includes('Authentication failed')) &&
-        cachedSections.length > 0)
+          (err.message && err.message.includes('Authentication failed'))
+        ) &&
+        cachedSections.length > 0
       ) {
         logger.info(
           'Auth error during initial load but cached data available - enabling offline mode',
@@ -344,13 +344,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setLastSync(now);
       localStorage.setItem('viking_last_sync', now.getTime().toString());
 
-      // Log based on explicit data source
+      // Data was successfully synced from API if we reached this point
+      dataSource = 'api';
       if (import.meta.env.DEV) {
         logger.debug(
-          dataSource === 'cache'
-            ? 'syncData: Loaded cached data (offline mode)'
-            : 'syncData: Sync completed successfully',
-          {},
+          'syncData: Sync completed successfully',
+          { dataSource },
           LOG_CATEGORIES.SYNC,
         );
       }
@@ -524,7 +523,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       // Extract all unique section IDs from the events in this card
       const sectionIds = Array.from(
-        new Set(eventCard.events.map((event) => event.sectionid))
+        new Set(eventCard.events.map((event) => event.sectionid)),
       );
 
       // Try to load from cache first

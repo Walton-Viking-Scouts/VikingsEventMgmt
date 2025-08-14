@@ -110,12 +110,13 @@ export function useSignInOut(events, onDataRefresh) {
       }
       
       if (action === 'signin') {
-        // Batch all required API calls to let rate limiting queue handle them properly
-        const apiCalls = [];
+        // Execute API calls sequentially with longer delays to prevent clashing
+        const callNames = ['SignedInBy', 'SignedInWhen', 'Clear SignedOutBy', 'Clear SignedOutWhen'];
         
-        // Required calls: SignedInBy and SignedInWhen
-        apiCalls.push(
-          updateFlexiRecord(
+        try {
+          // Step 1: Set SignedInBy
+          console.log(`🔄 Setting ${callNames[0]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -124,11 +125,15 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-        );
-        
-        apiCalls.push(
-          updateFlexiRecord(
+          );
+          console.log(`✅ ${callNames[0]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 2: Set SignedInWhen
+          console.log(`🔄 Setting ${callNames[1]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -137,13 +142,15 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-        );
-        
-        // ALWAYS clear signed out fields when signing in
-        // This ensures clean state regardless of what data shows
-        apiCalls.push(
-          updateFlexiRecord(
+          );
+          console.log(`✅ ${callNames[1]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 3: Clear SignedOutBy
+          console.log(`🔄 ${callNames[2]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -152,11 +159,15 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-        );
-        
-        apiCalls.push(
-          updateFlexiRecord(
+          );
+          console.log(`✅ ${callNames[2]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 4: Clear SignedOutWhen
+          console.log(`🔄 ${callNames[3]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -165,16 +176,12 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-        );
-        
-        // Execute API calls sequentially with delays to prevent rate limiting
-        for (let i = 0; i < apiCalls.length; i++) {
-          await apiCalls[i];
-          // Add delay between calls to prevent rate limiting (except for last call)
-          if (i < apiCalls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+          );
+          console.log(`✅ ${callNames[3]} completed successfully`);
+          
+        } catch (callError) {
+          console.error('❌ Sign-in operation failed:', callError.message);
+          throw callError; // Re-throw to be handled by outer catch
         }
         
         // Check if component is still mounted after sign-in operations
@@ -184,9 +191,11 @@ export function useSignInOut(events, onDataRefresh) {
         
         // Member signed in successfully
       } else {
-        // Batch sign-out API calls for better rate limiting
-        const apiCalls = [
-          updateFlexiRecord(
+        // Execute sign-out API calls sequentially with longer delays to prevent clashing
+        try {
+          // Step 1: Set SignedOutBy
+          console.log(`🔄 Setting SignedOutBy for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -195,8 +204,15 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-          updateFlexiRecord(
+          );
+          console.log('✅ SignedOutBy completed successfully');
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 2: Set SignedOutWhen
+          console.log(`🔄 Setting SignedOutWhen for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
             vikingFlexiRecord.extraid,
@@ -205,16 +221,12 @@ export function useSignInOut(events, onDataRefresh) {
             termId,
             sectionType,
             getToken(),
-          ),
-        ];
-        
-        // Execute API calls sequentially with delays to prevent rate limiting
-        for (let i = 0; i < apiCalls.length; i++) {
-          await apiCalls[i];
-          // Add delay between calls to prevent rate limiting (except for last call)
-          if (i < apiCalls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+          );
+          console.log('✅ SignedOutWhen completed successfully');
+          
+        } catch (callError) {
+          console.error('❌ Sign-out operation failed:', callError.message);
+          throw callError; // Re-throw to be handled by outer catch
         }
         
         // Check if component is still mounted after sign-out operations

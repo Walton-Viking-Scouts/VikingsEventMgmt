@@ -1151,39 +1151,46 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
-      const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : []).map(member => {
-        const scoutId = Number(member.member_id);
-        const sectionIdNum = Number(member.section_id);
-        const patrolId = Number(member.patrol_id);
-        let person_type = 'Young People';
-        if (patrolId === -2) person_type = 'Leaders';
-        else if (patrolId === -3) person_type = 'Young Leaders';
+      const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : [])
+        .map(member => {
+          const scoutId = Number(member.member_id ?? member.scoutid);
+          const sectionIdNum = Number(member.section_id ?? member.sectionid);
+          const patrolId = Number(member.patrol_id ?? member.patrolid);
+          let person_type = 'Young People';
+          if (patrolId === -2) person_type = 'Leaders';
+          else if (patrolId === -3) person_type = 'Young Leaders';
 
-        return {
-          ...member,
-          // Core member info (normalised)
-          scoutid: scoutId,
-          member_id: scoutId,
-          firstname: member.first_name ?? member.firstname,
-          lastname: member.last_name ?? member.lastname,
-          date_of_birth: member.date_of_birth ?? member.dob,
-          age: typeof member.age === 'string' ? Number(member.age) : member.age,
-          // Section info
-          sectionid: sectionIdNum,
-          patrol: member.patrol,
-          patrol_id: patrolId,
-          person_type,
-          started: member.started,
-          joined: member.joined,
-          active: member.active,
-          end_date: member.end_date,
-          // Photo info
-          photo_guid: member.photo_guid,
-          has_photo: Boolean(member.pic),
-          // Backward-compatible grouped contacts
-          contact_groups: member.contact_groups,
-        };
-      });
+          return {
+            ...member,
+            // Core member info (normalised)
+            scoutid: scoutId,
+            member_id: scoutId,
+            firstname: member.first_name ?? member.firstname,
+            lastname: member.last_name ?? member.lastname,
+            date_of_birth: member.date_of_birth ?? member.dob,
+            age: typeof member.age === 'string' ? Number(member.age) : member.age,
+            // Section info
+            sectionid: sectionIdNum,
+            patrol: member.patrol,
+            patrol_id: patrolId,
+            person_type,
+            started: member.started,
+            joined: member.joined,
+            active: member.active,
+            end_date: member.end_date,
+            // Photo info
+            photo_guid: member.photo_guid,
+            has_photo: (() => {
+              const v = member.has_photo ?? member.pic ?? member.photo_guid;
+              return typeof v === 'string'
+                ? ['1', 'y', 'true'].includes(v.toLowerCase())
+                : Boolean(v);
+            })(),
+            // Backward-compatible grouped contacts
+            contact_groups: member.contact_groups,
+          };
+        })
+        .filter(m => Number.isFinite(m.scoutid) && Number.isFinite(m.sectionid));
       
       // CRITICAL FIX: Save the transformed members to cache
       try {
