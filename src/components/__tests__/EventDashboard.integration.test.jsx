@@ -189,7 +189,8 @@ describe('EventDashboard Integration Tests', () => {
         expect.arrayContaining([
           expect.objectContaining({
             eventid: 101,
-            attendanceData: mockAttendanceData,
+            name: 'Camp Weekend',
+            startdate: '2024-02-15',
           }),
         ]),
       );
