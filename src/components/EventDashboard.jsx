@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   getUserRoles,
   getListOfMembers,
@@ -64,8 +64,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     cancelText: 'Cancel',
   });
 
+  // Component mount tracking and timeout management
+  const isMountedRef = useRef(false);
+  const backgroundSyncTimeoutIdRef = useRef(null);
+
   useEffect(() => {
     let mounted = true;
+    isMountedRef.current = true;
 
     const initializeDashboard = async () => {
       if (!mounted) return; // Prevent duplicate calls in StrictMode
@@ -100,7 +105,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
     return () => {
       mounted = false;
+      isMountedRef.current = false;
       clearInterval(interval);
+      if (backgroundSyncTimeoutIdRef.current) {
+        clearTimeout(backgroundSyncTimeoutIdRef.current);
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -132,8 +141,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         await loadCachedData();
 
         // Auto-sync in background only if auth hasn't failed
-        setTimeout(async () => {
+        backgroundSyncTimeoutIdRef.current = setTimeout(async () => {
           try {
+            if (!isMountedRef.current) return;
+            
             if (authHandler.hasAuthFailed()) {
               return;
             }
