@@ -61,6 +61,7 @@ function DraggableMember({
       memberName: memberName,
       fromGroupNumber: group?.number || 'Unknown',
       fromGroupName: group?.name || 'Unknown Group',
+      sectionid: member.sectionid || member.section_id,
     };
 
     // Debug logging for name issues

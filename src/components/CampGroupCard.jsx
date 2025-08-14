@@ -137,13 +137,13 @@ function CampGroupCard({
       // we can safely create a member object with person_type: 'Young People'
       // Try to get sectionid from any member in this group as they should all be from the same section
       const sampleMember = [...(group.leaders || []), ...(group.youngPeople || [])][0];
-      const sectionid = sampleMember?.sectionid || sampleMember?.section_id;
+      const sectionid = sampleMember?.sectionid || sampleMember?.section_id || dragData.sectionid;
       
       const member = {
         scoutid: dragData.memberId,
         name: dragData.memberName,
         person_type: 'Young People', // Safe assumption since only Young People can be dragged
-        sectionid: sectionid, // Derived from group members
+        sectionid: sectionid, // Derived from group members, with dragData fallback
       };
 
 
