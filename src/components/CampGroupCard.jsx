@@ -167,7 +167,7 @@ function CampGroupCard({
   return (
     <Card
       className={`
-        camp-group-card transition-all duration-200
+        camp-group-card transition-all duration-200 w-full
         ${isDragInProgress ? 'drop-zone-available' : ''}
         ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
         ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
@@ -178,10 +178,10 @@ function CampGroupCard({
       onDrop={handleDrop}
     >
       {/* Header with group name and leaders */}
-      <Card.Header className="pb-3">
+      <Card.Header className="pb-2">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold text-gray-900 break-words">{name}</h3>
           </div>
 
           {/* Group number badge */}
@@ -195,10 +195,10 @@ function CampGroupCard({
 
         {/* Leaders section */}
         {leaders.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2 mb-2">
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-1 mb-1">
               <svg
-                className="w-4 h-4 text-scout-purple"
+                className="w-3 h-3 text-scout-purple"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -208,14 +208,14 @@ function CampGroupCard({
                   clipRule="evenodd"
                 />
               </svg>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-xs font-medium text-gray-700">
                 Leaders ({leaders.length})
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-1">
               {leaders.map((leader) => (
-                <div key={leader.scoutid} className="flex items-center">
+                <div key={leader.scoutid} className="flex items-center gap-1">
                   <Badge
                     variant={
                       leader.person_type === 'Leaders'
@@ -223,11 +223,13 @@ function CampGroupCard({
                         : 'scout-blue'
                     }
                     size="sm"
-                    className="mr-1"
+                    className="flex-shrink-0"
                   >
                     {leader.person_type === 'Leaders' ? 'L' : 'YL'}
                   </Badge>
-                  <MemberName member={leader} />
+                  <div className="min-w-0 flex-1">
+                    <MemberName member={leader} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -239,9 +241,9 @@ function CampGroupCard({
       <Card.Body className="pt-0">
         {youngPeople.length > 0 ? (
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1 mb-2">
               <svg
-                className="w-4 h-4 text-scout-green"
+                className="w-3 h-3 text-scout-green"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -251,7 +253,7 @@ function CampGroupCard({
                   clipRule="evenodd"
                 />
               </svg>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-xs font-medium text-gray-700">
                 Young People ({youngPeople.length})
               </span>
             </div>

@@ -10,6 +10,20 @@ import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
 
 function AttendanceView({ events, members, onBack }) {
+  console.log('AttendanceView: component mounted');
+  
+  // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
+  window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  
+  // Debug what members data we're receiving (only log once)
+  const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
+  if (members?.length > 0 && !hasLoggedMembers) {
+    console.log('🔍 AttendanceView members count:', members.length);
+    console.log('🔍 AttendanceView first member keys:', Object.keys(members[0]).sort());
+    console.log('🔍 AttendanceView first member data:', members[0]);
+    setHasLoggedMembers(true);
+  }
+  
   // Use custom hooks for data loading and sign-in/out functionality
   const {
     attendanceData,
@@ -26,7 +40,7 @@ function AttendanceView({ events, members, onBack }) {
 
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
-  const [viewMode, setViewMode] = useState('overview'); // overview, summary, detailed, campGroups
+  const [viewMode, setViewMode] = useState('overview'); // overview, register, detailed, campGroups
   const prevViewModeRef = useRef('overview'); // Track previous view mode without extra renders
   const [sortConfig, setSortConfig] = useState({
     key: 'attendance',
@@ -62,10 +76,10 @@ function AttendanceView({ events, members, onBack }) {
   // This ensures updated camp group assignments show in the register
   useEffect(() => {
     const prev = prevViewModeRef.current;
-    const switchingToSummary = viewMode === 'summary' && prev !== 'summary';
+    const switchingToRegister = viewMode === 'register' && prev !== 'register';
     const switchingFromCampGroups = prev === 'campGroups';
 
-    if (switchingToSummary && switchingFromCampGroups) {
+    if (switchingToRegister && switchingFromCampGroups) {
       loadVikingEventData();
     }
     // Update previous view mode without triggering re-render
@@ -140,6 +154,14 @@ function AttendanceView({ events, members, onBack }) {
   const getSummaryStats = () => {
     const memberStats = {};
 
+    // Create person_type lookup like other functions do
+    const memberPersonTypes = {};
+    if (members && Array.isArray(members)) {
+      members.forEach((member) => {
+        memberPersonTypes[member.scoutid] = member.person_type || 'Young People';
+      });
+    }
+
     filteredAttendanceData.forEach((record) => {
       const memberKey = `${record.firstname} ${record.lastname}`;
       if (!memberStats[memberKey]) {
@@ -147,6 +169,7 @@ function AttendanceView({ events, members, onBack }) {
           name: memberKey,
           scoutid: record.scoutid,
           sectionid: record.sectionid, // Store section ID for Viking Event data lookup
+          person_type: memberPersonTypes[record.scoutid] || 'Young People', // Add person_type
           yes: 0,
           no: 0,
           invited: 0,
@@ -267,7 +290,7 @@ function AttendanceView({ events, members, onBack }) {
 
       switch (key) {
       case 'member':
-        if (viewMode === 'summary') {
+        if (viewMode === 'register') {
           aValue = a.name?.toLowerCase() || '';
           bValue = b.name?.toLowerCase() || '';
         } else {
@@ -276,8 +299,8 @@ function AttendanceView({ events, members, onBack }) {
         }
         break;
       case 'attendance':
-        if (viewMode === 'summary') {
-          // For summary, determine primary status for each member and sort by priority
+        if (viewMode === 'register') {
+          // For register, determine primary status for each member and sort by priority
           const getPrimaryStatus = (member) => {
             if (member.yes > 0) return 'yes';
             if (member.no > 0) return 'no';
@@ -351,18 +374,85 @@ function AttendanceView({ events, members, onBack }) {
     );
   };
 
+  // Transform cached member data to match what MemberDetailModal expects
+  const transformMemberForModal = (cachedMember) => {
+    if (!cachedMember) return null;
+    
+    console.log('🔄 transformMemberForModal - Checking cached member:', {
+      scoutid: cachedMember.scoutid,
+      has_firstname: 'firstname' in cachedMember,
+      firstname_value: cachedMember.firstname,
+      has_first_name: 'first_name' in cachedMember,
+      first_name_value: cachedMember.first_name,
+      has_lastname: 'lastname' in cachedMember,
+      lastname_value: cachedMember.lastname,
+      has_last_name: 'last_name' in cachedMember,
+      last_name_value: cachedMember.last_name,
+    });
+    
+    // The cached data should already have both firstname and first_name
+    // Just ensure firstname/lastname are set (modal uses these)
+    const transformed = {
+      ...cachedMember,
+      firstname: cachedMember.firstname || cachedMember.first_name,
+      lastname: cachedMember.lastname || cachedMember.last_name,
+    };
+    
+    console.log('🔄 transformMemberForModal - Result:', {
+      firstname: transformed.firstname,
+      lastname: transformed.lastname,
+    });
+    
+    return transformed;
+  };
+
   // Handle member click to show detail modal
   const handleMemberClick = (attendanceRecord) => {
     // Find the full member data or create a basic member object
-    const member = members?.find(
-      (m) => m.scoutid === attendanceRecord.scoutid,
-    ) || {
-      scoutid: attendanceRecord.scoutid,
-      firstname: attendanceRecord.firstname,
-      lastname: attendanceRecord.lastname,
-      sections: [attendanceRecord.sectionname],
-      person_type: attendanceRecord.person_type || 'Young People',
-    };
+    // Convert scoutid to number for comparison (members array has numeric scoutids)
+    const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
+    const cachedMember = members?.find(
+      (m) => m.scoutid === scoutidAsNumber,
+    );
+    
+    let member;
+    if (cachedMember) {
+      // Transform the cached data to match modal expectations
+      member = transformMemberForModal(cachedMember);
+      
+      // Debug log to see what data Register/AttendanceView is passing to modal
+      console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
+        memberScoutId: member.scoutid,
+        memberName: member.name || `${member.firstname} ${member.lastname}`,
+        memberKeys: Object.keys(member),
+        memberData: member,
+        hasContactInfo: !!(member.contact_primary_member || member.contact_primary_1),
+        hasMedicalInfo: !!(member.medical || member.dietary || member.allergies),
+        totalFields: Object.keys(member).length,
+        source: 'transformMemberForModal (cached member)',
+      });
+    } else {
+      // Fallback to basic data from attendance record
+      member = {
+        scoutid: attendanceRecord.scoutid,
+        firstname: attendanceRecord.firstname,
+        lastname: attendanceRecord.lastname,
+        sections: [attendanceRecord.sectionname],
+        person_type: attendanceRecord.person_type || 'Young People',
+      };
+      
+      // Debug log for fallback case
+      console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
+        memberScoutId: member.scoutid,
+        memberName: `${member.firstname} ${member.lastname}`,
+        memberKeys: Object.keys(member),
+        memberData: member,
+        hasContactInfo: false,
+        hasMedicalInfo: false,
+        totalFields: Object.keys(member).length,
+        source: 'fallback (attendance record only)',
+      });
+    }
 
     setSelectedMember(member);
     setShowMemberModal(true);
@@ -485,11 +575,11 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               <button
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === 'summary'
+                  viewMode === 'register'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setViewMode('summary')}
+                onClick={() => setViewMode('register')}
                 type="button"
               >
                 Register
@@ -807,7 +897,7 @@ function AttendanceView({ events, members, onBack }) {
               </Button>
             </div>
           ) : (
-            viewMode === 'summary' && (
+            viewMode === 'register' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -852,7 +942,8 @@ function AttendanceView({ events, members, onBack }) {
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-3 py-4">
                             <button
-                              onClick={() =>
+                              onClick={() => {
+                                // Pass the member object with scoutid so handleMemberClick can find the full cached data
                                 handleMemberClick({
                                   scoutid: member.scoutid,
                                   firstname: member.name.split(' ')[0],
@@ -861,8 +952,8 @@ function AttendanceView({ events, members, onBack }) {
                                     .slice(1)
                                     .join(' '),
                                   sectionname: member.events[0]?.sectionname,
-                                })
-                              }
+                                });
+                              }}
                               className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block"
                             >
                               {member.name}
@@ -1048,7 +1139,7 @@ function AttendanceView({ events, members, onBack }) {
           {viewMode === 'campGroups' && (
             <CampGroupsView
               events={events}
-              attendees={filteredAttendanceData}
+              attendees={getSummaryStats()}
               members={members}
               onError={(_error) => {
                 /* Error handled within CampGroupsView */

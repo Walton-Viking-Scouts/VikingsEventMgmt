@@ -217,7 +217,7 @@ export async function safeCacheWithLogging(cacheKey, data, category, context = {
     // Add timestamp for TTL-based caching
     const cachedData = { 
       ...data, 
-      _cacheTimestamp: Date.now() 
+      _cacheTimestamp: Date.now(), 
     };
     
     const success = safeSetItem(cacheKey, cachedData);

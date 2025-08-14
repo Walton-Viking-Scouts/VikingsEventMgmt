@@ -23,6 +23,88 @@ import {
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 
 /**
+ * Simple organization function that works with getSummaryStats() data structure
+ * getSummaryStats() returns: { name, scoutid, person_type, vikingEventData: { CampGroup } }
+ */
+function organizeAttendeesSimple(attendees) {
+  console.log('CampGroupsView: organizeAttendeesSimple called');
+  
+  const groups = {};
+  let totalMembers = 0;
+  
+  attendees.forEach((member) => {
+    // Skip if no member data
+    if (!member) return;
+    
+    // Filter out Leaders and Young Leaders
+    if (member.person_type === 'Leaders' || member.person_type === 'Young Leaders') {
+      return;
+    }
+    
+    // Get camp group from Viking Event data
+    const campGroup = member.vikingEventData?.CampGroup;
+    const groupName = campGroup ? `Group ${campGroup}` : 'Group Unassigned';
+    
+    // Initialize group if it doesn't exist
+    if (!groups[groupName]) {
+      groups[groupName] = {
+        name: groupName,
+        number: campGroup || 'Unassigned',
+        leaders: [], 
+        youngPeople: [],
+        totalMembers: 0,
+      };
+    }
+    
+    // Add member with name split for drag functionality
+    const memberWithNames = {
+      ...member,
+      firstname: member.name?.split(' ')[0] || 'Unknown',
+      lastname: member.name?.split(' ').slice(1).join(' ') || '',
+    };
+    
+    groups[groupName].youngPeople.push(memberWithNames);
+    groups[groupName].totalMembers++;
+    totalMembers++;
+  });
+  
+  // Sort groups by number (Unassigned goes last)
+  const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+    if (a === 'Group Unassigned') return 1;
+    if (b === 'Group Unassigned') return -1;
+    
+    const aNum = parseInt(a.replace('Group ', '')) || 0;
+    const bNum = parseInt(b.replace('Group ', '')) || 0;
+    return aNum - bNum;
+  });
+  
+  // Create sorted groups object
+  const sortedGroups = {};
+  sortedGroupNames.forEach(groupName => {
+    const group = groups[groupName];
+    
+    // Sort members within each group by name
+    group.youngPeople.sort((a, b) => {
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    
+    sortedGroups[groupName] = group;
+  });
+  
+  return {
+    groups: sortedGroups,
+    summary: {
+      totalGroups: Object.keys(sortedGroups).length,
+      totalMembers,
+      totalLeaders: 0,
+      totalYoungPeople: totalMembers,
+      hasUnassigned: !!sortedGroups['Group Unassigned'],
+      vikingEventDataAvailable: true,
+    },
+  };
+}
+
+/**
  * Custom hook to extract FlexiRecord context for drag-and-drop operations
  * @param {Object|null} primaryCampGroupData - Camp group data from FlexiRecord service
  * @param {Array} events - Array of event data
@@ -220,15 +302,14 @@ function CampGroupsView({
         // Set termId in state for the hook to use
         setTermId(currentTermId);
 
-        // Load camp groups for all sections involved in events (events contain their own termIds)
+        // Load camp groups for FlexiRecord context (needed for drag functionality)
         const campGroups = await getVikingEventDataForEvents(events, token);
 
         // Check abort signal before setting state
         if (abortController.signal.aborted) return;
 
-        // Organize attendees by camp groups
-        // For multi-section events, we need to determine which section's camp groups to use
-        // Use the first section that has camp groups, or create unassigned group if none
+        // Use the enriched attendees data from AttendanceView (has firstname/lastname/person_type)
+        // But we still need FlexiRecord context for drag operations
         let primaryCampGroupData = null;
         const sectionsWithCampGroups = [];
 
@@ -251,14 +332,10 @@ function CampGroupsView({
           LOG_CATEGORIES.APP,
         );
 
-        // Organize members by camp groups
-        const organized = organizeMembersByCampGroups(
-          attendees,
-          members,
-          primaryCampGroupData,
-        );
+        // Simple organization function that works with getSummaryStats() data
+        const organized = organizeAttendeesSimple(attendees);
 
-        // Store the primary camp group data for on-demand FlexiRecord context creation
+        // Store the FlexiRecord context for drag operations
         organized.campGroupData = primaryCampGroupData;
 
         // Final check before setting state
@@ -325,7 +402,62 @@ function CampGroupsView({
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
-    setSelectedMember(member);
+    // Find the full member data from the members prop (like Register tab does)
+    // Convert scoutid to number for comparison (members array has numeric scoutids)
+    const scoutidAsNumber = parseInt(member.scoutid, 10);
+    const cachedMember = members?.find(
+      (m) => m.scoutid === scoutidAsNumber,
+    );
+    
+    let enrichedMember;
+    if (cachedMember) {
+      // Use the same transformMemberForModal that Register uses
+      // This gives us all 51 fields including medical and contact info
+      enrichedMember = {
+        // Start with all cached member data (54 fields)
+        ...cachedMember,
+        // Keep the attendance/camp group specific data from the simplified member
+        vikingEventData: member.vikingEventData,
+        events: member.events,
+        yes: member.yes,
+        no: member.no,
+        invited: member.invited,
+        notInvited: member.notInvited,
+        total: member.total,
+        // Ensure scoutid is consistent
+        scoutid: cachedMember.scoutid || cachedMember.member_id,
+        // Use firstname/lastname from cached member for consistency
+        firstname: cachedMember.firstname || cachedMember.first_name,
+        lastname: cachedMember.lastname || cachedMember.last_name,
+        sectionid: cachedMember.sectionid || cachedMember.section_id,
+        person_type: member.person_type || cachedMember.person_type,
+        has_photo: cachedMember.has_photo,
+        sections: [member.sectionname || 'Unknown'],
+      };
+      
+      console.log('CampGroupsView - Member clicked, enriched with cached data:', {
+        memberScoutId: enrichedMember.scoutid,
+        memberName: `${enrichedMember.firstname} ${enrichedMember.lastname}`,
+        memberKeys: Object.keys(enrichedMember),
+        hasContactInfo: !!(enrichedMember.primary_contact_1__first_name || enrichedMember.emergency_contact__first_name),
+        hasMedicalInfo: !!(enrichedMember.essential_information__medical_details || enrichedMember.essential_information__dietary_requirements || enrichedMember.essential_information__allergies),
+        totalFields: Object.keys(enrichedMember).length,
+        source: 'enriched from cached member data',
+      });
+    } else {
+      // Fallback to the simplified member data if no cached member found
+      enrichedMember = member;
+      
+      console.log('CampGroupsView - Member clicked, no cached data found:', {
+        memberScoutId: member.scoutid,
+        memberName: member.name || `${member.firstname} ${member.lastname}`,
+        memberKeys: Object.keys(member),
+        totalFields: Object.keys(member).length,
+        source: 'fallback to simplified data',
+      });
+    }
+    
+    setSelectedMember(enrichedMember);
     setShowMemberModal(true);
   };
 
@@ -938,10 +1070,10 @@ function CampGroupsView({
         </div>
       ) : (
         <div
-          className={`grid gap-6 ${
+          className={`grid gap-4 ${
             isMobile
               ? 'grid-cols-1'
-              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
           }`}
         >
           {filteredAndSortedGroups.map((group) => (

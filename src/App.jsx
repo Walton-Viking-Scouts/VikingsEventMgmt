@@ -178,13 +178,14 @@ function App() {
       }
     }
 
+    // Set new navigation data (will replace any existing data)
     setNavigationData({ events, members: membersData });
     setCurrentView('attendance');
   };
 
   const handleBackToDashboard = () => {
     setCurrentView('dashboard');
-    setNavigationData({});
+    setNavigationData({}); // Restore: Clear navigation data for proper state management
   };
 
   // OAuth callback processing moved to useAuth hook to fix race condition

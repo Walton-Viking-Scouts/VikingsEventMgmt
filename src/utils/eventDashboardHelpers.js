@@ -97,10 +97,48 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
     } else {
       // Load from cache
       const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
+      
+      // Get termId for cached events too (same logic as API path)
+      let termId;
+      if (allTerms) {
+        // Use pre-loaded terms (avoids API call per section!)
+        termId = getMostRecentTermId(section.sectionid, allTerms);
+      } else {
+        // Fallback: try to get from cached event or fetch from API if needed
+        termId = cachedEvents[0]?.termid;
+        
+        // If still no termId, try to get from localStorage terms cache
+        if (!termId) {
+          try {
+            const cachedTerms = localStorage.getItem('viking_terms_offline');
+            if (cachedTerms) {
+              const parsedTerms = JSON.parse(cachedTerms);
+              termId = getMostRecentTermId(section.sectionid, parsedTerms);
+            }
+          } catch (error) {
+            console.warn('Failed to get termId from localStorage terms cache:', error);
+          }
+        }
+        
+        if (!termId && token) {
+          // Last resort: fetch from API
+          try {
+            termId = await fetchMostRecentTermId(section.sectionid, token);
+          } catch (error) {
+            logger.warn('Failed to fetch termId for cached events', { 
+              sectionId: section.sectionid,
+              error: error.message,
+            });
+          }
+        }
+      }
+      
+      
       events = cachedEvents.map(event => ({
         ...event,
+        sectionid: section.sectionid,  // CRITICAL FIX: Add missing sectionid 
         sectionname: section.sectionname,
-        termid: event.termid || null,
+        termid: termId || event.termid, // Use fetched termId, fallback to cached termid (don't default to null)
       }));
     }
     
@@ -131,7 +169,7 @@ export const fetchEventAttendance = async (event, token) => {
       if (!termId) {
         // Rate limiting handled by queue
         termId = await fetchMostRecentTermId(event.sectionid, token);
-        event.termid = termId;
+        // DON'T MUTATE THE ORIGINAL EVENT - just use the local termId variable
       }
       
       if (termId) {

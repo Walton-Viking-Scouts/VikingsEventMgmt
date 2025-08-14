@@ -140,50 +140,40 @@ export function useSignInOut(events, onDataRefresh) {
           ),
         );
         
-        // Optional calls: Clear signed out fields if they have values
-        const hasSignedOutBy = member.vikingEventData?.SignedOutBy && 
-                               member.vikingEventData.SignedOutBy !== '-' && 
-                               member.vikingEventData.SignedOutBy.trim() !== '';
-        const hasSignedOutWhen = member.vikingEventData?.SignedOutWhen && 
-                                 member.vikingEventData.SignedOutWhen !== '-' && 
-                                 member.vikingEventData.SignedOutWhen.trim() !== '';
+        // ALWAYS clear signed out fields when signing in
+        // This ensures clean state regardless of what data shows
+        apiCalls.push(
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+            '', // Clear the field
+            termId,
+            sectionType,
+            getToken(),
+          ),
+        );
         
-        if (hasSignedOutBy) {
-          apiCalls.push(
-            updateFlexiRecord(
-              member.sectionid,
-              member.scoutid,
-              vikingFlexiRecord.extraid,
-              getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-              '', // Clear the field
-              termId,
-              sectionType,
-              getToken(),
-            ),
-          );
-        }
-        
-        if (hasSignedOutWhen) {
-          apiCalls.push(
-            updateFlexiRecord(
-              member.sectionid,
-              member.scoutid,
-              vikingFlexiRecord.extraid,
-              getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-              '', // Clear the field
-              termId,
-              sectionType,
-              getToken(),
-            ),
-          );
-        }
+        apiCalls.push(
+          updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+            '', // Clear the field
+            termId,
+            sectionType,
+            getToken(),
+          ),
+        );
         
         // Execute API calls sequentially with delays to prevent rate limiting
         for (let i = 0; i < apiCalls.length; i++) {
           await apiCalls[i];
           // Add delay between calls to prevent rate limiting (except for last call)
           if (i < apiCalls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
         
@@ -223,7 +213,7 @@ export function useSignInOut(events, onDataRefresh) {
           await apiCalls[i];
           // Add delay between calls to prevent rate limiting (except for last call)
           if (i < apiCalls.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
         

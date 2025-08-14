@@ -413,11 +413,14 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Filter for future events and events from last week
     const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
 
-    // Fetch attendance data for filtered events
+    // Fetch attendance data for filtered events (without mutating original events)
+    const attendanceMap = new Map();
     for (const event of filteredEvents) {
       try {
         const attendanceData = await fetchEventAttendance(event, token);
-        event.attendanceData = attendanceData;
+        if (attendanceData) {
+          attendanceMap.set(event.eventid, attendanceData);
+        }
       } catch (err) {
         logger.error(
           'Error fetching attendance for event {eventId}',
@@ -434,10 +437,18 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Group events by name
     const eventGroups = groupEventsByName(filteredEvents);
 
-    // Convert groups to cards
+    // Convert groups to cards with attendance data
     const cards = [];
     for (const [eventName, events] of eventGroups) {
-      const card = buildEventCard(eventName, events);
+      // Enrich events with attendance data without mutating originals
+      const eventsWithAttendance = events.map(event => ({
+        ...event,
+        attendanceData: attendanceMap.get(event.eventid) || null,
+      }));
+      
+      const card = buildEventCard(eventName, eventsWithAttendance);
+      // Store original events for navigation (preserves termid integrity)
+      card.originalEvents = events;
       cards.push(card);
     }
 
@@ -555,8 +566,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         }
       }
 
-      // Navigate to attendance view with both events and members
-      onNavigateToAttendance(eventCard.events, members);
+      // Navigate to attendance view with original events (preserves termid integrity)
+      const eventsToNavigate = eventCard.originalEvents || eventCard.events;
+      
+      
+      onNavigateToAttendance(eventsToNavigate, members);
     } catch (err) {
       logger.error(
         'Error loading members for attendance view',

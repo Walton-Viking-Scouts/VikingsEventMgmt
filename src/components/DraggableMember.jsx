@@ -51,7 +51,7 @@ function DraggableMember({
     // Set drag data
     const dragData = {
       memberId: member.scoutid,
-      memberName: `${member.firstname} ${member.lastname}`,
+      memberName: member.name || `${member.firstname || ''} ${member.lastname || ''}`.trim(),
       fromGroupNumber: group?.number || 'Unknown',
       fromGroupName: group?.name || 'Unknown Group',
       member: member,
@@ -97,12 +97,12 @@ function DraggableMember({
     }
   };
 
-  const memberName = `${member.firstname} ${member.lastname}`;
+  const memberName = member.name || `${member.firstname || ''} ${member.lastname || ''}`.trim();
 
   return (
     <div
       className={`
-        flex items-center justify-between p-3 rounded-lg transition-all duration-200 select-none
+        relative p-3 rounded-lg transition-all duration-200 select-none w-full
         ${
     isDraggable
       ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
@@ -130,6 +130,7 @@ function DraggableMember({
         }
       }}
       style={{
+        maxWidth: '100%',
         touchAction: isDraggable ? 'none' : 'auto',
         userSelect: 'none',
         WebkitUserSelect: 'none',
@@ -141,7 +142,26 @@ function DraggableMember({
       data-member-id={member.scoutid}
       data-member-name={memberName}
     >
-      <div className="flex-1" onClick={handleMemberClick}>
+      {/* Drag handle indicator for draggable members - top corner */}
+      {isDraggable && (
+        <div
+          className="absolute top-1 right-1 text-blue-500 hover:text-blue-700 transition-colors cursor-grab z-10"
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{ touchAction: 'none' }}
+          title="Drag to move"
+        >
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+            <circle cx="4" cy="4" r="1.2" />
+            <circle cx="12" cy="4" r="1.2" />
+            <circle cx="4" cy="8" r="1.2" />
+            <circle cx="12" cy="8" r="1.2" />
+            <circle cx="4" cy="12" r="1.2" />
+            <circle cx="12" cy="12" r="1.2" />
+          </svg>
+        </div>
+      )}
+
+      <div className="w-full" onClick={handleMemberClick}>
         <div className="flex items-center gap-2">
           <span
             className={`text-sm font-medium ${
@@ -172,25 +192,6 @@ function DraggableMember({
           )}
         </div>
       </div>
-
-      {/* Drag handle indicator for draggable members */}
-      {isDraggable && (
-        <div
-          className="ml-2 flex items-center text-blue-500 hover:text-blue-700 transition-colors cursor-grab flex-shrink-0"
-          onMouseDown={(e) => e.stopPropagation()}
-          style={{ touchAction: 'none' }}
-          title="Drag to move"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16">
-            <circle cx="4" cy="4" r="1.2" />
-            <circle cx="12" cy="4" r="1.2" />
-            <circle cx="4" cy="8" r="1.2" />
-            <circle cx="12" cy="8" r="1.2" />
-            <circle cx="4" cy="12" r="1.2" />
-            <circle cx="12" cy="12" r="1.2" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 }

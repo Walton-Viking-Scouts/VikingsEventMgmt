@@ -266,6 +266,18 @@ function MembersList({
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
+    console.log('✅ MembersList (WORKING) member structure:', {
+      scoutid: member.scoutid,
+      firstname: member.firstname,
+      lastname: member.lastname,
+      date_of_birth: member.date_of_birth,
+      email: member.email,
+      phone: member.phone,
+      emergency_contacts: member.emergency_contacts,
+      medical_notes: member.medical_notes,
+      sections: member.sections,
+      allKeys: Object.keys(member).sort(),
+    });
     setSelectedMember(member);
     setShowMemberModal(true);
   };

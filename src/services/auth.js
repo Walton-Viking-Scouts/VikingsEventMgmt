@@ -385,18 +385,19 @@ export function logout() {
   localStorage.removeItem('viking_terms_offline');
   localStorage.removeItem('viking_startup_data_offline');
   
-  // Clear all event-related cached data
+  // Clear all event-related and FlexiRecord cached data
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('viking_events_') || 
         key.startsWith('viking_attendance_') || 
-        key.startsWith('viking_members_')) {
+        key.startsWith('viking_members_') ||
+        key.startsWith('viking_flexi_')) {  // Clear ALL FlexiRecord caches
       localStorage.removeItem(key);
     }
   });
   
   sessionStorage.removeItem('user_info');
   sessionStorage.removeItem('token_invalid');
-  logger.info('User logged out - all cached data cleared', {}, LOG_CATEGORIES.AUTH);
+  logger.info('User logged out - all cached data cleared including FlexiRecords', {}, LOG_CATEGORIES.AUTH);
 }
 
 // Check for blocked status
