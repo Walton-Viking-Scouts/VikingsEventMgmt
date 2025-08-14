@@ -671,13 +671,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         {/* Events Card */}
         {currentView === 'events' && (
           <Card>
-            <Card.Header>
-              <Card.Title>
+            <div className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold leading-6 text-gray-900">
                 Upcoming Events {eventCards.length > 0 && `(${eventCards.length})`}
-              </Card.Title>
-            </Card.Header>
-
-            <Card.Body>
+              </h2>
+            </div>
+            <div className="p-4">
               {eventCards.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {eventCards.map((card) => (
@@ -716,7 +715,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                   </p>
                 </div>
               )}
-            </Card.Body>
+            </div>
           </Card>
         )}
       </div>
