@@ -8,7 +8,6 @@ import { getToken } from '../services/auth.js';
  * CampGroupCard - Individual card component for displaying camp group members
  * Shows group name, leaders/young leaders in header, young people in body
  * Enhanced with drag & drop functionality for moving members between groups
- *
  * @param {Object} props - Component props
  * @param {Object} props.group - Group data with name, leaders, youngPeople arrays
  * @param {Function} props.onMemberClick - Optional callback when member is clicked
@@ -52,11 +51,9 @@ function CampGroupCard({
   // Drag and drop handlers
   const handleDragOver = (e) => {
     e.preventDefault(); // Allow drop
-
     if (!isDragOver) {
       setIsDragOver(true);
     }
-
     // Check if drop is acceptable to show correct visual feedback
     let acceptable = false;
     if (!dragDisabled) {
@@ -71,7 +68,6 @@ function CampGroupCard({
         acceptable = true;
       }
     }
-
     setCanDrop(acceptable);
     e.dataTransfer.dropEffect = acceptable ? 'move' : 'none';
   };
@@ -82,7 +78,6 @@ function CampGroupCard({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setIsDragOver(false);
       setCanDrop(false);
@@ -93,16 +88,13 @@ function CampGroupCard({
     e.preventDefault();
     setIsDragOver(false);
     setCanDrop(false);
-
     // Don't process drops if dragging is disabled
     if (dragDisabled) {
       return;
     }
-
     if (!onMemberMove) {
       return;
     }
-
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
 
@@ -140,7 +132,6 @@ function CampGroupCard({
         }
         return;
       }
-
       // Call the move handler
       onMemberMove({
         member: dragData.member,

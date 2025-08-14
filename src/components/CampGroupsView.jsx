@@ -21,6 +21,7 @@ import {
   validateMemberMove,
 } from '../services/campGroupAllocationService.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
+import { findMemberSectionType } from '../utils/sectionHelpers.js';
 
 /**
  * Simple organization function that works with getSummaryStats() data structure
@@ -666,14 +667,8 @@ function CampGroupsView({
       const memberName = `${moveData.member.firstname} ${moveData.member.lastname}`;
 
       // Get the correct section type for THIS specific member
-      let memberSectionType = null;
       const memberSectionId = moveData.member.sectionid;
-
-      const memberSectionInfo = sectionsCache.find(
-        (s) =>
-          String(s.sectionid) === String(memberSectionId),
-      );
-      memberSectionType = memberSectionInfo?.section || null;
+      const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
 
       if (!memberSectionType) {
         showToast(

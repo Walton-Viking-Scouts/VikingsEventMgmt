@@ -1,6 +1,23 @@
 import React, { forwardRef, useId } from 'react';
 import { cn } from '../../utils/cn';
 
+// Memoized chevron icon to avoid recreating on every render
+const chevronIcon = (
+  <svg
+    className="w-5 h-5 text-gray-400"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 9l-7 7-7-7"
+    />
+  </svg>
+);
+
 /**
  * Tailwind-based Select component with Scout theming
  */
@@ -64,21 +81,6 @@ const Select = forwardRef(
           ? `${finalSelectId}-help`
           : undefined;
 
-    const chevronIcon = (
-      <svg
-        className="w-5 h-5 text-gray-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
-        />
-      </svg>
-    );
 
     const SelectElement = (
       <div className="relative">
