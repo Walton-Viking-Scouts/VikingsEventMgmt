@@ -98,7 +98,7 @@ function organizeAttendeesSimple(attendees) {
       totalLeaders: 0,
       totalYoungPeople: totalMembers,
       hasUnassigned: !!sortedGroups['Group Unassigned'],
-      vikingEventDataAvailable: true,
+      vikingEventDataAvailable: false, // Will be updated based on actual data presence
     },
   };
 }
@@ -338,6 +338,9 @@ function CampGroupsView({
 
         // Store the FlexiRecord context for drag operations
         organized.campGroupData = primaryCampGroupData;
+
+        // Update viking event data availability based on actual data presence
+        organized.summary.vikingEventDataAvailable = Boolean(primaryCampGroupData && Object.keys(primaryCampGroupData).length);
 
         // Final check before setting state
         if (abortController.signal.aborted) return;
