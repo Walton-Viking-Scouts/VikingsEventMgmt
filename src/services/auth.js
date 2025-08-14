@@ -396,7 +396,6 @@ export function logout() {
   });
   
   sessionStorage.removeItem('user_info');
-  sessionStorage.removeItem('token_invalid');
   logger.info('User logged out - all cached data cleared including FlexiRecords', {}, LOG_CATEGORIES.AUTH);
 }
 

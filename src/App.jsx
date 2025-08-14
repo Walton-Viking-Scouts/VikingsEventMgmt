@@ -11,6 +11,7 @@ import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { Alert } from './components/ui';
 import './App.css';
+import { getUniqueSectionsFromEvents } from './utils/sectionHelpers.js';
 
 function App() {
   const {
@@ -151,7 +152,7 @@ function App() {
     let membersData = members;
 
     if (!membersData) {
-      const sectionsInvolved = [...new Set(events.map((e) => e.sectionid))];
+      const sectionsInvolved = Array.from(new Set(events.map((e) => e.sectionid)));
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
         
@@ -205,24 +206,10 @@ function App() {
 
   const renderCurrentView = () => {
     // Helper to extract unique sections from events
-    const getUniqueSections = (events) => {
-      if (!events || !Array.isArray(events)) return [];
-      
-      const sectionMap = new Map();
-      events.forEach((event) => {
-        if (event.sectionid && !sectionMap.has(event.sectionid)) {
-          sectionMap.set(event.sectionid, {
-            sectionid: event.sectionid,
-            sectionname: event.sectionname,
-          });
-        }
-      });
-      return Array.from(sectionMap.values());
-    };
 
     switch (currentView) {
     case 'attendance': {
-      const uniqueSections = getUniqueSections(navigationData.events);
+      const uniqueSections = getUniqueSectionsFromEvents(navigationData.events);
       
       return (
         <AttendanceView

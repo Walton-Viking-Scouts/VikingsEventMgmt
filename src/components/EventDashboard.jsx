@@ -523,9 +523,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setLoadingAttendees(eventCard.id);
 
       // Extract all unique section IDs from the events in this card
-      const sectionIds = [
-        ...new Set(eventCard.events.map((event) => event.sectionid)),
-      ];
+      const sectionIds = Array.from(
+        new Set(eventCard.events.map((event) => event.sectionid))
+      );
 
       // Try to load from cache first
       let members = [];
