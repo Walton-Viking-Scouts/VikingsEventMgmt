@@ -16,6 +16,7 @@ function AuthButton({
   onRefresh,
   isLoading = false,
   className = '',
+  ...rest
 }) {
   const getButtonConfig = () => {
     if (isLoading) {
@@ -87,6 +88,7 @@ function AuthButton({
       disabled={config.disabled}
       className={`auth-button ${className}`}
       data-testid="auth-button"
+      {...rest}
     >
       {config.text}
     </Button>
