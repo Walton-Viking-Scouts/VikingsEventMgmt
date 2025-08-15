@@ -47,7 +47,7 @@ const HeaderContainer = ({ children, className = '', ...props }) => {
 const HeaderContent = ({ children, className = '', ...props }) => {
   return (
     <div
-      className={cn('flex items-center justify-between h-16', className)}
+      className={cn('flex items-center justify-between h-14 sm:h-16', className)}
       {...props}
     >
       {children}
@@ -57,7 +57,7 @@ const HeaderContent = ({ children, className = '', ...props }) => {
 
 const HeaderLeft = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn('flex items-center space-x-4', className)} {...props}>
+    <div className={cn('flex items-center space-x-2 sm:space-x-4', className)} {...props}>
       {children}
     </div>
   );
@@ -76,7 +76,7 @@ const HeaderCenter = ({ children, className = '', ...props }) => {
 
 const HeaderRight = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn('flex items-center space-x-4', className)} {...props}>
+    <div className={cn('flex items-center space-x-2 sm:space-x-4', className)} {...props}>
       {children}
     </div>
   );
