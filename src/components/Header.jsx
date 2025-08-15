@@ -26,11 +26,11 @@ function Header({
         <TailwindHeader.Content>
           <TailwindHeader.Left>
             <TailwindHeader.Title 
-              className="text-lg sm:text-xl font-semibold text-white"
+              className="text-lg md:text-xl font-semibold text-white"
               data-testid="app-title"
             >
-              <span className="hidden sm:inline">Viking Scouts (1st Walton on Thames)</span>
-              <span className="sm:hidden">Viking Scouts</span>
+              <span className="hidden md:inline">Viking Scouts (1st Walton on Thames)</span>
+              <span className="md:hidden">Viking Scouts</span>
             </TailwindHeader.Title>
           </TailwindHeader.Left>
 
@@ -39,13 +39,13 @@ function Header({
             <DataFreshness
               lastSync={lastSyncTime}
               authState={authState}
-              className="mr-2 sm:mr-3"
+              className="mr-2 md:mr-3"
             />
 
             {/* Token countdown - shows remaining login time */}
             <TokenCountdown
               authState={authState}
-              className="mr-2 sm:mr-3"
+              className="mr-2 md:mr-3"
             />
 
             {/* Authentication button - always visible */}
@@ -53,14 +53,14 @@ function Header({
               authState={authState}
               onLogin={onLogin}
               onRefresh={onRefresh}
-              className="mr-2 sm:mr-3"
+              className="mr-2 md:mr-3"
               data-testid="auth-button"
             />
 
             {/* User menu (when authenticated) */}
             {user && (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <span className="text-white text-sm sm:text-base hidden xs:inline sm:inline">
+              <div className="flex items-center gap-2 md:gap-3">
+                <span className="text-white text-sm md:text-base hidden md:inline">
                   Hi, {user.firstname}
                 </span>
                 <Button
@@ -68,10 +68,10 @@ function Header({
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
-                  className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                  className="text-xs md:text-sm px-2 md:px-3 py-1 md:py-2"
                 >
-                  <span className="hidden sm:inline">{isOfflineMode ? 'Clear Data' : 'Logout'}</span>
-                  <span className="sm:hidden">{isOfflineMode ? 'Clear' : 'Out'}</span>
+                  <span className="hidden md:inline">{isOfflineMode ? 'Clear Data' : 'Logout'}</span>
+                  <span className="md:hidden">{isOfflineMode ? 'Clear' : 'Out'}</span>
                 </Button>
               </div>
             )}
