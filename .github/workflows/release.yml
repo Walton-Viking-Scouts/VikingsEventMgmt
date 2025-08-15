@@ -125,13 +125,12 @@ jobs:
       - name: 🚀 Deploy to Production
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-          NORTHFLANK_DEPLOY_HOOK: ${{ secrets.NORTHFLANK_DEPLOY_HOOK }}
         run: |
           echo "🚀 Deploying to production environments..."
           
-          # Deploy to Render.com (Frontend)
+          # Deploy to Render.com (Frontend) - Controlled via webhook
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
-            echo "Deploying to Render.com..."
+            echo "Deploying to Render.com via webhook..."
             response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
             if [ "$response" = "200" ] || [ "$response" = "201" ]; then
               echo "✅ Render deployment triggered successfully"
@@ -143,21 +142,9 @@ jobs:
             echo "⚠️ RENDER_DEPLOY_HOOK not configured, skipping Render deployment"
           fi
           
-          # Deploy to Northflank (Backend)
-          if [ -n "$NORTHFLANK_DEPLOY_HOOK" ]; then
-            echo "Deploying to Northflank..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$NORTHFLANK_DEPLOY_HOOK")
-            if [ "$response" = "200" ] || [ "$response" = "201" ]; then
-              echo "✅ Northflank deployment triggered successfully"
-            else
-              echo "❌ Northflank deployment failed with status: $response"
-              exit 1
-            fi
-          else
-            echo "⚠️ NORTHFLANK_DEPLOY_HOOK not configured, skipping Northflank deployment"
-          fi
-          
-          echo "🎉 All deployments triggered successfully!"
+          # Northflank (Backend) - Auto-deploys on main branch commits
+          echo "ℹ️ Northflank backend will auto-deploy when this release creates a commit to main"
+          echo "✅ Frontend deployment triggered, backend will follow automatically"
 
       - name: 🔍 Verify deployment
         run: |
@@ -190,9 +177,9 @@ jobs:
             
             ## 🚀 Deployment Status
             
-            - ✅ Frontend: Deployed to Render.com
-            - ✅ Backend: Deployed to Northflank  
-            - ✅ Source Maps: Uploaded to Sentry
+            - ✅ Frontend: Deployed to Render.com (webhook triggered)
+            - ✅ Backend: Auto-deployed to Northflank on main branch
+            - ✅ Source Maps: Uploaded to Sentry before deployment
             - ✅ Version Synchronization: Complete
             
             ## 🔗 Sentry Release
