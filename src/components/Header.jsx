@@ -23,29 +23,29 @@ function Header({
   return (
     <TailwindHeader variant="white" fixed={false} data-testid="header">
       <TailwindHeader.Container>
-        <TailwindHeader.Content>
+        {/* Desktop: Single row layout */}
+        <TailwindHeader.Content className="hidden md:flex">
           <TailwindHeader.Left>
             <TailwindHeader.Title 
-              className="text-lg md:text-xl font-semibold text-scout-blue"
+              className="text-xl font-semibold text-scout-blue"
               data-testid="app-title"
             >
-              <span className="hidden md:inline">Viking Scouts (1st Walton on Thames)</span>
-              <span className="md:hidden">Viking Scouts</span>
+              Viking Scouts (1st Walton on Thames)
             </TailwindHeader.Title>
           </TailwindHeader.Left>
 
           <TailwindHeader.Right data-testid="header-controls">
-            {/* Data freshness indicator - smaller on mobile */}
+            {/* Data freshness indicator */}
             <DataFreshness
               lastSync={lastSyncTime}
               authState={authState}
-              className="mr-2 md:mr-3"
+              className="mr-3"
             />
 
             {/* Token countdown - shows remaining login time */}
             <TokenCountdown
               authState={authState}
-              className="mr-2 md:mr-3"
+              className="mr-3"
             />
 
             {/* Authentication button - always visible */}
@@ -53,14 +53,14 @@ function Header({
               authState={authState}
               onLogin={onLogin}
               onRefresh={onRefresh}
-              className="mr-2 md:mr-3"
+              className="mr-3"
               data-testid="auth-button"
             />
 
             {/* User menu (when authenticated) */}
             {user && (
-              <div className="flex items-center gap-2 md:gap-3">
-                <span className="text-gray-700 text-sm md:text-base hidden md:inline">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-700 text-base">
                   Hi, {user.firstname}
                 </span>
                 <Button
@@ -68,15 +68,69 @@ function Header({
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
-                  className="text-xs md:text-sm px-2 md:px-3 py-1 md:py-2"
+                  className="text-sm px-3 py-2"
                 >
-                  <span className="hidden md:inline">{isOfflineMode ? 'Clear Data' : 'Logout'}</span>
-                  <span className="md:hidden">{isOfflineMode ? 'Clear' : 'Out'}</span>
+                  {isOfflineMode ? 'Clear Data' : 'Logout'}
                 </Button>
               </div>
             )}
           </TailwindHeader.Right>
         </TailwindHeader.Content>
+
+        {/* Mobile: Two row layout */}
+        <div className="md:hidden py-3 space-y-3">
+          {/* Row 1: Title and essential status */}
+          <div className="flex items-center justify-between">
+            <TailwindHeader.Title 
+              className="text-lg font-semibold text-scout-blue"
+              data-testid="app-title"
+            >
+              Viking Scouts
+            </TailwindHeader.Title>
+            
+            {/* Essential status indicators */}
+            <div className="flex items-center space-x-2">
+              <DataFreshness
+                lastSync={lastSyncTime}
+                authState={authState}
+                className="text-xs"
+              />
+              <TokenCountdown
+                authState={authState}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Authentication and user controls */}
+          <div className="flex items-center justify-between">
+            <AuthButton
+              authState={authState}
+              onLogin={onLogin}
+              onRefresh={onRefresh}
+              data-testid="auth-button"
+              size="sm"
+            />
+
+            {/* User menu - always visible when authenticated */}
+            {user && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-700 text-sm">
+                  Hi, {user.firstname}
+                </span>
+                <Button
+                  variant="outline-scout-red"
+                  size="sm"
+                  onClick={handleLogout}
+                  data-testid="logout-button"
+                  className="text-xs px-2 py-1"
+                >
+                  {isOfflineMode ? 'Clear' : 'Logout'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </TailwindHeader.Container>
 
       {/* Logout/Clear Data Confirmation Modal */}
