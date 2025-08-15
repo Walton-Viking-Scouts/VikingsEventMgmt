@@ -14,7 +14,10 @@ import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
 
-// API call queue to prevent simultaneous requests
+/**
+ * API call queue to prevent simultaneous requests and manage rate limiting
+ * Processes API calls sequentially with controlled delays
+ */
 class APIQueue {
   constructor() {
     this.queue = [];
@@ -72,7 +75,15 @@ const apiQueue = new APIQueue();
 // Export queue stats for debugging
 export const getAPIQueueStats = () => apiQueue.getStats();
 
-// Clear all flexirecord caches (useful after fixing auth issues)
+/**
+ * Clear all FlexiRecord-related caches from localStorage
+ * Useful after fixing authentication issues or when data becomes stale
+ * @returns {Object} Summary of cleared cache entries
+ * 
+ * @example
+ * const result = clearFlexiRecordCaches();
+ * console.log(`Cleared ${result.clearedLocalStorageKeys} cache entries`);
+ */
 export function clearFlexiRecordCaches() {
   logger.info('Clearing all flexirecord caches', {}, LOG_CATEGORIES.API);
   
@@ -134,7 +145,12 @@ let isOnline = true;
 })();
 
 
-// Enhanced rate limit monitoring
+/**
+ * Enhanced rate limit monitoring for OSM API responses
+ * Logs warnings when rate limits are approaching critical thresholds
+ * @param {Object} responseData - API response data containing rate limit info
+ * @param {string} apiName - Name of the API call for logging context
+ */
 function logRateLimitInfo(responseData, apiName) {
   if (responseData && responseData._rateLimitInfo) {
     const info = responseData._rateLimitInfo;
@@ -170,7 +186,14 @@ function logRateLimitInfo(responseData, apiName) {
   }
 }
 
-// Enhanced API response handler with Sentry monitoring
+/**
+ * Enhanced API response handler with comprehensive error handling
+ * Manages rate limiting, authentication, and Sentry monitoring
+ * @param {Response} response - Fetch API response object
+ * @param {string} apiName - Name of the API call for logging and monitoring
+ * @returns {Promise<Object>} Parsed JSON response data
+ * @throws {Error} For rate limits, auth failures, or API errors
+ */
 async function handleAPIResponseWithRateLimit(response, apiName) {
   // Add breadcrumb for API call
   sentryUtils.addBreadcrumb({
@@ -269,6 +292,17 @@ const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // FlexiRecord caching is now handled by flexiRecordService.js
 
+/**
+ * Retrieves OSM terms data with caching and offline support
+ * @param {string} token - OSM authentication token
+ * @param {boolean} [forceRefresh=false] - Force refresh from API instead of using cache
+ * @returns {Promise<Object>} Terms data from OSM API
+ * @throws {Error} When token is missing or API request fails
+ * 
+ * @example
+ * const terms = await getTerms(userToken);
+ * const freshTerms = await getTerms(userToken, true);
+ */
 // API functions
 export async function getTerms(token, forceRefresh = false) {
   try {
@@ -369,6 +403,16 @@ export async function getTerms(token, forceRefresh = false) {
   }
 }
 
+/**
+ * Fetches the most recent term ID for a specific section
+ * @param {number|string} sectionId - OSM section identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<string|null>} Most recent term ID or null if not found
+ * @throws {Error} When API request fails or term cannot be determined
+ * 
+ * @example
+ * const termId = await fetchMostRecentTermId(123, userToken);
+ */
 export async function fetchMostRecentTermId(sectionId, token) {
   return apiQueue.add(async () => {
     try {
@@ -383,8 +427,14 @@ export async function fetchMostRecentTermId(sectionId, token) {
 
 /**
  * Helper function to retrieve user info with multiple fallback strategies
- * @param {string} token - Authentication token
- * @returns {Promise<Object>} User info object
+ * Tries startup data API first, then cache, then existing auth data
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} User info object with firstname, lastname, userid, email
+ * @throws {Error} When no user info can be retrieved from any source
+ * 
+ * @example
+ * const user = await retrieveUserInfo(token);
+ * console.log(`Welcome ${user.firstname} ${user.lastname}`);
  */
 async function retrieveUserInfo(token) {
   // First try to get from startup data API which contains user info
@@ -443,6 +493,19 @@ async function retrieveUserInfo(token) {
 
 // Optimized version that uses pre-loaded terms to avoid multiple API calls
 
+/**
+ * Retrieves user roles and section information from OSM API
+ * Includes comprehensive error handling with offline fallbacks
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Array<Object>>} Array of sections with permissions and details
+ * @throws {Error} When authentication fails and no cached data available
+ * 
+ * @example
+ * const sections = await getUserRoles(userToken);
+ * sections.forEach(section => {
+ *   console.log(`${section.sectionname}: ${section.sectionid}`);
+ * });
+ */
 export async function getUserRoles(token) {
   return sentryUtils.startSpan(
     {
@@ -600,6 +663,18 @@ export async function getUserRoles(token) {
   );
 }
 
+/**
+ * Retrieves events for a specific section and term
+ * @param {number|string} sectionId - OSM section identifier
+ * @param {number|string} termId - OSM term identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Array<Object>>} Array of events with attendance data
+ * @throws {Error} When API request fails and no cached data available
+ * 
+ * @example
+ * const events = await getEvents(123, '456', userToken);
+ * console.log(`Found ${events.length} events`);
+ */
 export async function getEvents(sectionId, termId, token) {
   try {
     // Check network status first
@@ -659,6 +734,19 @@ export async function getEvents(sectionId, termId, token) {
   }
 }
 
+/**
+ * Retrieves attendance data for a specific event
+ * @param {number|string} sectionId - OSM section identifier
+ * @param {number|string} eventId - OSM event identifier
+ * @param {number|string} termId - OSM term identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Array<Object>>} Array of attendance records
+ * @throws {Error} When API request fails and no cached data available
+ * 
+ * @example
+ * const attendance = await getEventAttendance(123, 789, '456', userToken);
+ * console.log(`${attendance.length} people attended`);
+ */
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
     // Check network status first
@@ -719,6 +807,19 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
   }
 }
 
+/**
+ * Retrieves FlexiRecord definitions for a section with caching support
+ * @param {number|string} sectionId - OSM section identifier
+ * @param {string} token - OSM authentication token
+ * @param {string} [archived='n'] - Include archived records ('y' or 'n')
+ * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
+ * @returns {Promise<Object>} FlexiRecord list with items array
+ * @throws {Error} When API request fails and no cached data available
+ * 
+ * @example
+ * const flexiRecords = await getFlexiRecords(123, token);
+ * console.log(`Found ${flexiRecords.items.length} FlexiRecords`);
+ */
 export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
     const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
@@ -836,6 +937,19 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
   }
 }
 
+/**
+ * Retrieves data for a single FlexiRecord
+ * @param {number|string} flexirecordid - FlexiRecord identifier
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {number|string} termid - OSM term identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} FlexiRecord data with member values
+ * @throws {Error} When API request fails or authentication fails
+ * 
+ * @example
+ * const flexiData = await getSingleFlexiRecord(456, 123, '789', token);
+ * console.log(`FlexiRecord has ${flexiData.items.length} member entries`);
+ */
 export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, token) {
   try {
     if (!token) {
@@ -873,6 +987,22 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
   }
 }
 
+/**
+ * Retrieves FlexiRecord structure definition with field mappings
+ * @param {number|string} extraid - FlexiRecord external ID (same as flexirecordid)
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {number|string} termid - OSM term identifier
+ * @param {string} token - OSM authentication token
+ * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
+ * @returns {Promise<Object|null>} Structure definition with field mappings or null
+ * @throws {Error} When API request fails
+ * 
+ * @example
+ * const structure = await getFlexiStructure(456, 123, '789', token);
+ * if (structure) {
+ *   console.log(`Structure: ${structure.name}`);
+ * }
+ */
 export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
     const storageKey = `viking_flexi_structure_${extraid}_offline`;
@@ -990,6 +1120,18 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
   }
 }
 
+/**
+ * Retrieves OSM startup data including user information and globals
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object|null>} Startup data with user info and globals
+ * @throws {Error} When authentication fails (401/403) - non-auth errors use cache fallback
+ * 
+ * @example
+ * const startup = await getStartupData(token);
+ * if (startup?.globals) {
+ *   console.log(`Welcome ${startup.globals.firstname}`);
+ * }
+ */
 export async function getStartupData(token) {
   try {
     // Check network status first
@@ -1062,6 +1204,23 @@ export async function getStartupData(token) {
   }
 }
 
+/**
+ * Updates a FlexiRecord field value for a specific member
+ * Requires valid authentication and write permissions
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {number|string} scoutid - Member identifier
+ * @param {number|string} flexirecordid - FlexiRecord identifier
+ * @param {number|string} columnid - Field column identifier
+ * @param {string} value - New field value
+ * @param {number|string} termid - OSM term identifier
+ * @param {string} section - Section name for context
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object|null>} Update response data
+ * @throws {Error} When write permissions denied or API request fails
+ * 
+ * @example
+ * await updateFlexiRecord(123, 456, 789, 'f_1', 'Blue Group', '2024', 'Beavers', token);
+ */
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
   try {
     // Import the guard function
@@ -1111,6 +1270,21 @@ export {
   extractVikingEventFields,
 } from '../utils/flexiRecordTransforms.js';
 
+/**
+ * Retrieves comprehensive member data for a section using the enhanced grid API
+ * Includes contact information, patrol assignments, and member status
+ * @param {number|string} sectionId - OSM section identifier
+ * @param {number|string} termId - OSM term identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Array<Object>>} Array of member objects with normalized data
+ * @throws {Error} When API request fails and no cached data available
+ * 
+ * @example
+ * const members = await getMembersGrid(123, '456', token);
+ * members.forEach(member => {
+ *   console.log(`${member.firstname} ${member.lastname} (${member.person_type})`);
+ * });
+ */
 export async function getMembersGrid(sectionId, termId, token) {
   try {
     // Check network status first
@@ -1234,6 +1408,21 @@ export async function getMembersGrid(sectionId, termId, token) {
 // The backend now provides all custom_data fields as flattened properties
 // using the actual group names and column labels from OSM metadata
 
+/**
+ * Retrieves members across multiple sections with deduplication
+ * Optimized to load terms once and reuse for all sections
+ * @param {Array<Object>} sections - Array of section objects with sectionid
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Array<Object>>} Deduplicated array of members with section assignments
+ * @throws {Error} When offline with no cached data or API requests fail
+ * 
+ * @example
+ * const allMembers = await getListOfMembers([
+ *   { sectionid: 123, sectionname: 'Beavers' },
+ *   { sectionid: 456, sectionname: 'Cubs' }
+ * ], token);
+ * console.log(`Total unique members: ${allMembers.length}`);
+ */
 export async function getListOfMembers(sections, token) {
   // Check network status first
   isOnline = await checkNetworkStatus();
@@ -1351,6 +1540,20 @@ export async function getListOfMembers(sections, token) {
 }
 
 
+/**
+ * Tests connectivity to the backend API server
+ * @returns {Promise<Object>} Connection test result with status
+ * @returns {Promise<{status: 'ok'}>} When connection successful
+ * @returns {Promise<{status: 'error', httpStatus?: number, error?: string}>} When connection fails
+ * 
+ * @example
+ * const result = await testBackendConnection();
+ * if (result.status === 'ok') {
+ *   console.log('Backend is reachable');
+ * } else {
+ *   console.error('Backend connection failed:', result.error);
+ * }
+ */
 export async function testBackendConnection() {
   try {
     const result = await withRateLimitQueue(async () => {
