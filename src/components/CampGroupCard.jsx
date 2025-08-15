@@ -162,7 +162,7 @@ function CampGroupCard({
 
   const MemberName = ({ member }) => (
     <span
-      className={`text-sm ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
+      className={`text-sm break-words ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
       onClick={() => handleMemberClick(member)}
       title={`${member.firstname} ${member.lastname}`}
     >
