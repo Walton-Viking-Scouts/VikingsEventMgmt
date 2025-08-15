@@ -135,9 +135,23 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit-tests, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -145,8 +159,148 @@ jobs:
           name: build-files
           path: dist/
 
-      - name: Deploy to production
+      - name: 📝 Auto-bump version for Sentry tracking
         run: |
-          echo "Deployment step would go here"
-          # Example: Deploy to Netlify, Vercel, or other hosting service
-          # You can add your deployment commands here
+          echo "🔢 Determining version bump type for proper Sentry error attribution..."
+          
+          # Configure git for automated commits
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Analyze commit messages and PR title to determine version bump type
+          RECENT_COMMITS=$(git log --oneline -10 --pretty=format:"%s")
+          PR_TITLE="${{ github.event.head_commit.message }}"
+          
+          echo "Recent commits:"
+          echo "$RECENT_COMMITS"
+          echo ""
+          echo "PR Title: $PR_TITLE"
+          echo ""
+          
+          # Determine version bump type based on commit messages
+          VERSION_TYPE="patch"  # Default to patch
+          
+          # Check for feature indicators (case insensitive)
+          if echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(feat|feature|add|implement|new)" > /dev/null; then
+            VERSION_TYPE="minor"
+            echo "🚀 Detected FEATURE: Using minor version bump"
+          elif echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(break|breaking|major)" > /dev/null; then
+            VERSION_TYPE="major"
+            echo "💥 Detected BREAKING CHANGE: Using major version bump"
+          else
+            echo "🐛 Detected BUG FIX/MAINTENANCE: Using patch version bump"
+          fi
+          
+          echo "Version bump type: $VERSION_TYPE"
+          
+          # Bump version based on detected type
+          npm version $VERSION_TYPE --no-git-tag-version
+          
+          # Get the new version for commit message
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+          
+          # Commit the version bump with context
+          git add package.json package-lock.json
+          git commit -m "chore: bump $VERSION_TYPE version to v${NEW_VERSION} for deployment
+          
+          Auto-bumped for Sentry error attribution ($VERSION_TYPE version)
+          - Every deployment needs unique version for proper error tracking
+          - Enables verification of bug fixes and attribution of new issues
+          - Version type determined from commit analysis: $VERSION_TYPE
+          
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+          
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          
+          # Push the version bump back to main
+          git push origin main
+          
+          # Create tag or release based on version type
+          if [ "$VERSION_TYPE" = "patch" ]; then
+            # Patch versions: Just create tag for Sentry tracking
+            git tag "v${NEW_VERSION}"
+            git push origin "v${NEW_VERSION}"
+            echo "✅ Version bumped to v${NEW_VERSION} and tagged (patch)"
+          else
+            # Minor/Major versions: Create GitHub Release
+            git tag "v${NEW_VERSION}"
+            git push origin "v${NEW_VERSION}"
+            
+            # Create GitHub Release for features/breaking changes
+            gh release create "v${NEW_VERSION}" \
+              --title "Release v${NEW_VERSION}" \
+              --notes "$(cat <<EOF
+Auto-generated $VERSION_TYPE release v${NEW_VERSION}
+
+This release was created automatically based on commit analysis.
+
+**Changes:**
+- $VERSION_TYPE version bump based on detected changes
+- See commit history for detailed changes
+
+**Sentry Tracking:**
+- Version: v${NEW_VERSION}
+- Type: $VERSION_TYPE
+- All errors will be attributed to this release
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+EOF
+)" \
+              --latest
+            
+            echo "✅ Version bumped to v${NEW_VERSION} and GitHub Release created ($VERSION_TYPE)"
+          fi
+
+      - name: 📤 Create Sentry release for error tracking
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: walton-vikings
+          SENTRY_PROJECT: viking-event-mgmt
+        run: |
+          # Get the version that was just bumped
+          VERSION=$(node -p "require('./package.json').version")
+          RELEASE="vikings-eventmgmt-mobile@$VERSION"
+          
+          echo "📊 Creating Sentry release: $RELEASE"
+          
+          if [ -n "$SENTRY_AUTH_TOKEN" ]; then
+            # Create Sentry release
+            npx @sentry/cli releases new "$RELEASE" || echo "Release may already exist"
+            
+            # Upload source maps if they exist
+            if [ -d "./dist" ] && [ "$(find ./dist -name '*.map' | wc -l)" -gt 0 ]; then
+              echo "📂 Uploading source maps for error tracking..."
+              npx @sentry/cli sourcemaps inject ./dist
+              npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix "~/" ./dist
+            fi
+            
+            # Set commits and finalize
+            npx @sentry/cli releases set-commits "$RELEASE" --auto
+            npx @sentry/cli releases finalize "$RELEASE"
+            
+            echo "✅ Sentry release $RELEASE created and finalized"
+          else
+            echo "⚠️ SENTRY_AUTH_TOKEN not configured, skipping Sentry release"
+          fi
+
+      - name: Deploy to production
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          echo "🚀 Deploying to production..."
+          
+          # Deploy to Render.com via webhook
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render deployment via webhook..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
+            if [ "$response" = "200" ] || [ "$response" = "201" ]; then
+              echo "✅ Render deployment triggered successfully"
+            else
+              echo "❌ Render deployment failed with status: $response"
+              exit 1
+            fi
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK not configured, skipping deployment"
+            echo "Please configure RENDER_DEPLOY_HOOK secret in GitHub repository settings"
+          fi
