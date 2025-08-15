@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MembersList from '../MembersList.jsx';
 
@@ -7,7 +13,7 @@ vi.mock('../../services/api.js', () => ({
   getListOfMembers: vi.fn(),
 }));
 
-// Mock the auth module  
+// Mock the auth module
 vi.mock('../../services/auth.js', () => ({
   getToken: vi.fn(() => 'mock-token'),
 }));
@@ -52,7 +58,7 @@ describe('MembersList', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    
+
     // Import and mock the API function
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockResolvedValue(mockMembers);
@@ -61,12 +67,15 @@ describe('MembersList', () => {
   it('renders loading screen initially', async () => {
     // Mock API to be slower so we can catch loading state
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(mockMembers), 100)));
+    vi.mocked(getListOfMembers).mockImplementation(
+      () =>
+        new Promise((resolve) => setTimeout(() => resolve(mockMembers), 100)),
+    );
 
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     expect(screen.getByText('Loading members...')).toBeInTheDocument();
   });
 
@@ -74,7 +83,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Members (2)')).toBeInTheDocument();
     });
@@ -84,9 +93,11 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
-      expect(screen.getByText('Members from selected sections: Beavers, Cubs')).toBeInTheDocument();
+      expect(
+        screen.getByText('Members from selected sections: Beavers, Cubs'),
+      ).toBeInTheDocument();
     });
   });
 
@@ -94,7 +105,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
       expect(screen.getByText('Jane Smith')).toBeInTheDocument();
@@ -105,7 +116,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('john.doe@example.com')).toBeInTheDocument();
       expect(screen.getByText('jane.smith@example.com')).toBeInTheDocument();
@@ -116,9 +127,13 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search members by name, email, or section...')).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(
+          'Search members by name, email, or section...',
+        ),
+      ).toBeInTheDocument();
     });
   });
 
@@ -126,17 +141,19 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
-    const searchInput = screen.getByPlaceholderText('Search members by name, email, or section...');
+    const searchInput = screen.getByPlaceholderText(
+      'Search members by name, email, or section...',
+    );
     fireEvent.change(searchInput, { target: { value: 'john' } });
 
     // John should still be visible
     expect(screen.getByText('John Doe')).toBeInTheDocument();
-    // Jane should be filtered out  
+    // Jane should be filtered out
     expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
   });
 
@@ -144,7 +161,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
     });
@@ -154,7 +171,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
     });
@@ -169,7 +186,7 @@ describe('MembersList', () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Export CSV')).toBeInTheDocument();
     });
@@ -178,12 +195,14 @@ describe('MembersList', () => {
   it('handles API error gracefully', async () => {
     // Mock API to reject
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockRejectedValue(new Error('Failed to load members'));
-    
+    vi.mocked(getListOfMembers).mockRejectedValue(
+      new Error('Failed to load members'),
+    );
+
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Error Loading Members')).toBeInTheDocument();
       expect(screen.getByText('Failed to load members')).toBeInTheDocument();
@@ -194,11 +213,11 @@ describe('MembersList', () => {
     // Mock API to reject
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockRejectedValue(new Error('API Error'));
-    
+
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Retry')).toBeInTheDocument();
       expect(screen.getByText('Back to Dashboard')).toBeInTheDocument();
@@ -209,11 +228,11 @@ describe('MembersList', () => {
     // Mock API to return empty array
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockResolvedValue([]);
-    
+
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Members (0)')).toBeInTheDocument();
       expect(screen.getByText('No members found')).toBeInTheDocument();

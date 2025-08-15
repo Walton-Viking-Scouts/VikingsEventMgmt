@@ -252,123 +252,94 @@ export function extractVikingEventFields(consolidatedData) {
   }
 }
 
-/**
- * Check if a member should be included in camp groups
- * @param {Object} memberDetails - Member details object
- * @returns {boolean} True if member should be included in camp groups
- */
-function shouldIncludeInCampGroups(memberDetails) {
-  const personType = memberDetails.person_type;
-  // Skip Leaders and Young Leaders - flexirecords don't apply to them
-  return personType !== 'Leaders' && personType !== 'Young Leaders';
-}
+// Helper function removed - now using person_type directly from getSummaryStats data
 
 /**
  * Organize members by their camp groups
- * Groups attendees by their CampGroup field value and classifies by person_type
+ * Since Register and Camp Groups use the same data, just process the attendees array
+ * which already has vikingEventData attached from getSummaryStats()
  * 
- * @param {Array} attendees - Event attendees
- * @param {Array} allMembers - All member data (for person_type and other details)
- * @param {Object} vikingEventData - Viking Event Management flexirecord data (can be null)
+ * @param {Array} processedMembers - Members with vikingEventData from getSummaryStats()
  * @returns {Object} Organized camp groups with leaders and young people
  * 
  * @example
- * const organized = organizeMembersByCampGroups(attendees, members, vikingData);
- * console.log(organized.groups['Group 1'].leaders); // Leaders in group 1
+ * const organized = organizeMembersByCampGroups(getSummaryStatsArray);
  * console.log(organized.groups['Group 1'].youngPeople); // Young people in group 1
  */
-export function organizeMembersByCampGroups(attendees, allMembers, vikingEventData) {
+export function organizeMembersByCampGroups(processedMembers) {
   try {
-    if (!attendees || !Array.isArray(attendees)) {
-      logger.warn('Invalid attendees data provided', {
-        hasAttendees: !!attendees,
-        isArray: Array.isArray(attendees),
+    if (!processedMembers || !Array.isArray(processedMembers)) {
+      logger.warn('Invalid processed members data provided', {
+        hasProcessedMembers: !!processedMembers,
+        isArray: Array.isArray(processedMembers),
       }, LOG_CATEGORIES.APP);
       
       return { groups: {}, summary: { totalGroups: 0, totalMembers: 0 } };
     }
 
-    if (!allMembers || !Array.isArray(allMembers)) {
-      logger.warn('Invalid members data provided', {
-        hasMembers: !!allMembers,
-        isArray: Array.isArray(allMembers),
-      }, LOG_CATEGORIES.APP);
-      
-      return { groups: {}, summary: { totalGroups: 0, totalMembers: 0 } };
-    }
-
-    logger.info('Organizing members by camp groups', {
-      totalAttendees: attendees.length,
-      totalMembers: allMembers.length,
-      hasVikingEventData: !!vikingEventData,
+    logger.debug('Organizing members by camp groups', {
+      totalProcessedMembers: processedMembers.length,
     }, LOG_CATEGORIES.APP);
-
-    // Create a lookup map for member details
-    const memberLookup = new Map();
-    allMembers.forEach(member => {
-      memberLookup.set(member.scoutid, member);
-    });
-
-    // Create a lookup map for camp group assignments
-    const campGroupLookup = new Map();
-    if (vikingEventData && vikingEventData.items) {
-      vikingEventData.items.forEach(assignment => {
-        if (assignment.scoutid && assignment.CampGroup) {
-          campGroupLookup.set(assignment.scoutid, assignment.CampGroup);
-        }
-      });
-    }
 
     const groups = {};
     let processedCount = 0;
+    let allHaveVikingEventData = true;
 
-    // Process each attendee
-    attendees.forEach(attendee => {
-      const memberDetails = memberLookup.get(attendee.scoutid);
-      if (!memberDetails) {
-        logger.warn('No member details found for attendee', {
-          scoutid: attendee.scoutid,
-          firstname: attendee.firstname,
-          lastname: attendee.lastname,
-        }, LOG_CATEGORIES.APP);
+    // Process each member (they already have vikingEventData from getSummaryStats)
+    processedMembers.forEach(member => {
+      // Skip if no member data
+      if (!member) {
         return;
       }
 
-      if (!shouldIncludeInCampGroups(memberDetails)) {
+      // Filter out Leaders and Young Leaders using person_type from getSummaryStats
+      if (member.person_type === 'Leaders' || member.person_type === 'Young Leaders') {
         logger.debug('Skipping leader from camp groups', {
-          scoutid: attendee.scoutid,
-          name: `${attendee.firstname} ${attendee.lastname}`,
-          personType: memberDetails.person_type,
+          scoutid: member.scoutid,
+          name: member.name,
+          personType: member.person_type,
         }, LOG_CATEGORIES.APP);
         return;
       }
 
-      // Get camp group assignment for Young People only
-      const campGroupNumber = campGroupLookup.get(attendee.scoutid);
+      // Get camp group assignment - getSummaryStats attaches vikingEventData
+      const campGroupNumber = member.vikingEventData?.CampGroup;
       const groupName = campGroupNumber ? `Group ${campGroupNumber}` : 'Group Unassigned';
 
       // Initialize group if it doesn't exist
       if (!groups[groupName]) {
         groups[groupName] = {
           name: groupName,
-          number: campGroupNumber || 'Unassigned',
+          number: Number.isFinite(Number(campGroupNumber)) ? Number(campGroupNumber) : null,
           leaders: [], // Keep empty - no leaders in camp groups
           youngPeople: [],
           totalMembers: 0,
         };
       }
 
-      // Create combined member object with attendance and details
-      const combinedMember = {
-        ...memberDetails,
-        ...attendee, // Attendance data (attending status, etc.)
+      // Add member to the appropriate group (leaders filtered out above)  
+      const memberWithGroup = {
+        ...member,
         campGroup: campGroupNumber,
         groupName: groupName,
       };
-
-      // Only add to youngPeople since we've already filtered out leaders
-      groups[groupName].youngPeople.push(combinedMember);
+      
+      // Debug member name issue - log to Sentry
+      if (processedCount < 2) {
+        logger.info(`organizeMembersByCampGroups DEBUG: Processing member ${processedCount}. Original name: "${member.name}", After transform: "${memberWithGroup.name}", Name preserved: ${member.name === memberWithGroup.name}`, {
+          originalName: member.name,
+          transformedName: memberWithGroup.name,
+          namePreserved: member.name === memberWithGroup.name,
+          memberKeys: Object.keys(member).join(', '),
+        }, LOG_CATEGORIES.APP);
+      }
+      
+      groups[groupName].youngPeople.push(memberWithGroup);
       groups[groupName].totalMembers++;
+      
+      // Track viking event data availability
+      allHaveVikingEventData &&= !!member.vikingEventData;
+      
       processedCount++;
     });
 
@@ -409,10 +380,10 @@ export function organizeMembersByCampGroups(attendees, allMembers, vikingEventDa
       totalLeaders: Object.values(sortedGroups).reduce((sum, group) => sum + group.leaders.length, 0),
       totalYoungPeople: Object.values(sortedGroups).reduce((sum, group) => sum + group.youngPeople.length, 0),
       hasUnassigned: !!sortedGroups['Group Unassigned'],
-      vikingEventDataAvailable: !!vikingEventData,
+      vikingEventDataAvailable: allHaveVikingEventData, // Derived from actual member data
     };
 
-    logger.info('Successfully organized members by camp groups', {
+    logger.debug('Successfully organized members by camp groups', {
       totalGroups: summary.totalGroups,
       totalMembers: summary.totalMembers,
       totalLeaders: summary.totalLeaders,
@@ -428,9 +399,7 @@ export function organizeMembersByCampGroups(attendees, allMembers, vikingEventDa
   } catch (error) {
     logger.error('Error organizing members by camp groups', {
       error: error.message,
-      hasAttendees: !!attendees,
-      hasAllMembers: !!allMembers,
-      hasVikingEventData: !!vikingEventData,
+      hasProcessedMembers: !!processedMembers,
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
 
@@ -440,9 +409,7 @@ export function organizeMembersByCampGroups(attendees, allMembers, vikingEventDa
       },
       contexts: {
         data: {
-          attendeesCount: attendees?.length || 0,
-          allMembersCount: allMembers?.length || 0,
-          hasVikingEventData: !!vikingEventData,
+          processedMembersCount: processedMembers?.length || 0,
         },
       },
     });

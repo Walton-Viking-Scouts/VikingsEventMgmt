@@ -122,9 +122,8 @@ function outputToConsole(entry) {
   const emoji = categoryEmojis[entry.category] || '📝';
   const style = styles[entry.level] || '';
   
-  console.groupCollapsed(`%c${emoji} [${entry.level.toUpperCase()}] ${entry.message}`, style);
-  console.log('📊 Details:', entry);
-  console.groupEnd();
+  // Simple console log - no detailed object logging to prevent data leakage
+  console.log(`%c${emoji} [${entry.level.toUpperCase()}] ${entry.message}`, style);
 }
 
 // Send to Sentry with appropriate method

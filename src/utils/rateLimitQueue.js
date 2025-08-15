@@ -106,12 +106,13 @@ export class RateLimitQueue {
         this.queue.splice(insertIndex, 0, request);
       }
 
-      // Request queued for rate limiting
-      logger.debug('Request queued', {
-        requestId: request.id,
-        priority: request.priority,
-        queueLength: this.queue.length,
-      }, LOG_CATEGORIES.API);
+      // Only log when queue is getting large (potential issues)
+      if (this.queue.length > 10) {
+        logger.warn('Large API queue detected', {
+          queueLength: this.queue.length,
+          processing: this.processing,
+        }, LOG_CATEGORIES.API);
+      }
 
       this.notifyListeners(this.getStatus());
       this.process();
@@ -186,12 +187,13 @@ export class RateLimitQueue {
           this.requestCount++;
           request.attempts++;
 
-          // Processing queued request
-          logger.debug('Processing queued request', {
-            requestId: request.id,
-            attempt: request.attempts,
-            maxRetries: this.maxRetries,
-          }, LOG_CATEGORIES.API);
+          // Only log retry attempts (not every single request)
+          if (request.attempts > 1) {
+            logger.debug('Retrying API request', {
+              attempt: request.attempts,
+              maxRetries: this.maxRetries,
+            }, LOG_CATEGORIES.API);
+          }
 
           const result = await request.apiCall();
           

@@ -35,7 +35,54 @@ function cacheData(cacheKey, data) {
     ...data,
     _cacheTimestamp: Date.now(),
   };
-  safeSetItem(cacheKey, cachedData);
+  
+  // Pre-compute once; guard against (de)serialisation errors in logs
+  const itemCount = Array.isArray(cachedData.items) ? cachedData.items.length : 0;
+  let dataSize;
+  try {
+    dataSize = new globalThis.TextEncoder().encode(JSON.stringify(cachedData)).length;
+  } catch {
+    dataSize = null; // not JSON-serialisable
+  }
+
+  try {
+    const success = safeSetItem(cacheKey, cachedData);
+    if (success) {
+      logger.info('FlexiRecord data successfully cached', {
+        cacheKey,
+        dataSize,
+        itemCount,
+      }, LOG_CATEGORIES.API);
+    } else {
+      logger.error('FlexiRecord caching failed - safeSetItem returned falsy', {
+        cacheKey,
+        dataSize,
+        itemCount,
+      }, LOG_CATEGORIES.ERROR);
+    }
+  } catch (cacheError) {
+    logger.error('FlexiRecord caching error', {
+      cacheKey,
+      error: cacheError.message,
+      dataSize,
+      itemCount,
+    }, LOG_CATEGORIES.ERROR);
+    
+    sentryUtils.captureException(cacheError, {
+      tags: {
+        operation: 'flexirecord_cache',
+        cacheKey,
+      },
+      contexts: {
+        data: {
+          size: dataSize,
+          hasItems: itemCount > 0,
+          itemCount,
+        },
+      },
+    });
+  }
+  
   return data; // Return original data without timestamp
 }
 

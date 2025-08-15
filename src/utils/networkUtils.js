@@ -26,19 +26,14 @@ export async function checkNetworkStatus() {
       // Native platform - use Capacitor Network plugin
       const status = await Network.getStatus();
       
-      logger.debug('Network status checked (native)', {
-        connected: status.connected,
-        connectionType: status.connectionType,
-      }, LOG_CATEGORIES.APP);
+      // Only log when network status changes (not every check)
       
       return status.connected;
     } else {
       // Web browser - use navigator.onLine
       const isOnline = navigator.onLine;
       
-      logger.debug('Network status checked (web)', {
-        connected: isOnline,
-      }, LOG_CATEGORIES.APP);
+      // Only log network changes, not routine checks
       
       return isOnline;
     }
@@ -99,11 +94,7 @@ export async function getDetailedNetworkStatus() {
       // Native platform - get detailed network information
       const status = await Network.getStatus();
       
-      logger.debug('Detailed network status retrieved (native)', {
-        connected: status.connected,
-        connectionType: status.connectionType,
-        hasWifiInfo: !!(status.ssid || status.bssid),
-      }, LOG_CATEGORIES.APP);
+      // Network status retrieved - routine operation
       
       return status;
     } else {
@@ -120,7 +111,7 @@ export async function getDetailedNetworkStatus() {
         networkInfo.effectiveType = navigator.connection.effectiveType;
       }
       
-      logger.debug('Detailed network status retrieved (web)', networkInfo, LOG_CATEGORIES.APP);
+      // Network status retrieved - routine operation
       
       return networkInfo;
     }
@@ -190,36 +181,33 @@ export function addNetworkListener(callback) {
   try {
     if (Capacitor.isNativePlatform()) {
       // Native platform - use Capacitor Network plugin
-      logger.debug('Setting up native network listener', {}, LOG_CATEGORIES.APP);
+      // Setting up native network listener
       
       const listener = Network.addListener('networkStatusChange', (status) => {
-        logger.debug('Network status changed (native)', {
-          connected: status.connected,
-          connectionType: status.connectionType,
-        }, LOG_CATEGORIES.APP);
+        // Network status changed - callback will handle
         
         callback(status);
       });
       
       return () => {
-        logger.debug('Removing native network listener', {}, LOG_CATEGORIES.APP);
+        // Removing network listener
         listener.remove();
       };
     } else {
       // Web browser - use native browser events
-      logger.debug('Setting up web network listeners', {}, LOG_CATEGORIES.APP);
+      // Setting up web network listeners
       
       const onlineHandler = () => {
         const status = { connected: true, connectionType: 'unknown' };
         
-        logger.debug('Network came online (web)', status, LOG_CATEGORIES.APP);
+        // Network came online - callback will handle
         callback(status);
       };
       
       const offlineHandler = () => {
         const status = { connected: false, connectionType: 'unknown' };
         
-        logger.debug('Network went offline (web)', status, LOG_CATEGORIES.APP);
+        // Network went offline - callback will handle
         callback(status);
       };
       
@@ -227,7 +215,7 @@ export function addNetworkListener(callback) {
       window.addEventListener('offline', offlineHandler);
       
       return () => {
-        logger.debug('Removing web network listeners', {}, LOG_CATEGORIES.APP);
+        // Removing web network listeners
         window.removeEventListener('online', onlineHandler);
         window.removeEventListener('offline', offlineHandler);
       };

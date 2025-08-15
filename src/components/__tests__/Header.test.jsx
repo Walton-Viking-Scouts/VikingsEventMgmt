@@ -10,6 +10,6 @@ describe('Header', () => {
 
   it('displays hardcoded title', () => {
     render(<Header />);
-    expect(screen.getByText('Vikings Event Mgmt Mobile')).toBeInTheDocument();
+    expect(screen.getByText('Viking Scouts (1st Walton on Thames)')).toBeInTheDocument();
   });
 });

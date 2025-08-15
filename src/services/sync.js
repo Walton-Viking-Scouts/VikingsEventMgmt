@@ -1,9 +1,10 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms } from './api.js';
+import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, getMembersGrid } from './api.js';
 import { getToken, validateToken, generateOAuthUrl } from './auth.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
+import { checkNetworkStatus } from '../utils/networkUtils.js';
 
 class SyncService {
   constructor() {
@@ -69,6 +70,12 @@ class SyncService {
 
   // Check if we have a valid token before syncing
   async checkTokenAndPromptLogin() {
+    // Check network status first - no point prompting for login if offline
+    const isOnline = await checkNetworkStatus();
+    if (!isOnline) {
+      throw new Error('Cannot sync while offline. Connect to the internet and try again.');
+    }
+
     const token = getToken();
     if (!token) {
       const shouldLogin = await this.showLoginPrompt();
@@ -170,26 +177,12 @@ class SyncService {
       // Get sections from database to sync events and attendance
       const sections = await databaseService.getSections();
       
-      // Preload static flexirecord data (lists and structures) for faster access later
-      // Dynamic data (actual member values) is loaded on-demand when "View Attendees" is clicked
-      try {
-        await this.withAuthErrorHandling(async () => {
-          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord lists and structures...' });
-          await this.preloadStaticFlexiRecordData(sections, token);
-        }, { 
-          continueOnError: true, // Don't fail sync if flexirecord preloading fails
-          contextMessage: 'Failed to preload flexirecord static data',
-        });
-      } catch (error) {
-        logger.warn('FlexiRecord static data preloading failed, continuing with sync', {
-          error: error.message,
-        }, LOG_CATEGORIES.SYNC);
-        // Continue with sync - this is optimization, not critical
-      }
-      
-      // Sync events for each section
+      // Sync events and members for each section FIRST (better UX - dashboard shows data faster)
       for (const section of sections) {
         await this.syncEvents(section.sectionid, token);
+        
+        // Sync members data (includes medical information and other member details)
+        await this.syncMembers(section.sectionid, token);
         
         // Sync attendance only for events shown on dashboard (last week + future)
         const events = await databaseService.getEvents(section.sectionid);
@@ -213,10 +206,32 @@ class SyncService {
         }
       }
 
+      // Preload static flexirecord data AFTER events (better UX - dashboard loads faster)
+      // Dynamic data (actual member values) is loaded on-demand when "View Attendees" is clicked
+      try {
+        await this.withAuthErrorHandling(async () => {
+          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord data...' });
+          await this.preloadStaticFlexiRecordData(sections, token);
+        }, { 
+          continueOnError: true, // Don't fail sync if flexirecord preloading fails
+          contextMessage: 'Failed to preload flexirecord static data',
+        });
+      } catch (error) {
+        logger.warn('FlexiRecord static data preloading failed, sync completed without it', {
+          error: error.message,
+        }, LOG_CATEGORIES.SYNC);
+        // Continue with sync - this is optimization, not critical
+      }
+
+      const completionTimestamp = Date.now(); // Epoch milliseconds for UI compatibility
+      
+      // Store last sync time for UI display (convert to string for localStorage)
+      localStorage.setItem('viking_last_sync', completionTimestamp.toString());
+      
       this.notifyListeners({ 
         status: 'completed', 
         message: 'Sync completed successfully',
-        timestamp: new Date().toISOString(),
+        timestamp: completionTimestamp,
       });
 
     } catch (error) {
@@ -298,7 +313,9 @@ class SyncService {
       // Get the most recent term
       const termId = await fetchMostRecentTermId(sectionId, token);
       if (!termId) {
-        console.warn(`No term found for section ${sectionId}`);
+        logger.info(`No term found for section ${sectionId} - skipping events sync (this is normal for waiting lists)`, {
+          sectionId,
+        }, LOG_CATEGORIES.SYNC);
         return;
       }
 
@@ -321,7 +338,10 @@ class SyncService {
       }
 
       if (!termId) {
-        console.warn(`No term ID available for event ${eventId} in section ${sectionId}`);
+        logger.info(`No term ID available for event ${eventId} in section ${sectionId} - skipping attendance sync (this is normal for waiting lists)`, {
+          sectionId,
+          eventId,
+        }, LOG_CATEGORIES.SYNC);
         return;
       }
 
@@ -330,6 +350,33 @@ class SyncService {
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync attendance for event ${eventId}`,
+    });
+  }
+
+  // Sync members data for a section (includes medical information)
+  async syncMembers(sectionId, token) {
+    await this.withAuthErrorHandling(async () => {
+      this.notifyListeners({ status: 'syncing', message: `Syncing members for section ${sectionId}...` });
+      
+      // Get the most recent term for this section
+      const termId = await fetchMostRecentTermId(sectionId, token);
+      if (!termId) {
+        logger.info(`No term found for section ${sectionId} - skipping members sync (this is normal for waiting lists)`, {
+          sectionId,
+        }, LOG_CATEGORIES.SYNC);
+        return;
+      }
+
+      // This will fetch from server and save to database (includes medical info)
+      await getMembersGrid(sectionId, termId, token);
+      
+      logger.info('Members data synced successfully', {
+        sectionId,
+        termId,
+      }, LOG_CATEGORIES.SYNC);
+    }, { 
+      continueOnError: true,
+      contextMessage: `Failed to sync members for section ${sectionId}`,
     });
   }
 
@@ -421,15 +468,24 @@ class SyncService {
         count: allFlexiRecords.size,
       }, LOG_CATEGORIES.SYNC);
 
-      // Load structures in parallel with limited concurrency
-      const structurePromises = Array.from(allFlexiRecords.values()).map(async (record) => {
+      // Load structures in parallel - only for "Viking Event Mgmt" records (optimization)
+      const vikingEventRecords = Array.from(allFlexiRecords.values()).filter(record => 
+        record.name === 'Viking Event Mgmt',
+      );
+      
+      logger.info('Loading structures for "Viking Event Mgmt" flexirecords only', {
+        totalRecords: allFlexiRecords.size,
+        vikingEventRecords: vikingEventRecords.length,
+      }, LOG_CATEGORIES.SYNC);
+      
+      const structurePromises = vikingEventRecords.map(async (record) => {
         try {
           // Use first section ID for the request
           const sectionId = record.sectionIds[0];
           await getFlexiStructure(record.extraid, sectionId, null, token);
           return { success: true, record };
         } catch (error) {
-          logger.warn('Failed to preload structure for flexirecord', {
+          logger.warn('Failed to preload structure for "Viking Event Mgmt" flexirecord', {
             recordName: record.name,
             extraid: record.extraid,
             error: error.message,

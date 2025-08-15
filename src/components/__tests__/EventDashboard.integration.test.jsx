@@ -88,7 +88,7 @@ describe('EventDashboard Integration Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock localStorage
     Object.defineProperty(window, 'localStorage', {
       value: {
@@ -111,8 +111,12 @@ describe('EventDashboard Integration Tests', () => {
     databaseService.getAttendance.mockResolvedValue([]);
     databaseService.saveAttendance.mockResolvedValue();
     databaseService.hasOfflineData.mockResolvedValue(true);
-    getAPIQueueStats.mockReturnValue({ queueLength: 0, processing: false, totalRequests: 0 });
-    
+    getAPIQueueStats.mockReturnValue({
+      queueLength: 0,
+      processing: false,
+      totalRequests: 0,
+    });
+
     // Mock helper functions with realistic behavior
     helpers.fetchAllSectionEvents.mockResolvedValue([]);
     helpers.fetchSectionEvents.mockResolvedValue([]);
@@ -133,9 +137,7 @@ describe('EventDashboard Integration Tests', () => {
         { eventid: 101, name: 'Camp Weekend', startdate: '2024-02-15' },
       ];
 
-      const mockAttendanceData = [
-        { scoutid: 1, attended: true },
-      ];
+      const mockAttendanceData = [{ scoutid: 1, attended: true }];
 
       const mockEventGroups = new Map([
         ['Camp Weekend', [mockFilteredEvents[0]]],
@@ -149,12 +151,17 @@ describe('EventDashboard Integration Tests', () => {
       helpers.buildEventCard.mockReturnValue(mockEventCards[0]);
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      // Wait for component to load and process
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
-      
+      // Wait for component to load and process  
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
+
       // Wait for async operations to complete
       await waitFor(() => {
         expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
@@ -165,7 +172,7 @@ describe('EventDashboard Integration Tests', () => {
         mockSections,
         null, // cache-only mode uses null token
       );
-      
+
       expect(helpers.filterEventsByDateRange).toHaveBeenCalledWith(
         mockEvents,
         expect.any(Date), // oneWeekAgo
@@ -182,15 +189,15 @@ describe('EventDashboard Integration Tests', () => {
         expect.arrayContaining([
           expect.objectContaining({
             eventid: 101,
-            attendanceData: mockAttendanceData,
+            name: 'Camp Weekend',
+            startdate: '2024-02-15',
           }),
         ]),
       );
 
-      expect(helpers.buildEventCard).toHaveBeenCalledWith(
-        'Camp Weekend',
-        [expect.objectContaining({ eventid: 101 })],
-      );
+      expect(helpers.buildEventCard).toHaveBeenCalledWith('Camp Weekend', [
+        expect.objectContaining({ eventid: 101 }),
+      ]);
     });
 
     it('should handle cache-only mode correctly', async () => {
@@ -203,15 +210,20 @@ describe('EventDashboard Integration Tests', () => {
       helpers.fetchSectionEvents.mockResolvedValue(mockCachedEvents);
       helpers.filterEventsByDateRange.mockReturnValue(mockCachedEvents);
       helpers.fetchEventAttendance.mockResolvedValue(null); // Cache only
-      helpers.groupEventsByName.mockReturnValue(new Map([
-        ['Cached Event', [mockCachedEvents[0]]],
-      ]));
+      helpers.groupEventsByName.mockReturnValue(
+        new Map([['Cached Event', [mockCachedEvents[0]]]]),
+      );
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -234,7 +246,12 @@ describe('EventDashboard Integration Tests', () => {
       databaseService.getSections.mockResolvedValue([]);
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
       // Wait for the component to process
@@ -259,15 +276,20 @@ describe('EventDashboard Integration Tests', () => {
       ]);
 
       helpers.fetchEventAttendance.mockResolvedValue([]);
-      helpers.groupEventsByName.mockReturnValue(new Map([
-        ['Success Event', [{ eventid: 101, name: 'Success Event' }]],
-      ]));
+      helpers.groupEventsByName.mockReturnValue(
+        new Map([['Success Event', [{ eventid: 101, name: 'Success Event' }]]]),
+      );
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -287,7 +309,7 @@ describe('EventDashboard Integration Tests', () => {
         name: 'Early Event',
         earliestDate: new Date('2024-02-10'),
       };
-      
+
       const mockCard2 = {
         ...mockEventCards[0],
         name: 'Late Event',
@@ -295,20 +317,27 @@ describe('EventDashboard Integration Tests', () => {
       };
 
       // Mock multiple event groups
-      helpers.groupEventsByName.mockReturnValue(new Map([
-        ['Late Event', [{ eventid: 102 }]],
-        ['Early Event', [{ eventid: 101 }]],
-      ]));
+      helpers.groupEventsByName.mockReturnValue(
+        new Map([
+          ['Late Event', [{ eventid: 102 }]],
+          ['Early Event', [{ eventid: 101 }]],
+        ]),
+      );
 
       helpers.buildEventCard
         .mockReturnValueOnce(mockCard2) // Late event returned first
         .mockReturnValueOnce(mockCard1); // Early event returned second
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -317,7 +346,7 @@ describe('EventDashboard Integration Tests', () => {
 
       // Verify both cards were built
       expect(helpers.buildEventCard).toHaveBeenCalledTimes(2);
-      
+
       // The component should sort cards by earliestDate
       // (This would be verified by checking the order in the rendered output)
     });
@@ -332,10 +361,15 @@ describe('EventDashboard Integration Tests', () => {
       helpers.fetchSectionEvents.mockResolvedValue([]);
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -362,10 +396,15 @@ describe('EventDashboard Integration Tests', () => {
       ]);
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait for async operations to complete
       await waitFor(() => {
@@ -374,7 +413,7 @@ describe('EventDashboard Integration Tests', () => {
 
       // Should call fetchAllSectionEvents once
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledTimes(1);
-      
+
       // Should still process the successful events
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([
         expect.objectContaining({ eventid: 102 }),
@@ -383,7 +422,9 @@ describe('EventDashboard Integration Tests', () => {
 
     it.skip('should handle attendance fetching failures gracefully', async () => {
       // Mock fresh data to prevent auto-sync
-      const mockFreshSyncTime = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 minutes ago
+      const mockFreshSyncTime = new Date(
+        Date.now() - 5 * 60 * 1000,
+      ).toISOString(); // 5 minutes ago
       window.localStorage.getItem.mockImplementation((key) => {
         if (key === 'viking_last_sync') return mockFreshSyncTime;
         return null;
@@ -396,7 +437,7 @@ describe('EventDashboard Integration Tests', () => {
 
       helpers.fetchAllSectionEvents.mockResolvedValue(mockEvents);
       helpers.filterEventsByDateRange.mockReturnValue(mockEvents);
-      
+
       // Set up enough mock responses for potential multiple calls (cache + auto-sync)
       helpers.fetchEventAttendance
         .mockRejectedValue(new Error('Attendance fetch failed'))
@@ -405,20 +446,30 @@ describe('EventDashboard Integration Tests', () => {
         .mockResolvedValue([{ scoutid: 1, attended: true }]);
 
       await act(async () => {
-        render(<EventDashboard onNavigateToMembers={vi.fn()} onNavigateToAttendance={vi.fn()} />);
+        render(
+          <EventDashboard
+            onNavigateToMembers={vi.fn()}
+            onNavigateToAttendance={vi.fn()}
+          />,
+        );
       });
 
-      await screen.findByTestId('sections-list', {}, { timeout: 3000 });
+      await screen.findByText('📅 Events', {}, { timeout: 3000 });
 
       // Wait longer for all async operations including potential auto-sync
-      await waitFor(() => {
-        expect(helpers.fetchEventAttendance).toHaveBeenCalled();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(helpers.fetchEventAttendance).toHaveBeenCalled();
+        },
+        { timeout: 3000 },
+      );
 
       // Should call attendance (allow for both cache-only and auto-sync scenarios)
       expect(helpers.fetchEventAttendance).toHaveBeenCalled();
-      expect(helpers.fetchEventAttendance.mock.calls.length).toBeGreaterThanOrEqual(2);
-      
+      expect(
+        helpers.fetchEventAttendance.mock.calls.length,
+      ).toBeGreaterThanOrEqual(2);
+
       // Should still process all events
       expect(helpers.groupEventsByName).toHaveBeenCalledWith([
         expect.objectContaining({ eventid: 101 }),

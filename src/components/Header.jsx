@@ -1,71 +1,144 @@
 import React, { useState } from 'react';
 import { Header as TailwindHeader, Button } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
+import AuthButton from './AuthButton.jsx';
+import DataFreshness from './DataFreshness.jsx';
+import TokenCountdown from './TokenCountdown.jsx';
 
-function Header({ user, onLogout, isOfflineMode, onLogin }) {
+function Header({
+  user,
+  onLogout,
+  isOfflineMode,
+  onLogin,
+  onRefresh,
+  authState = 'no_data',
+  lastSyncTime = null,
+}) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  
+
   const handleLogout = () => {
     setShowLogoutModal(true);
   };
-  
-  const handleLogin = () => {
-    if (onLogin) {
-      onLogin();
-    }
-  };
 
   return (
-    <TailwindHeader variant="scout" data-testid="header">
+    <TailwindHeader variant="white" fixed={false} data-testid="header">
       <TailwindHeader.Container>
-        <TailwindHeader.Content>
+        {/* Desktop: Single row layout */}
+        <TailwindHeader.Content className="hidden md:flex">
           <TailwindHeader.Left>
-            <TailwindHeader.Title data-testid="app-title">
-              Vikings Event Mgmt Mobile
+            <TailwindHeader.Title 
+              className="text-xl font-semibold text-scout-blue"
+              data-testid="app-title"
+            >
+              Viking Scouts (1st Walton on Thames)
             </TailwindHeader.Title>
           </TailwindHeader.Left>
-          
-          {user && (
-            <TailwindHeader.Right data-testid="user-info">
-              <span className="text-white">
-                Hi, {user.firstname}
-                {isOfflineMode && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
-                    Offline
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="scout-red"
+
+          <TailwindHeader.Right data-testid="header-controls">
+            {/* Data freshness indicator */}
+            <DataFreshness
+              lastSync={lastSyncTime}
+              authState={authState}
+              className="mr-3"
+            />
+
+            {/* Token countdown - shows remaining login time */}
+            <TokenCountdown
+              authState={authState}
+              className="mr-3"
+            />
+
+            {/* Authentication button - always visible */}
+            <AuthButton
+              authState={authState}
+              onLogin={onLogin}
+              onRefresh={onRefresh}
+              className="mr-3"
+              data-testid="auth-button"
+            />
+
+            {/* User menu (when authenticated) */}
+            {user && (
+              <div className="flex items-center gap-3">
+                <span className="text-gray-700 text-base">
+                  Hi, {user.firstname}
+                </span>
+                <Button
+                  variant="outline-scout-red"
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
+                  className="text-sm px-3 py-2"
                 >
                   {isOfflineMode ? 'Clear Data' : 'Logout'}
                 </Button>
-                {isOfflineMode && (
-                  <Button 
-                    variant="scout-green"
-                    size="sm"
-                    onClick={handleLogin}
-                    data-testid="login-button"
-                  >
-                    Login
-                  </Button>
-                )}
               </div>
-            </TailwindHeader.Right>
-          )}
+            )}
+          </TailwindHeader.Right>
         </TailwindHeader.Content>
+
+        {/* Mobile: Two row layout */}
+        <div className="md:hidden py-3 space-y-3">
+          {/* Row 1: Title and essential status */}
+          <div className="flex items-center justify-between">
+            <TailwindHeader.Title 
+              className="text-lg font-semibold text-scout-blue"
+              data-testid="app-title"
+            >
+              Viking Scouts
+            </TailwindHeader.Title>
+            
+            {/* Essential status indicators */}
+            <div className="flex items-center space-x-2">
+              <DataFreshness
+                lastSync={lastSyncTime}
+                authState={authState}
+                className="text-xs"
+              />
+              <TokenCountdown
+                authState={authState}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Authentication and user controls */}
+          <div className="flex items-center justify-between">
+            <AuthButton
+              authState={authState}
+              onLogin={onLogin}
+              onRefresh={onRefresh}
+              data-testid="auth-button"
+              size="sm"
+            />
+
+            {/* User menu - always visible when authenticated */}
+            {user && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-700 text-sm">
+                  Hi, {user.firstname}
+                </span>
+                <Button
+                  variant="outline-scout-red"
+                  size="sm"
+                  onClick={handleLogout}
+                  data-testid="logout-button"
+                  className="text-xs px-2 py-1"
+                >
+                  {isOfflineMode ? 'Clear' : 'Logout'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </TailwindHeader.Container>
-      
+
       {/* Logout/Clear Data Confirmation Modal */}
       <ConfirmModal
         isOpen={showLogoutModal}
         title={isOfflineMode ? 'Clear Cached Data' : 'Confirm Logout'}
         message={
-          isOfflineMode 
+          isOfflineMode
             ? 'Are you sure you want to clear all cached data? This will remove all offline access to your events and member data.'
             : 'Are you sure you want to logout?'
         }

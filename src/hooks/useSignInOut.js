@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { fetchMostRecentTermId, updateFlexiRecord, getFlexiRecords } from '../services/api.js';
 import { getFlexiRecordStructure } from '../services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
-import { getToken } from '../services/auth.js';
+import { getToken, handleApiAuthError } from '../services/auth.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 
 /**
@@ -110,38 +110,46 @@ export function useSignInOut(events, onDataRefresh) {
       }
       
       if (action === 'signin') {
-        // Sign in requires two API calls: SignedInBy and SignedInWhen
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
-          currentUser,
-          termId,
-          sectionType,
-          getToken(),
-        );
+        // Execute API calls sequentially with longer delays to prevent clashing
+        const callNames = ['SignedInBy', 'SignedInWhen', 'Clear SignedOutBy', 'Clear SignedOutWhen'];
         
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
-          timestamp,
-          termId,
-          sectionType,
-          getToken(),
-        );
-        
-        // Clear signed out fields if they have values (only make API calls if needed)
-        const hasSignedOutBy = member.vikingEventData?.SignedOutBy && 
-                               member.vikingEventData.SignedOutBy !== '-' && 
-                               member.vikingEventData.SignedOutBy.trim() !== '';
-        const hasSignedOutWhen = member.vikingEventData?.SignedOutWhen && 
-                                 member.vikingEventData.SignedOutWhen !== '-' && 
-                                 member.vikingEventData.SignedOutWhen.trim() !== '';
-        
-        if (hasSignedOutBy) {
+        try {
+          // Step 1: Set SignedInBy
+          console.log(`🔄 Setting ${callNames[0]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
+            currentUser,
+            termId,
+            sectionType,
+            getToken(),
+          );
+          console.log(`✅ ${callNames[0]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 2: Set SignedInWhen
+          console.log(`🔄 Setting ${callNames[1]} for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
+            timestamp,
+            termId,
+            sectionType,
+            getToken(),
+          );
+          console.log(`✅ ${callNames[1]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 3: Clear SignedOutBy
+          console.log(`🔄 ${callNames[2]} for ${member.name || member.firstname}`);
           await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
@@ -152,9 +160,13 @@ export function useSignInOut(events, onDataRefresh) {
             sectionType,
             getToken(),
           );
-        }
-        
-        if (hasSignedOutWhen) {
+          console.log(`✅ ${callNames[2]} completed successfully`);
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 4: Clear SignedOutWhen
+          console.log(`🔄 ${callNames[3]} for ${member.name || member.firstname}`);
           await updateFlexiRecord(
             member.sectionid,
             member.scoutid,
@@ -165,6 +177,11 @@ export function useSignInOut(events, onDataRefresh) {
             sectionType,
             getToken(),
           );
+          console.log(`✅ ${callNames[3]} completed successfully`);
+          
+        } catch (callError) {
+          console.error('❌ Sign-in operation failed:', callError.message);
+          throw callError; // Re-throw to be handled by outer catch
         }
         
         // Check if component is still mounted after sign-in operations
@@ -172,37 +189,52 @@ export function useSignInOut(events, onDataRefresh) {
           return;
         }
         
-        console.log(`Successfully signed in ${member.name}`);
+        // Member signed in successfully
       } else {
-        // Sign out requires two API calls: SignedOutBy and SignedOutWhen
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-          currentUser,
-          termId,
-          sectionType,
-          getToken(),
-        );
-        
-        await updateFlexiRecord(
-          member.sectionid,
-          member.scoutid,
-          vikingFlexiRecord.extraid,
-          getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-          timestamp,
-          termId,
-          sectionType,
-          getToken(),
-        );
+        // Execute sign-out API calls sequentially with longer delays to prevent clashing
+        try {
+          // Step 1: Set SignedOutBy
+          console.log(`🔄 Setting SignedOutBy for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
+            currentUser,
+            termId,
+            sectionType,
+            getToken(),
+          );
+          console.log('✅ SignedOutBy completed successfully');
+          
+          // Delay to prevent clashing
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+          // Step 2: Set SignedOutWhen
+          console.log(`🔄 Setting SignedOutWhen for ${member.name || member.firstname}`);
+          await updateFlexiRecord(
+            member.sectionid,
+            member.scoutid,
+            vikingFlexiRecord.extraid,
+            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
+            timestamp,
+            termId,
+            sectionType,
+            getToken(),
+          );
+          console.log('✅ SignedOutWhen completed successfully');
+          
+        } catch (callError) {
+          console.error('❌ Sign-out operation failed:', callError.message);
+          throw callError; // Re-throw to be handled by outer catch
+        }
         
         // Check if component is still mounted after sign-out operations
         if (abortControllerRef.current?.signal.aborted) {
           return;
         }
         
-        console.log(`Successfully signed out ${member.name}`);
+        // Member signed out successfully
       }
       
       // Check if component is still mounted before refreshing data
@@ -223,8 +255,29 @@ export function useSignInOut(events, onDataRefresh) {
       
       console.error(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}:`, error);
       
-      // TODO: Replace with proper toast notification system
-      alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+      // Check if this is a token expiration error
+      if (error.message?.includes('No authentication token')) {
+        // Handle authentication failure to trigger auth state update
+        const authResult = handleApiAuthError(error);
+        
+        if (authResult.offline) {
+          // Token expired but we have cached data - user can still use app offline
+          alert('Your session has expired. Please sign in again to refresh data from OSM, or continue using cached data offline.');
+        } else {
+          // No cached data available - user needs to log in
+          alert('Your session has expired. Please sign in to OSM to continue.');
+        }
+        
+        // Force a page reload to trigger auth state re-evaluation
+        if (authResult.shouldReload) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
+        }
+      } else {
+        // Regular error - show generic message
+        alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+      }
       
     } finally {
       // Only clear loading state if component is still mounted

@@ -37,7 +37,7 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
     // Now safe to log with member data
     logger.info('Starting camp group assignment', {
       memberId: moveData.member.scoutid,
-      memberName: `${moveData.member.firstname} ${moveData.member.lastname}`,
+      memberName: moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown',
       fromGroup: moveData.fromGroupNumber,
       toGroup: moveData.toGroupNumber,
       operation: 'assignMemberToCampGroup',
@@ -116,7 +116,7 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
     
     logger.error('Camp group assignment failed', {
       memberId: moveData.member?.scoutid,
-      memberName: moveData.member ? `${moveData.member.firstname} ${moveData.member.lastname}` : 'Unknown',
+      memberName: moveData.member ? (moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown') : 'Unknown',
       fromGroup: moveData.fromGroupNumber,
       toGroup: moveData.toGroupNumber,
       error: error.message,
@@ -176,7 +176,7 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
     try {
       logger.debug(`Processing batch move ${index + 1}/${moves.length}`, {
         memberId: move.member?.scoutid,
-        memberName: move.member ? `${move.member.firstname} ${move.member.lastname}` : 'Unknown',
+        memberName: move.member ? (move.member.name || `${move.member.firstname} ${move.member.lastname}` || 'Unknown') : 'Unknown',
       }, LOG_CATEGORIES.API);
 
       const result = await assignMemberToCampGroup(move, flexiRecordContext, token);
@@ -281,6 +281,24 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
  * @returns {Object} Validation result with success/error details
  */
 export function validateMemberMove(member, targetGroupNumber, currentGroups) {
+  // Debug: Log validation input to diagnose undefined member
+  console.log('validateMemberMove called with:', {
+    member,
+    memberDefined: !!member,
+    memberType: typeof member,
+    personType: member?.person_type,
+    targetGroupNumber,
+    hasCurrentGroups: !!currentGroups,
+  });
+
+  // Validate member object exists
+  if (!member) {
+    return {
+      valid: false,
+      error: 'Cannot find member: member object is undefined',
+    };
+  }
+
   // Only Young People can be moved between camp groups
   if (member.person_type !== 'Young People') {
     return {
