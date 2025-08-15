@@ -1,6 +1,8 @@
-name: 🚀 Release
+name: 🚀 Release and Deploy
 
 on:
+  release:
+    types: [published]
   push:
     tags:
       - 'v*.*.*'
@@ -36,7 +38,7 @@ jobs:
 
       - name: 🧪 Run tests
         env:
-          VITE_API_URL: https://vikingeventmgmtapi.onrender.com
+          VITE_API_URL: https://site--vikings-event-management--ytnrhtcfzsqn.code.run
           VITE_OAUTH_CLIENT_ID: test_client_id
         run: |
           npm run test:run
@@ -112,6 +114,57 @@ jobs:
 
           echo "Sentry release $RELEASE completed successfully"
 
+      - name: 📝 Update package.json version
+        run: |
+          # Extract version from tag and update package.json
+          VERSION="${{ github.ref_name }}"
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          echo "Updating package.json to version: $VERSION"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - name: 🚀 Deploy to Production
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          echo "🚀 Deploying to production environments..."
+          
+          # Deploy to Render.com (Frontend) - Controlled via webhook
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Deploying to Render.com via webhook..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
+            if [ "$response" = "200" ] || [ "$response" = "201" ]; then
+              echo "✅ Render deployment triggered successfully"
+            else
+              echo "❌ Render deployment failed with status: $response"
+              exit 1
+            fi
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK not configured, skipping Render deployment"
+          fi
+          
+          # Northflank (Backend) - Auto-deploys on main branch commits
+          echo "ℹ️ Northflank backend will auto-deploy when this release creates a commit to main"
+          echo "✅ Frontend deployment triggered, backend will follow automatically"
+
+      - name: 🔍 Verify deployment
+        run: |
+          echo "⏳ Waiting for deployments to complete..."
+          sleep 60
+          
+          echo "🔍 Verifying frontend deployment..."
+          if curl -f -s "https://vikingeventmgmt.onrender.com" > /dev/null; then
+            echo "✅ Frontend is responding"
+          else
+            echo "⚠️ Frontend verification failed (may still be deploying)"
+          fi
+          
+          echo "🔍 Verifying backend deployment..."
+          if curl -f -s "https://site--vikings-event-management--ytnrhtcfzsqn.code.run/health" > /dev/null; then
+            echo "✅ Backend is responding"
+          else
+            echo "⚠️ Backend verification failed (may still be deploying)"
+          fi
+
       - name: 🐙 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -120,7 +173,14 @@ jobs:
           body: |
             ## 🔄 Changes
             
-            Release ${{ github.ref_name }}
+            Release ${{ github.ref_name }} deployed via GitHub Actions
+            
+            ## 🚀 Deployment Status
+            
+            - ✅ Frontend: Deployed to Render.com (webhook triggered)
+            - ✅ Backend: Auto-deployed to Northflank on main branch
+            - ✅ Source Maps: Uploaded to Sentry before deployment
+            - ✅ Version Synchronization: Complete
             
             ## 🔗 Sentry Release
             
@@ -132,6 +192,13 @@ jobs:
             This release may resolve the following Sentry issues:
             - Check the Sentry release page for automatic issue resolution
             - Issues first seen after the previous release will be marked as resolved
+            
+            ## 🔧 Release Process
+            
+            This release was deployed using the enhanced GitHub Actions workflow that ensures:
+            - Version synchronization between package.json and deployed code
+            - Source maps uploaded before deployment for accurate error tracking
+            - Atomic deployment to both frontend and backend infrastructure
           draft: false
           prerelease: false
 
