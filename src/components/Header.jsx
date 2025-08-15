@@ -21,12 +21,12 @@ function Header({
   };
 
   return (
-    <TailwindHeader variant="scout" fixed={false} data-testid="header">
+    <TailwindHeader variant="white" fixed={false} data-testid="header">
       <TailwindHeader.Container>
         <TailwindHeader.Content>
           <TailwindHeader.Left>
             <TailwindHeader.Title 
-              className="text-lg md:text-xl font-semibold text-white"
+              className="text-lg md:text-xl font-semibold text-scout-blue"
               data-testid="app-title"
             >
               <span className="hidden md:inline">Viking Scouts (1st Walton on Thames)</span>
@@ -60,11 +60,11 @@ function Header({
             {/* User menu (when authenticated) */}
             {user && (
               <div className="flex items-center gap-2 md:gap-3">
-                <span className="text-white text-sm md:text-base hidden md:inline">
+                <span className="text-gray-700 text-sm md:text-base hidden md:inline">
                   Hi, {user.firstname}
                 </span>
                 <Button
-                  variant="scout-red"
+                  variant="outline-scout-red"
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"

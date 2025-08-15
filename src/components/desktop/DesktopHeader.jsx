@@ -22,10 +22,10 @@ function DesktopHeader({
   };
 
   return (
-    <header className="bg-scout-blue text-white shadow-lg px-6 py-4">
+    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         <div className="flex items-center">
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-scout-blue">
             Viking Scouts (1st Walton on Thames)
           </h1>
         </div>
@@ -56,7 +56,7 @@ function DesktopHeader({
 
           {user && (
             <div className="flex items-center space-x-3">
-              <span className="text-white font-medium">
+              <span className="text-gray-700 font-medium">
                 Hi, {user.firstname}
                 {isOfflineMode && (
                   <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
@@ -66,7 +66,7 @@ function DesktopHeader({
               </span>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="scout-red"
+                  variant="outline-scout-red"
                   size="sm"
                   onClick={handleLogout}
                   type="button"
