@@ -69,7 +69,7 @@ Live Data   Rate Limit    User Interface  Fast Cache  Offline Store
 ### Setup & Development
 - **[Mobile Setup](./MOBILE_SETUP.md)** - Capacitor configuration for iOS/Android
 - **[Testing Strategy](./MOBILE_TESTING_STRATEGY.md)** - Unit, integration, and E2E testing
-- **[Environment Variables](./ENVIRONMENT_VARIABLES.md)** - Configuration and security
+- **[Environment Configuration](./architecture/DEPLOYMENT.md#environment-configuration)** - Configuration and security
 
 ### Technical References
 - **[Database Schema](./DATABASE_SCHEMA.md)** - SQLite table structure and relationships
