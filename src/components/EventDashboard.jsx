@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { getUserRoles, getListOfMembers, getAPIQueueStats } from '../services/api.js';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  getUserRoles,
+  getListOfMembers,
+  getAPIQueueStats,
+} from '../services/api.js';
 import { getToken, generateOAuthUrl } from '../services/auth.js';
 import { authHandler } from '../services/simpleAuthHandler.js';
 import LoadingScreen from './LoadingScreen.jsx';
 import SectionsList from './SectionsList.jsx';
 import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
-import { Button, Alert } from './ui';
+import { Button, Alert, Card } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
-import { 
+import {
   fetchAllSectionEvents,
-  fetchEventAttendance, 
-  groupEventsByName, 
+  fetchEventAttendance,
+  groupEventsByName,
   buildEventCard,
   filterEventsByDateRange,
 } from '../utils/eventDashboardHelpers.js';
@@ -22,13 +26,33 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
-  const [queueStats, setQueueStats] = useState({ queueLength: 0, processing: false, totalRequests: 0 });
+  const [queueStats, setQueueStats] = useState({
+    queueLength: 0,
+    processing: false,
+    totalRequests: 0,
+  });
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
-  const [isOfflineMode, setIsOfflineMode] = useState(false); // Track if we're in offline mode due to auth failure
   
+  // Simple view toggle state
+  const [currentView, setCurrentView] = useState('events'); // 'events' or 'sections'
+  
+  // Section selection state for the Sections card
+  const [selectedSections, setSelectedSections] = useState([]);
+
+  // Handle section selection for the Sections card
+  const handleSectionToggleForCard = (section) => {
+    setSelectedSections(prev => {
+      const isSelected = prev.some(s => s.sectionid === section.sectionid);
+      if (isSelected) {
+        return prev.filter(s => s.sectionid !== section.sectionid);
+      } else {
+        return [...prev, section];
+      }
+    });
+  };
+
   // Modal state for confirmation dialogs
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalData, setConfirmModalData] = useState({
@@ -40,31 +64,36 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     cancelText: 'Cancel',
   });
 
+  // Component mount tracking and timeout management
+  const isMountedRef = useRef(false);
+  const backgroundSyncTimeoutIdRef = useRef(null);
+
   useEffect(() => {
     let mounted = true;
-    
+    isMountedRef.current = true;
+
     const initializeDashboard = async () => {
       if (!mounted) return; // Prevent duplicate calls in StrictMode
-      
+
       // Additional StrictMode protection: use a global flag to prevent multiple initializations
       const initKey = 'eventdashboard_initializing';
       if (sessionStorage.getItem(initKey) === 'true') {
         return; // Skip duplicate initialization
       }
-      
+
       try {
         sessionStorage.setItem(initKey, 'true');
         await loadInitialData();
-        
+
         if (!mounted) return; // Check again after async operation
       } finally {
         // Clear the flag after initialization completes (success or failure)
         sessionStorage.removeItem(initKey);
       }
     };
-    
+
     initializeDashboard();
-    
+
     // Update queue stats every second
     const interval = setInterval(() => {
       if (!mounted) return;
@@ -73,10 +102,14 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setQueueStats(stats);
       }
     }, 1000);
-    
+
     return () => {
       mounted = false;
+      isMountedRef.current = false;
       clearInterval(interval);
+      if (backgroundSyncTimeoutIdRef.current) {
+        clearTimeout(backgroundSyncTimeoutIdRef.current);
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -84,123 +117,146 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if we have offline data
       const hasOfflineData = await databaseService.hasOfflineData();
-      
+
       // Check if data is recent enough (less than 30 minutes old)
-      const lastSyncTime = localStorage.getItem('viking_last_sync');
-      const isDataFresh = lastSyncTime && 
-        (Date.now() - new Date(lastSyncTime).getTime()) < 30 * 60 * 1000; // 30 minutes
-      
-      // Debug logging for initialization flow
-      const token = getToken();
-      const authFailed = authHandler.hasAuthFailed();
-      
-      if (import.meta.env.DEV) {
-        logger.debug('EventDashboard loadInitialData', {
-          hasOfflineData,
-          isDataFresh,
-          lastSyncTime,
-          hasToken: !!token,
-          authFailed,
-        }, LOG_CATEGORIES.COMPONENT);
-      }
-      
+      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+      const lastSyncMs = Number(lastSyncEpoch);
+      const isDataFresh =
+        lastSyncEpoch &&
+        Number.isFinite(lastSyncMs) &&
+        Date.now() - lastSyncMs < 30 * 60 * 1000; // 30 minutes
+
+      // EventDashboard initialization - minimal logging
+
       if (hasOfflineData && isDataFresh) {
         // Recent cached data available - use cache
-        if (import.meta.env.DEV) {
-          logger.debug('Using fresh cached data', {}, LOG_CATEGORIES.COMPONENT);
-        }
+        // Using fresh cached data
         await loadCachedData();
       } else if (hasOfflineData && !isDataFresh) {
         // Stale cached data - load cache first, then auto-sync in background
-        if (import.meta.env.DEV) {
-          logger.debug('Using stale cached data, will sync in background', {}, LOG_CATEGORIES.COMPONENT);
-        }
+        // Using stale cached data, will sync in background
         await loadCachedData();
-        
+
         // Auto-sync in background only if auth hasn't failed
-        setTimeout(async () => {
+        backgroundSyncTimeoutIdRef.current = setTimeout(async () => {
           try {
+            if (!isMountedRef.current) return;
+            
             if (authHandler.hasAuthFailed()) {
-              if (import.meta.env.DEV) {
-                logger.debug('Background sync skipped - auth failed', {}, LOG_CATEGORIES.COMPONENT);
-              }
-              setIsOfflineMode(true);
               return;
             }
-            
+
             const token = getToken();
             if (!token) {
-              if (import.meta.env.DEV) {
-                logger.debug('Background sync skipped - no token', {}, LOG_CATEGORIES.COMPONENT);
-              }
               return;
             }
-            
-            if (import.meta.env.DEV) {
-              logger.debug('Starting background sync', {}, LOG_CATEGORIES.COMPONENT);
-            }
+
+            // Starting background sync
             await syncData();
           } catch (error) {
             // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
             if (import.meta.env.DEV) {
-              logger.debug('Background sync failed', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+              logger.debug(
+                'Background sync failed',
+                { error: error.message },
+                LOG_CATEGORIES.COMPONENT,
+              );
             }
           }
         }, 1000);
       } else {
         // No cached data - check if we should attempt sync
         if (import.meta.env.DEV) {
-          logger.debug('No cached data found - attempting sync', {}, LOG_CATEGORIES.COMPONENT);
+          logger.debug(
+            'No cached data found - attempting sync',
+            {},
+            LOG_CATEGORIES.COMPONENT,
+          );
         }
-        
+
         if (authHandler.hasAuthFailed()) {
           if (import.meta.env.DEV) {
-            logger.debug('Sync skipped - auth already failed', {}, LOG_CATEGORIES.COMPONENT);
+            logger.debug(
+              'Sync skipped - auth already failed',
+              {},
+              LOG_CATEGORIES.COMPONENT,
+            );
           }
-          setError('Authentication expired and no cached data available. Please reconnect to OSM.');
-          setIsOfflineMode(true);
+          setError(
+            'Authentication expired and no cached data available. Please reconnect to OSM.',
+          );
           return;
         }
-        
+
         const token = getToken();
         if (!token) {
           if (import.meta.env.DEV) {
-            logger.debug('Sync skipped - no token available', {}, LOG_CATEGORIES.COMPONENT);
+            logger.debug(
+              'Sync skipped - no token available',
+              {},
+              LOG_CATEGORIES.COMPONENT,
+            );
           }
           return;
         }
-        
+
         if (import.meta.env.DEV) {
-          logger.debug('Starting fresh data sync', {}, LOG_CATEGORIES.COMPONENT);
+          logger.debug(
+            'Starting fresh data sync',
+            {},
+            LOG_CATEGORIES.COMPONENT,
+          );
         }
         await syncData();
       }
     } catch (err) {
-      logger.error('Error loading initial data', { error: err }, LOG_CATEGORIES.COMPONENT);
-      
+      logger.error(
+        'Error loading initial data',
+        { error: err },
+        LOG_CATEGORIES.COMPONENT,
+      );
+
       // Check if this is an auth error and we have some cached sections
-      const cachedSections = await databaseService.getSections().catch(() => []);
-      if ((err.status === 401 || err.status === 403 || err.message?.includes('Authentication failed')) && cachedSections.length > 0) {
-        logger.info('Auth error during initial load but cached data available - enabling offline mode');
+      const cachedSections = await databaseService
+        .getSections()
+        .catch(() => []);
+      if (
+        err && (
+          err.status === 401 ||
+          err.status === 403 ||
+          (err.message && err.message.includes('Authentication failed'))
+        ) &&
+        cachedSections.length > 0
+      ) {
+        logger.info(
+          'Auth error during initial load but cached data available - enabling offline mode',
+        );
         setSections(cachedSections);
-        setIsOfflineMode(true);
-        
+
         // Try to load cached event cards
         try {
           const cards = await buildEventCards(cachedSections);
           setEventCards(cards);
         } catch (cardError) {
-          logger.warn('Failed to build cached event cards', { error: cardError });
+          logger.warn('Failed to build cached event cards', {
+            error: cardError,
+          });
         }
-        
+
         // Set last sync time from localStorage if available
-        const lastSyncTime = localStorage.getItem('viking_last_sync');
-        if (lastSyncTime) {
-          setLastSync(new Date(lastSyncTime));
+        const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+        if (lastSyncEpoch) {
+          const lastSyncMs = Number(lastSyncEpoch);
+          if (Number.isFinite(lastSyncMs)) {
+            setLastSync(new Date(lastSyncMs));
+          } else {
+            // Fallback for old ISO string format
+            setLastSync(new Date(lastSyncEpoch));
+          }
         }
       } else {
         setError(err.message);
@@ -215,90 +271,122 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Load sections from cache
       const cachedSections = await databaseService.getSections();
       setSections(cachedSections);
-      
+
       // Load events and build cards
       const cards = await buildEventCards(cachedSections);
       setEventCards(cards);
-      
+
       // Set last sync time from localStorage
-      const lastSyncTime = localStorage.getItem('viking_last_sync');
-      if (lastSyncTime) {
-        setLastSync(new Date(lastSyncTime));
+      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+      if (lastSyncEpoch) {
+        const lastSyncMs = Number(lastSyncEpoch);
+        if (Number.isFinite(lastSyncMs)) {
+          setLastSync(new Date(lastSyncMs));
+        } else {
+          // Fallback for old ISO string format
+          setLastSync(new Date(lastSyncEpoch));
+        }
       }
     } catch (err) {
-      logger.error('Error loading cached data', { error: err }, LOG_CATEGORIES.COMPONENT);
+      logger.error(
+        'Error loading cached data',
+        { error: err },
+        LOG_CATEGORIES.COMPONENT,
+      );
       throw err;
     }
   };
 
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
+    let dataSource = 'api'; // Track whether data came from API or cache
+    
     try {
-      if (import.meta.env.DEV) {
-        logger.debug('syncData: Starting sync process', {}, LOG_CATEGORIES.SYNC);
-      }
-      setSyncing(true);
+      // Starting sync process
       setError(null);
-      setIsOfflineMode(false);
-      
+
       const token = getToken();
       if (import.meta.env.DEV) {
-        logger.debug('syncData: Token available', { hasToken: !!token }, LOG_CATEGORIES.SYNC);
+        logger.debug(
+          'syncData: Token available',
+          { hasToken: !!token },
+          LOG_CATEGORIES.SYNC,
+        );
       }
-      
+
       // 1. Fetch all sections
       if (import.meta.env.DEV) {
-        logger.debug('syncData: Fetching user roles/sections', {}, LOG_CATEGORIES.SYNC);
+        logger.debug(
+          'syncData: Fetching user roles/sections',
+          {},
+          LOG_CATEGORIES.SYNC,
+        );
       }
       const sectionsData = await getUserRoles(token);
       if (import.meta.env.DEV) {
-        logger.debug('syncData: Received sections', { count: sectionsData.length }, LOG_CATEGORIES.SYNC);
+        logger.debug(
+          'syncData: Received sections',
+          { count: sectionsData.length },
+          LOG_CATEGORIES.SYNC,
+        );
       }
       setSections(sectionsData);
       await databaseService.saveSections(sectionsData);
-      
+
       // 2. Fetch events for each section and build cards
       if (import.meta.env.DEV) {
         logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
       }
       const cards = await buildEventCards(sectionsData, token);
       if (import.meta.env.DEV) {
-        logger.debug('syncData: Built event cards', { count: cards.length }, LOG_CATEGORIES.SYNC);
+        logger.debug(
+          'syncData: Built event cards',
+          { count: cards.length },
+          LOG_CATEGORIES.SYNC,
+        );
       }
       setEventCards(cards);
-      
+
       // 3. Proactively load member data in background (non-blocking)
       loadMemberDataInBackground(sectionsData, token);
-      
+
       // Update last sync time
       const now = new Date();
       setLastSync(now);
-      localStorage.setItem('viking_last_sync', now.toISOString());
+      localStorage.setItem('viking_last_sync', now.getTime().toString());
+
+      // Data was successfully synced from API if we reached this point
+      dataSource = 'api';
       if (import.meta.env.DEV) {
-        logger.debug('syncData: Sync completed successfully', {}, LOG_CATEGORIES.SYNC);
+        logger.debug(
+          'syncData: Sync completed successfully',
+          { dataSource },
+          LOG_CATEGORIES.SYNC,
+        );
       }
-      
     } catch (err) {
       logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
-      
+
       // Check if auth failed and we have cached data
       if (authHandler.hasAuthFailed() && sections.length > 0) {
-        logger.info('Auth failed but cached data available - enabling offline mode');
-        setIsOfflineMode(true);
+        logger.info(
+          'Auth failed but cached data available - enabling offline mode',
+        );
         setError(null); // Clear error since we can show cached data
-        
+        dataSource = 'cache'; // Explicitly mark as cached data
+
         // Load cached event cards instead of making more API calls
         try {
           const cards = await buildEventCards(sections); // Use cached sections, no token
           setEventCards(cards);
         } catch (cardError) {
-          logger.warn('Failed to build cached event cards after auth error', { error: cardError });
+          logger.warn('Failed to build cached event cards after auth error', {
+            error: cardError,
+          });
         }
       } else {
         setError(err.message);
       }
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -308,76 +396,83 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (!token || authHandler.hasAuthFailed()) {
         return;
       }
-      
-      
+
       // Use getListOfMembers which already handles caching properly
       await getListOfMembers(sectionsData, token);
-      
-      
     } catch (error) {
       // Don't show error to user - this is background loading
-      logger.warn('Background member loading failed', { 
-        error: error.message,
-        sectionCount: sectionsData.length, 
-      }, LOG_CATEGORIES.COMPONENT);
+      logger.warn(
+        'Background member loading failed',
+        {
+          error: error.message,
+          sectionCount: sectionsData.length,
+        },
+        LOG_CATEGORIES.COMPONENT,
+      );
     }
   };
 
-  // Reconnect function to handle authentication refresh
-  const handleReconnect = () => {
-    logger.info('User requested reconnection - redirecting to OAuth');
-    const oauthUrl = generateOAuthUrl();
-    window.location.href = oauthUrl;
-  };
-
-  
 
   const buildEventCards = async (sectionsData, token = null) => {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
+
     // Fetch events for all sections with optimized terms loading
     const allEvents = await fetchAllSectionEvents(sectionsData, token);
-    
+
     // Filter for future events and events from last week
     const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
-    
-    // Fetch attendance data for filtered events
+
+    // Fetch attendance data for filtered events (without mutating original events)
+    const attendanceMap = new Map();
     for (const event of filteredEvents) {
       try {
         const attendanceData = await fetchEventAttendance(event, token);
-        event.attendanceData = attendanceData;
+        if (attendanceData) {
+          attendanceMap.set(event.eventid, attendanceData);
+        }
       } catch (err) {
-        logger.error('Error fetching attendance for event {eventId}', { 
-          error: err, 
-          eventId: event.eventid,
-          eventName: event.name,
-        }, LOG_CATEGORIES.COMPONENT);
+        logger.error(
+          'Error fetching attendance for event {eventId}',
+          {
+            error: err,
+            eventId: event.eventid,
+            eventName: event.name,
+          },
+          LOG_CATEGORIES.COMPONENT,
+        );
       }
     }
-    
+
     // Group events by name
     const eventGroups = groupEventsByName(filteredEvents);
-    
-    // Convert groups to cards
+
+    // Convert groups to cards with attendance data
     const cards = [];
     for (const [eventName, events] of eventGroups) {
-      const card = buildEventCard(eventName, events);
+      // Enrich events with attendance data without mutating originals
+      const eventsWithAttendance = events.map(event => ({
+        ...event,
+        attendanceData: attendanceMap.get(event.eventid) || null,
+      }));
+      
+      const card = buildEventCard(eventName, eventsWithAttendance);
+      // Store original events for navigation (preserves termid integrity)
+      card.originalEvents = events;
       cards.push(card);
     }
-    
+
     // Sort cards by earliest event date
     cards.sort((a, b) => a.earliestDate - b.earliestDate);
-    
+
     return cards;
   };
 
-  const handleSectionSelect = async (section) => {
+  const _handleSectionSelect = async (section) => {
     try {
       // Set loading state for this specific section
       setLoadingSection(section.sectionid);
-      
-      
+
       // Try to load cached members first
       let members = [];
       try {
@@ -385,7 +480,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       } catch (cacheError) {
         // Ignore cache errors - will fallback to empty array
       }
-      
       if (members.length > 0) {
         onNavigateToMembers(section, members);
       } else {
@@ -409,19 +503,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           cancelText: 'Use Empty',
         });
         setShowConfirmModal(true);
-        
+
         // The modal will handle the user's response
         return;
       }
-      
     } catch (err) {
-      logger.error('Error loading members for section', { 
-        error: err,
-        sectionId: section.sectionid,
-        sectionName: section.sectionname,
-      }, LOG_CATEGORIES.COMPONENT);
+      logger.error(
+        'Error loading members for section',
+        {
+          error: err,
+          sectionId: section.sectionid,
+          sectionName: section.sectionname,
+        },
+        LOG_CATEGORIES.COMPONENT,
+      );
       setError(`Failed to load members: ${err.message}`);
-      
+
       // Fallback to empty members screen
       onNavigateToMembers(section, []);
     } finally {
@@ -434,22 +531,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       // Set loading state for this specific event card
       setLoadingAttendees(eventCard.id);
-      
+
       // Extract all unique section IDs from the events in this card
-      const sectionIds = [...new Set(eventCard.events.map(event => event.sectionid))];
-      
-      
+      const sectionIds = Array.from(
+        new Set(eventCard.events.map((event) => event.sectionid)),
+      );
+
       // Try to load from cache first
       let members = [];
       try {
         members = await databaseService.getMembers(sectionIds);
       } catch (cacheErr) {
-        
         // Find the corresponding section objects for these IDs
-        const involvedSections = sections.filter(section => 
+        const involvedSections = sections.filter((section) =>
           sectionIds.includes(section.sectionid),
         );
-        
+
         // Fallback to API call
         const token = getToken();
         if (!token) {
@@ -457,16 +554,20 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           window.location.href = oauthUrl;
           return;
         }
-        
+
         try {
           members = await getListOfMembers(involvedSections, token);
         } catch (apiError) {
           // Check if it's an authentication error
-          if (apiError.status === 401 || apiError.status === 403 || 
-              apiError.message.includes('Invalid access token') || 
-              apiError.message.includes('Token expired') ||
-              apiError.message.includes('Unauthorized')) {
-            
+          if (
+            apiError &&
+            typeof apiError === 'object' &&
+            (apiError.status === 401 ||
+            apiError.status === 403 ||
+            apiError.message?.includes('Invalid access token') ||
+            apiError.message?.includes('Token expired') ||
+            apiError.message?.includes('Unauthorized'))
+          ) {
             const oauthUrl = generateOAuthUrl();
             window.location.href = oauthUrl;
             return;
@@ -474,16 +575,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           throw apiError; // Re-throw non-auth errors
         }
       }
+
+      // Navigate to attendance view with original events (preserves termid integrity)
+      const eventsToNavigate = eventCard.originalEvents || eventCard.events;
       
-      // Navigate to attendance view with both events and members
-      onNavigateToAttendance(eventCard.events, members);
       
+      onNavigateToAttendance(eventsToNavigate, members);
     } catch (err) {
-      logger.error('Error loading members for attendance view', { 
-        error: err,
-        eventName: eventCard.name,
-        eventCount: eventCard.events.length,
-      }, LOG_CATEGORIES.COMPONENT);
+      logger.error(
+        'Error loading members for attendance view',
+        {
+          error: err,
+          eventName: eventCard.name,
+          eventCount: eventCard.events.length,
+        },
+        LOG_CATEGORIES.COMPONENT,
+      );
       setError(`Failed to load members: ${err.message}`);
     } finally {
       // Clear loading state
@@ -491,21 +598,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-
-  const formatLastSync = (date) => {
-    if (!date) return 'Never';
-    
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
 
   if (loading) {
     return <LoadingScreen message="Loading dashboard..." />;
@@ -517,11 +609,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         <Alert.Title>Error Loading Dashboard</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
-          <Button 
-            variant="scout-blue"
-            onClick={loadInitialData}
-            type="button"
-          >
+          <Button variant="scout-blue" onClick={loadInitialData} type="button">
             Retry
           </Button>
         </Alert.Actions>
@@ -536,111 +624,113 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Event Dashboard</h1>
-              <div className="space-y-1">
-                <p className="text-sm text-gray-600">
-                  Last updated: {formatLastSync(lastSync)}
-                  {!lastSync && ' (Never synced)'}
-                  {isOfflineMode && (
-                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                      🔒 Offline Mode
-                    </span>
-                  )}
-                </p>
-                {(queueStats.processing || queueStats.queueLength > 0) && (
-                  <p className="text-xs text-blue-600">
-                    API Queue: {queueStats.processing ? 'Processing' : 'Idle'} • 
-                    {queueStats.queueLength} pending • {queueStats.totalRequests} total
-                  </p>
-                )}
-                {isOfflineMode && (
-                  <p className="text-xs text-amber-600">
-                    🔒 Authentication expired - showing cached data only
-                  </p>
-                )}
-                {!lastSync && (
-                  <p className="text-xs text-amber-600">
-                    📡 No data cached - click Sync to load from OSM
-                  </p>
-                )}
+              {/* Clean tab-style navigation */}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentView('events')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentView === 'events'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📅 Events
+                </button>
+                <button
+                  onClick={() => setCurrentView('sections')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    currentView === 'sections'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  👥 Sections
+                </button>
               </div>
+              
+              {/* Show queue stats if active */}
+              {(queueStats.processing || queueStats.queueLength > 0) && (
+                <div className="mt-2">
+                  <p className="text-xs text-blue-600">
+                    API Queue: {queueStats.processing ? 'Processing' : 'Idle'} •
+                    {queueStats.queueLength} pending •{' '}
+                    {queueStats.totalRequests} total
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              {isOfflineMode && (
-                <Button
-                  variant="scout-green"
-                  onClick={handleReconnect}
-                  type="button"
-                  className="flex items-center gap-2"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Reconnect
-                </Button>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Sections selector */}
-        <div className="mb-8" data-testid="sections-list">
-          <SectionsList 
-            sections={sections}
-            selectedSections={[]} // No selection needed, just for display
-            onSectionToggle={handleSectionSelect}
-            showContinueButton={false}
-            loadingSection={loadingSection}
-          />
-        </div>
+        {/* Sections Card */}
+        {currentView === 'sections' && (
+          <div className="mb-8" data-testid="sections-list">
+            <SectionsList
+              sections={sections}
+              selectedSections={selectedSections}
+              onSectionToggle={handleSectionToggleForCard}
+              showContinueButton={false}
+              loadingSection={loadingSection}
+            />
+          </div>
+        )}
 
-        {/* Event Cards */}
-        <div className="space-y-6">
-          {eventCards.length > 0 ? (
-            <>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Upcoming Events ({eventCards.length})
+        {/* Events Card */}
+        {currentView === 'events' && (
+          <Card>
+            <div className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold leading-6 text-gray-900">
+                Upcoming Events {eventCards.length > 0 && `(${eventCards.length})`}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {eventCards.map((card) => (
-                  <EventCard
-                    key={card.id}
-                    eventCard={card}
-                    onViewAttendees={handleViewAttendees}
-                    loading={loadingAttendees === card.id}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-gray-500 mb-4">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Upcoming Events</h3>
-              <p className="text-gray-600 mb-4">
-                {!lastSync 
-                  ? 'Click the "Sync" button (top-right) to retrieve event data from OSM.' 
-                  : 'No events found for the next week or events from the past week. Try syncing to get the latest data.'
-                }
-              </p>
-              <Button
-                variant="scout-blue"
-                onClick={syncData}
-                disabled={syncing}
-                type="button"
-              >
-                {syncing ? 'Syncing...' : 'Sync Now'}
-              </Button>
             </div>
-          )}
-        </div>
+            <div className="p-4">
+              {eventCards.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {eventCards.map((card) => (
+                    <EventCard
+                      key={card.id}
+                      eventCard={card}
+                      onViewAttendees={handleViewAttendees}
+                      loading={loadingAttendees === card.id}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-gray-500 mb-4">
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No Upcoming Events
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {!lastSync
+                      ? 'Click "Sign in to OSM" in the header to retrieve event data.'
+                      : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
-      
+
       {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={showConfirmModal}
@@ -649,16 +739,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         confirmText={confirmModalData.confirmText}
         cancelText={confirmModalData.cancelText}
         onConfirm={confirmModalData.onConfirm}
-        onCancel={confirmModalData.onCancel || (() => {
-          setShowConfirmModal(false);
-          // Safe fallback - only navigate if we have a valid section
-          if (loadingSection && sections.length > 0) {
-            const section = sections.find(s => s.sectionid === loadingSection);
-            if (section) {
-              onNavigateToMembers(section, []);
-            }
-          }
-        })}
+        onCancel={
+          confirmModalData.onCancel || 
+          (() => {
+            setShowConfirmModal(false);
+            setLoadingSection(null);
+          })
+        }
       />
     </div>
   );

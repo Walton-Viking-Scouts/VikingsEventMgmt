@@ -316,11 +316,33 @@ export async function getTerms(token, forceRefresh = false) {
     const terms = data || {};
     
     // Cache terms data with timestamp
-    const cachedTerms = {
-      ...terms,
-      _cacheTimestamp: Date.now(),
-    };
-    safeSetItem(cacheKey, cachedTerms);
+    // Cache terms data - enhanced error handling for visibility  
+    try {
+      const cachedTerms = {
+        ...terms,
+        _cacheTimestamp: Date.now(),
+      };
+      const success = safeSetItem(cacheKey, cachedTerms);
+      if (success) {
+        logger.info('Terms successfully cached', {
+          cacheKey,
+          termCount: terms.length,
+          dataSize: JSON.stringify(cachedTerms).length,
+        }, LOG_CATEGORIES.API);
+      } else {
+        logger.error('Terms caching failed - safeSetItem returned false', {
+          cacheKey,
+          termCount: terms.length,
+          dataSize: JSON.stringify(cachedTerms).length,
+        }, LOG_CATEGORIES.ERROR);
+      }
+    } catch (cacheError) {
+      logger.error('Terms caching error', {
+        cacheKey,
+        error: cacheError.message,
+        termCount: terms.length,
+      }, LOG_CATEGORIES.ERROR);
+    }
     
     return terms; // Return original data without timestamp
     
@@ -461,7 +483,7 @@ export async function getUserRoles(token) {
         }
 
         span.setAttribute('data.source', 'api');
-        logger.debug('Making API request for user roles');
+        // Making request to fetch user roles
 
         const data = await withRateLimitQueue(async () => {
           const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
@@ -764,12 +786,33 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       flexiData = data || { identifier: null, label: null, items: [] };
     }
     
-    // Cache data with timestamp
-    const cachedData = {
-      ...flexiData,
-      _cacheTimestamp: Date.now(),
-    };
-    safeSetItem(storageKey, cachedData);
+    // Cache data with timestamp - enhanced error handling like getMembersGrid fix
+    try {
+      const cachedData = {
+        ...flexiData,
+        _cacheTimestamp: Date.now(),
+      };
+      const success = safeSetItem(storageKey, cachedData);
+      if (success) {
+        logger.info('FlexiRecord list successfully cached', {
+          storageKey,
+          itemCount: flexiData.items?.length || 0,
+          dataSize: JSON.stringify(cachedData).length,
+        }, LOG_CATEGORIES.API);
+      } else {
+        logger.error('FlexiRecord list caching failed - safeSetItem returned false', {
+          storageKey,
+          itemCount: flexiData.items?.length || 0,
+          dataSize: JSON.stringify(cachedData).length,
+        }, LOG_CATEGORIES.ERROR);
+      }
+    } catch (cacheError) {
+      logger.error('FlexiRecord list caching error', {
+        storageKey,
+        error: cacheError.message,
+        itemCount: flexiData.items?.length || 0,
+      }, LOG_CATEGORIES.ERROR);
+    }
     
     return flexiData; // Return original data without timestamp
 
@@ -895,13 +938,34 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     });
     const structureData = data || null;
     
-    // Cache data for offline use
+    // Cache data for offline use - enhanced error handling like getMembersGrid fix
     if (structureData) {
-      const cachedData = {
-        ...structureData,
-        _cacheTimestamp: Date.now(),
-      };
-      safeSetItem(storageKey, cachedData);
+      try {
+        const cachedData = {
+          ...structureData,
+          _cacheTimestamp: Date.now(),
+        };
+        const success = safeSetItem(storageKey, cachedData);
+        if (success) {
+          logger.info('FlexiRecord structure successfully cached', {
+            storageKey,
+            structureName: structureData.name || 'Unknown',
+            dataSize: JSON.stringify(cachedData).length,
+          }, LOG_CATEGORIES.API);
+        } else {
+          logger.error('FlexiRecord structure caching failed - safeSetItem returned false', {
+            storageKey,
+            structureName: structureData.name || 'Unknown',
+            dataSize: JSON.stringify(cachedData).length,
+          }, LOG_CATEGORIES.ERROR);
+        }
+      } catch (cacheError) {
+        logger.error('FlexiRecord structure caching error', {
+          storageKey,
+          error: cacheError.message,
+          structureName: structureData.name || 'Unknown',
+        }, LOG_CATEGORIES.ERROR);
+      }
     }
     
     return structureData;
@@ -951,9 +1015,27 @@ export async function getStartupData(token) {
     const data = await handleAPIResponseWithRateLimit(response, 'getStartupData');
     const startupData = data || null;
     
-    // Cache startup data for offline use
+    // Cache startup data for offline use - enhanced error handling
     if (startupData) {
-      safeSetItem('viking_startup_data_offline', startupData);
+      try {
+        const success = safeSetItem('viking_startup_data_offline', startupData);
+        if (success) {
+          logger.info('Startup data successfully cached', {
+            dataSize: JSON.stringify(startupData).length,
+            hasRoles: !!(startupData.roles),
+            roleCount: startupData.roles?.length || 0,
+          }, LOG_CATEGORIES.API);
+        } else {
+          logger.error('Startup data caching failed - safeSetItem returned false', {
+            dataSize: JSON.stringify(startupData).length,
+          }, LOG_CATEGORIES.ERROR);
+        }
+      } catch (cacheError) {
+        logger.error('Startup data caching error', {
+          error: cacheError.message,
+          hasRoles: !!(startupData.roles),
+        }, LOG_CATEGORIES.ERROR);
+      }
     }
     
     return startupData;
@@ -1069,50 +1151,64 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
-      return data.data.members.map(member => {
-        // Map patrol_id to person type
-        let person_type = 'Young People'; // default
-        if (member.patrol_id === -2) {
-          person_type = 'Leaders';
-        } else if (member.patrol_id === -3) {
-          person_type = 'Young Leaders';
-        }
-        
-        // The backend now provides flattened fields, so we can use them directly
-        // All custom_data fields are now available as flattened properties like:
-        // primary_contact_1_email_1, primary_contact_1_phone_1, etc.
-        
-        return {
-          // Core member info
-          scoutid: member.member_id,
-          member_id: member.member_id,
-          firstname: member.first_name,
-          lastname: member.last_name,
-          date_of_birth: member.date_of_birth,
-          age: member.age,
-          
-          // Section info
-          sectionid: member.section_id,
-          patrol: member.patrol,
-          patrol_id: member.patrol_id,
-          person_type: person_type, // New field for person classification
-          started: member.started,
-          joined: member.joined,
-          active: member.active,
-          end_date: member.end_date,
-          
-          // Photo info
-          photo_guid: member.photo_guid,
-          has_photo: member.pic,
-          
-          // All flattened custom fields are now available directly on the member object
-          // No need to extract them - they're already flattened by the backend
-          ...member, // Spread all fields including flattened custom_data fields
-          
-          // Keep grouped contact data for backward compatibility
-          contact_groups: member.contact_groups,
-        };
-      });
+      const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : [])
+        .map(member => {
+          const scoutId = Number(member.member_id ?? member.scoutid);
+          const sectionIdNum = Number(member.section_id ?? member.sectionid);
+          const patrolId = Number(member.patrol_id ?? member.patrolid);
+          let person_type = 'Young People';
+          if (patrolId === -2) person_type = 'Leaders';
+          else if (patrolId === -3) person_type = 'Young Leaders';
+
+          return {
+            ...member,
+            // Core member info (normalised)
+            scoutid: scoutId,
+            member_id: scoutId,
+            firstname: member.first_name ?? member.firstname,
+            lastname: member.last_name ?? member.lastname,
+            date_of_birth: member.date_of_birth ?? member.dob,
+            age: typeof member.age === 'string' ? Number(member.age) : member.age,
+            // Section info
+            sectionid: sectionIdNum,
+            patrol: member.patrol,
+            patrol_id: patrolId,
+            person_type,
+            started: member.started,
+            joined: member.joined,
+            active: member.active,
+            end_date: member.end_date,
+            // Photo info
+            photo_guid: member.photo_guid,
+            has_photo: (() => {
+              const v = member.has_photo ?? member.pic ?? member.photo_guid;
+              return typeof v === 'string'
+                ? ['1', 'y', 'true'].includes(v.toLowerCase())
+                : Boolean(v);
+            })(),
+            // Backward-compatible grouped contacts
+            contact_groups: member.contact_groups,
+          };
+        })
+        .filter(m => Number.isFinite(m.scoutid) && Number.isFinite(m.sectionid));
+      
+      // CRITICAL FIX: Save the transformed members to cache
+      try {
+        await databaseService.saveMembers([sectionId], transformedMembers);
+        logger.info('Members successfully cached', {
+          sectionId,
+          memberCount: transformedMembers.length,
+        }, LOG_CATEGORIES.API);
+      } catch (saveError) {
+        logger.error('Failed to save members to cache', {
+          sectionId,
+          error: saveError.message,
+          memberCount: transformedMembers.length,
+        }, LOG_CATEGORIES.ERROR);
+        // Don't throw - return the data even if caching fails
+      }
+      
+      return transformedMembers;
     }
 
     return [];
@@ -1190,9 +1286,6 @@ export async function getListOfMembers(sections, token) {
   
   for (const section of validSections) {
     try {
-      // Add delay between sections to prevent rapid API calls
-      await sleep(600);
-      
       // Use cached terms instead of calling API again
       // Defensive check for section ID
       if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance, fetchMostRecentTermId } from '../services/api.js';
+import { getEventAttendance } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -25,13 +26,48 @@ export function useAttendanceData(events) {
       setLoading(true);
       setError(null);
       
+      
+      // Validate event data integrity
+      const hasInvalidEvents = events.some(event => !event.sectionid || event.termid === null || event.termid === undefined);
+      if (events.length > 0 && hasInvalidEvents) {
+        console.error('🚫 Invalid events detected:', events.filter(event => !event.sectionid || event.termid === null || event.termid === undefined));
+        setError('Invalid event data detected. Please refresh the page to reload.');
+        return;
+      }
+      
       const allAttendance = [];
       
-      // Check if events already have cached attendance data
+      // Check cache for attendance data using proper cache keys
       for (const event of events) {
-        if (event.attendanceData && Array.isArray(event.attendanceData)) {
+        // Validate that event has required fields (should be included from eventDashboardHelpers)
+        if (!event.sectionid || !event.termid || !event.eventid) {
+          console.warn('Event missing required fields:', {
+            name: event.name,
+            sectionid: event.sectionid,
+            termid: event.termid,
+            eventid: event.eventid,
+            availableKeys: Object.keys(event),
+          });
+          continue; // Skip this event
+        }
+        
+        // Check if we have cached attendance data for this specific event
+        const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
+        let cachedAttendance = null;
+        
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            cachedAttendance = JSON.parse(cached);
+            console.log(`Found cached attendance for event ${event.name}:`, cachedAttendance.length, 'records');
+          }
+        } catch (error) {
+          console.warn('Failed to parse cached attendance data:', error);
+        }
+        
+        if (cachedAttendance && Array.isArray(cachedAttendance)) {
           // Use cached attendance data
-          const attendanceWithEvent = event.attendanceData.map(record => ({
+          const attendanceWithEvent = cachedAttendance.map(record => ({
             ...record,
             eventid: event.eventid,
             eventname: event.name,
@@ -42,37 +78,32 @@ export function useAttendanceData(events) {
           allAttendance.push(...attendanceWithEvent);
         } else {
           // Fallback to API call if no cached data
+          // NOTE: termid should already be in event object from eventDashboardHelpers
           try {
             const token = getToken();
-            
-            // If termid is missing, get it from API
-            let termId = event.termid;
-            if (!termId) {
-              termId = await fetchMostRecentTermId(event.sectionid, token);
+            if (!token) {
+              console.warn(`No token available for API call for event ${event.name}`);
+              continue;
             }
             
-            if (termId) {
-              const attendance = await getEventAttendance(
-                event.sectionid, 
-                event.eventid, 
-                termId, 
-                token,
-              );
-              
-              if (attendance && Array.isArray(attendance)) {
-                // Add event info to each attendance record
-                const attendanceWithEvent = attendance.map(record => ({
-                  ...record,
-                  eventid: event.eventid,
-                  eventname: event.name,
-                  eventdate: event.startdate,
-                  sectionid: event.sectionid,
-                  sectionname: event.sectionname,
-                }));
-                allAttendance.push(...attendanceWithEvent);
-              }
-            } else {
-              console.warn(`No termid found for event ${event.name} in section ${event.sectionid}`);
+            const attendance = await getEventAttendance(
+              event.sectionid, 
+              event.eventid, 
+              event.termid, // Use termid from event (no need to fetch again)
+              token,
+            );
+            
+            if (attendance && Array.isArray(attendance)) {
+              // Add event info to each attendance record
+              const attendanceWithEvent = attendance.map(record => ({
+                ...record,
+                eventid: event.eventid,
+                eventname: event.name,
+                eventdate: event.startdate,
+                sectionid: event.sectionid,
+                sectionname: event.sectionname,
+              }));
+              allAttendance.push(...attendanceWithEvent);
             }
           } catch (eventError) {
             console.warn(`Error loading attendance for event ${event.name}:`, eventError);
@@ -98,13 +129,55 @@ export function useAttendanceData(events) {
     try {
       const token = getToken();
       
+      // Enhanced logging for debugging deployed environment issues
+      console.log('useAttendanceData: Loading Viking Event data', {
+        eventsCount: events?.length || 0,
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
+      });
+      
+      if (!token) {
+        logger.info(
+          'useAttendanceData: No token available for FlexiRecord loading; attempting cache-only read',
+          {},
+          LOG_CATEGORIES.APP,
+        );
+        try {
+          // forceRefresh=false to use only local cache
+          const cachedMap = await getVikingEventDataForEvents(events, null, false);
+          if (cachedMap) {
+            setVikingEventData(cachedMap);
+          }
+        } catch (cacheErr) {
+          logger.warn(
+            'useAttendanceData: Cache-only Viking Event data load failed',
+            { error: cacheErr.message },
+            LOG_CATEGORIES.APP,
+          );
+        }
+        return;
+      }
+      
       // Load Viking Event Management data for all sections
       // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token);
+      
+      console.log('useAttendanceData: Viking Event data loaded successfully', {
+        sectionsWithData: Array.from(vikingEventMap.entries())
+          .filter(([_, data]) => data !== null)
+          .map(([sectionId, _]) => sectionId),
+        totalSections: vikingEventMap.size,
+      });
+      
       setVikingEventData(vikingEventMap);
       
     } catch (error) {
-      console.warn('Error loading Viking Event Management data:', error);
+      console.error('useAttendanceData: Error loading Viking Event Management data', {
+        error: error.message,
+        stack: error.stack,
+        eventsCount: events?.length || 0,
+      });
       // Don't set error state as this is supplementary data
     }
   };

@@ -13,19 +13,19 @@ const Menu = ({ children, className = '', ...props }) => {
   );
 };
 
-const MenuButton = ({ 
-  children, 
+const MenuButton = ({
+  children,
   onClick,
   variant = 'ghost',
   className = '',
-  ...props 
+  ...props
 }) => {
   const variants = {
     ghost: 'text-gray-700 hover:bg-gray-100 focus:bg-gray-100',
     scout: 'text-white hover:bg-scout-blue-light focus:bg-scout-blue-light',
     solid: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:bg-gray-300',
   };
-  
+
   return (
     <button
       onClick={onClick}
@@ -41,12 +41,12 @@ const MenuButton = ({
   );
 };
 
-const MenuItems = ({ 
+const MenuItems = ({
   isOpen = false,
   position = 'bottom-left',
   className = '',
   children,
-  ...props 
+  ...props
 }) => {
   const positions = {
     'bottom-left': 'top-full left-0 mt-1',
@@ -54,9 +54,9 @@ const MenuItems = ({
     'top-left': 'bottom-full left-0 mb-1',
     'top-right': 'bottom-full right-0 mb-1',
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <div
       className={cn(
@@ -66,27 +66,25 @@ const MenuItems = ({
       )}
       {...props}
     >
-      <div className="py-1">
-        {children}
-      </div>
+      <div className="py-1">{children}</div>
     </div>
   );
 };
 
-const MenuItem = ({ 
+const MenuItem = ({
   children,
   onClick,
   disabled = false,
   variant = 'default',
   className = '',
-  ...props 
+  ...props
 }) => {
   const variants = {
     default: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900',
     scout: 'text-scout-blue hover:bg-scout-blue hover:text-white',
     danger: 'text-red-600 hover:bg-red-50 hover:text-red-700',
   };
-  
+
   return (
     <button
       onClick={onClick}
@@ -105,25 +103,25 @@ const MenuItem = ({
 
 const MenuDivider = ({ className = '', ...props }) => {
   return (
-    <div 
-      className={cn('border-t border-gray-100 my-1', className)} 
-      {...props} 
+    <div
+      className={cn('border-t border-gray-100 my-1', className)}
+      {...props}
     />
   );
 };
 
 // Dropdown wrapper with state management
-const Dropdown = ({ 
-  trigger, 
-  children, 
+const Dropdown = ({
+  trigger,
+  children,
   position = 'bottom-left',
   closeOnClick = true,
   className = '',
-  ...props 
+  ...props
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -131,11 +129,11 @@ const Dropdown = ({
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
   // Close on escape key
   useEffect(() => {
     const handleEscape = (event) => {
@@ -143,15 +141,15 @@ const Dropdown = ({
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
-  
+
   const handleToggle = () => {
     setIsOpen(!isOpen);
   };
-  
+
   const handleItemClick = (callback) => {
     return (...args) => {
       if (closeOnClick) {
@@ -162,12 +160,10 @@ const Dropdown = ({
       }
     };
   };
-  
+
   return (
     <Menu ref={dropdownRef} className={className} {...props}>
-      <div onClick={handleToggle}>
-        {trigger}
-      </div>
+      <div onClick={handleToggle}>{trigger}</div>
       <MenuItems isOpen={isOpen} position={position}>
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === MenuItem) {
@@ -183,12 +179,17 @@ const Dropdown = ({
 };
 
 // Navigation components
-const Nav = ({ children, className = '', variant = 'horizontal', ...props }) => {
+const Nav = ({
+  children,
+  className = '',
+  variant = 'horizontal',
+  ...props
+}) => {
   const variants = {
     horizontal: 'flex space-x-1',
     vertical: 'flex flex-col space-y-1',
   };
-  
+
   return (
     <nav className={cn(variants[variant], className)} {...props}>
       {children}
@@ -196,24 +197,24 @@ const Nav = ({ children, className = '', variant = 'horizontal', ...props }) => 
   );
 };
 
-const NavItem = ({ 
+const NavItem = ({
   children,
   href,
   active = false,
   variant = 'default',
   className = '',
-  ...props 
+  ...props
 }) => {
   const variants = {
     default: 'text-gray-700 hover:text-gray-900 hover:bg-gray-100',
     scout: 'text-white hover:bg-scout-blue-light',
-    pills: active 
-      ? 'bg-scout-blue text-white' 
+    pills: active
+      ? 'bg-scout-blue text-white'
       : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100',
   };
-  
+
   const Component = href ? 'a' : 'button';
-  
+
   return (
     <Component
       href={href}
@@ -237,12 +238,4 @@ Menu.Item = MenuItem;
 Menu.Divider = MenuDivider;
 
 export default Menu;
-export { 
-  MenuButton, 
-  MenuItems, 
-  MenuItem, 
-  MenuDivider, 
-  Dropdown,
-  Nav,
-  NavItem,
-};
+export { MenuButton, MenuItems, MenuItem, MenuDivider, Dropdown, Nav, NavItem };

@@ -1,14 +1,23 @@
 import React from 'react';
-import { Button, Card, Badge } from './ui';
+import { Card } from './ui';
+import MembersList from './MembersList.jsx';
 
-function SectionsList({ sections, selectedSections = [], onSectionToggle, onContinueToEvents, showContinueButton = true, loadingSection = null }) {
+function SectionsList({
+  sections,
+  selectedSections = [],
+  onSectionToggle,
+  loadingSection = null,
+}) {
   if (!sections || sections.length === 0) {
     return (
       <Card>
         <Card.Body className="text-center p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Sections Available</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            No Sections Available
+          </h2>
           <p className="text-gray-600">
-            No sections found for your account. Please check your OSM permissions.
+            No sections found for your account. Please check your OSM
+            permissions.
           </p>
         </Card.Body>
       </Card>
@@ -16,10 +25,8 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
   }
 
   const isSectionSelected = (sectionId) => {
-    return selectedSections.some(s => s.sectionid === sectionId);
+    return selectedSections.some((s) => s.sectionid === sectionId);
   };
-
-
 
   const getSectionOrder = (sectionType) => {
     const type = sectionType.toLowerCase();
@@ -47,29 +54,29 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
   const sortedSections = [...sections].sort((a, b) => {
     const sectionOrderA = getSectionOrder(a.section);
     const sectionOrderB = getSectionOrder(b.section);
-    
+
     // First sort by section type
     if (sectionOrderA !== sectionOrderB) {
       return sectionOrderA - sectionOrderB;
     }
-    
+
     // Then sort by day of the week within same section type
     return getDayOrder(a.sectionname) - getDayOrder(b.sectionname);
   });
 
   return (
-    <Card className="border-0 shadow-none">
-      <Card.Header className="border-b-0">
+    <Card>
+      <Card.Header>
         <Card.Title>Select Sections</Card.Title>
       </Card.Header>
-      
+
       <Card.Body>
         <div className="flex flex-wrap justify-center" style={{ gap: '30px' }}>
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
             const isLoading = loadingSection === section.sectionid;
             const sectionType = section.section.toLowerCase();
-            
+
             // Determine background color based on section type
             let bgColor, hoverBgColor;
             if (sectionType.includes('earlyyears')) {
@@ -94,7 +101,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
               bgColor = 'var(--scout-purple)';
               hoverBgColor = 'var(--scout-purple-dark)';
             }
-            
+
             return (
               <button
                 key={section.sectionid}
@@ -110,7 +117,7 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
                   fontSize: '12px',
                   fontWeight: '500',
                   minWidth: '120px',
-                  opacity: isLoading ? 0.6 : (isSelected ? 1 : 0.8),
+                  opacity: isLoading ? 0.6 : isSelected ? 1 : 0.8,
                   transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                   boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                   transition: 'all 0.2s ease',
@@ -127,15 +134,32 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
                 }}
                 onMouseLeave={(e) => {
                   if (!isLoading) {
-                    e.target.style.backgroundColor = isSelected ? hoverBgColor : bgColor;
+                    e.target.style.backgroundColor = isSelected
+                      ? hoverBgColor
+                      : bgColor;
                     e.target.style.opacity = isSelected ? 1 : 0.8;
                   }
                 }}
               >
                 {isLoading && (
-                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  <svg
+                    className="animate-spin h-3 w-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    ></path>
                   </svg>
                 )}
                 {isLoading ? 'Loading...' : section.sectionname}
@@ -145,20 +169,27 @@ function SectionsList({ sections, selectedSections = [], onSectionToggle, onCont
         </div>
       </Card.Body>
 
-      {selectedSections.length > 0 && showContinueButton && (
-        <Card.Footer className="text-center">
-          <Button
-            variant="scout-green"
-            size="lg"
-            onClick={onContinueToEvents}
-            className="flex items-center justify-center gap-2"
-          >
-            <span>Continue to Events</span>
-            <Badge variant="outline-scout-green" className="bg-white">
-              {selectedSections.length} section{selectedSections.length === 1 ? '' : 's'}
-            </Badge>
-          </Button>
-        </Card.Footer>
+      {/* Members Area - Show when sections are selected */}
+      {selectedSections && selectedSections.length > 0 && (
+        <Card.Body className="border-t border-gray-200 bg-gray-50">
+          <div className="mb-4">
+            <h4 className="text-lg font-semibold text-gray-900">
+              Members from {selectedSections.length} section{selectedSections.length === 1 ? '' : 's'}
+            </h4>
+            <p className="text-sm text-gray-600">
+              {selectedSections.map(s => s.sectionname).join(', ')}
+            </p>
+          </div>
+          
+          {/* Embedded Members List */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <MembersList
+              embedded={true}
+              showHeader={false}
+              sections={selectedSections}
+            />
+          </div>
+        </Card.Body>
       )}
     </Card>
   );

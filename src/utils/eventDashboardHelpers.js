@@ -25,20 +25,38 @@ export const fetchAllSectionEvents = async (sections, token) => {
     } catch (err) {
       logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
     }
+  } else {
+    // Load offline cached terms once (avoid per-section localStorage parsing)
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cachedTerms = localStorage.getItem('viking_terms_offline');
+        if (cachedTerms) {
+          allTerms = JSON.parse(cachedTerms);
+          logger.info('Using offline cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
+        }
+      }
+    } catch (err) {
+      logger.warn('Failed to parse offline terms from localStorage', { error: err }, LOG_CATEGORIES.COMPONENT);
+    }
   }
   
   // Fetch events for all sections using cached terms
-  for (const section of sections) {
-    try {
-      const sectionEvents = await fetchSectionEvents(section, token, allTerms);
-      allEvents.push(...sectionEvents);
-    } catch (err) {
-      logger.error('Error processing section {sectionId}', { 
-        error: err, 
-        sectionId: section.sectionid,
-        sectionName: section.sectionname, 
-      }, LOG_CATEGORIES.COMPONENT);
-    }
+  const results = await Promise.all(
+    sections.map(async (section) => {
+      try {
+        return await fetchSectionEvents(section, token, allTerms);
+      } catch (err) {
+        logger.error('Error processing section {sectionId}', { 
+          error: err, 
+          sectionId: section.sectionid,
+          sectionName: section.sectionname, 
+        }, LOG_CATEGORIES.COMPONENT);
+        return [];
+      }
+    }),
+  );
+  for (const sectionEvents of results) {
+    allEvents.push(...sectionEvents);
   }
   
   return allEvents;
@@ -97,10 +115,35 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
     } else {
       // Load from cache
       const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
+      
+      // Get termId for cached events too (same logic as API path)
+      let termId;
+      if (allTerms) {
+        // Use pre-loaded terms (avoids API call per section!)
+        termId = getMostRecentTermId(section.sectionid, allTerms);
+      } else {
+        // Fallback: try to get from cached event or fetch from API if needed
+        termId = cachedEvents[0]?.termid;
+        
+        // If still no termId, try to get from localStorage terms cache
+        if (!termId) {
+          try {
+            const cachedTerms = localStorage.getItem('viking_terms_offline');
+            if (cachedTerms) {
+              const parsedTerms = JSON.parse(cachedTerms);
+              termId = getMostRecentTermId(section.sectionid, parsedTerms);
+            }
+          } catch (error) {
+            logger.warn('Failed to get termId from localStorage terms cache', { error }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      }
+      
       events = cachedEvents.map(event => ({
         ...event,
+        sectionid: section.sectionid,  // CRITICAL FIX: Add missing sectionid 
         sectionname: section.sectionname,
-        termid: event.termid || null,
+        termid: termId || event.termid, // Use fetched termId, fallback to cached termid (don't default to null)
       }));
     }
     
@@ -131,7 +174,7 @@ export const fetchEventAttendance = async (event, token) => {
       if (!termId) {
         // Rate limiting handled by queue
         termId = await fetchMostRecentTermId(event.sectionid, token);
-        event.termid = termId;
+        // DON'T MUTATE THE ORIGINAL EVENT - just use the local termId variable
       }
       
       if (termId) {
@@ -191,15 +234,15 @@ export const groupEventsByName = (events) => {
  */
 export const buildEventCard = (eventName, events) => {
   // Sort events within group by date
-  events.sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
+  const sorted = [...events].sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
   
   // Create card with earliest event date for sorting
   return {
-    id: `${eventName}-${events[0].eventid}`,
+    id: `${eventName}-${sorted[0].eventid}`,
     name: eventName,
-    events: events,
-    earliestDate: new Date(events[0].startdate),
-    sections: [...new Set(events.map(e => e.sectionname))],
+    events: sorted,
+    earliestDate: new Date(sorted[0].startdate),
+    sections: [...new Set(sorted.map(e => e.sectionname))],
   };
 };
 

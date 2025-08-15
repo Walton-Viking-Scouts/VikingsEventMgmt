@@ -6,7 +6,7 @@ import { cn } from '../../utils/cn';
  */
 const Card = ({ children, className = '', ...props }) => {
   return (
-    <div 
+    <div
       className={cn(
         'bg-white rounded-lg border border-gray-200 shadow-sm',
         className,
@@ -20,7 +20,7 @@ const Card = ({ children, className = '', ...props }) => {
 
 const CardHeader = ({ children, className = '', ...props }) => {
   return (
-    <div 
+    <div
       className={cn(
         'px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg',
         className,
@@ -32,13 +32,15 @@ const CardHeader = ({ children, className = '', ...props }) => {
   );
 };
 
-const CardTitle = ({ children, className = '', as: Component = 'h3', ...props }) => {
+const CardTitle = ({
+  children,
+  className = '',
+  as: Component = 'h3',
+  ...props
+}) => {
   return (
-    <Component 
-      className={cn(
-        'text-lg font-semibold text-gray-900 m-0',
-        className,
-      )}
+    <Component
+      className={cn('text-lg font-semibold text-gray-900 m-0', className)}
       {...props}
     >
       {children}
@@ -48,13 +50,7 @@ const CardTitle = ({ children, className = '', as: Component = 'h3', ...props })
 
 const CardBody = ({ children, className = '', ...props }) => {
   return (
-    <div 
-      className={cn(
-        'p-4',
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn('p-4', className)} {...props}>
       {children}
     </div>
   );
@@ -62,7 +58,7 @@ const CardBody = ({ children, className = '', ...props }) => {
 
 const CardFooter = ({ children, className = '', ...props }) => {
   return (
-    <div 
+    <div
       className={cn(
         'px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg',
         className,

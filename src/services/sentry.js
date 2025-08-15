@@ -149,14 +149,12 @@ export const sentryUtils = {
   
   // Clear Sentry scope to avoid cross-user leakage
   clearScope: () => {
-    Sentry.configureScope((scope) => {
-      scope.setUser(null);
-      scope.setTags({});
-      scope.setExtras({});
-      scope.setContexts({});
-      scope.clearBreadcrumbs();
-      scope.setFingerprint([]);
-    });
+    Sentry.setUser(null);
+    Sentry.setTags({});
+    Sentry.setExtras({});
+    Sentry.setContext('user', null);
+    // Note: clearBreadcrumbs and setFingerprint are not available as global functions in v8
+    // These were scope-specific methods that are no longer needed with the new API
   },
   
   // Add breadcrumb

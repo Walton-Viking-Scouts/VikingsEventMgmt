@@ -3,65 +3,65 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
-import { isAuthenticated, getToken } from '../services/auth.js';
-import { config } from '../config/env.js';
 import { testBackendConnection } from '../services/api.js';
 
-function OfflineIndicator({ hideSync = false }) {
+function OfflineIndicator({ hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
   const [apiConnected, setApiConnected] = useState(true);
-  const [apiTested, setApiTested] = useState(false); // Track if we've tested API yet
   const [syncStatus, setSyncStatus] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptData, setLoginPromptData] = useState(null);
-  const [showSyncError, setShowSyncError] = useState(false);
 
   // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
     try {
-      const token = getToken();
-      if (import.meta.env.NODE_ENV === 'development') {
-        console.log('🔍 OfflineIndicator - Testing API connectivity...', { 
-          hasToken: !!token, 
-          apiUrl: config.apiUrl,
-          isOnline,
-          apiConnected,
-          apiTested,
-        });
-      }
-      
+
       // Use the rate-limited testBackendConnection function from API service
       // This ensures all health checks go through the queue system
       const result = await testBackendConnection();
-      
+
       if (result && (result.status === 'ok' || result.status === 'healthy')) {
         // API is connected and responding correctly
         setApiConnected(true);
-        setApiTested(true);
-        
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log('✅ OfflineIndicator - API connectivity confirmed via queue');
-        }
-      } else {
-        throw new Error('API health check failed');
+        return true;
       }
+      // Check for rate-limiting specifically
+      if (result && result.httpStatus === 429) {
+        // Don't change connectivity status for rate-limited requests
+        return null;
+      }
+      // API health check failed
+      setApiConnected(false);
+      return false;
     } catch (error) {
       // Handle rate limiting gracefully - don't mark as disconnected if it's just queued
-      if (error.message?.includes('Rate limited') || error.status === 429 || 
-          error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log('⏳ OfflineIndicator - Health check queued due to rate limiting, will retry automatically');
-        }
+      if (
+        error.message?.includes('Rate limited') ||
+        error.status === 429 ||
+        error.message?.includes('429') ||
+        error.message?.includes('Too Many Requests')
+      ) {
         // Keep current connection status - don't mark as failed due to rate limiting
         // The queue will retry automatically with backoff
-        setApiTested(true);
-        return;
+        return null;
       }
-      
-      // Only log non-rate-limit errors and mark as disconnected
-      console.warn('❌ OfflineIndicator - API connectivity test failed:', error);
+
+      // Handle SSL/TLS and network errors more gracefully in development
+      if (
+        error.message?.includes('Failed to fetch') ||
+        error.message?.includes('SSL') ||
+        error.message?.includes('certificate') ||
+        error.message?.includes('net::ERR_') ||
+        error.name === 'TypeError'
+      ) {
+        setApiConnected(false);
+        return false;
+      }
+
+      // Log API connectivity failures as warnings
+      console.warn('API connectivity test failed:', error.message);
       setApiConnected(false);
-      setApiTested(true);
+      return false;
     }
   };
 
@@ -80,36 +80,33 @@ function OfflineIndicator({ hideSync = false }) {
 
     // Test API connectivity on mount and with exponential backoff when offline
     testApiConnectivity();
-    
+
     let backoffDelay = 30000; // Start with 30 seconds
     const maxDelay = 300000; // Max 5 minutes
     let connectivityTimeoutId;
-    
+
     const scheduleNextCheck = () => {
       connectivityTimeoutId = setTimeout(() => {
-        if (!apiConnected || !isOnline) {
-          testApiConnectivity().then(() => {
-            if (!apiConnected || !isOnline) {
-              // Still offline, increase backoff delay
-              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
-            } else {
-              // Back online, reset backoff delay
+        testApiConnectivity()
+          .then((status) => {
+            if (status === true && isOnline) {
+              // Connected, reset backoff
               backoffDelay = 30000;
+            } else if (status === false) {
+              // Hard failure, increase backoff
+              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
             }
+            // status === null means rate-limited, keep current backoff
             scheduleNextCheck();
-          }).catch(() => {
+          })
+          .catch(() => {
             // Error in connectivity test, continue with backoff
             backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
             scheduleNextCheck();
           });
-        } else {
-          // Online, continue checking at base interval
-          backoffDelay = 30000;
-          scheduleNextCheck();
-        }
       }, backoffDelay);
     };
-    
+
     scheduleNextCheck();
 
     return () => {
@@ -125,18 +122,12 @@ function OfflineIndicator({ hideSync = false }) {
     try {
       if (Capacitor.isNativePlatform()) {
         const status = await Network.getStatus();
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log('🔍 OfflineIndicator - Capacitor network status:', status);
-        }
         setIsOnline(status.connected);
       } else {
-        if (import.meta.env.NODE_ENV === 'development') {
-          console.log('🔍 OfflineIndicator - Navigator online status:', navigator.onLine);
-        }
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
-      console.error('❌ OfflineIndicator - Error checking network status:', error);
+      console.error('Network status check failed:', error);
     }
   };
 
@@ -161,10 +152,10 @@ function OfflineIndicator({ hideSync = false }) {
         setIsOnline(false);
         setApiConnected(false);
       };
-      
+
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
-      
+
       // Return cleanup function
       return () => {
         window.removeEventListener('online', handleOnline);
@@ -176,7 +167,7 @@ function OfflineIndicator({ hideSync = false }) {
   const setupSyncListeners = () => {
     const handleSyncStatus = (status) => {
       setSyncStatus(status);
-      
+
       // Clear status after a delay if completed or error
       if (status.status === 'completed' || status.status === 'error') {
         setTimeout(() => {
@@ -186,14 +177,12 @@ function OfflineIndicator({ hideSync = false }) {
     };
 
     syncService.addSyncListener(handleSyncStatus);
-    
+
     // Return cleanup function
     return () => {
       syncService.removeSyncListener(handleSyncStatus);
     };
   };
-
-
 
   const handleLoginConfirm = () => {
     setShowLoginPrompt(false);
@@ -209,135 +198,84 @@ function OfflineIndicator({ hideSync = false }) {
     }
   };
 
-  const handleSyncClick = async () => {
-    if (!isOnline || !apiConnected) {
-      setShowSyncError(true);
-      return;
-    }
+  // Helper function for rendering the Login Prompt Modal (reused in multiple places)
+  const renderLoginPromptModal = () => (
+    <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
+      <Modal.Header>
+        <Modal.Title>Authentication Required</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <span className="text-amber-600 text-xl">🔐</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-900 font-medium">
+                {loginPromptData?.message ||
+                  'Authentication required to sync data.'}
+              </p>
+              <p className="text-gray-600 text-sm mt-1">
+                You will be redirected to Online Scout Manager to
+                authenticate.
+              </p>
+            </div>
+          </div>
 
-    try {
-      await syncService.syncAll();
-    } catch (error) {
-      console.error('Manual sync failed:', error);
-    }
-  };
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-blue-800 text-sm">
+              <strong>Note:</strong> You can continue using the app with
+              offline data if you prefer not to sync at this time.
+            </p>
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline" onClick={handleLoginCancel}>
+          Stay Offline
+        </Button>
+        <Button variant="scout-blue" onClick={handleLoginConfirm}>
+          Login & Sync
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
 
-  const getSyncButtonText = () => {
-    if (!isAuthenticated()) {
-      return '🔐 Login & Sync';
-    }
-    return '🔄 Sync';
-  };
-
-  const getSyncButtonTitle = () => {
-    if (!isAuthenticated()) {
-      return 'Login to OSM and sync data';
-    }
-    return 'Sync data';
-  };
 
   // Don't show anything if both network and API are connected and no sync status
   if (isOnline && apiConnected && !syncStatus) {
     return (
       <>
-        {/* Only show sync button if not hidden */}
-        {!hideSync && (
-          <div className="fixed top-20 right-4 z-40">
-            <Button
-              variant="scout-blue"
-              size="sm"
-              onClick={handleSyncClick}
-              className="shadow-lg"
-              title={getSyncButtonTitle()}
-            >
-              {getSyncButtonText()}
-            </Button>
-          </div>
-        )}
-        
         {/* Login Prompt Modal */}
-        <Modal
-          isOpen={showLoginPrompt}
-          onClose={handleLoginCancel}
-          size="md"
-        >
-          <Modal.Header>
-            <Modal.Title>Authentication Required</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <span className="text-amber-600 text-xl">🔐</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-900 font-medium">
-                    {loginPromptData?.message || 'Authentication required to sync data.'}
-                  </p>
-                  <p className="text-gray-600 text-sm mt-1">
-                    You will be redirected to Online Scout Manager to authenticate.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> You can continue using the app with offline data if you prefer not to sync at this time.
-                </p>
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="outline"
-              onClick={handleLoginCancel}
-            >
-              Stay Offline
-            </Button>
-            <Button
-              variant="scout-blue"
-              onClick={handleLoginConfirm}
-            >
-              Login & Sync
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        {renderLoginPromptModal()}
       </>
     );
   }
 
-  const shouldShowBanner = apiTested && (!isOnline || !apiConnected);
-  
-  if (import.meta.env.NODE_ENV === 'development') {
-    console.log('🔍 Offline Indicator - Banner visibility:', {
-      apiTested,
-      isOnline,
-      apiConnected,
-      shouldShowBanner,
-    });
+
+  // If hideBanner is true, only return modals, no banner
+  if (hideBanner) {
+    return (
+      <>
+        {/* Login Prompt Modal */}
+        {renderLoginPromptModal()}
+      </>
+    );
   }
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
-      {shouldShowBanner && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-center gap-2">
-            <span>📱</span>
-            <span>
-              {!isOnline ? 'Offline Mode - Using cached data' : 'API Unavailable - Using cached data'}
-            </span>
-          </div>
-        </Alert>
-      )}
-      
+
       {syncStatus && (
-        <Alert 
+        <Alert
           variant={
-            syncStatus.status === 'syncing' ? 'info' : 
-              syncStatus.status === 'completed' ? 'success' : 
-                'error'
+            syncStatus.status === 'syncing'
+              ? 'info'
+              : syncStatus.status === 'completed'
+                ? 'success'
+                : 'error'
           }
           className="rounded-none border-x-0 border-t-0"
         >
@@ -364,24 +302,6 @@ function OfflineIndicator({ hideSync = false }) {
         </Alert>
       )}
 
-      {showSyncError && (
-        <Alert variant="warning" className="rounded-none border-x-0 border-t-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Cannot sync while offline or API is unreachable</span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSyncError(false)}
-              className="ml-4"
-            >
-              Dismiss
-            </Button>
-          </div>
-        </Alert>
-      )}
     </div>
   );
 }

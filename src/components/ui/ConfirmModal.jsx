@@ -39,23 +39,16 @@ const ConfirmModal = ({
       <Modal.Header>
         <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
-      
+
       <Modal.Body>
         <p className="text-gray-700 whitespace-pre-line">{message}</p>
       </Modal.Body>
-      
+
       <Modal.Footer align="right">
-        <Button
-          variant={cancelVariant}
-          onClick={handleCancel}
-          className="mr-3"
-        >
+        <Button type="button" variant={cancelVariant} onClick={handleCancel} className="mr-3">
           {cancelText}
         </Button>
-        <Button
-          variant={confirmVariant}
-          onClick={handleConfirm}
-        >
+        <Button type="button" variant={confirmVariant} onClick={handleConfirm}>
           {confirmText}
         </Button>
       </Modal.Footer>
