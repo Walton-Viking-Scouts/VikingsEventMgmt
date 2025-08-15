@@ -16,7 +16,7 @@ This directory contains focused architectural documentation for the Viking Event
 For specific technical issues and setup guides, see the main `docs/` directory:
 - `CACHING_ERROR_HANDLING.md` - Production caching issue resolution
 - `DATABASE_SCHEMA.md` - SQLite schema reference  
-- `ENVIRONMENT_VARIABLES.md` - Security analysis and env var management
+- Environment configuration — see [Deployment > Environment Configuration](./DEPLOYMENT.md#environment-configuration) and the project's `.env.example`
 - `MOBILE_SETUP.md` - Capacitor and mobile development setup
 - `MOBILE_TESTING_STRATEGY.md` - Testing framework and strategy
 
