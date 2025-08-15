@@ -3,9 +3,8 @@ name: 🚀 Release and Deploy
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*.*.*'
+  # Note: No longer trigger on all tags to avoid conflicts with CI workflow
+  # The CI workflow handles patch tags, this workflow handles GitHub Releases
 
 permissions:
   contents: write
@@ -58,7 +57,7 @@ jobs:
 
           # Export for Vite plugin to use consistent release naming
           export SENTRY_RELEASE="$SENTRY_RELEASE"
-          
+
           npm run build
 
       - name: 📤 Create and finalize Sentry release
@@ -68,20 +67,20 @@ jobs:
           SENTRY_URL: ${{ env.SENTRY_URL }}
         run: |
           set -euo pipefail  # Bash safety flags
-          
+
           # Extract version and create consistent release name (strip 'v' prefix)
           VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           RELEASE="${{ env.SENTRY_RELEASE_PREFIX }}@$VERSION"
-          
+
           # Export clean version and release name to GitHub Actions environment for reuse
           echo "CLEAN_VERSION=$VERSION" >> $GITHUB_ENV
           echo "RELEASE_NAME=$RELEASE" >> $GITHUB_ENV
-          
+
           # Also expose as step outputs for cross-job and expression context usage
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "release-name=$RELEASE" >> $GITHUB_OUTPUT
-          
+
           echo "Processing Sentry release: $RELEASE"
 
           # Check if release already exists (created by Vite plugin)
@@ -91,7 +90,7 @@ jobs:
             echo "Creating new release: $RELEASE"
             npx @sentry/cli releases new "$RELEASE"
           fi
-          
+
           # Verify source maps were uploaded
           echo "Checking source maps..."
           if npx @sentry/cli releases files "$RELEASE" list | grep -qE '\.map(\.gz)?$'; then
@@ -107,7 +106,7 @@ jobs:
               find ./dist -type f \( -name "*.js" -o -name "*.map" \) | head -10
             fi
           fi
-          
+
           # Set commits and finalize
           npx @sentry/cli releases set-commits "$RELEASE" --auto
           npx @sentry/cli releases finalize "$RELEASE"
@@ -122,48 +121,61 @@ jobs:
           echo "Updating package.json to version: $VERSION"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - name: 🚀 Deploy to Production
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      - name: ℹ️ Deployment Status
         run: |
-          echo "🚀 Deploying to production environments..."
-          
-          # Deploy to Render.com (Frontend) - Controlled via webhook
-          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
-            echo "Deploying to Render.com via webhook..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
-            if [ "$response" = "200" ] || [ "$response" = "201" ]; then
-              echo "✅ Render deployment triggered successfully"
-            else
-              echo "❌ Render deployment failed with status: $response"
-              exit 1
-            fi
-          else
-            echo "⚠️ RENDER_DEPLOY_HOOK not configured, skipping Render deployment"
-          fi
-          
-          # Northflank (Backend) - Auto-deploys on main branch commits
-          echo "ℹ️ Northflank backend will auto-deploy when this release creates a commit to main"
-          echo "✅ Frontend deployment triggered, backend will follow automatically"
+          echo "ℹ️ This is an enhanced tracking release workflow"
+          echo "🚀 Deployment was already handled by the CI workflow on PR merge"
+          echo "📊 This workflow provides additional Sentry release verification and deployment tracking"
+          echo ""
+          echo "Deployment status:"
+          echo "  ✅ Frontend: Already deployed via CI workflow"
+          echo "  ✅ Backend: Already deployed via CI workflow"
+          echo "  📊 Sentry: Enhanced release tracking in progress"
 
       - name: 🔍 Verify deployment
+        env:
+          PROD_FRONTEND_URL: ${{ vars.PROD_FRONTEND_URL || 'https://vikingeventmgmt.onrender.com' }}
+          PROD_BACKEND_HEALTH_URL: ${{ vars.PROD_BACKEND_HEALTH_URL || 'https://site--vikings-event-management--ytnrhtcfzsqn.code.run/health' }}
         run: |
           echo "⏳ Waiting for deployments to complete..."
           sleep 60
-          
-          echo "🔍 Verifying frontend deployment..."
-          if curl -f -s "https://vikingeventmgmt.onrender.com" > /dev/null; then
-            echo "✅ Frontend is responding"
-          else
-            echo "⚠️ Frontend verification failed (may still be deploying)"
-          fi
-          
-          echo "🔍 Verifying backend deployment..."
-          if curl -f -s "https://site--vikings-event-management--ytnrhtcfzsqn.code.run/health" > /dev/null; then
-            echo "✅ Backend is responding"
-          else
-            echo "⚠️ Backend verification failed (may still be deploying)"
-          fi
+
+          # Function to verify URL with retry logic
+          verify_url() {
+            local url="$1"
+            local name="$2"
+            local max_attempts=5
+            local attempt=1
+            local wait_time=10
+
+            echo "🔍 Verifying $name deployment at: $url"
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt/$max_attempts..."
+              if curl -f -L -s --max-time 30 "$url" > /dev/null; then
+                echo "✅ $name is responding"
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "⚠️ $name verification failed, retrying in ${wait_time}s..."
+                sleep $wait_time
+                wait_time=$((wait_time * 2))  # Exponential backoff
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            echo "❌ $name verification failed after $max_attempts attempts"
+            return 1
+          }
+
+          # Verify frontend
+          verify_url "$PROD_FRONTEND_URL" "Frontend" || exit 1
+
+          # Verify backend
+          verify_url "$PROD_BACKEND_HEALTH_URL" "Backend" || exit 1
+
+          echo "✅ All services verified successfully"
 
       - name: 🐙 Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -177,9 +189,9 @@ jobs:
             
             ## 🚀 Deployment Status
             
-            - ✅ Frontend: Deployed to Render.com (webhook triggered)
-            - ✅ Backend: Auto-deployed to Northflank on main branch
-            - ✅ Source Maps: Uploaded to Sentry before deployment
+            - ✅ Frontend: Deployed via CI workflow on PR merge
+            - ✅ Backend: Deployed via CI workflow on PR merge  
+            - ✅ Source Maps: Additional verification and deployment tracking
             - ✅ Version Synchronization: Complete
             
             ## 🔗 Sentry Release
@@ -188,13 +200,13 @@ jobs:
             ${{ env.SENTRY_HOST }}/organizations/${{ env.SENTRY_ORG }}/releases/${{ steps.sentry-release.outputs.release-name }}/
             
             ## 📊 Issue Resolution
-            
+
             This release may resolve the following Sentry issues:
             - Check the Sentry release page for automatic issue resolution
             - Issues first seen after the previous release will be marked as resolved
-            
+
             ## 🔧 Release Process
-            
+
             This release was deployed using the enhanced GitHub Actions workflow that ensures:
             - Version synchronization between package.json and deployed code
             - Source maps uploaded before deployment for accurate error tracking
