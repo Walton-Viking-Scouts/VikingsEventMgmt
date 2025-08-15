@@ -200,21 +200,8 @@ jobs:
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "New version: $NEW_VERSION"
           
-          # Commit the version bump with context
-          git add package.json package-lock.json
-          git commit -m "chore: bump $VERSION_TYPE version to v${NEW_VERSION} for deployment
-          
-          Auto-bumped for Sentry error attribution ($VERSION_TYPE version)
-          - Every deployment needs unique version for proper error tracking
-          - Enables verification of bug fixes and attribution of new issues
-          - Version type determined from commit analysis: $VERSION_TYPE
-          
-          🤖 Generated with [Claude Code](https://claude.ai/code)
-          
-          Co-Authored-By: Claude <noreply@anthropic.com>"
-          
-          # Push the version bump back to main
-          git push origin main
+          # Version bump ready for deployment (no commit to avoid branch protection conflicts)
+          echo "Version bumped locally to v${NEW_VERSION} for deployment tracking"
           
           # Create tag or release based on version type
           if [ "$VERSION_TYPE" = "patch" ]; then
