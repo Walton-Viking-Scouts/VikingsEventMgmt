@@ -453,11 +453,18 @@ function CampGroupsView({
         sectionid: cachedMember.sectionid || cachedMember.section_id,
         person_type: member.person_type || cachedMember.person_type,
         has_photo: cachedMember.has_photo,
-        sections: [member.sectionname || 'Unknown'],
+        sections: [findMemberSectionType(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname || 'Unknown'],
+        sectionname: findMemberSectionType(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname, // Also set sectionname for consistency
       };
     } else {
       // Fallback to the simplified member data if no cached member found
-      enrichedMember = member;
+      // Try to resolve section for simplified member too
+      const memberSectionType = findMemberSectionType(member.sectionid, sectionsCache);
+      enrichedMember = {
+        ...member,
+        sections: [memberSectionType || member.sectionname || 'Unknown'],
+        sectionname: memberSectionType || member.sectionname,
+      };
     }
     
     setSelectedMember(enrichedMember);

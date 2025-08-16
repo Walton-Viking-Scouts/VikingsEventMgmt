@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
@@ -8,6 +8,7 @@ import SignInOutButton from './SignInOutButton.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
+import { findMemberSectionType } from '../utils/sectionHelpers.js';
 
 function AttendanceView({ events, members, onBack }) {
   console.log('AttendanceView: component mounted');
@@ -56,6 +57,18 @@ function AttendanceView({ events, members, onBack }) {
     invited: true,
     notInvited: false,
   });
+
+  // Cache parsed sections data for section name resolution
+  const sectionsCache = useMemo(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem('viking_sections_offline') || '[]',
+      );
+    } catch (error) {
+      console.warn('Failed to parse cached sections data:', error);
+      return [];
+    }
+  }, []);
 
   // Section filter state - initialize with all sections enabled
   const [sectionFilters, setSectionFilters] = useState(() => {
@@ -392,10 +405,16 @@ function AttendanceView({ events, members, onBack }) {
     
     // The cached data should already have both firstname and first_name
     // Just ensure firstname/lastname are set (modal uses these)
+    // Also resolve section name using the section helper utility
+    const memberSectionId = cachedMember.sectionid || cachedMember.section_id;
+    const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
+    
     const transformed = {
       ...cachedMember,
       firstname: cachedMember.firstname || cachedMember.first_name,
       lastname: cachedMember.lastname || cachedMember.last_name,
+      sections: [memberSectionType || cachedMember.sectionname || 'Unknown'],
+      sectionname: memberSectionType || cachedMember.sectionname, // Also set sectionname for consistency
     };
     
     console.log('🔄 transformMemberForModal - Result:', {
