@@ -8,7 +8,7 @@ import SignInOutButton from './SignInOutButton.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
-import { findMemberSectionType } from '../utils/sectionHelpers.js';
+import { findMemberSectionName } from '../utils/sectionHelpers.js';
 
 function AttendanceView({ events, members, onBack }) {
   console.log('AttendanceView: component mounted');
@@ -407,14 +407,14 @@ function AttendanceView({ events, members, onBack }) {
     // Just ensure firstname/lastname are set (modal uses these)
     // Also resolve section name using the section helper utility
     const memberSectionId = cachedMember.sectionid || cachedMember.section_id;
-    const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
+    const memberSectionName = findMemberSectionName(memberSectionId, sectionsCache);
     
     const transformed = {
       ...cachedMember,
       firstname: cachedMember.firstname || cachedMember.first_name,
       lastname: cachedMember.lastname || cachedMember.last_name,
-      sections: [memberSectionType || cachedMember.sectionname || 'Unknown'],
-      sectionname: memberSectionType || cachedMember.sectionname, // Also set sectionname for consistency
+      sections: [memberSectionName || cachedMember.sectionname || 'Unknown'],
+      sectionname: memberSectionName || cachedMember.sectionname, // Also set sectionname for consistency
     };
     
     console.log('🔄 transformMemberForModal - Result:', {

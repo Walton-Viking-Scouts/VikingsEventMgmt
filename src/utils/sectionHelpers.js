@@ -39,6 +39,44 @@ export function findMemberSectionType(memberSectionId, sectionsCache) {
 }
 
 /**
+ * Find member section name (actual section name, not type) by searching through sections cache
+ * 
+ * @param {string|number} memberSectionId - Section ID to find
+ * @param {Array} sectionsCache - Cached sections data  
+ * @returns {string|null} Section name (e.g. "1st Walton Beavers") or null if not found
+ * 
+ * @example
+ * const sectionName = findMemberSectionName(123, sectionsCache);
+ * console.log(sectionName); // '1st Walton Beavers' or null
+ */
+export function findMemberSectionName(memberSectionId, sectionsCache) {
+  if (!memberSectionId || !sectionsCache || !Array.isArray(sectionsCache)) {
+    return null;
+  }
+
+  const memberSectionInfo = sectionsCache.find(
+    (s) => 
+      String(s.sectionid) === String(memberSectionId) ||
+      s.sectionid === memberSectionId,
+  );
+  
+  const sectionName = memberSectionInfo?.sectionname || null;
+  
+  if (!sectionName) {
+    logger.warn('Section name not found for member', {
+      memberSectionId,
+      availableSections: sectionsCache.map(s => ({
+        id: s.sectionid,
+        sectionname: s.sectionname,
+        section: s.section,
+      })),
+    }, LOG_CATEGORIES.APP);
+  }
+  
+  return sectionName;
+}
+
+/**
  * Get unique sections from events data with proper deduplication
  * 
  * @param {Array} events - Array of event objects with sectionid and sectionname
