@@ -173,7 +173,7 @@ function CampGroupCard({
   return (
     <Card
       className={`
-        camp-group-card transition-all duration-200 w-full min-w-64
+        camp-group-card transition-all duration-200 w-full
         ${isDragInProgress ? 'drop-zone-available' : ''}
         ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
         ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}

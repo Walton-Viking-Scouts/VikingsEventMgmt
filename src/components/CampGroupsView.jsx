@@ -1499,9 +1499,14 @@ function CampGroupsView({
         <div
           className={`grid gap-4 ${
             isMobile
-              ? 'grid-cols-1 gap-2'
-              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              ? 'gap-2'
+              : ''
           }`}
+          style={{
+            gridTemplateColumns: isMobile 
+              ? 'repeat(auto-fit, minmax(280px, 1fr))'
+              : 'repeat(auto-fit, minmax(320px, 1fr))'
+          }}
         >
           {filteredAndSortedGroups.map((group) => (
             <CampGroupCard
