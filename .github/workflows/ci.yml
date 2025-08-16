@@ -196,12 +196,21 @@ jobs:
           echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
           
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Preview deployment - use PR-specific version
+            # Preview deployment - use PR-specific version with commit SHA
             BASE_VERSION=$(node -p "require('./package.json').version")
-            NEW_VERSION="${BASE_VERSION}-pr-${{ github.event.number }}"
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              SHORT_SHA="${{ github.event.pull_request.head.sha }}"
+            else
+              SHORT_SHA="${{ github.sha }}"
+            fi
+            # Fallback in case head.sha is empty
+            [ -z "$SHORT_SHA" ] && SHORT_SHA="${{ github.sha }}"
+            SHORT_SHA="${SHORT_SHA:0:7}"
+            NEW_VERSION="${BASE_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
             DEPLOYMENT_TYPE="preview"
             echo "🔍 Preview deployment detected"
             echo "Base version: $BASE_VERSION"
+            echo "Commit SHA: ${SHORT_SHA}"
             echo "Preview version: $NEW_VERSION"
           else
             # Production deployment (main branch) - bump version properly
@@ -331,8 +340,8 @@ jobs:
             fi
             
             # Set commits and finalize
-            npx @sentry/cli releases set-commits "$RELEASE" --auto
-            npx @sentry/cli releases finalize "$RELEASE"
+            npx @sentry/cli releases set-commits "$RELEASE" --auto || { echo "⚠️ Sentry: failed to set commits (non-fatal). Check repo integration/token scopes." >&2; }
+            npx @sentry/cli releases finalize "$RELEASE" || { echo "⚠️ Sentry: finalize failed or already finalized (non-fatal)." >&2; }
             
             # Mark deployment in the appropriate environment
             npx @sentry/cli releases deploys "$RELEASE" new -e "$ENVIRONMENT"

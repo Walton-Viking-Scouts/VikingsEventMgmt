@@ -1259,6 +1259,90 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   }
 }
 
+/**
+ * Multi-update FlexiRecord field for multiple members in a single batch operation
+ * Updates the same field value for multiple scouts efficiently
+ * 
+ * @param {number|string} sectionid - OSM section identifier  
+ * @param {Array<string|number>} scouts - Array of scout/member IDs to update
+ * @param {string} value - New field value to set for all scouts
+ * @param {string} column - Field column ID (e.g., "f_1", "f_2")
+ * @param {number|string} flexirecordid - FlexiRecord identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object|null>} Update response with success status and updated count
+ * @throws {Error} When write permissions denied or API request fails
+ * 
+ * @example
+ * await multiUpdateFlexiRecord(123, ['456', '789'], 'Yellow', 'f_1', '999', token);
+ */
+export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, flexirecordid, token) {
+  try {
+    // Import the guard function
+    const { checkWritePermission } = await import('./auth.js');
+    
+    // Check if write operations are allowed
+    checkWritePermission();
+    
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    if (!Array.isArray(scouts) || scouts.length === 0) {
+      throw new Error('Scouts array is required and must not be empty');
+    }
+
+    const requestBody = {
+      sectionid,
+      scouts,
+      value,
+      column,
+      flexirecordid,
+    };
+
+    logger.info('Multi-updating FlexiRecord field', {
+      sectionid,
+      scoutCount: scouts.length,
+      value,
+      valueType: typeof value,
+      column,
+      flexirecordid,
+      requestBody,
+    }, LOG_CATEGORIES.API);
+
+    const response = await fetch(`${BACKEND_URL}/multi-update-flexi-record`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', 
+      },
+      body: JSON.stringify(requestBody),
+    });
+        
+    const data = await handleAPIResponseWithRateLimit(response, 'multiUpdateFlexiRecord');
+    
+    if (data?.data?.success) {
+      logger.info('Multi-update FlexiRecord successful', {
+        sectionid,
+        updatedCount: data.data.updated_count,
+        value,
+        column,
+      }, LOG_CATEGORIES.API);
+    }
+    
+    return data || null;
+        
+  } catch (error) {
+    logger.error('Error multi-updating flexi record', { 
+      error: error.message,
+      sectionid,
+      scoutCount: scouts?.length,
+      value,
+      column,
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
 // FlexiRecord functions - re-export from service and transforms
 export { 
   getConsolidatedFlexiRecord,
