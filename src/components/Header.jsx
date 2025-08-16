@@ -116,8 +116,8 @@ function Header({
 
             {/* User menu - show when authenticated, but ensure it doesn't hide AuthButton */}
             {user && (
-              <div className="flex items-center gap-2 min-w-0 ml-2 flex-1 overflow-hidden">
-                <span className="block text-gray-700 text-sm truncate">
+              <div className="flex items-center gap-2 ml-2">
+                <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-gray-700 text-sm">
                   Hi, {user.firstname}
                 </span>
                 <Button
