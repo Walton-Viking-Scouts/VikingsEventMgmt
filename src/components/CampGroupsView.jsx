@@ -1503,9 +1503,20 @@ function CampGroupsView({
               : ''
           }`}
           style={{
-            gridTemplateColumns: isMobile 
-              ? 'repeat(auto-fit, minmax(280px, 1fr))'
-              : 'repeat(auto-fit, minmax(320px, 1fr))'
+            gridTemplateColumns: (() => {
+              const groupCount = filteredAndSortedGroups.length;
+              if (groupCount === 0) return '1fr';
+              
+              // Calculate optimal minimum width based on group count for even distribution
+              let minWidth;
+              if (groupCount <= 2) minWidth = isMobile ? '280px' : '400px';
+              else if (groupCount <= 4) minWidth = isMobile ? '250px' : '350px'; // 2 cols
+              else if (groupCount <= 6) minWidth = isMobile ? '200px' : '280px'; // 3 cols  
+              else if (groupCount <= 8) minWidth = isMobile ? '180px' : '240px'; // 4 cols
+              else minWidth = isMobile ? '160px' : '200px'; // 5+ cols
+              
+              return `repeat(auto-fit, minmax(${minWidth}, 1fr))`;
+            })(),
           }}
         >
           {filteredAndSortedGroups.map((group) => (

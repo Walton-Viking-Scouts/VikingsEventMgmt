@@ -121,7 +121,7 @@ function DraggableMember({
   return (
     <div
       className={`
-        relative p-3 rounded-lg transition-all duration-200 select-none w-full
+        relative p-2 rounded-lg transition-all duration-200 select-none w-full max-w-full
         ${
     isDraggable
       ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
@@ -180,16 +180,22 @@ function DraggableMember({
         </div>
       )}
 
-      <div className="w-full" onClick={handleMemberClick}>
-        <div className="flex items-center gap-2">
+      <div className="w-full min-w-0" onClick={handleMemberClick}>
+        <div className="flex items-start gap-1 min-w-0">
           <span
-            className={`text-sm font-medium ${
+            className={`text-sm font-medium break-words leading-tight w-full max-w-full ${
               isDraggable ? 'text-blue-700' : 'text-gray-700'
             } ${
               onMemberClick
                 ? 'cursor-pointer hover:text-scout-blue hover:underline'
                 : ''
             }`}
+            style={{ 
+              maxWidth: '100%',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              hyphens: 'auto',
+            }}
           >
             {memberName}
           </span>

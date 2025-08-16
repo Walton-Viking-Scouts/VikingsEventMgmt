@@ -40,7 +40,7 @@ function CampGroupCard({
     return null;
   }
 
-  const { name, number, leaders = [], youngPeople = [] } = group;
+  const { name, leaders = [], youngPeople = [] } = group;
 
   const handleMemberClick = (member) => {
     if (onMemberClick && typeof onMemberClick === 'function') {
