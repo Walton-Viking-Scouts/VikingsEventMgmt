@@ -480,7 +480,9 @@ export function useAuth() {
         logger.info('Token expired - updating auth state', {}, LOG_CATEGORIES.AUTH);
         
         // Determine new auth state
-        const currentHasToken = authService.isAuthenticated();
+        // For token_expired state, we need to pass true to indicate we had a token (even if expired)
+        const hasStoredToken = !!sessionStorage.getItem('access_token');
+        const currentHasToken = hasStoredToken; // Use stored token presence, not validity
         const newAuthState = await determineAuthState(currentHasToken);
         setAuthState(newAuthState);
         setIsOfflineMode(true);
