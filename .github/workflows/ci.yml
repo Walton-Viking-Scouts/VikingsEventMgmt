@@ -220,21 +220,36 @@ jobs:
               echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
               echo "Setting version directly to: $CLEAN_VERSION"
               
-              # Set version directly without npm version (to avoid conflicts)
-              npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
+              # Set NEW_VERSION immediately for explicit versions
+              NEW_VERSION="$CLEAN_VERSION"
               VERSION_TYPE="explicit"
+              
+              # Update package.json to match explicit version
+              npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
+              
+              echo "✅ Explicit version set: $NEW_VERSION"
             else
-              # No explicit version - default to patch bump
-              echo "📝 No explicit version in PR title, defaulting to patch bump"
+              # No explicit version - derive base from git tags for idempotency
+              echo "📝 No explicit version in PR title, computing patch bump from git tags"
               echo "PR titles can include version like: 'feat: new feature v1.2.0'"
               
-              VERSION_TYPE="patch"
-              echo "🔧 Using patch version bump (default for safety)"
+              # Get base version from latest git tag (more reliable than package.json)
+              LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+              BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+              echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
               
-              # Bump version with patch
-              npm version patch --no-git-tag-version
+              # Compute next patch version
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+              NEXT_PATCH=$((PATCH + 1))
+              NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+              VERSION_TYPE="patch"
+              
+              echo "🔧 Computed next patch version: $NEW_VERSION"
+              
+              # Update package.json to computed version
+              npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
             fi
-            NEW_VERSION=$(node -p "require('./package.json').version")
+            
             DEPLOYMENT_TYPE="production"
             echo "Production version: $NEW_VERSION"
           fi
