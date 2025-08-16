@@ -173,7 +173,7 @@ function CampGroupCard({
   return (
     <Card
       className={`
-        camp-group-card transition-all duration-200 w-full
+        camp-group-card transition-all duration-200 w-full min-w-64
         ${isDragInProgress ? 'drop-zone-available' : ''}
         ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
         ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
@@ -187,7 +187,7 @@ function CampGroupCard({
       <Card.Header className="pb-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-900 break-words">{name}</h3>
+            <h3 className="text-base font-semibold text-gray-900 break-keep whitespace-normal">{name}</h3>
           </div>
         </div>
 
