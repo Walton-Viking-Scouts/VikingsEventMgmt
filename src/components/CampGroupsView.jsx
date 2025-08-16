@@ -22,7 +22,7 @@ import {
   validateMemberMove,
 } from '../services/campGroupAllocationService.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
-import { findMemberSectionType } from '../utils/sectionHelpers.js';
+import { findMemberSectionType, findMemberSectionName } from '../utils/sectionHelpers.js';
 
 /**
  * Simple organization function that works with getSummaryStats() data structure
@@ -453,11 +453,18 @@ function CampGroupsView({
         sectionid: cachedMember.sectionid || cachedMember.section_id,
         person_type: member.person_type || cachedMember.person_type,
         has_photo: cachedMember.has_photo,
-        sections: [member.sectionname || 'Unknown'],
+        sections: [findMemberSectionName(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname || 'Unknown'],
+        sectionname: findMemberSectionName(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname, // Also set sectionname for consistency
       };
     } else {
       // Fallback to the simplified member data if no cached member found
-      enrichedMember = member;
+      // Try to resolve section for simplified member too
+      const memberSectionName = findMemberSectionName(member.sectionid, sectionsCache);
+      enrichedMember = {
+        ...member,
+        sections: [memberSectionName || member.sectionname || 'Unknown'],
+        sectionname: memberSectionName || member.sectionname,
+      };
     }
     
     setSelectedMember(enrichedMember);
@@ -1492,9 +1499,25 @@ function CampGroupsView({
         <div
           className={`grid gap-4 ${
             isMobile
-              ? 'grid-cols-2 gap-2'
-              : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+              ? 'gap-2'
+              : ''
           }`}
+          style={{
+            gridTemplateColumns: (() => {
+              const groupCount = filteredAndSortedGroups.length;
+              if (groupCount === 0) return '1fr';
+              
+              // Calculate optimal minimum width based on group count for even distribution
+              let minWidth;
+              if (groupCount <= 2) minWidth = isMobile ? '280px' : '400px';
+              else if (groupCount <= 4) minWidth = isMobile ? '250px' : '350px'; // 2 cols
+              else if (groupCount <= 6) minWidth = isMobile ? '200px' : '280px'; // 3 cols  
+              else if (groupCount <= 8) minWidth = isMobile ? '180px' : '240px'; // 4 cols
+              else minWidth = isMobile ? '160px' : '200px'; // 5+ cols
+              
+              return `repeat(auto-fit, minmax(${minWidth}, 1fr))`;
+            })(),
+          }}
         >
           {filteredAndSortedGroups.map((group) => (
             <CampGroupCard

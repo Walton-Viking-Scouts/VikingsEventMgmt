@@ -103,19 +103,21 @@ function Header({
           </div>
 
           {/* Row 2: Authentication and user controls */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between min-w-0 overflow-hidden">
+            {/* Always show AuthButton, especially important when token expired */}
             <AuthButton
               authState={authState}
               onLogin={onLogin}
               onRefresh={onRefresh}
               data-testid="auth-button"
               size="sm"
+              className="flex-shrink-0"
             />
 
-            {/* User menu - always visible when authenticated */}
+            {/* User menu - show when authenticated, but ensure it doesn't hide AuthButton */}
             {user && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-700 text-sm">
+              <div className="flex items-center gap-2 ml-2">
+                <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-gray-700 text-sm">
                   Hi, {user.firstname}
                 </span>
                 <Button
@@ -123,7 +125,7 @@ function Header({
                   size="sm"
                   onClick={handleLogout}
                   data-testid="logout-button"
-                  className="text-xs px-2 py-1"
+                  className="text-xs px-2 py-1 flex-shrink-0"
                 >
                   {isOfflineMode ? 'Clear' : 'Logout'}
                 </Button>

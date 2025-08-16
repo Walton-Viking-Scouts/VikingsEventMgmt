@@ -9,6 +9,14 @@ import { Button } from './ui';
  * - Has cached data: "Refresh data"
  * - Token expired: "Sign in to refresh"
  * - Syncing: "Syncing..." (disabled)
+ * 
+ * @param {Object} props - Component props
+ * @param {string} props.authState - Current authentication state
+ * @param {Function} props.onLogin - Login handler function
+ * @param {Function} props.onRefresh - Refresh handler function
+ * @param {boolean} props.isLoading - Whether sync is in progress
+ * @param {string} props.className - Additional CSS classes
+ * @param {string} props.size - Button size (xs, sm, md, lg, xl)
  */
 function AuthButton({
   authState,
@@ -16,6 +24,7 @@ function AuthButton({
   onRefresh,
   isLoading = false,
   className = '',
+  size,
   ...rest
 }) {
   const getButtonConfig = () => {
@@ -86,6 +95,7 @@ function AuthButton({
       variant={config.variant}
       onClick={config.onClick}
       disabled={config.disabled}
+      size={size}
       className={`auth-button ${className}`}
       data-testid="auth-button"
       {...rest}

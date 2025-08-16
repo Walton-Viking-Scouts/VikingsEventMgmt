@@ -40,7 +40,7 @@ function CampGroupCard({
     return null;
   }
 
-  const { name, number, leaders = [], youngPeople = [] } = group;
+  const { name, leaders = [], youngPeople = [] } = group;
 
   const handleMemberClick = (member) => {
     if (onMemberClick && typeof onMemberClick === 'function') {
@@ -187,16 +187,8 @@ function CampGroupCard({
       <Card.Header className="pb-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-900 break-words">{name}</h3>
+            <h3 className="text-base font-semibold text-gray-900 break-words whitespace-normal">{name}</h3>
           </div>
-
-          {/* Group number badge */}
-          <Badge
-            variant={number === 'Unassigned' ? 'secondary' : 'scout-blue'}
-            size="sm"
-          >
-            {number === 'Unassigned' ? 'Unassigned' : `Group ${number}`}
-          </Badge>
         </div>
 
         {/* Leaders section */}
