@@ -1049,6 +1049,153 @@ function CampGroupsView({
     setOrganizedGroups,
   ]);
 
+  // Handle group delete operations (move members to unassigned)
+  const handleGroupDelete = useCallback(async (groupName, membersBySection) => {
+    if (!flexiRecordContext) {
+      showToast('error', 'Cannot delete groups: FlexiRecord data not available');
+      return;
+    }
+
+    setGroupRenameLoading(true);
+
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      logger.info('Starting group delete operation', {
+        groupName,
+        sectionsCount: Object.keys(membersBySection).length,
+        totalMembers: Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0),
+      }, LOG_CATEGORIES.APP);
+
+      let successfulUpdates = 0;
+      let failedUpdates = 0;
+      const errors = [];
+
+      // Process each section separately - set camp group to empty/null
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
+
+        try {
+          const scoutIds = members.map(member => String(member.scoutid));
+          
+          logger.debug('Deleting group for section (setting to empty)', {
+            sectionId,
+            memberCount: scoutIds.length,
+            groupName,
+            columnId: flexiRecordContext.columnid,
+            flexirecordid: flexiRecordContext.flexirecordid,
+          }, LOG_CATEGORIES.APP);
+
+          // Set camp group to empty string (null equivalent for OSM)
+          const result = await multiUpdateFlexiRecord(
+            sectionId,
+            scoutIds,
+            '', // Empty string = unassigned
+            flexiRecordContext.columnid,
+            flexiRecordContext.flexirecordid,
+            token,
+          );
+
+          if (result?.data?.success) {
+            successfulUpdates++;
+            logger.info('Group delete successful for section', {
+              sectionId,
+              updatedCount: result.data.updated_count,
+              groupName,
+            }, LOG_CATEGORIES.APP);
+          } else {
+            throw new Error(result?.data?.message || 'API call returned unsuccessful status');
+          }
+
+        } catch (sectionError) {
+          failedUpdates++;
+          const errorMsg = `Section ${sectionId}: ${sectionError.message}`;
+          errors.push(errorMsg);
+          
+          logger.error('Group delete failed for section', {
+            sectionId,
+            groupName,
+            error: sectionError.message,
+            memberCount: members.length,
+          }, LOG_CATEGORIES.ERROR);
+        }
+      }
+
+      // Show results
+      if (successfulUpdates > 0 && failedUpdates === 0) {
+        showToast('success', `Successfully deleted "${groupName}" - members moved to Unassigned`);
+        
+        // Optimistically update the UI immediately
+        setOrganizedGroups(prevGroups => {
+          const newGroups = { ...prevGroups };
+          const groups = { ...newGroups.groups };
+          
+          // Move members from deleted group to Unassigned
+          const deletedGroup = groups[groupName];
+          if (deletedGroup) {
+            // Ensure Unassigned group exists
+            if (!groups['Group Unassigned']) {
+              groups['Group Unassigned'] = {
+                name: 'Group Unassigned',
+                number: 'Unassigned',
+                leaders: [],
+                youngPeople: [],
+                totalMembers: 0,
+              };
+            }
+
+            // Move all members to Unassigned
+            const allMembers = [...(deletedGroup.leaders || []), ...(deletedGroup.youngPeople || [])];
+            groups['Group Unassigned'].youngPeople.push(...allMembers);
+            groups['Group Unassigned'].totalMembers += allMembers.length;
+
+            // Remove the deleted group
+            delete groups[groupName];
+          }
+          
+          newGroups.groups = groups;
+          newGroups.summary = recalculateSummary(groups);
+          return newGroups;
+        });
+
+        // Force refresh of FlexiRecord data in the background
+        setTimeout(() => {
+          if (events.length > 0) {
+            getVikingEventDataForEvents(events, token, true).catch(err => {
+              logger.warn('Background FlexiRecord refresh failed after delete', {
+                error: err.message,
+              }, LOG_CATEGORIES.APP);
+            });
+          }
+        }, 1000);
+
+      } else if (successfulUpdates > 0 && failedUpdates > 0) {
+        showToast('error', `Partial success: ${successfulUpdates} sections updated, ${failedUpdates} failed. ${errors.join(', ')}`);
+      } else {
+        showToast('error', `Failed to delete group: ${errors.join(', ')}`);
+      }
+
+    } catch (error) {
+      logger.error('Group delete operation failed', {
+        groupName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      
+      showToast('error', `Failed to delete group: ${error.message}`);
+    } finally {
+      setGroupRenameLoading(false);
+    }
+  }, [
+    flexiRecordContext,
+    showToast,
+    events,
+    setOrganizedGroups,
+    recalculateSummary,
+  ]);
+
   // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
     const groupsArray = Object.values(organizedGroups.groups || {});
@@ -1371,6 +1518,7 @@ function CampGroupsView({
         onClose={() => setShowGroupNamesModal(false)}
         groups={organizedGroups.groups}
         onRename={handleGroupRename}
+        onDelete={handleGroupDelete}
         loading={groupRenameLoading}
       />
     </div>

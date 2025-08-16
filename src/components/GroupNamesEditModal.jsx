@@ -11,6 +11,7 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
  * @param {Function} props.onClose - Close modal callback
  * @param {Object} props.groups - Current groups object from organizedGroups.groups
  * @param {Function} props.onRename - Rename callback with (oldName, newName, membersBySection)
+ * @param {Function} props.onDelete - Delete callback with (groupName, membersBySection)
  * @param {boolean} props.loading - Whether rename operation is in progress
  */
 function GroupNamesEditModal({ 
@@ -18,6 +19,7 @@ function GroupNamesEditModal({
   onClose, 
   groups = {}, 
   onRename, 
+  onDelete,
   loading = false, 
 }) {
   const [groupNames, setGroupNames] = useState({});
@@ -60,8 +62,8 @@ function GroupNamesEditModal({
         return;
       }
 
-      // Check for reserved names
-      if (lowerName === 'unassigned') {
+      // Check for reserved names - only block "Unassigned" for non-unassigned groups
+      if (lowerName === 'unassigned' && originalGroupName !== 'Group Unassigned') {
         newErrors[originalGroupName] = '"Unassigned" is a reserved name';
         return;
       }
@@ -176,6 +178,49 @@ function GroupNamesEditModal({
     onClose();
   }, [groupNames, groups, onRename, onClose, loading, validateNames]);
 
+  // Handle delete group
+  const handleDeleteGroup = useCallback(async (groupName) => {
+    if (loading || !onDelete) return;
+
+    const group = groups[groupName];
+    if (!group) return;
+
+    // Organize members by section for multi-section API calls
+    const membersBySection = {};
+    
+    [...(group.youngPeople || []), ...(group.leaders || [])].forEach(member => {
+      const sectionId = member.sectionid;
+      if (!membersBySection[sectionId]) {
+        membersBySection[sectionId] = [];
+      }
+      membersBySection[sectionId].push(member);
+    });
+
+    const memberCount = Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0);
+    
+    if (memberCount === 0) {
+      logger.info('No members to delete for empty group', { groupName }, LOG_CATEGORIES.APP);
+      return;
+    }
+
+    // Confirm deletion
+    const confirmed = window.confirm(
+      `Delete "${groupName}" and move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned?`,
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      await onDelete(groupName, membersBySection);
+      onClose();
+    } catch (error) {
+      logger.error('Failed to delete group', {
+        groupName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+    }
+  }, [groups, onDelete, loading, onClose]);
+
   // Handle cancel
   const handleCancel = useCallback(() => {
     if (loading) return;
@@ -234,9 +279,6 @@ function GroupNamesEditModal({
                   </div>
                   
                   <div className="flex-1">
-                    <label htmlFor={`group-${originalGroupName}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      {originalGroupName}
-                    </label>
                     <Input
                       id={`group-${originalGroupName}`}
                       value={currentValue}
@@ -249,6 +291,21 @@ function GroupNamesEditModal({
                       <p className="text-red-500 text-xs mt-1">{hasError}</p>
                     )}
                   </div>
+
+                  {/* Delete button - don't show for Unassigned group */}
+                  {originalGroupName !== 'Group Unassigned' && memberCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteGroup(originalGroupName)}
+                      disabled={loading}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      type="button"
+                      title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned)`}
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </div>
               );
             })}
