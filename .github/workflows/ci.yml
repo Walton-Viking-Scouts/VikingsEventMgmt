@@ -164,6 +164,34 @@ jobs:
         run: |
           echo "🔢 Setting version based on deployment environment..."
           
+          # Get the actual PR title (not commit message)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PR events, use the PR title directly
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            echo "📋 Using PR title from pull_request event: $PR_TITLE"
+          else
+            # For push events, find associated PR via GitHub API
+            echo "🔍 Push event detected, searching for associated PR..."
+            COMMIT_SHA="${{ github.sha }}"
+            
+            # Use GitHub API to find PRs associated with this commit
+            API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/${COMMIT_SHA}/pulls" \
+              | jq -r '.[0].title // empty' 2>/dev/null || echo "")
+            
+            if [ -n "$API_RESPONSE" ] && [ "$API_RESPONSE" != "null" ]; then
+              PR_TITLE="$API_RESPONSE"
+              echo "📋 Found associated PR title: $PR_TITLE"
+            else
+              # Fallback to commit message if no PR found
+              PR_TITLE="${{ github.event.head_commit.message }}"
+              echo "📋 No associated PR found, using commit message: $PR_TITLE"
+            fi
+          fi
+          
+          # Export PR_TITLE for use in subsequent steps
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # Preview deployment - use PR-specific version
             BASE_VERSION=$(node -p "require('./package.json').version")
@@ -180,9 +208,8 @@ jobs:
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
             
-            # Check for explicit version in PR title first
-            PR_TITLE="${{ github.event.head_commit.message }}"
-            echo "PR Title: $PR_TITLE"
+            # Use the PR title that was extracted and exported earlier
+            echo "📋 Using extracted PR title: $PR_TITLE"
             
             # Look for version pattern like v1.2.3 in PR title
             EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
