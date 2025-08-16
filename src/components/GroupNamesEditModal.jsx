@@ -198,6 +198,18 @@ function GroupNamesEditModal({
 
     const memberCount = Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0);
     
+    // Debug: Log exactly which members are being deleted
+    logger.info('Group delete preparation', {
+      groupName,
+      memberCount,
+      membersToDelete: Object.fromEntries(
+        Object.entries(membersBySection).map(([sectionId, members]) => [
+          sectionId, 
+          members.map(m => ({ scoutid: m.scoutid, name: m.name || `${m.firstname} ${m.lastname}` })),
+        ]),
+      ),
+    }, LOG_CATEGORIES.APP);
+    
     if (memberCount === 0) {
       logger.info('No members to delete for empty group', { groupName }, LOG_CATEGORIES.APP);
       return;

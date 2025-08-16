@@ -31,6 +31,7 @@ import { findMemberSectionType } from '../utils/sectionHelpers.js';
 function organizeAttendeesSimple(attendees) {
   const groups = {};
   let totalMembers = 0;
+  const seenMembers = new Set(); // Track duplicates
   
   attendees.forEach((member) => {
     // Skip if no member data
@@ -40,6 +41,14 @@ function organizeAttendeesSimple(attendees) {
     if (member.person_type === 'Leaders' || member.person_type === 'Young Leaders') {
       return;
     }
+    
+    // Check for duplicates - same member in multiple events
+    const memberId = member.scoutid;
+    if (seenMembers.has(memberId)) {
+      console.warn(`Duplicate member detected: ${member.name} (${memberId}) - skipping second occurrence`);
+      return;
+    }
+    seenMembers.add(memberId);
     
     // Get camp group from Viking Event data
     const campGroup = member.vikingEventData?.CampGroup;
@@ -1076,6 +1085,12 @@ function CampGroupsView({
         groupName,
         sectionsCount: Object.keys(membersBySection).length,
         totalMembers: Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0),
+        membersBySection: Object.fromEntries(
+          Object.entries(membersBySection).map(([sectionId, members]) => [
+            sectionId, 
+            members.map(m => ({ scoutid: m.scoutid, name: m.name || `${m.firstname} ${m.lastname}` })),
+          ]),
+        ),
       }, LOG_CATEGORIES.APP);
 
       let successfulUpdates = 0;
@@ -1087,43 +1102,93 @@ function CampGroupsView({
         if (members.length === 0) continue;
 
         try {
-          const scoutIds = members.map(member => String(member.scoutid));
-          
-          logger.debug('Deleting group for section (setting to empty)', {
+          logger.debug('Deleting group for section (setting to unassigned)', {
             sectionId,
-            memberCount: scoutIds.length,
+            memberCount: members.length,
             groupName,
             columnId: flexiRecordContext.columnid,
             flexirecordid: flexiRecordContext.flexirecordid,
           }, LOG_CATEGORIES.APP);
 
-          // Set camp group to empty string (null equivalent for OSM)
-          const result = await multiUpdateFlexiRecord(
-            sectionId,
-            scoutIds,
-            '', // Empty string = unassigned
-            flexiRecordContext.columnid,
-            flexiRecordContext.flexirecordid,
-            token,
-          );
+          // Use individual updates since multiUpdate doesn't accept null/empty values
+          // Process each member individually to set their camp group to unassigned
+          let sectionSuccessCount = 0;
+          let sectionFailureCount = 0;
 
-          // Check for success - handle multiple response formats:
-          // Expected: { status: true, data: { success: true, updated_count: X } }
-          // Actual: { error: false, _rateLimitInfo: {...} }
-          const isSuccess = result?.status === true || 
-                           result?.data?.success === true || 
-                           (result?.error === false && result?._rateLimitInfo);
-          
-          if (isSuccess) {
+          for (const member of members) {
+            try {
+              // Create move data for assigning to "Unassigned" group
+              const moveData = {
+                member: member,
+                fromGroupNumber: groupName.replace('Group ', ''),
+                fromGroupName: groupName,
+                toGroupNumber: 'Unassigned',
+                toGroupName: 'Group Unassigned',
+              };
+
+              // Get the correct section type for THIS specific member (same as drag-and-drop)
+              const memberSectionId = member.sectionid;
+              const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
+
+              if (!memberSectionType) {
+                throw new Error(`Cannot find section type for member ${member.scoutid} in section ${memberSectionId}`);
+              }
+
+              // Extract FlexiRecord context for this section (same approach as drag-and-drop)
+              const sectionContext = {
+                ...flexiRecordContext,
+                section: memberSectionType, // Use the member's section type, not generic name
+                sectionid: memberSectionId, // Use the member's section ID
+              };
+
+              // Use the camp group allocation service for individual updates
+              const result = await assignMemberToCampGroup(moveData, sectionContext, token);
+
+              if (result.success) {
+                sectionSuccessCount++;
+                logger.debug('Successfully moved member to unassigned', {
+                  memberId: member.scoutid,
+                  memberName: member.name || `${member.firstname} ${member.lastname}`,
+                  groupName,
+                }, LOG_CATEGORIES.APP);
+              } else {
+                sectionFailureCount++;
+                logger.warn('Failed to move member to unassigned', {
+                  memberId: member.scoutid,
+                  memberName: member.name || `${member.firstname} ${member.lastname}`,
+                  error: result.error,
+                  groupName,
+                }, LOG_CATEGORIES.APP);
+              }
+
+              // Small delay between API calls for rate limiting
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+            } catch (memberError) {
+              sectionFailureCount++;
+              logger.error('Error moving individual member to unassigned', {
+                memberId: member.scoutid,
+                memberName: member.name || `${member.firstname} ${member.lastname}`,
+                error: memberError.message,
+                groupName,
+              }, LOG_CATEGORIES.ERROR);
+            }
+          }
+
+          // Check section-level success
+          if (sectionSuccessCount === members.length) {
             successfulUpdates++;
             logger.info('Group delete successful for section', {
               sectionId,
-              updatedCount: result.data?.updated_count || 'unknown',
+              updatedCount: sectionSuccessCount,
               groupName,
-              apiResponse: result,
+              method: 'individual_updates',
             }, LOG_CATEGORIES.APP);
+          } else if (sectionSuccessCount > 0) {
+            // Partial success - treat as failure for simplicity
+            throw new Error(`Partial success: ${sectionSuccessCount}/${members.length} members moved to unassigned`);
           } else {
-            throw new Error(result?.data?.message || result?.message || 'API call returned unsuccessful status');
+            throw new Error(`No members successfully moved to unassigned (${sectionFailureCount} failures)`);
           }
 
         } catch (sectionError) {
@@ -1163,10 +1228,16 @@ function CampGroupsView({
               };
             }
 
-            // Move all members to Unassigned
+            // Move all members to Unassigned (avoid duplicates)
             const allMembers = [...(deletedGroup.leaders || []), ...(deletedGroup.youngPeople || [])];
-            groups['Group Unassigned'].youngPeople.push(...allMembers);
-            groups['Group Unassigned'].totalMembers += allMembers.length;
+            const existingUnassignedIds = new Set(
+              (groups['Group Unassigned'].youngPeople || []).map(m => m.scoutid),
+            );
+            
+            // Only add members that aren't already in Unassigned
+            const newMembers = allMembers.filter(member => !existingUnassignedIds.has(member.scoutid));
+            groups['Group Unassigned'].youngPeople.push(...newMembers);
+            groups['Group Unassigned'].totalMembers += newMembers.length;
 
             // Remove the deleted group
             delete groups[groupName];
@@ -1210,6 +1281,7 @@ function CampGroupsView({
     events,
     setOrganizedGroups,
     recalculateSummary,
+    sectionsCache,
   ]);
 
   // Filter and sort groups based on search and sort criteria
