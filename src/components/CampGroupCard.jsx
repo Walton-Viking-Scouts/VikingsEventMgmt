@@ -187,7 +187,7 @@ function CampGroupCard({
       <Card.Header className="pb-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-900 break-keep whitespace-normal">{name}</h3>
+            <h3 className="text-base font-semibold text-gray-900 break-words whitespace-normal">{name}</h3>
           </div>
         </div>
 

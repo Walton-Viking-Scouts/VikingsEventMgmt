@@ -103,7 +103,7 @@ function Header({
           </div>
 
           {/* Row 2: Authentication and user controls */}
-          <div className="flex items-center justify-between min-w-0">
+          <div className="flex items-center justify-between min-w-0 overflow-hidden">
             {/* Always show AuthButton, especially important when token expired */}
             <AuthButton
               authState={authState}
@@ -116,8 +116,8 @@ function Header({
 
             {/* User menu - show when authenticated, but ensure it doesn't hide AuthButton */}
             {user && (
-              <div className="flex items-center gap-2 min-w-0 ml-2">
-                <span className="text-gray-700 text-sm truncate">
+              <div className="flex items-center gap-2 min-w-0 ml-2 flex-1 overflow-hidden">
+                <span className="block text-gray-700 text-sm truncate">
                   Hi, {user.firstname}
                 </span>
                 <Button
