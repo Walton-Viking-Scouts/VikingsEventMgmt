@@ -164,6 +164,37 @@ jobs:
         run: |
           echo "🔢 Setting version based on deployment environment..."
           
+          # Export GH_TOKEN for gh CLI commands
+          export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          
+          # Get the actual PR title (not commit message)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PR events, use the PR title directly
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            echo "📋 Using PR title from pull_request event: $PR_TITLE"
+          else
+            # For push events, find associated PR via GitHub API
+            echo "🔍 Push event detected, searching for associated PR..."
+            COMMIT_SHA="${{ github.sha }}"
+            
+            # Use GitHub API to find PRs associated with this commit
+            API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/${COMMIT_SHA}/pulls" \
+              | jq -r '.[0].title // empty' 2>/dev/null || echo "")
+            
+            if [ -n "$API_RESPONSE" ] && [ "$API_RESPONSE" != "null" ]; then
+              PR_TITLE="$API_RESPONSE"
+              echo "📋 Found associated PR title: $PR_TITLE"
+            else
+              # Fallback to commit message if no PR found
+              PR_TITLE="${{ github.event.head_commit.message }}"
+              echo "📋 No associated PR found, using commit message: $PR_TITLE"
+            fi
+          fi
+          
+          # Export PR_TITLE for use in subsequent steps
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # Preview deployment - use PR-specific version
             BASE_VERSION=$(node -p "require('./package.json').version")
@@ -180,35 +211,48 @@ jobs:
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
             
-            # Analyze commit messages to determine version bump type
-            RECENT_COMMITS=$(git log --oneline -10 --pretty=format:"%s")
-            PR_TITLE="${{ github.event.head_commit.message }}"
+            # Use the PR title that was extracted and exported earlier
+            echo "📋 Using extracted PR title: $PR_TITLE"
             
-            echo "Recent commits:"
-            echo "$RECENT_COMMITS"
-            echo ""
-            echo "PR Title: $PR_TITLE"
-            echo ""
+            # Look for version pattern like v1.2.3 in PR title
+            EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
             
-            # Determine version bump type based on commit messages
-            VERSION_TYPE="patch"  # Default to patch
-            
-            # Check for feature indicators (case insensitive)
-            if echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(feat|feature|add|implement|new)" > /dev/null; then
-              VERSION_TYPE="minor"
-              echo "🚀 Detected FEATURE: Using minor version bump"
-            elif echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(break|breaking|major)" > /dev/null; then
-              VERSION_TYPE="major"
-              echo "💥 Detected BREAKING CHANGE: Using major version bump"
+            if [ -n "$EXPLICIT_VERSION" ]; then
+              # Explicit version found in PR title - use it directly
+              CLEAN_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
+              echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
+              echo "Setting version directly to: $CLEAN_VERSION"
+              
+              # Set NEW_VERSION immediately for explicit versions
+              NEW_VERSION="$CLEAN_VERSION"
+              VERSION_TYPE="explicit"
+              
+              # Update package.json to match explicit version
+              npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
+              
+              echo "✅ Explicit version set: $NEW_VERSION"
             else
-              echo "🐛 Detected BUG FIX/MAINTENANCE: Using patch version bump"
+              # No explicit version - derive base from git tags for idempotency
+              echo "📝 No explicit version in PR title, computing patch bump from git tags"
+              echo "PR titles can include version like: 'feat: new feature v1.2.0'"
+              
+              # Get base version from latest git tag (more reliable than package.json)
+              LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+              BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+              echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
+              
+              # Compute next patch version
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+              NEXT_PATCH=$((PATCH + 1))
+              NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+              VERSION_TYPE="patch"
+              
+              echo "🔧 Computed next patch version: $NEW_VERSION"
+              
+              # Update package.json to computed version
+              npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
             fi
             
-            echo "Version bump type: $VERSION_TYPE"
-            
-            # Bump version based on detected type
-            npm version $VERSION_TYPE --no-git-tag-version
-            NEW_VERSION=$(node -p "require('./package.json').version")
             DEPLOYMENT_TYPE="production"
             echo "Production version: $NEW_VERSION"
           fi
@@ -220,23 +264,43 @@ jobs:
           
           # Create tags and releases only for production deployments
           if [ "$DEPLOYMENT_TYPE" = "production" ]; then
-            if [ "$VERSION_TYPE" = "patch" ]; then
-              # Patch versions: Just create tag for Sentry tracking
-              git tag "v${NEW_VERSION}"
-              git push origin "v${NEW_VERSION}"
-              echo "✅ Production version tagged: v${NEW_VERSION} (patch)"
+            # Check if tag already exists before creating (idempotent)
+            if git rev-parse --verify "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; then
+              echo "🏷️ Tag v${NEW_VERSION} already exists, skipping tag creation"
+              TAG_CREATED="false"
             else
-              # Minor/Major versions: Create GitHub Release
+              # Create and push git tag for Sentry tracking
+              echo "🏷️ Creating new tag v${NEW_VERSION}"
               git tag "v${NEW_VERSION}"
               git push origin "v${NEW_VERSION}"
-              
-              # Create GitHub Release for features/breaking changes  
-              gh release create "v${NEW_VERSION}" \
-                --title "Release v${NEW_VERSION}" \
-                --notes "Auto-generated $VERSION_TYPE release v${NEW_VERSION}. This release was created automatically based on commit analysis. Changes: $VERSION_TYPE version bump based on detected changes. Sentry Tracking: Version v${NEW_VERSION}, Type $VERSION_TYPE. All errors will be attributed to this release. Generated with Claude Code." \
-                --latest
-              
-              echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
+              TAG_CREATED="true"
+              echo "✅ Git tag v${NEW_VERSION} created and pushed"
+            fi
+            
+            # Create GitHub releases based on version type (only if tag was created)
+            if [ "$TAG_CREATED" = "true" ]; then
+              if [ "$VERSION_TYPE" = "patch" ]; then
+                # Patch versions: Just tag for Sentry tracking (no GitHub release)
+                echo "✅ Production version tagged: v${NEW_VERSION} (patch)"
+              elif [ "$VERSION_TYPE" = "explicit" ]; then
+                # Explicit versions: Create GitHub Release for visibility
+                gh release create "v${NEW_VERSION}" \
+                  --title "Release v${NEW_VERSION}" \
+                  --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. Sentry Tracking: Version v${NEW_VERSION}, Type: Explicit. All errors will be attributed to this release. Generated with Claude Code." \
+                  --latest
+                
+                echo "✅ Production version released: v${NEW_VERSION} (explicit from PR title)"
+              else
+                # Other version types: Create GitHub Release
+                gh release create "v${NEW_VERSION}" \
+                  --title "Release v${NEW_VERSION}" \
+                  --notes "Auto-generated release v${NEW_VERSION}. Sentry Tracking: Version v${NEW_VERSION}, Type: ${VERSION_TYPE}. All errors will be attributed to this release. Generated with Claude Code." \
+                  --latest
+                
+                echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
+              fi
+            else
+              echo "ℹ️ Tag already exists, skipping GitHub release creation"
             fi
           else
             echo "🔍 Preview deployment - no tags or releases created"
