@@ -45,7 +45,10 @@ function organizeAttendeesSimple(attendees) {
     // Check for duplicates - same member in multiple events
     const memberId = member.scoutid;
     if (seenMembers.has(memberId)) {
-      console.warn(`Duplicate member detected: ${member.name} (${memberId}) - skipping second occurrence`);
+      logger.warn('Duplicate member detected - skipping second occurrence', {
+        name: member.name,
+        scoutid: memberId,
+      }, LOG_CATEGORIES.APP);
       return;
     }
     seenMembers.add(memberId);
@@ -938,7 +941,10 @@ function CampGroupsView({
         if (members.length === 0) continue;
 
         try {
-          const scoutIds = members.map(member => String(member.scoutid));
+          const scoutIds = Array.from(new Set(members.map(member => String(member.scoutid))));
+          if (!/^f_\d+$/.test(String(flexiRecordContext.columnid))) {
+            throw new Error(`Invalid FlexiRecord field ID '${flexiRecordContext.columnid}'`);
+          }
           
           logger.debug('Updating group name for section', {
             sectionId,
