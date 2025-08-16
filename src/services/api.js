@@ -1291,12 +1291,22 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       throw new Error('Scouts array is required and must not be empty');
     }
 
+    const requestBody = {
+      sectionid,
+      scouts,
+      value,
+      column,
+      flexirecordid,
+    };
+
     logger.info('Multi-updating FlexiRecord field', {
       sectionid,
       scoutCount: scouts.length,
       value,
+      valueType: typeof value,
       column,
       flexirecordid,
+      requestBody,
     }, LOG_CATEGORIES.API);
 
     const response = await fetch(`${BACKEND_URL}/multi-update-flexi-record`, {
@@ -1305,13 +1315,7 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json', 
       },
-      body: JSON.stringify({
-        sectionid,
-        scouts,
-        value,
-        column,
-        flexirecordid,
-      }),
+      body: JSON.stringify(requestBody),
     });
         
     const data = await handleAPIResponseWithRateLimit(response, 'multiUpdateFlexiRecord');
