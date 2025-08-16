@@ -951,15 +951,23 @@ function CampGroupsView({
             token,
           );
 
-          if (result?.data?.success) {
+          // Check for success - handle multiple response formats:
+          // Expected: { status: true, data: { success: true, updated_count: X } }
+          // Actual: { error: false, _rateLimitInfo: {...} }
+          const isSuccess = result?.status === true || 
+                           result?.data?.success === true || 
+                           (result?.error === false && result?._rateLimitInfo);
+          
+          if (isSuccess) {
             successfulUpdates++;
             logger.info('Group rename successful for section', {
               sectionId,
-              updatedCount: result.data.updated_count,
+              updatedCount: result.data?.updated_count || 'unknown',
               newGroupName,
+              apiResponse: result,
             }, LOG_CATEGORIES.APP);
           } else {
-            throw new Error(result?.data?.message || 'API call returned unsuccessful status');
+            throw new Error(result?.data?.message || result?.message || 'API call returned unsuccessful status');
           }
 
         } catch (sectionError) {
@@ -1099,15 +1107,23 @@ function CampGroupsView({
             token,
           );
 
-          if (result?.data?.success) {
+          // Check for success - handle multiple response formats:
+          // Expected: { status: true, data: { success: true, updated_count: X } }
+          // Actual: { error: false, _rateLimitInfo: {...} }
+          const isSuccess = result?.status === true || 
+                           result?.data?.success === true || 
+                           (result?.error === false && result?._rateLimitInfo);
+          
+          if (isSuccess) {
             successfulUpdates++;
             logger.info('Group delete successful for section', {
               sectionId,
-              updatedCount: result.data.updated_count,
+              updatedCount: result.data?.updated_count || 'unknown',
               groupName,
+              apiResponse: result,
             }, LOG_CATEGORIES.APP);
           } else {
-            throw new Error(result?.data?.message || 'API call returned unsuccessful status');
+            throw new Error(result?.data?.message || result?.message || 'API call returned unsuccessful status');
           }
 
         } catch (sectionError) {
