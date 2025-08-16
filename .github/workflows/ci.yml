@@ -180,34 +180,33 @@ jobs:
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
             
-            # Analyze commit messages to determine version bump type
-            RECENT_COMMITS=$(git log --oneline -10 --pretty=format:"%s")
+            # Check for explicit version in PR title first
             PR_TITLE="${{ github.event.head_commit.message }}"
-            
-            echo "Recent commits:"
-            echo "$RECENT_COMMITS"
-            echo ""
             echo "PR Title: $PR_TITLE"
-            echo ""
             
-            # Determine version bump type based on commit messages
-            VERSION_TYPE="patch"  # Default to patch
+            # Look for version pattern like v1.2.3 in PR title
+            EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
             
-            # Check for feature indicators (case insensitive)
-            if echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(feat|feature|add|implement|new)" > /dev/null; then
-              VERSION_TYPE="minor"
-              echo "🚀 Detected FEATURE: Using minor version bump"
-            elif echo "$RECENT_COMMITS $PR_TITLE" | grep -iE "(break|breaking|major)" > /dev/null; then
-              VERSION_TYPE="major"
-              echo "💥 Detected BREAKING CHANGE: Using major version bump"
+            if [ -n "$EXPLICIT_VERSION" ]; then
+              # Explicit version found in PR title - use it directly
+              CLEAN_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
+              echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
+              echo "Setting version directly to: $CLEAN_VERSION"
+              
+              # Set version directly without npm version (to avoid conflicts)
+              npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
+              VERSION_TYPE="explicit"
             else
-              echo "🐛 Detected BUG FIX/MAINTENANCE: Using patch version bump"
+              # No explicit version - default to patch bump
+              echo "📝 No explicit version in PR title, defaulting to patch bump"
+              echo "PR titles can include version like: 'feat: new feature v1.2.0'"
+              
+              VERSION_TYPE="patch"
+              echo "🔧 Using patch version bump (default for safety)"
+              
+              # Bump version with patch
+              npm version patch --no-git-tag-version
             fi
-            
-            echo "Version bump type: $VERSION_TYPE"
-            
-            # Bump version based on detected type
-            npm version $VERSION_TYPE --no-git-tag-version
             NEW_VERSION=$(node -p "require('./package.json').version")
             DEPLOYMENT_TYPE="production"
             echo "Production version: $NEW_VERSION"
@@ -220,20 +219,26 @@ jobs:
           
           # Create tags and releases only for production deployments
           if [ "$DEPLOYMENT_TYPE" = "production" ]; then
+            # Always create git tag for Sentry tracking
+            git tag "v${NEW_VERSION}"
+            git push origin "v${NEW_VERSION}"
+            
             if [ "$VERSION_TYPE" = "patch" ]; then
-              # Patch versions: Just create tag for Sentry tracking
-              git tag "v${NEW_VERSION}"
-              git push origin "v${NEW_VERSION}"
+              # Patch versions: Just tag for Sentry tracking
               echo "✅ Production version tagged: v${NEW_VERSION} (patch)"
-            else
-              # Minor/Major versions: Create GitHub Release
-              git tag "v${NEW_VERSION}"
-              git push origin "v${NEW_VERSION}"
-              
-              # Create GitHub Release for features/breaking changes  
+            elif [ "$VERSION_TYPE" = "explicit" ]; then
+              # Explicit versions: Create GitHub Release for visibility
               gh release create "v${NEW_VERSION}" \
                 --title "Release v${NEW_VERSION}" \
-                --notes "Auto-generated $VERSION_TYPE release v${NEW_VERSION}. This release was created automatically based on commit analysis. Changes: $VERSION_TYPE version bump based on detected changes. Sentry Tracking: Version v${NEW_VERSION}, Type $VERSION_TYPE. All errors will be attributed to this release. Generated with Claude Code." \
+                --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. Sentry Tracking: Version v${NEW_VERSION}, Type: Explicit. All errors will be attributed to this release. Generated with Claude Code." \
+                --latest
+              
+              echo "✅ Production version released: v${NEW_VERSION} (explicit from PR title)"
+            else
+              # Other version types: Create GitHub Release
+              gh release create "v${NEW_VERSION}" \
+                --title "Release v${NEW_VERSION}" \
+                --notes "Auto-generated release v${NEW_VERSION}. Sentry Tracking: Version v${NEW_VERSION}, Type: ${VERSION_TYPE}. All errors will be attributed to this release. Generated with Claude Code." \
                 --latest
               
               echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
