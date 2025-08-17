@@ -1,8 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance } from '../services/api.js';
+import { getEventAttendance, getEventSharingStatus } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import { 
+  isSharedEventOwner, 
+  getUserAccessibleSections, 
+} from '../utils/eventDashboardHelpers.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -36,8 +40,13 @@ export function useAttendanceData(events) {
       }
       
       const allAttendance = [];
+      const sectionSpecificAttendanceData = [];
+      const token = getToken();
       
-      // Check cache for attendance data using proper cache keys
+      // Get list of sections user has access to
+      const userAccessibleSections = getUserAccessibleSections(events);
+      
+      // Load normal attendance data first (to detect sharing status)
       for (const event of events) {
         // Validate that event has required fields (should be included from eventDashboardHelpers)
         if (!event.sectionid || !event.termid || !event.eventid) {
@@ -53,21 +62,39 @@ export function useAttendanceData(events) {
         
         // Check if we have cached attendance data for this specific event
         const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
-        let cachedAttendance = null;
+        let attendanceResponse = null;
         
         try {
           const cached = localStorage.getItem(cacheKey);
           if (cached) {
-            cachedAttendance = JSON.parse(cached);
+            const cachedAttendance = JSON.parse(cached);
+            attendanceResponse = { items: cachedAttendance };
             console.log(`Found cached attendance for event ${event.name}:`, cachedAttendance.length, 'records');
           }
         } catch (error) {
           console.warn('Failed to parse cached attendance data:', error);
         }
         
-        if (cachedAttendance && Array.isArray(cachedAttendance)) {
-          // Use cached attendance data
-          const attendanceWithEvent = cachedAttendance.map(record => ({
+        if (!attendanceResponse && token) {
+          // Fallback to API call if no cached data
+          try {
+            const attendanceItems = await getEventAttendance(
+              event.sectionid, 
+              event.eventid, 
+              event.termid,
+              token,
+            );
+            
+            attendanceResponse = { items: attendanceItems || [] };
+          } catch (eventError) {
+            console.warn(`Error loading attendance for event ${event.name}:`, eventError);
+            attendanceResponse = { items: [] };
+          }
+        }
+        
+        if (attendanceResponse && attendanceResponse.items) {
+          // Add event info to each attendance record
+          const attendanceWithEvent = attendanceResponse.items.map(record => ({
             ...record,
             eventid: event.eventid,
             eventname: event.name,
@@ -75,43 +102,31 @@ export function useAttendanceData(events) {
             sectionid: event.sectionid,
             sectionname: event.sectionname,
           }));
+          
+          // Store section-specific data for potential shared event merging
+          sectionSpecificAttendanceData.push({
+            ...attendanceResponse,
+            items: attendanceWithEvent,
+            eventId: event.eventid,
+            sectionId: event.sectionid,
+          });
+          
           allAttendance.push(...attendanceWithEvent);
-        } else {
-          // Fallback to API call if no cached data
-          // NOTE: termid should already be in event object from eventDashboardHelpers
-          try {
-            const token = getToken();
-            if (!token) {
-              console.warn(`No token available for API call for event ${event.name}`);
-              continue;
-            }
-            
-            const attendance = await getEventAttendance(
-              event.sectionid, 
-              event.eventid, 
-              event.termid, // Use termid from event (no need to fetch again)
-              token,
-            );
-            
-            if (attendance && Array.isArray(attendance)) {
-              // Add event info to each attendance record
-              const attendanceWithEvent = attendance.map(record => ({
-                ...record,
-                eventid: event.eventid,
-                eventname: event.name,
-                eventdate: event.startdate,
-                sectionid: event.sectionid,
-                sectionname: event.sectionname,
-              }));
-              allAttendance.push(...attendanceWithEvent);
-            }
-          } catch (eventError) {
-            console.warn(`Error loading attendance for event ${event.name}:`, eventError);
-          }
         }
       }
       
-      setAttendanceData(allAttendance);
+      // Check for shared events and merge data if needed
+      if (token && sectionSpecificAttendanceData.length > 0) {
+        await handleSharedEventMerging(
+          sectionSpecificAttendanceData, 
+          userAccessibleSections, 
+          token, 
+          allAttendance,
+          events,
+        );
+      } else {
+        setAttendanceData(allAttendance);
+      }
       
       // Load Viking Event Management data (fresh when possible, cache as fallback)
       await loadVikingEventData();
@@ -121,6 +136,97 @@ export function useAttendanceData(events) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle shared event detection and merging
+  const handleSharedEventMerging = async (
+    sectionSpecificAttendanceData, 
+    userAccessibleSections, 
+    token, 
+    allAttendance,
+    events,
+  ) => {
+    try {
+      // Group attendance data by event ID to detect shared events
+      const eventAttendanceMap = new Map();
+      sectionSpecificAttendanceData.forEach(data => {
+        if (!eventAttendanceMap.has(data.eventId)) {
+          eventAttendanceMap.set(data.eventId, []);
+        }
+        eventAttendanceMap.get(data.eventId).push(data);
+      });
+      
+      let hasSharedEvents = false;
+      const finalAttendanceData = [];
+      
+      // Process each unique event
+      for (const [eventId, eventAttendanceDataArray] of eventAttendanceMap.entries()) {
+        const eventData = events.find(e => e.eventid === eventId);
+        if (!eventData) continue;
+        
+        // Check if any section for this event is a shared event owner
+        const sharedEventData = eventAttendanceDataArray.find(data => 
+          isSharedEventOwner(data),
+        );
+        
+        if (sharedEventData) {
+          logger.info('Detected shared event', {
+            eventId,
+            eventName: eventData.name,
+            ownerSection: sharedEventData.sectionId,
+          }, LOG_CATEGORIES.COMPONENT);
+          
+          hasSharedEvents = true;
+          
+          try {
+            // Fetch shared event data  
+            const sharingStatus = await getEventSharingStatus(eventId, sharedEventData.sectionId, token);
+            // Note: Using sharing status only for now, detailed attendance merging to be implemented later
+            
+            logger.info('Fetched shared event data', {
+              eventId,
+              sharingStatusSections: sharingStatus?.items?.length || 0,
+            }, LOG_CATEGORIES.COMPONENT);
+            
+            // For now, skip merging and use section-specific data only
+            // TODO: Implement proper shared event merging for detailed view
+            // Fallback to section-specific data for now
+            const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
+            finalAttendanceData.push(...sectionAttendees);
+            
+          } catch (sharedError) {
+            logger.error('Error fetching shared event data, falling back to section-specific', {
+              eventId,
+              error: sharedError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+            
+            // Fallback to section-specific data
+            const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
+            finalAttendanceData.push(...sectionAttendees);
+          }
+        } else {
+          // Regular event - use section-specific data
+          const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
+          finalAttendanceData.push(...sectionAttendees);
+        }
+      }
+      
+      logger.info('Attendance data processing completed', {
+        hasSharedEvents,
+        totalAttendees: finalAttendanceData.length,
+        originalCount: allAttendance.length,
+      }, LOG_CATEGORIES.COMPONENT);
+      
+      setAttendanceData(finalAttendanceData);
+      
+    } catch (error) {
+      logger.error('Error in shared event merging, using original data', {
+        error: error.message,
+      }, LOG_CATEGORIES.COMPONENT);
+      
+      // Fallback to original attendance data
+      setAttendanceData(allAttendance);
     }
   };
 

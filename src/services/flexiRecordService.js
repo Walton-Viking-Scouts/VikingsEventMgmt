@@ -48,11 +48,7 @@ function cacheData(cacheKey, data) {
   try {
     const success = safeSetItem(cacheKey, cachedData);
     if (success) {
-      logger.info('FlexiRecord data successfully cached', {
-        cacheKey,
-        dataSize,
-        itemCount,
-      }, LOG_CATEGORIES.API);
+      // FlexiRecord data cached successfully
     } else {
       logger.error('FlexiRecord caching failed - safeSetItem returned falsy', {
         cacheKey,
@@ -104,10 +100,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     if (!forceRefresh && isOnline) {
       const cacheCheck = isCacheValid(cacheKey, FLEXI_LISTS_CACHE_TTL);
       if (cacheCheck.valid) {
-        logger.info('Using cached flexirecords list', { 
-          sectionId, 
-          cacheAgeMinutes: cacheCheck.cacheAgeMinutes,
-        }, LOG_CATEGORIES.API);
+        // Using cached flexirecords list
         return cacheCheck.data;
       }
     }
@@ -115,10 +108,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     // If offline, get from localStorage regardless of age
     if (!isOnline) {
       const cached = safeGetItem(cacheKey, { items: [] });
-      logger.info('Retrieved flexirecords from localStorage while offline', { 
-        sectionId, 
-        itemCount: cached.items?.length || 0,
-      }, LOG_CATEGORIES.API);
+      // Retrieved flexirecords from localStorage while offline
       return cached;
     }
 
@@ -127,7 +117,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     }
 
     // Get fresh data from API
-    logger.info('Fetching flexirecords list from API', { sectionId }, LOG_CATEGORIES.API);
+    // Fetching flexirecords list from API
     const flexiRecords = await getFlexiRecords(sectionId, token);
     
     // Cache data with timestamp
@@ -178,10 +168,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     if (!forceRefresh && isOnline) {
       const cacheCheck = isCacheValid(cacheKey, FLEXI_STRUCTURES_CACHE_TTL);
       if (cacheCheck.valid) {
-        logger.info('Using cached flexirecord structure', { 
-          flexirecordId, 
-          cacheAgeMinutes: cacheCheck.cacheAgeMinutes,
-        }, LOG_CATEGORIES.API);
+        // Using cached flexirecord structure
         return cacheCheck.data;
       }
     }
@@ -190,10 +177,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     if (!isOnline) {
       const cached = safeGetItem(cacheKey, null);
       if (cached) {
-        logger.info('Retrieved structure from localStorage while offline', { 
-          flexirecordId, 
-          structureName: cached.name,
-        }, LOG_CATEGORIES.API);
+        // Retrieved structure from localStorage while offline
         return cached;
       }
       return null;
@@ -204,7 +188,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     }
 
     // Get fresh data from API
-    logger.info('Fetching flexirecord structure from API', { flexirecordId, sectionId }, LOG_CATEGORIES.API);
+    // Fetching flexirecord structure from API
     const structure = await getFlexiStructure(flexirecordId, sectionId, termId, token);
     
     if (!structure) {
@@ -260,10 +244,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     if (!forceRefresh && isOnline) {
       const cacheCheck = isCacheValid(storageKey, FLEXI_DATA_CACHE_TTL);
       if (cacheCheck.valid) {
-        logger.info('Using cached flexirecord data', { 
-          flexirecordId, 
-          cacheAgeMinutes: cacheCheck.cacheAgeMinutes,
-        }, LOG_CATEGORIES.API);
+        // Using cached flexirecord data
         return cacheCheck.data;
       }
     }
@@ -272,10 +253,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     if (!isOnline) {
       const cached = safeGetItem(storageKey, null);
       if (cached) {
-        logger.info('Retrieved flexirecord data from localStorage while offline', { 
-          flexirecordId, 
-          itemCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.API);
+        // Retrieved flexirecord data from localStorage while offline
         return cached;
       }
       return null;
@@ -286,7 +264,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     }
 
     // Get fresh data from API
-    logger.info('Fetching flexirecord data from API', { flexirecordId, sectionId, termId }, LOG_CATEGORIES.API);
+    // Fetching flexirecord data from API
     const data = await getSingleFlexiRecord(flexirecordId, sectionId, termId, token);
     
     if (!data) {
@@ -341,13 +319,7 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
       throw new Error('Missing required parameters: sectionId, flexirecordId, and termId are required');
     }
 
-    logger.info('Getting consolidated flexirecord data', {
-      sectionId,
-      flexirecordId,
-      termId,
-      hasToken: !!token,
-      forceRefresh,
-    }, LOG_CATEGORIES.API);
+    // Getting consolidated flexirecord data
 
     // Get structure and data using service layer caching
     const [structureData, flexiData] = await Promise.all([
@@ -391,11 +363,7 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
       fieldMapping: fieldMappingObj, // Add the field mapping for drag-and-drop context
     };
 
-    logger.info('Successfully consolidated flexirecord data', {
-      flexirecordName: structureData.name,
-      totalItems: consolidatedData.items.length,
-      fieldsTransformed: fieldMapping.size,
-    }, LOG_CATEGORIES.API);
+    // Successfully consolidated flexirecord data
 
     return consolidatedData;
   } catch (error) {
@@ -441,11 +409,7 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
       throw new Error('Missing required parameters: sectionId and termId are required');
     }
 
-    logger.info('Getting Viking Event data for section', {
-      sectionId,
-      termId,
-      hasToken: !!token,
-    }, LOG_CATEGORIES.API);
+    // Getting Viking Event data for section
 
     // Get flexirecords list
     const flexiRecordsList = await getFlexiRecordsList(sectionId, token);
@@ -464,11 +428,7 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
       return null;
     }
 
-    logger.info('Found "Viking Event Mgmt" flexirecord in list', {
-      sectionId,
-      flexiRecordId: vikingEventFlexiRecord.extraid,
-      flexiRecordName: vikingEventFlexiRecord.name,
-    }, LOG_CATEGORIES.API);
+    // Found "Viking Event Mgmt" flexirecord in list
 
     // Get the consolidated data (structure + data) for the "Viking Event Mgmt" flexirecord
     const vikingEventRecord = await getConsolidatedFlexiRecord(
@@ -479,12 +439,7 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
       forceRefresh, // Pass through forceRefresh parameter
     );
 
-    logger.info('Found "Viking Event Mgmt" flexirecord', {
-      sectionId,
-      vikingEventName: vikingEventRecord._structure.name,
-      totalMembers: vikingEventRecord.items.length,
-      extraid: vikingEventRecord._structure.extraid,
-    }, LOG_CATEGORIES.API);
+    // Found "Viking Event Mgmt" flexirecord
 
     return vikingEventRecord;
   } catch (error) {
@@ -535,11 +490,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
       return { sectionId, termId };
     });
 
-    logger.info('Getting Viking Event data for section-term combinations', {
-      totalEvents: events.length,
-      uniqueCombinations: sectionTermCombos.length,
-      combinations: sectionTermCombos,
-    }, LOG_CATEGORIES.API);
+    // Getting Viking Event data for section-term combinations
 
     const vikingEventPromises = sectionTermCombos.map(async ({ sectionId, termId }) => {
       try {
@@ -566,16 +517,9 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
     );
 
     const successCount = results.filter(r => r.vikingEventData !== null).length;
-    const failureCount = results.length - successCount;
+    const _failureCount = results.length - successCount;
 
-    logger.info('Completed loading Viking Event data for sections', {
-      totalCombinations: sectionTermCombos.length,
-      successfulSections: successCount,
-      failedSections: failureCount,
-      sectionsWithVikingData: Array.from(vikingEventDataBySections.entries())
-        .filter(([_, data]) => data !== null)
-        .map(([sectionId, _]) => sectionId),
-    }, LOG_CATEGORIES.API);
+    // Completed loading Viking Event data for sections
 
     return vikingEventDataBySections;
   } catch (error) {
@@ -606,7 +550,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
  * Clear all flexirecord caches (useful for debugging or when data needs refresh)
  */
 export function clearFlexiRecordCaches() {
-  logger.info('Clearing all flexirecord caches', {}, LOG_CATEGORIES.API);
+  // Clearing all flexirecord caches
   
   // Clear localStorage caches
   const keys = Object.keys(localStorage);
@@ -618,9 +562,7 @@ export function clearFlexiRecordCaches() {
     localStorage.removeItem(key);
   });
   
-  logger.info('Cleared flexirecord caches', { 
-    clearedLocalStorageKeys: flexiKeys.length,
-  }, LOG_CATEGORIES.API);
+  // Cleared flexirecord caches
   
   return {
     clearedLocalStorageKeys: flexiKeys.length,

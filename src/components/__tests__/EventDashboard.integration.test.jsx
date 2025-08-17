@@ -183,6 +183,7 @@ describe('EventDashboard Integration Tests', () => {
           eventid: 101,
         }),
         null, // cache-only mode uses null token
+        expect.any(Array), // allEvents parameter for shared event processing
       );
 
       expect(helpers.groupEventsByName).toHaveBeenCalledWith(
@@ -239,6 +240,7 @@ describe('EventDashboard Integration Tests', () => {
       expect(helpers.fetchEventAttendance).toHaveBeenCalledWith(
         expect.any(Object),
         null, // No token
+        expect.any(Array), // allEvents parameter for shared event processing
       );
     });
 

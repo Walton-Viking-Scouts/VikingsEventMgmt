@@ -273,14 +273,14 @@ export function useAuth() {
           logger.warn('Could not fetch fresh user info after OAuth, will use cached data if available', { error: userError?.message }, LOG_CATEGORIES.AUTH);
         }
 
-        // Trigger a full data sync after successful OAuth to get fresh sections/events/members
+        // Trigger dashboard data sync after successful OAuth (fast)
         try {
           const { default: syncService } = await import('../services/sync.js');
-          logger.info('Starting data sync after successful OAuth', {}, LOG_CATEGORIES.AUTH);
-          await syncService.syncAll();
-          logger.info('Data sync completed after OAuth', {}, LOG_CATEGORIES.AUTH);
+          logger.info('Starting dashboard data sync after successful OAuth', {}, LOG_CATEGORIES.AUTH);
+          await syncService.syncDashboardData();
+          logger.info('Dashboard data sync completed after OAuth', {}, LOG_CATEGORIES.AUTH);
         } catch (syncError) {
-          logger.warn('Could not sync data after OAuth, using cached data', { error: syncError?.message }, LOG_CATEGORIES.AUTH);
+          logger.warn('Could not sync dashboard data after OAuth, using cached data', { error: syncError?.message }, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first
