@@ -168,7 +168,7 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
  */
 export const fetchEventAttendance = async (event, token, allEvents = null) => {
   try {
-    logger.info('fetchEventAttendance called', {
+    (import.meta.env.DEV ? logger.info : logger.debug)('fetchEventAttendance called', {
       eventId: event.eventid,
       eventName: event.name,
       sectionId: event.sectionid,
@@ -222,9 +222,8 @@ export const fetchEventAttendance = async (event, token, allEvents = null) => {
               eventId: event.eventid,
               hasResponse: !!eventSummary,
               responseKeys: eventSummary ? Object.keys(eventSummary) : [],
-              hasSharingKey: !!(eventSummary && eventSummary.sharing),
-              sharingValue: eventSummary ? eventSummary.sharing : 'NO_RESPONSE',
-              fullResponse: eventSummary,
+              hasSharingKey: !!(eventSummary?.data?.sharing),
+              sharingValue: eventSummary?.data?.sharing ?? 'NO_RESPONSE',
             }, LOG_CATEGORIES.COMPONENT);
             
             // Step 2: Check if this event has sharing information
@@ -286,8 +285,8 @@ export const fetchEventAttendance = async (event, token, allEvents = null) => {
                       ...sectionSpecificAttendanceData,
                       // Include synthetic data for sections we don't have access to
                       ...sharedAttendanceData.items.filter(item => 
-                        item.scoutid && item.scoutid.startsWith('synthetic-')
-                      )
+                        item.scoutid && item.scoutid.startsWith('synthetic-'),
+                      ),
                     ];
                     
                     // Save combined attendance data to cache
@@ -356,8 +355,8 @@ export const fetchEventAttendance = async (event, token, allEvents = null) => {
                       ...sectionSpecificAttendanceData,
                       // Include synthetic data for sections we don't have access to
                       ...sharedAttendanceData.items.filter(item => 
-                        item.scoutid && item.scoutid.startsWith('synthetic-')
-                      )
+                        item.scoutid && item.scoutid.startsWith('synthetic-'),
+                      ),
                     ];
                     
                     // Save combined attendance data to cache
@@ -522,7 +521,7 @@ export const convertSharedEventToAttendanceFormat = (sharedEventData) => {
     const sections = (sharedEventData?.items || []).filter(section => 
       section.sectionid && section.sectionname && 
       section.sectionid !== null && section.sectionid !== 'null' &&
-      section.sectionname !== null && section.sectionname !== 'null'
+      section.sectionname !== null && section.sectionname !== 'null',
     );
     
     // Create synthetic attendance records for each section based on their counts

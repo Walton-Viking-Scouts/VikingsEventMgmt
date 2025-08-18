@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { Alert, Button, Input, Badge } from './ui';
+import { Alert, Button, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
@@ -37,8 +37,14 @@ function organizeAttendeesSimple(attendees) {
     // Skip if no member data
     if (!member) return;
     
-    // Filter out Leaders and Young Leaders
+    // Filter out Leaders, Young Leaders, and other special roles (patrol_id: -2, -3, -99)
     if (member.person_type === 'Leaders' || member.person_type === 'Young Leaders') {
+      return;
+    }
+    
+    // Additional filter for special negative patrol IDs that might not have been converted to person_type
+    const patrolId = Number(member.patrol_id ?? member.patrolid ?? 0);
+    if (patrolId === -2 || patrolId === -3 || patrolId === -99) {
       return;
     }
     
@@ -219,10 +225,8 @@ function CampGroupsView({
     groups: {},
     summary: {},
   });
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
-  const [sortBy, setSortBy] = useState('groupNumber'); // 'groupNumber', 'memberCount', 'name'
   const [termId, setTermId] = useState(null);
 
   // Drag and drop state
@@ -1297,55 +1301,23 @@ function CampGroupsView({
     sectionsCache,
   ]);
 
-  // Filter and sort groups based on search and sort criteria
+  // Sort groups by group number (no search or sort filtering)
   const filteredAndSortedGroups = useMemo(() => {
     const groupsArray = Object.values(organizedGroups.groups || {});
 
-    // Filter by search term (group name or member names)
-    const filtered = groupsArray.filter((group) => {
-      if (!searchTerm) return true;
+    // Sort groups by group number (Unassigned goes last)
+    groupsArray.sort((a, b) => {
+      // Unassigned goes last, otherwise sort by number
+      if (a.name === 'Group Unassigned') return 1;
+      if (b.name === 'Group Unassigned') return -1;
 
-      const searchLower = searchTerm.toLowerCase();
-
-      // Search in group name
-      if (group.name.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-
-      // Search in member names
-      const allMembers = [
-        ...(Array.isArray(group.leaders) ? group.leaders : []),
-        ...(Array.isArray(group.youngPeople) ? group.youngPeople : []),
-      ];
-      return allMembers.some((member) => {
-        const fullName =
-          `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
-        return fullName.includes(searchLower);
-      });
+      const aNum = parseInt(a.number) || 0;
+      const bNum = parseInt(b.number) || 0;
+      return aNum - bNum;
     });
 
-    // Sort groups
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-      case 'memberCount':
-        return b.totalMembers - a.totalMembers;
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'groupNumber':
-      default: {
-        // Unassigned goes last, otherwise sort by number
-        if (a.name === 'Group Unassigned') return 1;
-        if (b.name === 'Group Unassigned') return -1;
-
-        const aNum = parseInt(a.number) || 0;
-        const bNum = parseInt(b.number) || 0;
-        return aNum - bNum;
-      }
-      }
-    });
-
-    return filtered;
-  }, [organizedGroups.groups, searchTerm, sortBy]);
+    return groupsArray;
+  }, [organizedGroups.groups]);
 
   if (loading) {
     return <LoadingScreen message="Loading camp groups..." />;
@@ -1375,24 +1347,31 @@ function CampGroupsView({
     <div className="camp-groups-view">
       {/* Header with summary stats */}
       <div className="mb-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <Badge variant="scout-blue" size="sm">
-            {summary.totalGroups || 0} Groups
-          </Badge>
-          <Badge variant="scout-green" size="sm">
-            {summary.totalMembers || 0} Members
-          </Badge>
-          <Badge variant="scout-purple" size="sm">
-            {summary.totalLeaders || 0} Leaders
-          </Badge>
-          <Badge variant="secondary" size="sm">
-            {summary.totalYoungPeople || 0} Young People
-          </Badge>
-          {summary.hasUnassigned && (
-            <Badge variant="warning" size="sm">
-              Unassigned Members
+        <div className="flex flex-wrap gap-4 mb-4 items-center justify-between">
+          <div className="flex flex-wrap gap-4">
+            <Badge variant="scout-blue" size="md">
+              {summary.totalGroups || 0} Groups
             </Badge>
-          )}
+            <Badge variant="scout-green" size="md">
+              {summary.totalMembers || 0} Members
+            </Badge>
+          </div>
+          
+          {/* Edit Group Names Button */}
+          <Button
+            variant="scout-green"
+            size="sm"
+            onClick={() => setShowGroupNamesModal(true)}
+            disabled={
+              !summary.vikingEventDataAvailable || 
+              !flexiRecordContext || 
+              Object.keys(organizedGroups.groups || {}).length === 0 ||
+              groupRenameLoading
+            }
+            type="button"
+          >
+            {groupRenameLoading ? 'Saving...' : 'Edit Names'}
+          </Button>
         </div>
 
         {!summary.vikingEventDataAvailable && (
@@ -1414,61 +1393,6 @@ function CampGroupsView({
         )}
       </div>
 
-      {/* Search and sort controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <Input
-            placeholder="Search groups or members..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant={sortBy === 'groupNumber' ? 'scout-blue' : 'outline'}
-            size="sm"
-            onClick={() => setSortBy('groupNumber')}
-            type="button"
-          >
-            By Group #
-          </Button>
-          <Button
-            variant={sortBy === 'memberCount' ? 'scout-blue' : 'outline'}
-            size="sm"
-            onClick={() => setSortBy('memberCount')}
-            type="button"
-          >
-            By Size
-          </Button>
-          <Button
-            variant={sortBy === 'name' ? 'scout-blue' : 'outline'}
-            size="sm"
-            onClick={() => setSortBy('name')}
-            type="button"
-          >
-            By Name
-          </Button>
-          
-          {/* Edit Group Names Button */}
-          <Button
-            variant="scout-green"
-            size="sm"
-            onClick={() => setShowGroupNamesModal(true)}
-            disabled={
-              !summary.vikingEventDataAvailable || 
-              !flexiRecordContext || 
-              Object.keys(organizedGroups.groups || {}).length === 0 ||
-              groupRenameLoading
-            }
-            type="button"
-            className="ml-2"
-          >
-            {groupRenameLoading ? 'Saving...' : 'Edit Names'}
-          </Button>
-        </div>
-      </div>
 
       {/* Groups grid */}
       {filteredAndSortedGroups.length === 0 ? (
@@ -1490,9 +1414,7 @@ function CampGroupsView({
             No Groups Found
           </h3>
           <p className="text-gray-600">
-            {searchTerm
-              ? 'Try adjusting your search terms.'
-              : 'No camp groups available for these events.'}
+            No camp groups available for these events.
           </p>
         </div>
       ) : (

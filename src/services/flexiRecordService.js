@@ -516,8 +516,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
       results.map(({ sectionId, vikingEventData }) => [sectionId, vikingEventData]),
     );
 
-    const successCount = results.filter(r => r.vikingEventData !== null).length;
-    const _failureCount = results.length - successCount;
+    // const successCount = results.filter(r => r.vikingEventData !== null).length;
 
     // Completed loading Viking Event data for sections
 

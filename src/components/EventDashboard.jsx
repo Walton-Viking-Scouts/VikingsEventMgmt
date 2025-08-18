@@ -4,7 +4,7 @@ import {
   getListOfMembers,
   getAPIQueueStats,
 } from '../services/api.js';
-import { generateOAuthUrl } from '../services/auth.js';
+import { generateOAuthUrl, getToken } from '../services/auth.js';
 import { authHandler } from '../services/simpleAuthHandler.js';
 import { useAuth } from '../hooks/useAuth.js';
 import LoadingScreen from './LoadingScreen.jsx';
@@ -24,7 +24,7 @@ import {
 } from '../utils/eventDashboardHelpers.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
-  const { token } = useAuth();
+  useAuth(); // Initialize auth hook
   const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,9 +33,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   // Debug: Expose sections.length globally for console debugging
   useEffect(() => {
-    window.debugSectionsLength = sections.length;
-    window.debugEventCardsLength = eventCards.length;
-    window.debugLoading = loading;
+    if (import.meta.env.DEV) {
+      window.debugSectionsLength = sections.length;
+      window.debugEventCardsLength = eventCards.length;
+      window.debugLoading = loading;
+    }
   }, [sections.length, eventCards.length, loading]);
   const [queueStats, setQueueStats] = useState({
     queueLength: 0,
@@ -141,7 +143,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           if (sectionsData.length > 0 && mounted) {
             setSections(sectionsData);
             // Use token to enable shared events detection with freshly cached data
-            const currentToken = sessionStorage.getItem('access_token');
+            const currentToken = getToken();
             const cards = await buildEventCards(sectionsData, currentToken);
             if (mounted) {
               setEventCards(cards);
@@ -182,7 +184,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         if (sectionsData.length > 0 && mounted) {
           setSections(sectionsData);
           // Use token for shared events detection during initial load
-          const currentToken = sessionStorage.getItem('access_token');
+          const currentToken = getToken();
           const cards = await buildEventCards(sectionsData, currentToken);
           if (mounted) {
             setEventCards(cards);
@@ -240,7 +242,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               return;
             }
 
-            if (!token) {
+            const backgroundToken = getToken();
+            if (!backgroundToken) {
               return;
             }
 
@@ -282,7 +285,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           return;
         }
 
-        if (!token) {
+        const syncToken = getToken();
+        if (!syncToken) {
           if (import.meta.env.DEV) {
             logger.debug(
               'Sync skipped - no token available',
@@ -305,7 +309,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setSections(sectionsData);
         
         if (sectionsData.length > 0) {
-          const cards = await buildEventCards(sectionsData, token);
+          const cards = await buildEventCards(sectionsData, syncToken);
           setEventCards(cards);
         }
       }
@@ -401,10 +405,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Starting sync process
       setError(null);
 
+      const syncDataToken = getToken();
       if (import.meta.env.DEV) {
         logger.debug(
           'syncData: Token available',
-          { hasToken: !!token },
+          { hasToken: !!syncDataToken },
           LOG_CATEGORIES.SYNC,
         );
       }
@@ -417,7 +422,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           LOG_CATEGORIES.SYNC,
         );
       }
-      const sectionsData = await getUserRoles(token);
+      const sectionsData = await getUserRoles(syncDataToken);
       if (import.meta.env.DEV) {
         logger.debug(
           'syncData: Received sections',
@@ -432,7 +437,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (import.meta.env.DEV) {
         logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
       }
-      const cards = await buildEventCards(sectionsData, token);
+      const cards = await buildEventCards(sectionsData, syncDataToken);
       if (import.meta.env.DEV) {
         logger.debug(
           'syncData: Built event cards',
@@ -443,7 +448,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setEventCards(cards);
 
       // 3. Proactively load member data in background (non-blocking)
-      loadMemberDataInBackground(sectionsData, token);
+      loadMemberDataInBackground(sectionsData, syncDataToken);
 
       // Update last sync time
       const now = new Date();
@@ -654,7 +659,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           }, LOG_CATEGORIES.COMPONENT);
           
           // No cached members - fetch immediately
-          const currentToken = sessionStorage.getItem('access_token');
+          const currentToken = getToken();
           if (!currentToken) {
             const oauthUrl = generateOAuthUrl();
             window.location.href = oauthUrl;
@@ -781,22 +786,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                   </p>
                 </div>
               )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={async () => {
-                  const sectionsData = await databaseService.getSections();
-                  if (sectionsData.length > 0) {
-                    const cards = await buildEventCards(sectionsData);
-                    setEventCards(cards);
-                  }
-                }}
-                type="button"
-              >
-                🔄 Refresh
-              </Button>
             </div>
           </div>
         </div>

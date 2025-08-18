@@ -40,20 +40,21 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     const grid = {};
 
     // Check if any event has shared event data (synthetic attendees from all sections)
-    const firstEventWithAttendance = events.find(e => e.attendanceData && e.attendanceData.length > 0);
-    const hasSharedEventData = firstEventWithAttendance?.attendanceData?.some(attendee => 
-      attendee.scoutid && attendee.scoutid.startsWith('synthetic-')
+    const hasSharedEventData = events.some(
+      (e) => Array.isArray(e.attendanceData)
+        && e.attendanceData.some(a => a.scoutid?.startsWith('synthetic-')),
     );
     
     if (hasSharedEventData) {
       // For shared events, we need to merge detailed section data with shared data
       
-      // First, get all sections from synthetic attendees (includes sections we don't have access to)
+      // First, get all sections from synthetic attendees across all events
       // Filter out null/undefined section names
       const allSections = [...new Set(
-        firstEventWithAttendance.attendanceData
-          .map(attendee => attendee.sectionname)
-          .filter(sectionName => sectionName && sectionName !== null && sectionName !== 'null')
+        events.flatMap(e => e.attendanceData || [])
+          .filter(a => a.scoutid?.startsWith('synthetic-'))
+          .map(a => a.sectionname)
+          .filter((sectionName) => !!sectionName && sectionName !== 'null'),
       )];
       
       // Get sections we have direct access to (from events)
@@ -76,15 +77,19 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           
           // Check if this is real attendance data (not synthetic)
           const hasRealData = event.attendanceData.some(person => 
-            !person.scoutid || !person.scoutid.startsWith('synthetic-')
+            !person.scoutid || !person.scoutid.startsWith('synthetic-'),
           );
           
-          console.log(`Processing section: ${sectionName}`, {
-            totalAttendees: event.attendanceData.length,
-            hasRealData,
-            syntheticCount: event.attendanceData.filter(p => p.scoutid?.startsWith('synthetic-')).length,
-            realCount: event.attendanceData.filter(p => !p.scoutid?.startsWith('synthetic-')).length,
-          });
+          if (import.meta?.env?.DEV) {
+            const syntheticCount = event.attendanceData.filter(p => p.scoutid?.startsWith('synthetic-')).length;
+            const realCount = event.attendanceData.length - syntheticCount;
+            console.debug(`EventCard: Processing section ${sectionName}`, {
+              totalAttendees: event.attendanceData.length,
+              hasRealData,
+              syntheticCount,
+              realCount,
+            });
+          }
           
           if (hasRealData) {
             // Use detailed section-specific data
@@ -118,25 +123,30 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
       });
       
       // Fill in gaps with synthetic data for sections we don't have access to
-      firstEventWithAttendance.attendanceData.forEach((person) => {
-        const sectionName = person.sectionname;
+      // Process synthetic data from all events
+      events.forEach((event) => {
+        if (Array.isArray(event.attendanceData)) {
+          event.attendanceData.forEach((person) => {
+            const sectionName = person.sectionname;
         
-        // Only use synthetic data if we don't have real data for this section
-        if (person.scoutid && person.scoutid.startsWith('synthetic-') && !accessibleSections.has(sectionName)) {
-          // Ensure grid entry exists for this section (safety check)
-          if (!grid[sectionName]) {
-            grid[sectionName] = {
-              attending: 0,
-              notAttending: 0,
-              invited: 0,
-              notInvited: 0,
-            };
-          }
+            // Only use synthetic data if we don't have real data for this section
+            if (person.scoutid && person.scoutid.startsWith('synthetic-') && !accessibleSections.has(sectionName)) {
+              // Ensure grid entry exists for this section (safety check)
+              if (!grid[sectionName]) {
+                grid[sectionName] = {
+                  attending: 0,
+                  notAttending: 0,
+                  invited: 0,
+                  notInvited: 0,
+                };
+              }
           
-          if (person.attending === 'Yes') {
-            grid[sectionName].attending++;
-          }
-          // Note: shared data only provides "Yes" counts, no No/Invited/NotInvited for non-accessible sections
+              if (person.attending === 'Yes') {
+                grid[sectionName].attending++;
+              }
+              // Note: shared data only provides "Yes" counts, no No/Invited/NotInvited for non-accessible sections
+            }
+          });
         }
       });
       
@@ -144,7 +154,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     }
 
     // Regular events: get unique sections from events
-    const sections = [...new Set(events.map((event) => event.sectionname))];
+    const sections = [...new Set(events.map((event) => event.sectionname).filter(Boolean))];
 
     // Initialize each section in grid
     sections.forEach((sectionName) => {
@@ -164,6 +174,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         event.attendanceData.forEach((person) => {
           // Ensure grid entry exists for this person's section (safety check)
           const personSectionName = person.sectionname || sectionName;
+          if (!personSectionName) return; // skip unknown sections
           if (!grid[personSectionName]) {
             grid[personSectionName] = {
               attending: 0,

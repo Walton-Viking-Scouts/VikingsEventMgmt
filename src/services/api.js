@@ -358,13 +358,17 @@ export async function getTerms(token, forceRefresh = false) {
       if (success) {
         logger.info('Terms successfully cached', {
           cacheKey,
-          termCount: terms.length,
+          termCount: Array.isArray(terms) 
+            ? terms.length 
+            : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.API);
       } else {
         logger.error('Terms caching failed - safeSetItem returned false', {
           cacheKey,
-          termCount: terms.length,
+          termCount: Array.isArray(terms) 
+            ? terms.length 
+            : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.ERROR);
       }
@@ -372,7 +376,9 @@ export async function getTerms(token, forceRefresh = false) {
       logger.error('Terms caching error', {
         cacheKey,
         error: cacheError.message,
-        termCount: terms.length,
+        termCount: Array.isArray(terms) 
+          ? terms.length 
+          : (terms?.items?.length ?? Object.keys(terms || {}).length),
       }, LOG_CATEGORIES.ERROR);
     }
     
@@ -1626,7 +1632,7 @@ export async function getEventSummary(eventId, token) {
     }
 
     const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-event-summary?eventid=${eventId}`, {
+      const response = await fetch(`${BACKEND_URL}/get-event-summary?eventid=${encodeURIComponent(eventId)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1679,13 +1685,16 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
     }
 
     const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-event-sharing-status?eventid=${eventId}&sectionid=${sectionId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${BACKEND_URL}/get-event-sharing-status?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       return await handleAPIResponseWithRateLimit(response, 'getEventSharingStatus');
     });
@@ -1735,13 +1744,16 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     }
 
     const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-shared-event-attendance?eventid=${eventId}&sectionid=${sectionId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${BACKEND_URL}/get-shared-event-attendance?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
     });
