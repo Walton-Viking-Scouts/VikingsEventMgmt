@@ -1262,34 +1262,98 @@ function AttendanceView({ events, members, onBack }) {
               ) : sharedAttendanceData?.items ? (
                 <div>
                   {(() => {
+                    // Helper function to determine if member is young person or adult based on age
+                    const isYoungPerson = (age) => {
+                      if (!age) return true; // Default to young person if no age
+                      return age !== '25+'; // Adults/leaders have '25+', young people have formats like '06 / 08'
+                    };
+
+                    // Helper function to get numeric age for sorting (handle years/months format)
+                    const getNumericAge = (age) => {
+                      if (!age) return 0;
+                      if (age === '25+') return 999; // Put adults at the end
+                      
+                      // Handle format like '06 / 08' which is years / months
+                      const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
+                      if (match) {
+                        const years = parseInt(match[1], 10);
+                        const months = parseInt(match[2], 10);
+                        // Convert to total months for accurate sorting
+                        return (years * 12) + months;
+                      }
+                      
+                      // Fallback to just first number
+                      const singleMatch = age.match(/^(\d+)/);
+                      return singleMatch ? parseInt(singleMatch[1], 10) * 12 : 0; // Convert years to months
+                    };
+
                     // Process the data to group by sections
                     const sectionGroups = {};
+                    let totalYoungPeople = 0;
+                    let totalAdults = 0;
                     
                     sharedAttendanceData.items.forEach(member => {
                       const sectionName = member.sectionname;
+                      const isYP = isYoungPerson(member.age);
+                      
+                      if (isYP) {
+                        totalYoungPeople++;
+                      } else {
+                        totalAdults++;
+                      }
                       
                       if (!sectionGroups[sectionName]) {
                         sectionGroups[sectionName] = {
                           sectionid: member.sectionid,
                           sectionname: sectionName,
                           members: [],
+                          youngPeopleCount: 0,
+                          adultsCount: 0,
                         };
+                      }
+                      
+                      if (isYP) {
+                        sectionGroups[sectionName].youngPeopleCount++;
+                      } else {
+                        sectionGroups[sectionName].adultsCount++;
                       }
                       
                       sectionGroups[sectionName].members.push(member);
                     });
                     
+                    // Sort members within each section by age (youngest first, adults last)
+                    Object.values(sectionGroups).forEach(section => {
+                      section.members.sort((a, b) => {
+                        const ageA = getNumericAge(a.age);
+                        const ageB = getNumericAge(b.age);
+                        return ageA - ageB;
+                      });
+                    });
+                    
                     const sections = Object.values(sectionGroups);
+                    const totalMembers = totalYoungPeople + totalAdults;
                     
                     return (
                       <>
-                        <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Combined Attendance from All Sections
+                        {/* Overall summary */}
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Combined Attendance Summary
                           </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Showing {sharedAttendanceData.items.length} attending members from {sections.length} sections
-                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            <Badge variant="scout-blue" size="md">
+                              {totalMembers} Total
+                            </Badge>
+                            <Badge variant="scout-green" size="md">
+                              {totalYoungPeople} Young People
+                            </Badge>
+                            <Badge variant="scout-purple" size="md">
+                              {totalAdults} Adults
+                            </Badge>
+                            <Badge variant="secondary" size="md">
+                              {sections.length} Sections
+                            </Badge>
+                          </div>
                         </div>
 
                         {/* Group members by section */}
@@ -1299,16 +1363,26 @@ function AttendanceView({ events, members, onBack }) {
                               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                 <h4 className="font-medium text-gray-900 flex items-center gap-2">
                                   {section.sectionname}
-                                  <Badge variant="secondary">{section.members.length} members</Badge>
+                                  <div className="flex gap-1">
+                                    <Badge variant="scout-green" size="sm">
+                                      {section.youngPeopleCount} YP
+                                    </Badge>
+                                    <Badge variant="scout-purple" size="sm">
+                                      {section.adultsCount} Adults
+                                    </Badge>
+                                  </div>
                                 </h4>
                               </div>
                               
                               <div className="p-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                   {section.members.map((member, memberIndex) => (
-                                    <div key={member.scoutid || memberIndex} className="p-3 bg-gray-50 rounded-lg">
-                                      <div className="text-sm font-medium text-gray-900">
+                                    <div key={member.scoutid || memberIndex} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                                      <div className="text-sm font-medium text-gray-900 min-w-0 flex-1 mr-2">
                                         {member.firstname} {member.lastname}
+                                      </div>
+                                      <div className="text-xs text-gray-500 font-mono flex-shrink-0">
+                                        {member.age || 'N/A'}
                                       </div>
                                     </div>
                                   ))}
