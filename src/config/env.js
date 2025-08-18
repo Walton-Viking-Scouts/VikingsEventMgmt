@@ -1,7 +1,10 @@
 // Environment variable configuration and validation
 // This module centralizes environment variable access and validates required variables
 
+import { isDemoMode } from './demoMode.js';
+
 // Required environment variables for basic functionality
+// Skip validation in demo mode to allow public access
 const requiredVars = [
   'VITE_API_URL',
   'VITE_OAUTH_CLIENT_ID',
@@ -10,9 +13,10 @@ const requiredVars = [
 
 
 // Validate required environment variables
+// Skip validation in demo mode to allow public HTTP access
 const missingVars = requiredVars.filter(key => !import.meta.env[key]);
 
-if (missingVars.length > 0) {
+if (missingVars.length > 0 && !isDemoMode()) {
   const errorMessage = `Missing required environment variables: ${missingVars.join(', ')}`;
   console.error('❌ Environment Configuration Error:', errorMessage);
   
