@@ -1,12 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance, getEventSharingStatus } from '../services/api.js';
+import { getEventAttendance } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
-import { 
-  isSharedEventOwner, 
-  getUserAccessibleSections, 
-} from '../utils/eventDashboardHelpers.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -43,10 +39,8 @@ export function useAttendanceData(events) {
       const sectionSpecificAttendanceData = [];
       const token = getToken();
       
-      // Get list of sections user has access to
-      const userAccessibleSections = getUserAccessibleSections(events);
       
-      // Load normal attendance data first (to detect sharing status)
+      // Load attendance data for each event
       for (const event of events) {
         // Validate that event has required fields (should be included from eventDashboardHelpers)
         if (!event.sectionid || !event.termid || !event.eventid) {
@@ -115,12 +109,10 @@ export function useAttendanceData(events) {
         }
       }
       
-      // Check for shared events and merge data if needed
-      if (token && sectionSpecificAttendanceData.length > 0) {
-        await handleSharedEventMerging(
+      // Process attendance data for events
+      if (sectionSpecificAttendanceData.length > 0) {
+        await processAttendanceData(
           sectionSpecificAttendanceData, 
-          userAccessibleSections, 
-          token, 
           allAttendance,
           events,
         );
@@ -139,16 +131,14 @@ export function useAttendanceData(events) {
     }
   };
 
-  // Handle shared event detection and merging
-  const handleSharedEventMerging = async (
+  // Process attendance data for events
+  const processAttendanceData = async (
     sectionSpecificAttendanceData, 
-    userAccessibleSections, 
-    token, 
     allAttendance,
     events,
   ) => {
     try {
-      // Group attendance data by event ID to detect shared events
+      // Group attendance data by event ID
       const eventAttendanceMap = new Map();
       sectionSpecificAttendanceData.forEach(data => {
         if (!eventAttendanceMap.has(data.eventId)) {
@@ -157,7 +147,6 @@ export function useAttendanceData(events) {
         eventAttendanceMap.get(data.eventId).push(data);
       });
       
-      let hasSharedEvents = false;
       const finalAttendanceData = [];
       
       // Process each unique event
@@ -165,55 +154,12 @@ export function useAttendanceData(events) {
         const eventData = events.find(e => e.eventid === eventId);
         if (!eventData) continue;
         
-        // Check if any section for this event is a shared event owner
-        const sharedEventData = eventAttendanceDataArray.find(data => 
-          isSharedEventOwner(data),
-        );
-        
-        if (sharedEventData) {
-          logger.info('Detected shared event', {
-            eventId,
-            eventName: eventData.name,
-            ownerSection: sharedEventData.sectionId,
-          }, LOG_CATEGORIES.COMPONENT);
-          
-          hasSharedEvents = true;
-          
-          try {
-            // Fetch shared event data  
-            const sharingStatus = await getEventSharingStatus(eventId, sharedEventData.sectionId, token);
-            // Note: Using sharing status only for now, detailed attendance merging to be implemented later
-            
-            logger.info('Fetched shared event data', {
-              eventId,
-              sharingStatusSections: sharingStatus?.items?.length || 0,
-            }, LOG_CATEGORIES.COMPONENT);
-            
-            // For now, skip merging and use section-specific data only
-            // TODO: Implement proper shared event merging for detailed view
-            // Fallback to section-specific data for now
-            const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
-            finalAttendanceData.push(...sectionAttendees);
-            
-          } catch (sharedError) {
-            logger.error('Error fetching shared event data, falling back to section-specific', {
-              eventId,
-              error: sharedError.message,
-            }, LOG_CATEGORIES.COMPONENT);
-            
-            // Fallback to section-specific data
-            const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
-            finalAttendanceData.push(...sectionAttendees);
-          }
-        } else {
-          // Regular event - use section-specific data
-          const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
-          finalAttendanceData.push(...sectionAttendees);
-        }
+        // Process event attendance data (shared events are handled in eventDashboardHelpers)
+        const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
+        finalAttendanceData.push(...sectionAttendees);
       }
       
       logger.info('Attendance data processing completed', {
-        hasSharedEvents,
         totalAttendees: finalAttendanceData.length,
         originalCount: allAttendance.length,
       }, LOG_CATEGORIES.COMPONENT);
