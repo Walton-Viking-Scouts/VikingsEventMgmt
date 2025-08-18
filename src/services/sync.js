@@ -141,15 +141,22 @@ class SyncService {
     }
   }
 
-  // Sync all data
+  // Sync all data (legacy method - calls new three-stage approach)
   async syncAll() {
+    await this.syncDashboardData();
+    // Start background sync after dashboard data is complete
+    setTimeout(() => this.syncBackgroundData(), 100);
+  }
+
+  // Stage 1: Sync core data only (fast)
+  async syncDashboardData() {
     if (this.isSyncing) {
       return;
     }
 
     try {
       this.isSyncing = true;
-      this.notifyListeners({ status: 'syncing', message: 'Starting sync...' });
+      this.notifyListeners({ status: 'syncing', message: 'Loading core data...' });
 
       const online = await this.isOnline();
       if (!online) {
@@ -159,7 +166,6 @@ class SyncService {
       // Check token and prompt for login if needed
       const hasValidToken = await this.checkTokenAndPromptLogin();
       if (!hasValidToken) {
-        // User was prompted for login, don't continue sync
         this.notifyListeners({ 
           status: 'error', 
           message: 'Login required - redirecting to authentication',
@@ -170,85 +176,43 @@ class SyncService {
 
       const token = getToken();
 
-      // Load core data needed for all operations
-      await this.syncTerms(token);  // Load terms once for all sections
+      // Load core static data - events will be loaded by buildEventCards
+      await this.syncTerms(token);
       await this.syncSections(token);
       
-      // Get sections from database to sync events and attendance
+      // Get sections for FlexiRecord preloading
       const sections = await databaseService.getSections();
       
-      // Sync events and members for each section FIRST (better UX - dashboard shows data faster)
-      for (const section of sections) {
-        await this.syncEvents(section.sectionid, token);
-        
-        // Sync members data (includes medical information and other member details)
-        await this.syncMembers(section.sectionid, token);
-        
-        // Sync attendance only for events shown on dashboard (last week + future)
-        const events = await databaseService.getEvents(section.sectionid);
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        
-        // Filter to dashboard-relevant events only (matches filterEventsByDateRange logic)
-        const dashboardEvents = events.filter(event => {
-          const eventDate = new Date(event.startdate);
-          return eventDate >= oneWeekAgo; // Same logic as EventDashboard filter
-        });
-        
-        logger.info('Syncing attendance for dashboard events only', {
-          sectionId: section.sectionid,
-          totalEvents: events.length,
-          dashboardEvents: dashboardEvents.length,
-        }, LOG_CATEGORIES.SYNC);
-        
-        for (const event of dashboardEvents) {
-          await this.syncAttendance(section.sectionid, event.eventid, event.termid || null, token);
-        }
-      }
-
-      // Preload static flexirecord data AFTER events (better UX - dashboard loads faster)
-      // Dynamic data (actual member values) is loaded on-demand when "View Attendees" is clicked
+      // Preload static FlexiRecord data (lists and structures) - static like terms
       try {
         await this.withAuthErrorHandling(async () => {
-          this.notifyListeners({ status: 'syncing', message: 'Preloading flexirecord data...' });
+          this.notifyListeners({ status: 'syncing', message: 'Loading FlexiRecord structures...' });
           await this.preloadStaticFlexiRecordData(sections, token);
         }, { 
-          continueOnError: true, // Don't fail sync if flexirecord preloading fails
-          contextMessage: 'Failed to preload flexirecord static data',
+          continueOnError: true,
+          contextMessage: 'Failed to preload FlexiRecord static data',
         });
       } catch (error) {
-        logger.warn('FlexiRecord static data preloading failed, sync completed without it', {
-          error: error.message,
-        }, LOG_CATEGORIES.SYNC);
-        // Continue with sync - this is optimization, not critical
+        logger.warn('FlexiRecord static preloading failed', { error: error.message }, LOG_CATEGORIES.SYNC);
       }
 
-      const completionTimestamp = Date.now(); // Epoch milliseconds for UI compatibility
-      
-      // Store last sync time for UI display (convert to string for localStorage)
+      const completionTimestamp = Date.now();
       localStorage.setItem('viking_last_sync', completionTimestamp.toString());
       
+      // Notify dashboard data is complete
       this.notifyListeners({ 
-        status: 'completed', 
-        message: 'Sync completed successfully',
+        status: 'dashboard_complete', 
+        message: 'Core data loaded - events loading...',
         timestamp: completionTimestamp,
       });
 
     } catch (error) {
-      logger.error('Sync failed', {
-        error: error.message,
-        stack: error.stack,
-      }, LOG_CATEGORIES.SYNC);
+      logger.error('Core data sync failed', { error: error.message }, LOG_CATEGORIES.SYNC);
       
-      // Check if it's an auth error and handle appropriately
       try {
         const handled = await this.handleAuthError(error);
-        if (!handled) {
-          // Login was initiated, don't show error
-          return;
-        }
+        if (!handled) return;
       } catch (authError) {
-        // Auth error was handled or user declined login
         this.notifyListeners({ 
           status: 'error', 
           message: authError.message,
@@ -265,6 +229,37 @@ class SyncService {
       throw error;
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  // Stage 2: Sync background data (members only) - non-blocking
+  async syncBackgroundData() {
+    try {
+      this.notifyListeners({ status: 'syncing', message: 'Loading member data...' });
+
+      const token = getToken();
+      if (!token) return;
+
+      const sections = await databaseService.getSections();
+      
+      // Sync members for all sections
+      for (const section of sections) {
+        await this.syncMembers(section.sectionid, token);
+      }
+
+      this.notifyListeners({ 
+        status: 'background_complete', 
+        message: 'Member data loaded',
+        timestamp: Date.now(),
+      });
+
+    } catch (error) {
+      logger.warn('Background sync failed', { error: error.message }, LOG_CATEGORIES.SYNC);
+      this.notifyListeners({ 
+        status: 'background_error', 
+        message: `Background sync failed: ${error.message}`,
+        timestamp: Date.now(),
+      });
     }
   }
 

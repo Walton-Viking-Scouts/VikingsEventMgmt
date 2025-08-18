@@ -12,6 +12,8 @@ vi.mock('../../services/api.js', () => ({
   fetchMostRecentTermId: vi.fn(),
   getEvents: vi.fn(),
   getEventAttendance: vi.fn(),
+  getEventSummary: vi.fn(),
+  getEventSharingStatus: vi.fn(),
 }));
 
 vi.mock('../../services/database.js', () => ({
@@ -26,14 +28,17 @@ vi.mock('../../services/database.js', () => ({
 vi.mock('../../services/logger.js', () => ({
   default: {
     error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
   },
   LOG_CATEGORIES: {
     API: 'api',
+    COMPONENT: 'component',
   },
 }));
 
 // Import mocked modules for assertions
-import { fetchMostRecentTermId, getEvents, getEventAttendance } from '../../services/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../../services/api.js';
 import databaseService from '../../services/database.js';
 import logger from '../../services/logger.js';
 
@@ -45,6 +50,10 @@ describe('EventDashboard Helper Functions', () => {
       callback();
       return 123; // Return a fake timer ID
     });
+
+    // Setup default mocks for new API functions
+    getEventSummary.mockResolvedValue(null);
+    getEventSharingStatus.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -210,7 +219,7 @@ describe('EventDashboard Helper Functions', () => {
       getEventAttendance.mockResolvedValue(mockAttendanceData);
       databaseService.saveAttendance.mockResolvedValue();
 
-      const result = await fetchEventAttendance(mockEvent, token);
+      const result = await fetchEventAttendance(mockEvent, token, []);
 
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
       expect(databaseService.saveAttendance).toHaveBeenCalledWith(101, mockAttendanceData);
@@ -224,7 +233,7 @@ describe('EventDashboard Helper Functions', () => {
       fetchMostRecentTermId.mockResolvedValue('resolved-term');
       getEventAttendance.mockResolvedValue(mockAttendanceData);
 
-      const result = await fetchEventAttendance(eventWithoutTerm, token);
+      const result = await fetchEventAttendance(eventWithoutTerm, token, []);
 
       expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'resolved-term', token);
@@ -234,7 +243,7 @@ describe('EventDashboard Helper Functions', () => {
     it('should load from cache when no token provided', async () => {
       databaseService.getAttendance.mockResolvedValue(mockAttendanceData);
 
-      const result = await fetchEventAttendance(mockEvent, null);
+      const result = await fetchEventAttendance(mockEvent, null, []);
 
       expect(databaseService.getAttendance).toHaveBeenCalledWith(101);
       expect(getEventAttendance).not.toHaveBeenCalled();
@@ -247,7 +256,7 @@ describe('EventDashboard Helper Functions', () => {
 
       getEventAttendance.mockRejectedValue(error);
 
-      const result = await fetchEventAttendance(mockEvent, token);
+      const result = await fetchEventAttendance(mockEvent, token, []);
 
       expect(logger.error).toHaveBeenCalledWith(
         'Error fetching attendance for event {eventId}',
@@ -260,7 +269,7 @@ describe('EventDashboard Helper Functions', () => {
         'api',
       );
 
-      expect(result).toBeNull();
+      expect(result).toEqual([]);
     });
 
     it('should return null when no termId can be resolved', async () => {
@@ -269,10 +278,10 @@ describe('EventDashboard Helper Functions', () => {
 
       fetchMostRecentTermId.mockResolvedValue(null);
 
-      const result = await fetchEventAttendance(eventWithoutTerm, token);
+      const result = await fetchEventAttendance(eventWithoutTerm, token, []);
 
       expect(getEventAttendance).not.toHaveBeenCalled();
-      expect(result).toBeNull();
+      expect(result).toEqual([]);
     });
 
     it('should make API calls when token provided', async () => {

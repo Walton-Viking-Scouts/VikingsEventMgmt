@@ -85,7 +85,7 @@ export const getAPIQueueStats = () => apiQueue.getStats();
  * console.log(`Cleared ${result.clearedLocalStorageKeys} cache entries`);
  */
 export function clearFlexiRecordCaches() {
-  logger.info('Clearing all flexirecord caches', {}, LOG_CATEGORIES.API);
+  // Clearing all flexirecord caches
   
   // Clear localStorage caches (especially consolidated cache which shouldn't exist)
   const keys = Object.keys(localStorage);
@@ -109,9 +109,7 @@ export function clearFlexiRecordCaches() {
     logger.debug('Removed localStorage key', { key }, LOG_CATEGORIES.API);
   });
   
-  logger.info('Cleared flexirecord cache entries', {
-    count: flexiKeys.length,
-  }, LOG_CATEGORIES.API);
+  // Cleared flexirecord cache entries
   
   return {
     clearedLocalStorageKeys: flexiKeys.length,
@@ -360,13 +358,17 @@ export async function getTerms(token, forceRefresh = false) {
       if (success) {
         logger.info('Terms successfully cached', {
           cacheKey,
-          termCount: terms.length,
+          termCount: Array.isArray(terms) 
+            ? terms.length 
+            : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.API);
       } else {
         logger.error('Terms caching failed - safeSetItem returned false', {
           cacheKey,
-          termCount: terms.length,
+          termCount: Array.isArray(terms) 
+            ? terms.length 
+            : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.ERROR);
       }
@@ -374,7 +376,9 @@ export async function getTerms(token, forceRefresh = false) {
       logger.error('Terms caching error', {
         cacheKey,
         error: cacheError.message,
-        termCount: terms.length,
+        termCount: Array.isArray(terms) 
+          ? terms.length 
+          : (terms?.items?.length ?? Object.keys(terms || {}).length),
       }, LOG_CATEGORIES.ERROR);
     }
     
@@ -834,9 +838,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
         const cacheAge = Date.now() - cached._cacheTimestamp;
         const FLEXI_RECORDS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
         if (cacheAge < FLEXI_RECORDS_CACHE_TTL) {
-          logger.info('Using cached flexi records', { 
-            cacheAgeMinutes: Math.round(cacheAge / 60000),
-          }, LOG_CATEGORIES.API);
+          // Using cached flexi records
           return cached;
         }
       }
@@ -845,9 +847,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     // If offline, get from localStorage regardless of age
     if (!isOnline) {
       const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
-      logger.info('Retrieved flexi records from localStorage while offline', {
-        itemCount: cached.items?.length || 0,
-      }, LOG_CATEGORIES.OFFLINE);
+      // Retrieved flexi records from localStorage while offline
       return cached;
     }
         
@@ -857,7 +857,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - using cached flexi records only', { sectionId }, LOG_CATEGORIES.API);
+      // Auth failed - using cached flexi records only
       const cached = safeGetItem(storageKey, null);
       // Validate cached data has meaningful content
       if (cached && cached.items && Array.isArray(cached.items)) {
@@ -895,11 +895,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       };
       const success = safeSetItem(storageKey, cachedData);
       if (success) {
-        logger.info('FlexiRecord list successfully cached', {
-          storageKey,
-          itemCount: flexiData.items?.length || 0,
-          dataSize: JSON.stringify(cachedData).length,
-        }, LOG_CATEGORIES.API);
+        // FlexiRecord list successfully cached
       } else {
         logger.error('FlexiRecord list caching failed - safeSetItem returned false', {
           storageKey,
@@ -958,7 +954,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - getSingleFlexiRecord blocked', { flexirecordid, sectionid, termid }, LOG_CATEGORIES.API);
+      // Auth failed - getSingleFlexiRecord blocked
       throw new Error('Authentication failed - unable to fetch flexi record data');
     }
 
@@ -1017,10 +1013,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
         const cacheAge = Date.now() - cached._cacheTimestamp;
         const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
         if (cacheAge < FLEXI_STRUCTURES_CACHE_TTL) {
-          logger.info('Using cached flexi structure', { 
-            extraid,
-            cacheAgeMinutes: Math.round(cacheAge / 60000),
-          }, LOG_CATEGORIES.API);
+          // Using cached flexi structure
           return cached;
         }
       }
@@ -1045,7 +1038,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - getFlexiStructure blocked', { extraid, sectionid, termid }, LOG_CATEGORIES.API);
+      // Auth failed - getFlexiStructure blocked
       const cached = safeGetItem(storageKey, null);
       // Validate cached data exists and has meaningful content
       if (cached && typeof cached === 'object' && cached.name) {
@@ -1077,11 +1070,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
         };
         const success = safeSetItem(storageKey, cachedData);
         if (success) {
-          logger.info('FlexiRecord structure successfully cached', {
-            storageKey,
-            structureName: structureData.name || 'Unknown',
-            dataSize: JSON.stringify(cachedData).length,
-          }, LOG_CATEGORIES.API);
+          // FlexiRecord structure successfully cached
         } else {
           logger.error('FlexiRecord structure caching failed - safeSetItem returned false', {
             storageKey,
@@ -1299,15 +1288,7 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       flexirecordid,
     };
 
-    logger.info('Multi-updating FlexiRecord field', {
-      sectionid,
-      scoutCount: scouts.length,
-      value,
-      valueType: typeof value,
-      column,
-      flexirecordid,
-      requestBody,
-    }, LOG_CATEGORIES.API);
+    // Multi-updating FlexiRecord field
 
     const response = await fetch(`${BACKEND_URL}/multi-update-flexi-record`, {
       method: 'POST',
@@ -1321,12 +1302,7 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
     const data = await handleAPIResponseWithRateLimit(response, 'multiUpdateFlexiRecord');
     
     if (data?.data?.success) {
-      logger.info('Multi-update FlexiRecord successful', {
-        sectionid,
-        updatedCount: data.data.updated_count,
-        value,
-        column,
-      }, LOG_CATEGORIES.API);
+      // Multi-update FlexiRecord successful
     }
     
     return data || null;
@@ -1623,6 +1599,178 @@ export async function getListOfMembers(sections, token) {
   return members;
 }
 
+
+/**
+ * Gets event summary including sharing information
+ * @param {number|string} eventId - OSM event identifier
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} Event summary with sharing data
+ * @throws {Error} When API request fails
+ * 
+ * @example
+ * const summary = await getEventSummary('1573792', token);
+ * if (summary.sharing?.is_owner) {
+ *   // This section owns a shared event
+ * }
+ */
+export async function getEventSummary(eventId, token) {
+  try {
+    // Check network status first
+    const isOnline = await checkNetworkStatus();
+    
+    if (!isOnline) {
+      throw new Error('No network connection available for event summary');
+    }
+
+    if (!token) {
+      throw new Error('Authentication token required for event summary');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      throw new Error('Authentication failed - cannot fetch event summary');
+    }
+
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(`${BACKEND_URL}/get-event-summary?eventid=${encodeURIComponent(eventId)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      return await handleAPIResponseWithRateLimit(response, 'getEventSummary');
+    });
+
+    return data || null;
+
+  } catch (error) {
+    logger.error('Error fetching event summary', { 
+      eventId, 
+      error: error.message, 
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves sharing status for an event to see which sections it has been shared with
+ * @param {number|string} eventId - OSM event identifier  
+ * @param {number|string} sectionId - OSM section identifier (owner section)
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} Sharing status data with shared sections list
+ * @throws {Error} When API request fails
+ * 
+ * @example
+ * const sharingStatus = await getEventSharingStatus('12345', '67890', token);
+ * console.log(`Event shared with ${sharingStatus.items.length} sections`);
+ */
+export async function getEventSharingStatus(eventId, sectionId, token) {
+  try {
+    // Check network status first
+    const isOnline = await checkNetworkStatus();
+    
+    if (!isOnline) {
+      throw new Error('No network connection available for sharing status');
+    }
+
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed
+    if (!authHandler.shouldMakeAPICall()) {
+      throw new Error('Authentication failed - cannot fetch sharing status');
+    }
+
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(
+        `${BACKEND_URL}/get-event-sharing-status?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        },
+      );
+
+      return await handleAPIResponseWithRateLimit(response, 'getEventSharingStatus');
+    });
+
+    return data || { items: [] };
+
+  } catch (error) {
+    logger.error('Error fetching event sharing status', { 
+      eventId, 
+      sectionId, 
+      error: error.message, 
+    }, LOG_CATEGORIES.API);
+    
+    // Re-throw the error to let calling code handle it
+    throw error;
+  }
+}
+
+/**
+ * Retrieves combined attendance data from all sections participating in a shared event
+ * @param {number|string} eventId - OSM event identifier
+ * @param {number|string} sectionId - OSM section identifier (owner section)  
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} Combined attendance data from all shared sections
+ * @throws {Error} When API request fails
+ * 
+ * @example
+ * const sharedAttendance = await getSharedEventAttendance('12345', '67890', token);
+ * console.log(`${sharedAttendance.combined_attendance.length} total attendees`);
+ */
+export async function getSharedEventAttendance(eventId, sectionId, token) {
+  try {
+    // Check network status first
+    const isOnline = await checkNetworkStatus();
+    
+    if (!isOnline) {
+      throw new Error('No network connection available for shared attendance');
+    }
+
+    if (!token) {
+      throw new Error('No authentication token');
+    }
+
+    // Simple circuit breaker - use cache if auth already failed  
+    if (!authHandler.shouldMakeAPICall()) {
+      throw new Error('Authentication failed - cannot fetch shared attendance');
+    }
+
+    const data = await withRateLimitQueue(async () => {
+      const response = await fetch(
+        `${BACKEND_URL}/get-shared-event-attendance?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        },
+      );
+
+      return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
+    });
+
+    return data || { combined_attendance: [], summary: {}, sections: [] };
+
+  } catch (error) {
+    logger.error('Error fetching shared event attendance', { 
+      eventId, 
+      sectionId, 
+      error: error.message, 
+    }, LOG_CATEGORIES.API);
+    
+    // Re-throw the error to let calling code handle it
+    throw error;
+  }
+}
 
 /**
  * Tests connectivity to the backend API server

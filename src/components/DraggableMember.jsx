@@ -184,7 +184,9 @@ function DraggableMember({
         <div className="flex items-start gap-1 min-w-0">
           <span
             className={`text-sm font-medium break-words leading-tight w-full max-w-full ${
-              isDraggable ? 'text-blue-700' : 'text-gray-700'
+              member.SignedOutBy || member.SignedOutWhen || member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen
+                ? 'text-gray-400' 
+                : isDraggable ? 'text-blue-700' : 'text-gray-700'
             } ${
               onMemberClick
                 ? 'cursor-pointer hover:text-scout-blue hover:underline'
@@ -201,21 +203,6 @@ function DraggableMember({
           </span>
         </div>
 
-        {/* Show Viking Event Management fields if available */}
-        <div className="text-xs text-gray-500 mt-1 space-y-1">
-          {member.SignedInBy && <div>Signed in by: {member.SignedInBy}</div>}
-          {member.SignedInWhen && (
-            <div>
-              Signed in: {new Date(member.SignedInWhen).toLocaleString()}
-            </div>
-          )}
-          {member.SignedOutBy && <div>Signed out by: {member.SignedOutBy}</div>}
-          {member.SignedOutWhen && (
-            <div>
-              Signed out: {new Date(member.SignedOutWhen).toLocaleString()}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

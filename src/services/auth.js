@@ -390,13 +390,14 @@ export function logout() {
     if (key.startsWith('viking_events_') || 
         key.startsWith('viking_attendance_') || 
         key.startsWith('viking_members_') ||
-        key.startsWith('viking_flexi_')) {  // Clear ALL FlexiRecord caches
+        key.startsWith('viking_flexi_') ||
+        key.startsWith('viking_shared_metadata_')) {  // Clear ALL FlexiRecord and shared metadata caches
       localStorage.removeItem(key);
     }
   });
   
   sessionStorage.removeItem('user_info');
-  logger.info('User logged out - all cached data cleared including FlexiRecords', {}, LOG_CATEGORIES.AUTH);
+  logger.info('User logged out - all cached data cleared including FlexiRecords and shared metadata', {}, LOG_CATEGORIES.AUTH);
 }
 
 // Check for blocked status

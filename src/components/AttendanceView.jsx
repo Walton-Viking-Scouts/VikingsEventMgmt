@@ -9,6 +9,8 @@ import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
+import { getSharedEventAttendance } from '../services/api.js';
+import { getToken } from '../services/auth.js';
 
 function AttendanceView({ events, members, onBack }) {
   console.log('AttendanceView: component mounted');
@@ -41,7 +43,9 @@ function AttendanceView({ events, members, onBack }) {
 
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
-  const [viewMode, setViewMode] = useState('overview'); // overview, register, detailed, campGroups
+  const [viewMode, setViewMode] = useState('overview'); // overview, register, detailed, campGroups, sharedAttendance
+  const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
+  const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);
   const prevViewModeRef = useRef('overview'); // Track previous view mode without extra renders
   const [sortConfig, setSortConfig] = useState({
     key: 'attendance',
@@ -163,6 +167,71 @@ function AttendanceView({ events, members, onBack }) {
     );
     setFilteredAttendanceData(filtered);
   }, [attendanceData, attendanceFilters, sectionFilters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check if any events are shared events and load shared attendance data
+  const hasSharedEvents = useMemo(() => {
+    return events.some(event => {
+      // Check if this event has shared event metadata stored
+      const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+      if (metadata) {
+        try {
+          const parsed = JSON.parse(metadata);
+          return parsed._isOwner || parsed._allSections?.length > 1;
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    });
+  }, [events]);
+
+  // Load shared attendance data when switching to shared attendance view
+  useEffect(() => {
+    if (viewMode === 'sharedAttendance' && hasSharedEvents && !sharedAttendanceData && !loadingSharedAttendance) {
+      loadSharedAttendanceData();
+    }
+  }, [viewMode, hasSharedEvents]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadSharedAttendanceData = async () => {
+    setLoadingSharedAttendance(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      // Find the shared event (the one that has shared metadata)
+      const sharedEvent = events.find(event => {
+        const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+        if (metadata) {
+          try {
+            const parsed = JSON.parse(metadata);
+            return parsed._isOwner || parsed._allSections?.length > 1;
+          } catch (e) {
+            return false;
+          }
+        }
+        return false;
+      });
+
+      if (!sharedEvent) {
+        throw new Error('No shared event found');
+      }
+
+      console.log('Loading shared attendance for event:', sharedEvent.eventid, 'section:', sharedEvent.sectionid);
+      
+      const sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
+      
+      console.log('Received shared attendance data:', sharedData);
+      setSharedAttendanceData(sharedData);
+      
+    } catch (error) {
+      console.error('Error loading shared attendance data:', error);
+      setSharedAttendanceData({ error: error.message });
+    } finally {
+      setLoadingSharedAttendance(false);
+    }
+  };
 
   const getSummaryStats = () => {
     const memberStats = {};
@@ -552,9 +621,6 @@ function AttendanceView({ events, members, onBack }) {
             )}
           </Card.Title>
           <div className="flex gap-2 items-center flex-wrap">
-            <Badge variant="scout-blue">
-              {events.length} event{events.length !== 1 ? 's' : ''}
-            </Badge>
             <Button variant="outline-scout-blue" onClick={onBack} type="button">
               Back to Dashboard
             </Button>
@@ -625,6 +691,19 @@ function AttendanceView({ events, members, onBack }) {
               >
                 Camp Groups
               </button>
+              {hasSharedEvents && (
+                <button
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    viewMode === 'sharedAttendance'
+                      ? 'border-scout-blue text-scout-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => setViewMode('sharedAttendance')}
+                  type="button"
+                >
+                  Shared Attendance
+                </button>
+              )}
             </nav>
           </div>
 
@@ -632,9 +711,6 @@ function AttendanceView({ events, members, onBack }) {
           {viewMode === 'overview' && members && members.length > 0 && (
             <div className="overflow-x-auto">
               <div className="flex gap-2 items-center mb-4">
-                <Badge variant="scout-blue">
-                  {events.length} event{events.length !== 1 ? 's' : ''}
-                </Badge>
                 <Badge variant="scout-green">
                   {simplifiedSummaryStats.totals.total.total} total responses
                 </Badge>
@@ -959,7 +1035,7 @@ function AttendanceView({ events, members, onBack }) {
                     ).map((member, index) => {
                       return (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-3 py-4">
+                          <td className="px-3 py-2">
                             <button
                               onClick={() => {
                                 // Pass the member object with scoutid so handleMemberClick can find the full cached data
@@ -973,19 +1049,19 @@ function AttendanceView({ events, members, onBack }) {
                                   sectionname: member.events[0]?.sectionname,
                                 });
                               }}
-                              className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block"
+                              className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block text-xs"
                             >
                               {member.name}
                             </button>
                           </td>
-                          <td className="px-2 py-4 text-center">
+                          <td className="px-2 py-2 text-center">
                             <SignInOutButton
                               member={member}
                               onSignInOut={handleSignInOut}
                               loading={buttonLoading?.[member.scoutid] || false}
                             />
                           </td>
-                          <td className="px-3 py-4 whitespace-nowrap">
+                          <td className="px-3 py-2 whitespace-nowrap">
                             <div className="flex gap-1 flex-wrap">
                               {member.yes > 0 && (
                                 <Badge
@@ -1012,10 +1088,10 @@ function AttendanceView({ events, members, onBack }) {
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
                             {member.vikingEventData?.CampGroup || '-'}
                           </td>
-                          <td className="px-3 py-4 text-sm">
+                          <td className="px-3 py-2 text-xs">
                             {member.vikingEventData?.SignedInBy ||
                             member.vikingEventData?.SignedInWhen ? (
                                 <div className="space-y-0.5">
@@ -1034,7 +1110,7 @@ function AttendanceView({ events, members, onBack }) {
                                 <span className="text-gray-400">-</span>
                               )}
                           </td>
-                          <td className="px-3 py-4 text-sm">
+                          <td className="px-3 py-2 text-xs">
                             {member.vikingEventData?.SignedOutBy ||
                             member.vikingEventData?.SignedOutWhen ? (
                                 <div className="space-y-0.5">
@@ -1127,18 +1203,18 @@ function AttendanceView({ events, members, onBack }) {
 
                     return (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-2 whitespace-nowrap">
                           <button
                             onClick={() => handleMemberClick(record)}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left text-xs"
                           >
                             {record.firstname} {record.lastname}
                           </button>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                        <td className="px-6 py-2 whitespace-nowrap text-gray-900 text-xs">
                           {record.sectionname}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-2 whitespace-nowrap">
                           <Badge variant={badgeVariant}>{statusText}</Badge>
                           {record.attending &&
                             record.attending !== statusText && (
@@ -1164,6 +1240,170 @@ function AttendanceView({ events, members, onBack }) {
                 /* Error handled within CampGroupsView */
               }}
             />
+          )}
+
+          {viewMode === 'sharedAttendance' && (
+            <div>
+              {loadingSharedAttendance ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-scout-blue"></div>
+                  <p className="mt-2 text-gray-600">Loading shared attendance data...</p>
+                </div>
+              ) : sharedAttendanceData?.error ? (
+                <Alert variant="danger">
+                  <Alert.Title>Error Loading Shared Attendance</Alert.Title>
+                  <Alert.Description>{sharedAttendanceData.error}</Alert.Description>
+                  <Alert.Actions>
+                    <Button variant="scout-blue" onClick={loadSharedAttendanceData} type="button">
+                      Retry
+                    </Button>
+                  </Alert.Actions>
+                </Alert>
+              ) : sharedAttendanceData?.items ? (
+                <div>
+                  {(() => {
+                    // Helper function to determine if member is young person or adult based on age
+                    const isYoungPerson = (age) => {
+                      if (!age) return true; // Default to young person if no age
+                      return age !== '25+'; // Adults/leaders have '25+', young people have formats like '06 / 08'
+                    };
+
+                    // Helper function to get numeric age for sorting (handle years/months format)
+                    const getNumericAge = (age) => {
+                      if (!age) return 0;
+                      if (age === '25+') return 999; // Put adults at the end
+                      
+                      // Handle format like '06 / 08' which is years / months
+                      const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
+                      if (match) {
+                        const years = parseInt(match[1], 10);
+                        const months = parseInt(match[2], 10);
+                        // Convert to total months for accurate sorting
+                        return (years * 12) + months;
+                      }
+                      
+                      // Fallback to just first number
+                      const singleMatch = age.match(/^(\d+)/);
+                      return singleMatch ? parseInt(singleMatch[1], 10) * 12 : 0; // Convert years to months
+                    };
+
+                    // Process the data to group by sections
+                    const sectionGroups = {};
+                    let totalYoungPeople = 0;
+                    let totalAdults = 0;
+                    
+                    sharedAttendanceData.items.forEach(member => {
+                      const sectionName = member.sectionname;
+                      const isYP = isYoungPerson(member.age);
+                      
+                      if (isYP) {
+                        totalYoungPeople++;
+                      } else {
+                        totalAdults++;
+                      }
+                      
+                      if (!sectionGroups[sectionName]) {
+                        sectionGroups[sectionName] = {
+                          sectionid: member.sectionid,
+                          sectionname: sectionName,
+                          members: [],
+                          youngPeopleCount: 0,
+                          adultsCount: 0,
+                        };
+                      }
+                      
+                      if (isYP) {
+                        sectionGroups[sectionName].youngPeopleCount++;
+                      } else {
+                        sectionGroups[sectionName].adultsCount++;
+                      }
+                      
+                      sectionGroups[sectionName].members.push(member);
+                    });
+                    
+                    // Sort members within each section by age (youngest first, adults last)
+                    Object.values(sectionGroups).forEach(section => {
+                      section.members.sort((a, b) => {
+                        const ageA = getNumericAge(a.age);
+                        const ageB = getNumericAge(b.age);
+                        return ageA - ageB;
+                      });
+                    });
+                    
+                    const sections = Object.values(sectionGroups);
+                    const totalMembers = totalYoungPeople + totalAdults;
+                    
+                    return (
+                      <>
+                        {/* Overall summary */}
+                        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Combined Attendance Summary
+                          </h3>
+                          <div className="flex flex-wrap gap-3">
+                            <Badge variant="scout-blue" size="md">
+                              {totalMembers} Total
+                            </Badge>
+                            <Badge variant="scout-green" size="md">
+                              {totalYoungPeople} Young People
+                            </Badge>
+                            <Badge variant="scout-purple" size="md">
+                              {totalAdults} Adults
+                            </Badge>
+                            <Badge variant="secondary" size="md">
+                              {sections.length} Sections
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Group members by section */}
+                        {sections.map((section) => (
+                          <div key={section.sectionid} className="mb-6">
+                            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                                  {section.sectionname}
+                                  <div className="flex gap-1">
+                                    <Badge variant="scout-green" size="sm">
+                                      {section.youngPeopleCount} YP
+                                    </Badge>
+                                    <Badge variant="scout-purple" size="sm">
+                                      {section.adultsCount} Adults
+                                    </Badge>
+                                  </div>
+                                </h4>
+                              </div>
+                              
+                              <div className="p-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                  {section.members.map((member, memberIndex) => (
+                                    <div key={member.scoutid || memberIndex} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                                      <div className="text-sm font-medium text-gray-900 min-w-0 flex-1 mr-2">
+                                        {member.firstname} {member.lastname}
+                                      </div>
+                                      <div className="text-xs text-gray-500 font-mono flex-shrink-0">
+                                        {member.age || 'N/A'}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No shared attendance data available</p>
+                  <Button variant="scout-blue" onClick={loadSharedAttendanceData} className="mt-4" type="button">
+                    Load Shared Attendance
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </Card.Body>
       </Card>
