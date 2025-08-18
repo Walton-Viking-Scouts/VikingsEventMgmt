@@ -7,6 +7,16 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
 /**
  * Detect if demo mode should be enabled
  * Checks URL parameters, subdomain, and path
+ * 
+ * Usage:
+ * - URL: http://localhost:3001/?demo=true
+ * - Subdomain: http://demo.example.com/
+ * - Path: http://example.com/demo
+ * - Environment: VITE_DEMO_MODE=true
+ * 
+ * For HTTP-only access (no HTTPS):
+ * - Set VITE_DEMO_MODE=true or HTTP_ONLY=true environment variable
+ * - Or remove/rename SSL certificates (fallback behavior)
  */
 export function isDemoMode() {
   // For test environments or SSR, check environment variable only
