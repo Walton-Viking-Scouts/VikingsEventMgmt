@@ -162,7 +162,9 @@ function CampGroupCard({
 
   const MemberName = ({ member }) => (
     <span
-      className={`text-sm break-words ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
+      className={`text-sm break-words ${
+        member.SignedOutBy || member.SignedOutWhen || member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? 'text-gray-400' : ''
+      } ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
       onClick={() => handleMemberClick(member)}
       title={`${member.firstname} ${member.lastname}`}
     >
@@ -187,7 +189,9 @@ function CampGroupCard({
       <Card.Header className="pb-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-gray-900 break-words whitespace-normal">{name}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 break-words whitespace-normal">
+              {name} <span className="text-base font-medium text-gray-600">({youngPeople.length})</span>
+            </h3>
           </div>
         </div>
 
