@@ -2,9 +2,9 @@
 import * as Sentry from '@sentry/react';
 import { config } from '../config/env.js';
 
-// Environment configuration - Use robust detection from config
-const isDevelopment = config.actualEnvironment === 'development';
-const isProduction = config.actualEnvironment === 'production';
+// Environment configuration - Use robust detection from config with fallback
+const isDevelopment = config?.actualEnvironment === 'development' || import.meta.env.DEV;
+const isProduction = config?.actualEnvironment === 'production' || import.meta.env.PROD;
 
 // Log levels
 export const LOG_LEVELS = {

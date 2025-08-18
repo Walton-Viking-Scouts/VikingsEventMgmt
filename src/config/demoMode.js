@@ -9,22 +9,32 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
  * Checks URL parameters, subdomain, and path
  */
 export function isDemoMode() {
-  if (typeof window === 'undefined') return false;
-  
-  // Check URL parameters
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('demo') === 'true' || urlParams.get('mode') === 'demo') {
-    return true;
+  // For test environments or SSR, check environment variable only
+  if (typeof window === 'undefined') {
+    return import.meta.env.VITE_DEMO_MODE === 'true';
   }
   
-  // Check subdomain
-  if (window.location.hostname.startsWith('demo.')) {
-    return true;
-  }
-  
-  // Check path
-  if (window.location.pathname.startsWith('/demo')) {
-    return true;
+  try {
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === 'true' || urlParams.get('mode') === 'demo') {
+      return true;
+    }
+    
+    // Check subdomain
+    if (window.location.hostname && window.location.hostname.startsWith('demo.')) {
+      return true;
+    }
+    
+    // Check path
+    if (window.location.pathname && window.location.pathname.startsWith('/demo')) {
+      return true;
+    }
+  } catch (error) {
+    // Fallback to environment variable if window access fails
+    logger.warn('Demo mode detection failed, falling back to environment variable', {
+      error: error.message,
+    }, LOG_CATEGORIES.APP);
   }
   
   // Environment variable fallback
@@ -365,7 +375,7 @@ function generateBirthDate(sectionType) {
  * Demo mode configuration object
  */
 export const demoConfig = {
-  enabled: isDemoMode(),
+  get enabled() { return isDemoMode(); },
   sections: DEMO_SECTIONS,
   events: DEMO_EVENTS,
   memberNames: DEMO_MEMBER_NAMES,
