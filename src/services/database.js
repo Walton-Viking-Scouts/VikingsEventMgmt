@@ -216,7 +216,21 @@ class DatabaseService {
     
     if (!this.isNative || !this.db) {
       // localStorage fallback
-      return safeGetItem('viking_sections_offline', []);
+      const sectionsData = safeGetItem('viking_sections_offline', []);
+      console.log('🔍 Database getSections() raw data:', sectionsData);
+      console.log('🔍 Database getSections() raw data type:', typeof sectionsData, Array.isArray(sectionsData));
+      
+      // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
+      // In production, they might be timestamped format with {items: [...]}
+      let sections = [];
+      if (Array.isArray(sectionsData)) {
+        sections = sectionsData;
+      } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+        sections = sectionsData.items;
+      }
+      
+      console.log('🔍 Database getSections() returning:', sections);
+      return sections;
     }
     
     const query = 'SELECT * FROM sections ORDER BY sectionname';
@@ -268,7 +282,21 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
-      return safeGetItem(key, []);
+      const eventsData = safeGetItem(key, []);
+      console.log(`🔍 Database getEvents(${sectionId}) raw data:`, eventsData);
+      console.log(`🔍 Database getEvents(${sectionId}) raw data type:`, typeof eventsData, Array.isArray(eventsData));
+      
+      // In demo mode, events are stored as flat array (already parsed by safeGetItem)
+      // In production, they might be timestamped format with {items: [...]}
+      let events = [];
+      if (Array.isArray(eventsData)) {
+        events = eventsData;
+      } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
+        events = eventsData.items;
+      }
+      
+      console.log(`🔍 Database getEvents(${sectionId}) returning:`, events);
+      return events;
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';

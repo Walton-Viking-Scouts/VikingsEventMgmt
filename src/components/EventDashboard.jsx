@@ -309,7 +309,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setSections(sectionsData);
         
         if (sectionsData.length > 0) {
-          const cards = await buildEventCards(sectionsData, syncToken);
+          // In demo mode, force cache-only mode (no API calls)
+          const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+          const token = isDemoMode ? null : syncToken;
+          const cards = await buildEventCards(sectionsData, token);
           setEventCards(cards);
         }
       }
@@ -422,6 +425,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           LOG_CATEGORIES.SYNC,
         );
       }
+      // In demo mode, skip API call and return early
+      const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+      if (isDemoMode) {
+        logger.info('Demo mode: Skipping getUserRoles API call', {}, LOG_CATEGORIES.SYNC);
+        return loadInitialData(null);
+      }
+      
       const sectionsData = await getUserRoles(syncDataToken);
       if (import.meta.env.DEV) {
         logger.debug(
@@ -437,7 +447,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (import.meta.env.DEV) {
         logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
       }
-      const cards = await buildEventCards(sectionsData, syncDataToken);
+      // In demo mode, force cache-only mode (no API calls) 
+      const token = isDemoMode ? null : syncDataToken;
+      const cards = await buildEventCards(sectionsData, token);
       if (import.meta.env.DEV) {
         logger.debug(
           'syncData: Built event cards',

@@ -2,17 +2,39 @@
 // This module centralizes environment variable access and validates required variables
 
 // Required environment variables for basic functionality
+// Skip validation in demo mode to allow public access
 const requiredVars = [
   'VITE_API_URL',
   'VITE_OAUTH_CLIENT_ID',
 ];
 
-
+// Helper function to check demo mode safely
+function isInDemoMode() {
+  try {
+    // Lazy import to avoid circular dependencies
+    if (typeof window !== 'undefined' && window.location) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('demo') === 'true' || urlParams.get('mode') === 'demo') {
+        return true;
+      }
+      if (window.location.hostname && window.location.hostname.startsWith('demo.')) {
+        return true;
+      }
+      if (window.location.pathname && window.location.pathname.startsWith('/demo')) {
+        return true;
+      }
+    }
+  } catch (error) {
+    // Ignore errors in test environment
+  }
+  return import.meta.env.VITE_DEMO_MODE === 'true';
+}
 
 // Validate required environment variables
+// Skip validation in demo mode to allow public HTTP access
 const missingVars = requiredVars.filter(key => !import.meta.env[key]);
 
-if (missingVars.length > 0) {
+if (missingVars.length > 0 && !isInDemoMode()) {
   const errorMessage = `Missing required environment variables: ${missingVars.join(', ')}`;
   console.error('❌ Environment Configuration Error:', errorMessage);
   

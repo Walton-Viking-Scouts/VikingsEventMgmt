@@ -12,6 +12,37 @@ import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { Alert } from './components/ui';
 import './App.css';
 import { getUniqueSectionsFromEvents } from './utils/sectionHelpers.js';
+import { logout as clearAllStorage } from './services/auth.js';
+
+// Clear Storage View component for troubleshooting
+const ClearStorageView = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen p-8">
+    <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
+      <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">Clear All Storage</h2>
+      <p className="text-gray-600 mb-6 text-center">
+        This will clear all cached data and reset the application to its initial state. 
+        You will need to log in again after clearing storage.
+      </p>
+      <div className="space-y-3">
+        <button
+          onClick={() => {
+            clearAllStorage();
+            window.location.href = '/dashboard';
+          }}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+        >
+          Clear All Storage & Reload
+        </button>
+        <button
+          onClick={() => window.location.href = '/dashboard'}
+          className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 function App() {
   const {
@@ -270,6 +301,10 @@ function App() {
                       path="/dashboard"
                       element={renderCurrentView()}
                       data-oid="z8vjxij"
+                    />
+                    <Route
+                      path="/clear"
+                      element={<ClearStorageView />}
                     />
                   </Routes>
                 </ErrorBoundary>

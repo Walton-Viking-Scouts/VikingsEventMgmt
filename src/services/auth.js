@@ -6,6 +6,7 @@ import { sentryUtils } from './sentry.js';
 import { config } from '../config/env.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
 import { authHandler } from './simpleAuthHandler.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 const clientId = config.oauthClientId;
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
@@ -20,6 +21,11 @@ if (!clientId) {
 
 // Token management
 export function getToken() {
+  // In demo mode, return a dummy token to enable offline functionality
+  if (isDemoMode()) {
+    return 'demo-mode-token';
+  }
+  
   // Don't return a token if it's been marked as expired
   const tokenExpired = sessionStorage.getItem('token_expired') === 'true';
   if (tokenExpired) {
@@ -80,6 +86,11 @@ export function clearToken() {
 }
 
 export function isAuthenticated() {
+  // In demo mode, always return true to enable all functionality
+  if (isDemoMode()) {
+    return true;
+  }
+  
   const token = getToken();
   if (!token) {
     return false;
@@ -190,6 +201,24 @@ export async function fetchUserInfoFromAPI() {
     email: null,
     fullname: 'Scout Leader',
   };
+
+  // In demo mode, return demo user info
+  if (isDemoMode()) {
+    const demoUserInfo = {
+      firstname: 'Demo',
+      lastname: 'Leader',
+      userid: 'demo_user',
+      email: 'demo@example.com',
+      fullname: 'Demo Leader',
+    };
+    
+    logger.info('Returning demo user info', { 
+      firstname: demoUserInfo.firstname, 
+      hasUserInfo: true,
+    }, LOG_CATEGORIES.AUTH);
+    
+    return demoUserInfo;
+  }
 
   try {
     // Direct sessionStorage access intentional - this function fetches user info 

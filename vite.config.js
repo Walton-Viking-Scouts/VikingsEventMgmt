@@ -34,10 +34,26 @@ export default defineConfig({
     port: 3001,
     host: true,
     open: true,
-    https: {
-      key: fs.readFileSync('./localhost-key.pem'),
-      cert: fs.readFileSync('./localhost.pem'),
-    },
+    // Enable HTTPS by default, but allow HTTP for demo mode or when certs are missing
+    https: (() => {
+      try {
+        // Check if demo mode is requested via environment variable
+        if (process.env.VITE_DEMO_MODE === 'true' || process.env.HTTP_ONLY === 'true') {
+          return false; // Use HTTP for demo mode
+        }
+        
+        // Try to read certificates for HTTPS
+        return {
+          key: fs.readFileSync('./localhost-key.pem'),
+          cert: fs.readFileSync('./localhost.pem'),
+        };
+      } catch (error) {
+        console.warn('⚠️  HTTPS certificates not found, falling back to HTTP');
+        console.warn('   To use HTTPS, ensure localhost-key.pem and localhost.pem exist');
+        console.warn('   To force HTTP for demo mode, set VITE_DEMO_MODE=true or HTTP_ONLY=true');
+        return false; // Fallback to HTTP if certificates don't exist
+      }
+    })(),
   },
   define: {
     // No need to define process.env since we're using import.meta.env
