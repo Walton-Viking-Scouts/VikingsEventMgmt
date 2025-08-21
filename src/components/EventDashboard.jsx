@@ -338,8 +338,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         
         if (sectionsData.length > 0) {
           // In demo mode, force cache-only mode (no API calls)
-          const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-          const token = isDemoMode ? null : syncToken;
+          const { isDemoMode } = await import('../config/demoMode.js');
+          const token = isDemoMode() ? null : syncToken;
           const cards = await buildEventCards(sectionsData, token);
           setEventCards(cards);
         }
@@ -431,8 +431,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
     // Skip sync entirely in demo mode to prevent loops
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const { isDemoMode } = await import('../config/demoMode.js');
+    if (isDemoMode()) {
       logger.debug('Demo mode: Skipping syncData entirely', {}, LOG_CATEGORIES.SYNC);
       return;
     }
@@ -461,8 +461,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         );
       }
       // In demo mode, skip API call and return early
-      const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-      if (isDemoMode) {
+      const { isDemoMode } = await import('../config/demoMode.js');
+      if (isDemoMode()) {
         logger.info('Demo mode: Skipping getUserRoles API call', {}, LOG_CATEGORIES.SYNC);
         return loadInitialData(null);
       }

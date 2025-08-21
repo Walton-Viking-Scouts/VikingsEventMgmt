@@ -145,6 +145,14 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
         sectionname: section.sectionname,
         termid: termId || event.termid, // Use fetched termId, fallback to cached termid (don't default to null)
       }));
+      
+      if (import.meta.env.DEV) {
+        console.log(`Events loaded from cache for section ${section.sectionid}:`, {
+          count: events.length,
+          termId: termId,
+          sampleEvent: events[0],
+        });
+      }
     }
     
     return events;
@@ -187,6 +195,9 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
       try {
         const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
         const cachedData = localStorage.getItem(cacheKey);
+        if (import.meta.env.DEV) {
+          console.log('Demo mode: Looking for attendance with key:', cacheKey, 'Found:', !!cachedData);
+        }
         if (cachedData) {
           const attendanceData = JSON.parse(cachedData);
           

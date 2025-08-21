@@ -131,9 +131,33 @@ const DEMO_CACHE_DATA = {
   ],
 
   viking_terms_offline: {
-    'items': [
+    '11107': [
       {
-        'termid': 'term_autumn_2025',
+        'termid': '12345',
+        'name': 'Autumn Term 2025',
+        'startdate': '2025-09-01',
+        'enddate': '2025-12-15',
+      },
+    ],
+    '63813': [
+      {
+        'termid': '12345',
+        'name': 'Autumn Term 2025',
+        'startdate': '2025-09-01',
+        'enddate': '2025-12-15',
+      },
+    ],
+    '11113': [
+      {
+        'termid': '12345',
+        'name': 'Autumn Term 2025',
+        'startdate': '2025-09-01',
+        'enddate': '2025-12-15',
+      },
+    ],
+    '49097': [
+      {
+        'termid': '12345',
         'name': 'Autumn Term 2025',
         'startdate': '2025-09-01',
         'enddate': '2025-12-15',
@@ -191,7 +215,7 @@ export async function initializeDemoMode() {
       
       // Store events with TWO cache keys to support both patterns:
       // 1. With termId for api.js getEvents() function
-      const termId = 'term_autumn_2025';
+      const termId = '12345';
       const eventsKeyWithTerm = `viking_events_${section.sectionid}_${termId}_offline`;
       
       // 2. Without termId for database.js
@@ -200,7 +224,7 @@ export async function initializeDemoMode() {
       // Store as flat array for api.js getEvents (it expects flat array in demo mode)
       if (import.meta.env.DEV) {
         console.log(`📦 Storing events for section ${section.sectionid} with term:`, eventsKeyWithTerm);
-        console.log(`📦 Also storing without term for database.js:`, eventsKeyWithoutTerm);
+        console.log('📦 Also storing without term for database.js:', eventsKeyWithoutTerm);
       }
       safeSetItem(eventsKeyWithTerm, demoEvents);
       
@@ -287,7 +311,7 @@ export async function initializeDemoMode() {
           items: flexiData,
           _cacheTimestamp: Date.now(),
         };
-        safeSetItem(`viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_term_autumn_2025_offline`, flexiDataWithTimestamp);
+        safeSetItem(`viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_12345_offline`, flexiDataWithTimestamp);
       });
     });
 
@@ -505,7 +529,7 @@ function generateEventsForSection(section) {
       cost: event.cost,
       sectionid: section.sectionid,
       sectionname: section.sectionname,
-      termid: 'term_autumn_2025',
+      termid: '12345',
     };
   });
 }
@@ -903,75 +927,7 @@ function generateSwimmingGalaSharedMetadata() {
       enddate_original: '30/08/2025',
       sectionid: 11107, // Numeric like production
       sectionname: 'Demo Adults', 
-      termid: 'term_autumn_2025',
-    },
-  };
-}
-
-/**
- * Generate shared attendance data for Swimming Gala (matches api.js function)
- */
-function generateSwimmingGalaSharedAttendance(_eventId, _sectionId) {
-  // Get the cached Swimming Gala shared metadata
-  const sharedMetadataKey = 'viking_shared_metadata_swimming_gala_demo';
-  const cachedMetadata = localStorage.getItem(sharedMetadataKey);
-  
-  if (cachedMetadata) {
-    try {
-      const metadata = JSON.parse(cachedMetadata);
-      
-      // Generate combined attendance from all sections participating in the shared event
-      const items = [];
-      
-      // Process each section in the shared event
-      metadata._allSections.forEach(sectionInfo => {
-        if (sectionInfo.groupname === 'TOTAL') return; // Skip total row
-        
-        // Generate attendance records for this section matching production format
-        const sectionAttendance = generateProductionFormatAttendance(
-          String(sectionInfo.sectionid), // Convert to string for internal processing
-          sectionInfo.sectionname, 
-          sectionInfo.groupname,
-          sectionInfo.eventid,
-          sectionInfo.attendance,
-          sectionInfo.none,
-        );
-        
-        items.push(...sectionAttendance);
-      });
-      
-      // Return in production format matching exact structure
-      return {
-        identifier: 'scoutsectionid',
-        items: items,
-        _rateLimitInfo: {
-          osm: { limit: 1000, remaining: 995, resetTime: 3600000, rateLimited: false },
-          backend: { 
-            minute: { remaining: '99', limit: '100', reset: String(Math.floor(Date.now() / 1000) + 60) },
-            second: { remaining: '5', limit: '5', reset: String(Math.floor(Date.now() / 1000) + 1) },
-            hour: { remaining: '899', limit: '900', reset: String(Math.floor(Date.now() / 1000) + 3600) },
-            remaining: '5', limit: '100', 
-          },
-        },
-      };
-      
-    } catch (error) {
-      logger.warn('Failed to parse shared metadata for demo', { error: error.message }, LOG_CATEGORIES.APP);
-    }
-  }
-  
-  // Fallback for non-shared events or if metadata not found
-  return {
-    identifier: 'scoutsectionid',
-    items: [],
-    _rateLimitInfo: {
-      osm: { limit: 1000, remaining: 1000, resetTime: 3600000, rateLimited: false },
-      backend: { 
-        minute: { remaining: '100', limit: '100', reset: String(Math.floor(Date.now() / 1000) + 60) },
-        second: { remaining: '5', limit: '5', reset: String(Math.floor(Date.now() / 1000) + 1) },
-        hour: { remaining: '900', limit: '900', reset: String(Math.floor(Date.now() / 1000) + 3600) },
-        remaining: '5', limit: '100', 
-      },
+      termid: '12345',
     },
   };
 }
