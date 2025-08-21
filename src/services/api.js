@@ -530,12 +530,13 @@ export async function getUserRoles(token) {
   if (demoMode) {
     const cacheKey = 'viking_user_roles_offline';
     const cached = safeGetItem(cacheKey, { sections: [] });
+    const sections = cached.sections || [];
     if (import.meta.env.DEV) {
       logger.debug('Demo mode: Using cached user roles', {
-        sectionsCount: cached.sections?.length || 0,
+        sectionsCount: sections.length,
       }, LOG_CATEGORIES.API);
     }
-    return cached;
+    return sections;
   }
 
   return sentryUtils.startSpan(
@@ -800,15 +801,17 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     if (demoMode) {
       const cacheKey = `viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
       const cached = safeGetItem(cacheKey, []);
+      // Normalize to array format if cached as object with items
+      const attendance = Array.isArray(cached) ? cached : (cached.items || []);
       if (import.meta.env.DEV) {
         logger.debug('Demo mode: Using cached attendance', {
           sectionId,
           eventId,
           termId,
-          attendanceCount: cached.length,
+          attendanceCount: attendance.length,
         }, LOG_CATEGORIES.API);
       }
-      return cached;
+      return attendance;
     }
     
     // Check network status first
