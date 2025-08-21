@@ -1112,7 +1112,7 @@ function AttendanceView({ events, members, onBack }) {
                                 </Badge>
                               )}
                               {member.notInvited > 0 && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="light" className="text-xs">
                                   Not Invited
                                 </Badge>
                               )}
@@ -1380,7 +1380,7 @@ function AttendanceView({ events, members, onBack }) {
                             <Badge variant="scout-purple" size="md">
                               {totalAdults} Adults
                             </Badge>
-                            <Badge variant="secondary" size="md">
+                            <Badge variant="light" size="md">
                               {sections.length} Sections
                             </Badge>
                           </div>

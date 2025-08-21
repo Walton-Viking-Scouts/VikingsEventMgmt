@@ -46,7 +46,7 @@ vi.mock('../../services/logger.js', () => ({
   },
 }));
 
-vi.mock('../../config/demoMode.js', () => ({
+vi.mock('../config/demoMode.js', () => ({
   isDemoMode: vi.fn(() => false),
   initializeDemoMode: vi.fn(),
 }));

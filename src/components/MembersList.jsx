@@ -437,7 +437,7 @@ function MembersList({
                       </div>
                     </div>
                     {calculateAge(member.date_of_birth) && (
-                      <Badge variant="secondary">
+                      <Badge variant="light">
                         Age {calculateAge(member.date_of_birth)}
                       </Badge>
                     )}

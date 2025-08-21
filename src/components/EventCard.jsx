@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, Button, Badge } from './ui';
 import AttendanceGrid from './AttendanceGrid.jsx';
 
@@ -219,6 +219,15 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     }
   };
 
+  // Compute aggregated status once to avoid inline IIFE
+  const aggregatedStatus = useMemo(() => {
+    const statuses = new Set(eventCard.events.map(e => getEventStatus(e)));
+    if (statuses.has('ongoing')) return 'ongoing';
+    if (statuses.has('upcoming')) return 'upcoming';
+    if (statuses.has('past')) return 'past';
+    return null;
+  }, [eventCard.events]);
+
   const attendanceGrid = buildAttendanceGrid(eventCard.events);
   const hasAttendanceData = eventCard.events.some(
     (event) => event.attendanceData && event.attendanceData.length > 0,
@@ -237,20 +246,13 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {(() => {
-              // Get all unique statuses from events in this card
-              const statuses = [...new Set(eventCard.events.map(event => getEventStatus(event)))];
-              
-              // Priority: ongoing > upcoming > past
-              if (statuses.includes('ongoing')) {
-                return <Badge variant="scout-green">Ongoing</Badge>;
-              } else if (statuses.includes('upcoming')) {
-                return <Badge variant="scout-blue">Upcoming</Badge>;
-              } else if (statuses.includes('past')) {
-                return <Badge variant="secondary">Past</Badge>;
-              }
-              return null;
-            })()}
+            {aggregatedStatus === 'ongoing' ? (
+              <Badge variant="scout-green">Ongoing</Badge>
+            ) : aggregatedStatus === 'upcoming' ? (
+              <Badge variant="scout-blue">Upcoming</Badge>
+            ) : aggregatedStatus === 'past' ? (
+              <Badge variant="light">Past</Badge>
+            ) : null}
           </div>
         </div>
 
