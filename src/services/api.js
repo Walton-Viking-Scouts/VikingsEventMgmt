@@ -2048,154 +2048,35 @@ export async function testBackendConnection() {
 }
 
 /**
- * Generate mock shared attendance data for demo mode
+ * Get cached shared attendance data for demo mode
  */
 function generateDemoSharedAttendance(eventId, sectionId) {
-  // Check if this is the Swimming Gala event (event index 2 in our demo data)  
-  const isSwimmingGala = eventId.includes('_2');
+  // Simply fetch the cached shared attendance data
+  const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+  const cachedSharedAttendance = localStorage.getItem(sharedCacheKey);
   
   if (import.meta.env.DEV) {
-    logger.debug('Demo mode: Generating shared attendance', {
+    logger.debug('Demo mode: Looking for cached shared attendance', {
       eventId,
-      sectionId, 
-      isSwimmingGala,
+      sectionId,
+      cacheKey: sharedCacheKey,
+      found: !!cachedSharedAttendance,
     }, LOG_CATEGORIES.API);
   }
   
-  if (isSwimmingGala) {
-    // Get the cached Swimming Gala shared metadata
-    const sharedMetadataKey = 'viking_shared_metadata_swimming_gala_demo';
-    const cachedMetadata = localStorage.getItem(sharedMetadataKey);
-    
-    if (cachedMetadata) {
-      try {
-        const metadata = JSON.parse(cachedMetadata);
-        
-        // Generate combined attendance from all sections participating in the shared event
-        const items = [];
-        
-        // Process each section in the shared event
-        metadata._allSections.forEach(sectionInfo => {
-          if (sectionInfo.groupname === 'TOTAL') return; // Skip total row
-          
-          // Generate attendance records for this section matching production format
-          const sectionAttendance = generateProductionFormatAttendance(
-            sectionInfo.sectionid,
-            sectionInfo.sectionname, 
-            sectionInfo.groupname,
-            sectionInfo.eventid,
-            sectionInfo.attendance,
-            sectionInfo.none,
-          );
-          
-          items.push(...sectionAttendance);
-        });
-        
-        // Return in production format with identifier and items
-        return {
-          identifier: 'scoutsectionid',
-          items: items,
-          _rateLimitInfo: {
-            osm: { limit: 1000, remaining: 995, resetTime: 3600000, rateLimited: false },
-            backend: { 
-              minute: { remaining: '99', limit: '100', reset: String(Math.floor(Date.now() / 1000) + 60) },
-              second: { remaining: '5', limit: '5', reset: String(Math.floor(Date.now() / 1000) + 1) },
-              hour: { remaining: '899', limit: '900', reset: String(Math.floor(Date.now() / 1000) + 3600) },
-              remaining: '5', limit: '100', 
-            },
-          },
-          _cacheTimestamp: Date.now(),
-        };
-        
-      } catch (error) {
-        console.warn('Failed to parse shared metadata for demo:', error);
-      }
+  if (cachedSharedAttendance) {
+    try {
+      const attendanceData = JSON.parse(cachedSharedAttendance);
+      return attendanceData;
+    } catch (error) {
+      logger.warn('Failed to parse cached shared attendance', { error: error.message }, LOG_CATEGORIES.API);
     }
   }
   
-  // Fallback for non-shared events or if metadata not found
+  // Return empty structure if no cached data found
   return {
     identifier: 'scoutsectionid',
     items: [],
-    _rateLimitInfo: {
-      osm: { limit: 1000, remaining: 1000, resetTime: 3600000, rateLimited: false },
-      backend: { 
-        minute: { remaining: '100', limit: '100', reset: String(Math.floor(Date.now() / 1000) + 60) },
-        second: { remaining: '5', limit: '5', reset: String(Math.floor(Date.now() / 1000) + 1) },
-        hour: { remaining: '900', limit: '900', reset: String(Math.floor(Date.now() / 1000) + 3600) },
-        remaining: '5', limit: '100', 
-      },
-    },
     _cacheTimestamp: Date.now(),
   };
 }
-
-/**
- * Generate attendance records matching production shared attendance format
- */
-function generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
-  const members = [];
-  const totalMembers = attendingCount + notAttendingCount;
-  
-  // Generate demo member names based on section
-  const memberNamesBySection = {
-    '11107': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
-    '63813': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
-    '11113': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
-    '49097': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
-    'external_scouts_001': ['Lisa Harper', 'James Peterson', 'Amy Carter', 'Ryan Foster', 'Emma Taylor'],
-  };
-  
-  const namePool = memberNamesBySection[sectionid] || memberNamesBySection['49097'];
-  const eventDate = '2025-08-30'; // Swimming Gala date from our demo events
-  
-  for (let i = 0; i < totalMembers && i < namePool.length; i++) {
-    const [firstname, lastname] = namePool[i].split(' ');
-    const isAttending = i < attendingCount;
-    const scoutid = `demo_${sectionid}_${i + 1000}`; // Unique scoutid
-    const patrolid = sectionid === 'external_scouts_001' ? '99999' : String(12345 + (i % 3));
-    
-    // Generate realistic age based on section type
-    let dob = '0000-00-00';
-    let age = '';
-    if (sectionid !== '11107' && sectionid !== 'external_scouts_001') { // Not adults
-      const birthYear = sectionid === '63813' ? 2020 : (sectionid === '11113' ? 2018 : 2017); // Age appropriate
-      const birthMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-      const birthDay = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-      dob = `${birthYear}-${birthMonth}-${birthDay}`;
-      const ageYears = 2025 - birthYear;
-      const ageMonths = Math.floor(Math.random() * 12);
-      age = `${ageYears} / ${ageMonths.toString().padStart(2, '0')}`;
-    } else if (sectionid === '11107') {
-      age = '25+'; // Adults
-    }
-    
-    const photoGuid = Math.random() > 0.7 ? null : `demo-photo-${scoutid}`; // 30% have photos
-    const attendingStr = isAttending ? 'Yes' : 'No';
-    
-    const record = {
-      scoutid: scoutid,
-      attending: attendingStr,
-      dob: dob,
-      startdate: eventDate,
-      patrolid: patrolid,
-      sectionid: sectionid,
-      eventid: eventid,
-      firstname: firstname,
-      lastname: lastname,
-      photo_guid: photoGuid,
-      enddate: null,
-      scoutsectionid: `${scoutid}-${sectionid}`,
-      age: age,
-      groupname: groupname,
-      sectionname: sectionname,
-      _filterString: `${scoutid} ${attendingStr} ${dob} ${eventDate} ${patrolid} ${sectionid} ${eventid} ${firstname} ${lastname} ${photoGuid || ''} ${''} ${scoutid}-${sectionid} ${age} ${groupname} ${sectionname}`,
-    };
-    
-    members.push(record);
-  }
-  
-  return members;
-}
-
-
