@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
@@ -11,6 +11,7 @@ import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
@@ -198,18 +199,11 @@ function AttendanceView({ events, members, onBack }) {
     });
   }, [events]);
 
-  // Load shared attendance data when switching to shared attendance view
-  useEffect(() => {
-    if (viewMode === 'sharedAttendance' && hasSharedEvents && !sharedAttendanceData && !loadingSharedAttendance) {
-      loadSharedAttendanceData();
-    }
-  }, [viewMode, hasSharedEvents]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadSharedAttendanceData = async () => {
+  const loadSharedAttendanceData = useCallback(async () => {
     setLoadingSharedAttendance(true);
     try {
       const token = getToken();
-      if (!token) {
+      if (!isDemoMode() && !token) {
         throw new Error('No authentication token available');
       }
 
@@ -250,7 +244,14 @@ function AttendanceView({ events, members, onBack }) {
     } finally {
       setLoadingSharedAttendance(false);
     }
-  };
+  }, [events]);
+
+  // Load shared attendance data when switching to shared attendance view
+  useEffect(() => {
+    if (viewMode === 'sharedAttendance' && hasSharedEvents && !sharedAttendanceData && !loadingSharedAttendance) {
+      loadSharedAttendanceData();
+    }
+  }, [viewMode, hasSharedEvents, sharedAttendanceData, loadingSharedAttendance, loadSharedAttendanceData]);
 
   const getSummaryStats = () => {
     const memberStats = {};
