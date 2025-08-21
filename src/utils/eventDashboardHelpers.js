@@ -5,6 +5,7 @@ import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEven
 import { getMostRecentTermId } from './termUtils.js';
 import databaseService from '../services/database.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 /**
  * Fetches events for all sections with optimized terms loading
@@ -177,8 +178,8 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
 export const fetchEventAttendance = async (event, token, _allEvents = null) => {
   try {
     // Skip all API calls in demo mode to prevent rate limiting, but still process shared events
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (!token && !isDemoMode) {
+    const demoMode = isDemoMode();
+    if (!token && !demoMode) {
       // No token and not demo mode - load from database cache only
       const cachedAttendance = await databaseService.getAttendance(event.eventid);
       // Handle both array format (regular events) and object format (shared events)
@@ -191,12 +192,17 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
     }
     
     // In demo mode, first check localStorage cache (where demo data is stored)
-    if (isDemoMode) {
+    if (demoMode) {
       try {
         const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
         const cachedData = localStorage.getItem(cacheKey);
         if (import.meta.env.DEV) {
           console.log('Demo mode: Looking for attendance with key:', cacheKey, 'Found:', !!cachedData);
+          console.log('Event details:', { 
+            sectionid: event.sectionid, 
+            termid: event.termid, 
+            eventid: event.eventid, 
+          });
         }
         if (cachedData) {
           const attendanceData = JSON.parse(cachedData);
