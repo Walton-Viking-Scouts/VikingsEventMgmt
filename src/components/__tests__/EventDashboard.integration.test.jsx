@@ -46,6 +46,11 @@ vi.mock('../../services/logger.js', () => ({
   },
 }));
 
+vi.mock('../../config/demoMode.js', () => ({
+  isDemoMode: vi.fn(() => false),
+  initializeDemoMode: vi.fn(),
+}));
+
 // Mock helper functions
 vi.mock('../../utils/eventDashboardHelpers.js', () => ({
   fetchAllSectionEvents: vi.fn(),
@@ -177,10 +182,10 @@ describe('EventDashboard Integration Tests', () => {
         expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
       });
 
-      // Verify helper functions were called in correct order (cache-only mode)
+      // Verify helper functions were called in correct order
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
         mockSections,
-        null, // cache-only mode uses null token
+        'mock-token', // Token is passed when not in demo mode
       );
 
       expect(helpers.filterEventsByDateRange).toHaveBeenCalledWith(
@@ -192,7 +197,7 @@ describe('EventDashboard Integration Tests', () => {
         expect.objectContaining({
           eventid: 101,
         }),
-        null, // cache-only mode uses null token
+        'mock-token', // Token is passed when not in demo mode
         expect.any(Array), // allEvents parameter for shared event processing
       );
 
@@ -388,10 +393,10 @@ describe('EventDashboard Integration Tests', () => {
         expect(helpers.fetchAllSectionEvents).toHaveBeenCalled();
       });
 
-      // Verify development mode was passed to helper functions (cache-only mode)
+      // Verify development mode was passed to helper functions
       expect(helpers.fetchAllSectionEvents).toHaveBeenCalledWith(
         expect.any(Array),
-        null, // cache-only mode uses null token
+        'mock-token', // Token is passed when not in demo mode
       );
     });
   });

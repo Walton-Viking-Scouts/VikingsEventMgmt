@@ -51,6 +51,9 @@ export function isDemoMode() {
   return envDemo;
 }
 
+// Internal cache to keep member identities consistent across generators
+const DEMO_MEMBERS_BY_SECTION = new Map();
+
 /**
  * Production-based demo data - anonymized real cache structure
  */
@@ -241,6 +244,8 @@ export async function initializeDemoMode() {
     const allMembers = [];
     DEMO_CACHE_DATA.viking_sections_offline.forEach(section => {
       const demoMembers = generateMembersForSection(section);
+      // Cache members for cross-dataset identity consistency
+      DEMO_MEMBERS_BY_SECTION.set(section.sectionid, demoMembers);
       const membersWithTimestamp = {
         items: demoMembers,
         _cacheTimestamp: Date.now(),
@@ -648,7 +653,8 @@ function generateMembersForSection(section) {
 }
 
 function generateAttendanceForEvent(section, _eventId) {
-  const members = generateMembersForSection(section);
+  // Use cached members to maintain identity consistency
+  const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || generateMembersForSection(section);
   return members.map(member => {
     // Generate realistic attendance distribution
     const randomValue = Math.random();
@@ -772,7 +778,8 @@ function generateFlexiStructure(flexiRecord) {
 }
 
 function generateFlexiData(section, flexiRecord) {
-  const members = generateMembersForSection(section);
+  // Use cached members to maintain identity consistency
+  const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || generateMembersForSection(section);
   
   if (flexiRecord.name === 'Viking Event Mgmt') {
     const campGroups = ['Red Admirals', 'Blue Dolphins', 'Green Turtles', 'Yellow Seahorses'];

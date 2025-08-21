@@ -30,11 +30,16 @@ vi.mock('../../services/logger.js', () => ({
     error: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
   },
   LOG_CATEGORIES: {
     API: 'api',
     COMPONENT: 'component',
   },
+}));
+
+vi.mock('../../config/demoMode.js', () => ({
+  isDemoMode: vi.fn(() => false),
 }));
 
 // Import mocked modules for assertions
