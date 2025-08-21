@@ -219,24 +219,6 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     }
   };
 
-  const _getStatusBadge = (event) => {
-    const status = getEventStatus(event);
-
-    switch (status) {
-    case 'upcoming':
-      return <Badge variant="scout-blue">Upcoming</Badge>;
-
-    case 'ongoing':
-      return <Badge variant="scout-green">Ongoing</Badge>;
-
-    case 'past':
-      return <Badge variant="secondary">Past</Badge>;
-
-    default:
-      return null;
-    }
-  };
-
   const attendanceGrid = buildAttendanceGrid(eventCard.events);
   const hasAttendanceData = eventCard.events.some(
     (event) => event.attendanceData && event.attendanceData.length > 0,

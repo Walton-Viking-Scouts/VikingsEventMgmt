@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
+import { isDemoMode } from '../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
@@ -27,8 +28,7 @@ export function useAttendanceData(events) {
       setError(null);
       
       // Skip API calls in demo mode - only use cached data
-      const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-      if (isDemoMode) {
+      if (isDemoMode()) {
         logger.debug('Demo mode: Skipping API calls, using cached attendance only', {}, LOG_CATEGORIES.COMPONENT);
       }
       
@@ -82,7 +82,7 @@ export function useAttendanceData(events) {
           }
         }
         
-        if (!attendanceResponse && token && !isDemoMode) {
+        if (!attendanceResponse && token && !isDemoMode()) {
           // Fallback to API call if no cached data (skip in demo mode)
           try {
             const attendanceItems = await getEventAttendance(
