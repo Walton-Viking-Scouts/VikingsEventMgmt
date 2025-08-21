@@ -935,7 +935,7 @@ function generateSwimmingGalaSharedMetadata() {
 /**
  * Generate attendance records matching exact production shared attendance format
  */
-function generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
+function _generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
   const members = [];
   
   // Generate demo member names based on section

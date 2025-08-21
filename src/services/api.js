@@ -10,6 +10,7 @@ import { getMostRecentTermId } from '../utils/termUtils.js';
 import { checkNetworkStatus, addNetworkListener } from '../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
@@ -305,8 +306,8 @@ const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 export async function getTerms(token, forceRefresh = false) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = 'viking_terms_offline';
       const cached = safeGetItem(cacheKey, { items: [] });
       if (import.meta.env.DEV) {
@@ -525,8 +526,8 @@ async function retrieveUserInfo(token) {
  */
 export async function getUserRoles(token) {
   // Skip API calls in demo mode - use cached data only
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  if (isDemoMode) {
+  const demoMode = isDemoMode();
+  if (demoMode) {
     const cacheKey = 'viking_user_roles_offline';
     const cached = safeGetItem(cacheKey, { sections: [] });
     if (import.meta.env.DEV) {
@@ -708,8 +709,8 @@ export async function getUserRoles(token) {
 export async function getEvents(sectionId, termId, token) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = `viking_events_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       if (import.meta.env.DEV) {
@@ -795,8 +796,8 @@ export async function getEvents(sectionId, termId, token) {
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = `viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       if (import.meta.env.DEV) {
@@ -884,8 +885,8 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
 export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       if (import.meta.env.DEV) {
@@ -1020,8 +1021,8 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
 export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, token) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       if (import.meta.env.DEV) {
@@ -1089,8 +1090,8 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
 export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
     // Skip API calls in demo mode - use cached data only
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       const cacheKey = `viking_flexi_structure_${extraid}_offline`;
       const cached = safeGetItem(cacheKey, null);
       if (import.meta.env.DEV) {
@@ -1718,6 +1719,23 @@ export async function getListOfMembers(sections, token) {
  */
 export async function getEventSummary(eventId, token) {
   try {
+    // Skip API calls in demo mode - return mock data
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Returning mock event summary', {
+          eventId,
+        }, LOG_CATEGORIES.API);
+      }
+      // Return a basic mock summary for demo mode
+      return {
+        eventId,
+        attendees: 0,
+        invited: 0,
+        confirmed: 0,
+      };
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -1771,6 +1789,21 @@ export async function getEventSummary(eventId, token) {
  */
 export async function getEventSharingStatus(eventId, sectionId, token) {
   try {
+    // Skip API calls in demo mode - return mock data
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Returning mock sharing status', {
+          eventId,
+          sectionId,
+        }, LOG_CATEGORIES.API);
+      }
+      // Return empty sharing status for demo mode
+      return {
+        items: [],
+      };
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -1831,8 +1864,8 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
     // Skip API calls in demo mode - return mock shared attendance data
-    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-    if (isDemoMode) {
+    const demoMode = isDemoMode();
+    if (demoMode) {
       logger.debug('Demo mode: Generating mock shared attendance data', {}, LOG_CATEGORIES.API);
       return generateDemoSharedAttendance(eventId, sectionId);
     }
@@ -1986,8 +2019,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
  */
 export async function testBackendConnection() {
   // Skip health checks in demo mode
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  if (isDemoMode) {
+  const demoMode = isDemoMode();
+  if (demoMode) {
     return { status: 'ok' };
   }
   
