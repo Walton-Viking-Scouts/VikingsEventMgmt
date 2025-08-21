@@ -188,18 +188,28 @@ export async function initializeDemoMode() {
     // Generate events for each section and store as arrays - safeSetItem will handle JSON stringification
     DEMO_CACHE_DATA.viking_sections_offline.forEach(section => {
       const demoEvents = generateEventsForSection(section);
-      const eventsKey = `viking_events_${section.sectionid}_offline`;
       
-      // Store events with timestamp format to match production structure
+      // Store events with TWO cache keys to support both patterns:
+      // 1. With termId for api.js getEvents() function
+      const termId = 'term_autumn_2025';
+      const eventsKeyWithTerm = `viking_events_${section.sectionid}_${termId}_offline`;
+      
+      // 2. Without termId for database.js
+      const eventsKeyWithoutTerm = `viking_events_${section.sectionid}_offline`;
+      
+      // Store as flat array for api.js getEvents (it expects flat array in demo mode)
+      if (import.meta.env.DEV) {
+        console.log(`📦 Storing events for section ${section.sectionid} with term:`, eventsKeyWithTerm);
+        console.log(`📦 Also storing without term for database.js:`, eventsKeyWithoutTerm);
+      }
+      safeSetItem(eventsKeyWithTerm, demoEvents);
+      
+      // Store with timestamp format for database.js
       const eventsWithTimestamp = {
         items: demoEvents,
         _cacheTimestamp: Date.now(),
       };
-      
-      if (import.meta.env.DEV) {
-        console.log(`📦 Storing events for section ${section.sectionid} with timestamp format:`, eventsKey, eventsWithTimestamp);
-      }
-      safeSetItem(eventsKey, eventsWithTimestamp);
+      safeSetItem(eventsKeyWithoutTerm, eventsWithTimestamp);
     });
 
 
