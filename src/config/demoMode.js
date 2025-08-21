@@ -23,19 +23,19 @@ export function isDemoMode() {
     // Demo mode detection (logging disabled to reduce console spam)
     
     if (demoParam || modeParam) {
-      console.log('✅ Demo mode enabled via URL parameter');
+      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via URL parameter');
       return true;
     }
     
     // Check subdomain
     if (window.location.hostname && window.location.hostname.startsWith('demo.')) {
-      console.log('✅ Demo mode enabled via subdomain');
+      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via subdomain');
       return true;
     }
     
     // Check path
     if (window.location.pathname && window.location.pathname.startsWith('/demo')) {
-      console.log('✅ Demo mode enabled via path');
+      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via path');
       return true;
     }
   } catch (error) {
@@ -341,7 +341,9 @@ export async function initializeDemoMode() {
 
     // Pre-populate shared attendance cache for Swimming Gala
     // This matches the production behavior where shared attendance is always cached
-    console.log('🏊 Starting shared attendance cache generation for Swimming Gala');
+    if (import.meta.env.DEV) {
+      console.log('🏊 Starting shared attendance cache generation for Swimming Gala');
+    }
     
     // Generate shared attendance data for Swimming Gala
     // Each section needs its own cache entry with its own eventid
@@ -384,8 +386,10 @@ export async function initializeDemoMode() {
       // Use THIS section's eventid in the cache key
       const sharedCacheKey = `viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
       
-      console.log(`💾 Caching shared attendance with key: ${sharedCacheKey}`);
-      console.log(`💾 Data has ${sharedAttendanceData.items.length} items`);
+      if (import.meta.env.DEV) {
+        console.log(`💾 Caching shared attendance with key: ${sharedCacheKey}`);
+        console.log(`💾 Data has ${sharedAttendanceData.items.length} items`);
+      }
       
       safeSetItem(sharedCacheKey, {
         ...sharedAttendanceData,
