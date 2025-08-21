@@ -96,12 +96,6 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     if (isDemoMode()) {
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexirecords list', {
-          sectionId,
-          itemsCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.APP);
-      }
       return cached;
     }
     
@@ -177,12 +171,6 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     if (isDemoMode()) {
       const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
       const cached = safeGetItem(cacheKey, null);
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexirecord structure', {
-          flexirecordId,
-          hasStructure: !!cached,
-        }, LOG_CATEGORIES.APP);
-      }
       return cached;
     }
     
@@ -266,15 +254,6 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     if (isDemoMode()) {
       const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(storageKey, null);
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexirecord data', {
-          flexirecordId,
-          sectionId,
-          termId,
-          hasData: !!cached,
-          itemsCount: cached?.items?.length || 0,
-        }, LOG_CATEGORIES.APP);
-      }
       return cached;
     }
     

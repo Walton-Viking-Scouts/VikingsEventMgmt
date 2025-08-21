@@ -68,12 +68,8 @@ export function parseFlexiStructure(structureData) {
       });
     }
 
-    logger.debug('Parsed flexirecord structure', {
-      totalFields: fieldMapping.size,
-      fieldIds: Array.from(fieldMapping.keys()),
-      flexirecordName: structureData.name,
-      extraid: structureData.extraid,
-    }, LOG_CATEGORIES.APP);
+    // Debug logging removed to prevent console spam
+    // Structure parsed successfully with fieldMapping.size fields
 
     return fieldMapping;
   } catch (error) {
@@ -165,11 +161,7 @@ export function transformFlexiRecordData(flexiData, fieldMapping) {
       },
     };
 
-    logger.debug('Transformed flexirecord data', {
-      totalItems: transformedItems.length,
-      fieldsTransformed: fieldMapping.size,
-      fieldNames: Array.from(fieldMapping.values()).map(f => f.name),
-    }, LOG_CATEGORIES.APP);
+    // FlexiRecord data transformed successfully
 
     return result;
   } catch (error) {

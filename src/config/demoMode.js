@@ -20,22 +20,19 @@ export function isDemoMode() {
     const demoParam = urlParams.get('demo') === 'true';
     const modeParam = urlParams.get('mode') === 'demo';
     
-    // Demo mode detection (logging disabled to reduce console spam)
+    // Demo mode detection (logging removed to prevent console spam)
     
     if (demoParam || modeParam) {
-      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via URL parameter');
       return true;
     }
     
     // Check subdomain
     if (window.location.hostname && window.location.hostname.startsWith('demo.')) {
-      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via subdomain');
       return true;
     }
     
     // Check path
     if (window.location.pathname && window.location.pathname.startsWith('/demo')) {
-      if (import.meta.env.DEV) console.log('✅ Demo mode enabled via path');
       return true;
     }
   } catch (error) {
@@ -46,9 +43,7 @@ export function isDemoMode() {
   }
   
   // Environment variable fallback
-  const envDemo = import.meta.env.VITE_DEMO_MODE === 'true';
-  // Demo mode environment variable detected (logging disabled)
-  return envDemo;
+  return import.meta.env.VITE_DEMO_MODE === 'true';
 }
 
 // Internal cache to keep member identities consistent across generators
@@ -187,15 +182,9 @@ export async function initializeDemoMode() {
   if (!isDemoMode()) return false;
   
   logger.info('🎯 Initializing demo mode with production-based data structure', {}, LOG_CATEGORIES.APP);
-  if (import.meta.env.DEV) {
-    console.log('🎯 Demo mode starting initialization...');
-  }
   
   try {
     // Store sections as array - safeSetItem will handle JSON stringification
-    if (import.meta.env.DEV) {
-      console.log('📦 Storing sections as array:', DEMO_CACHE_DATA.viking_sections_offline);
-    }
     safeSetItem('viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
 
     // Store other demo cache data
@@ -206,9 +195,6 @@ export async function initializeDemoMode() {
         ? value 
         : { items: value, _cacheTimestamp: Date.now() };
       
-      if (import.meta.env.DEV) {
-        console.log(`📦 Storing demo data: ${key}`, dataWithTimestamp);
-      }
       safeSetItem(key, dataWithTimestamp);
     });
 
@@ -225,10 +211,6 @@ export async function initializeDemoMode() {
       const eventsKeyWithoutTerm = `viking_events_${section.sectionid}_offline`;
       
       // Store as flat array for api.js getEvents (it expects flat array in demo mode)
-      if (import.meta.env.DEV) {
-        console.log(`📦 Storing events for section ${section.sectionid} with term:`, eventsKeyWithTerm);
-        console.log('📦 Also storing without term for database.js:', eventsKeyWithoutTerm);
-      }
       safeSetItem(eventsKeyWithTerm, demoEvents);
       
       // Store with timestamp format for database.js
@@ -259,21 +241,12 @@ export async function initializeDemoMode() {
       items: allMembers,
       _cacheTimestamp: Date.now(),
     };
-    if (import.meta.env.DEV) {
-      console.log('📦 Storing consolidated members:', consolidatedMembersWithTimestamp);
-    }
     safeSetItem('viking_members_offline', consolidatedMembersWithTimestamp);
 
     // Store comprehensive member data for getMembers() function (flat array format)
-    if (import.meta.env.DEV) {
-      console.log('📦 Storing comprehensive members for getMembers():', allMembers.length, 'members');
-    }
     safeSetItem('viking_members_comprehensive_offline', allMembers);
 
-    // Debug: Check what sections data was stored
-    if (import.meta.env.DEV) {
-      console.log('📊 Demo sections stored:', DEMO_CACHE_DATA.viking_sections_offline);
-    }
+    // Demo sections stored successfully
 
     // Generate attendance for events
     DEMO_CACHE_DATA.viking_sections_offline.forEach(section => {
@@ -339,16 +312,10 @@ export async function initializeDemoMode() {
       const metadataKey = `viking_shared_metadata_${swimmingGalaEvent.eventid}`;
       safeSetItem(metadataKey, metadataWithOwnerFlag);
       
-      if (import.meta.env.DEV) {
-        console.log(`📋 Stored Swimming Gala metadata for section ${section.sectionname} with key: ${metadataKey}, isOwner: ${metadataWithOwnerFlag._isOwner}`);
-      }
     });
 
     // Pre-populate shared attendance cache for Swimming Gala
     // This matches the production behavior where shared attendance is always cached
-    if (import.meta.env.DEV) {
-      console.log('🏊 Starting shared attendance cache generation for Swimming Gala');
-    }
     
     // Generate shared attendance data for Swimming Gala
     // Each section needs its own cache entry with its own eventid
@@ -391,10 +358,6 @@ export async function initializeDemoMode() {
       // Use THIS section's eventid in the cache key
       const sharedCacheKey = `viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
       
-      if (import.meta.env.DEV) {
-        console.log(`💾 Caching shared attendance with key: ${sharedCacheKey}`);
-        console.log(`💾 Data has ${sharedAttendanceData.items.length} items`);
-      }
       
       safeSetItem(sharedCacheKey, {
         ...sharedAttendanceData,
@@ -496,9 +459,6 @@ export async function initializeDemoMode() {
       totalDataKeys: Object.keys(DEMO_CACHE_DATA).length + (DEMO_CACHE_DATA.viking_sections_offline.length * 3),
       sharedEventsWithCache: 'Swimming Gala',
     }, LOG_CATEGORIES.APP);
-    if (import.meta.env.DEV) {
-      console.log('✅ Demo mode initialization complete! Check localStorage for cached data.');
-    }
     
     return true;
     
@@ -792,15 +752,25 @@ function generateFlexiData(section, flexiRecord) {
       const isSignedIn = Math.random() > 0.3; // 70% signed in
       const isSignedOut = isSignedIn && Math.random() > 0.4; // 60% of signed in have also signed out
       
+      // Make some members unassigned for more realistic demo
+      const hasGroup = Math.random() > 0.2; // 80% have groups assigned
+      const campGroup = hasGroup ? campGroups[index % campGroups.length] : '';
+      
       return {
         scoutid: member.scoutid,
         firstname: member.firstname,
         lastname: member.lastname,
-        f_1: campGroups[index % campGroups.length], // CampGroup
+        f_1: campGroup, // CampGroup (f_1 standardized for demo)
         f_2: isSignedIn ? leaders[index % leaders.length] : '', // SignedInBy
         f_3: isSignedIn ? `2025-08-23 ${signInTimes[index % signInTimes.length]}` : '', // SignedInWhen
         f_4: isSignedOut ? leaders[(index + 1) % leaders.length] : '', // SignedOutBy
         f_5: isSignedOut ? `2025-08-23 ${signOutTimes[index % signOutTimes.length]}` : '', // SignedOutWhen
+        // Also include transformed field names for consistency
+        CampGroup: campGroup,
+        SignedInBy: isSignedIn ? leaders[index % leaders.length] : '',
+        SignedInWhen: isSignedIn ? `2025-08-23 ${signInTimes[index % signInTimes.length]}` : '',
+        SignedOutBy: isSignedOut ? leaders[(index + 1) % leaders.length] : '',
+        SignedOutWhen: isSignedOut ? `2025-08-23 ${signOutTimes[index % signOutTimes.length]}` : '',
       };
     });
   }

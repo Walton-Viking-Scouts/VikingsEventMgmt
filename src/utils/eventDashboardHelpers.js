@@ -147,13 +147,6 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
         termid: termId || event.termid, // Use fetched termId, fallback to cached termid (don't default to null)
       }));
       
-      if (import.meta.env.DEV) {
-        console.log(`Events loaded from cache for section ${section.sectionid}:`, {
-          count: events.length,
-          termId: termId,
-          sampleEvent: events[0],
-        });
-      }
     }
     
     return events;
@@ -196,14 +189,6 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
       try {
         const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
         const cachedData = localStorage.getItem(cacheKey);
-        if (import.meta.env.DEV) {
-          console.log('Demo mode: Looking for attendance with key:', cacheKey, 'Found:', !!cachedData);
-          console.log('Event details:', { 
-            sectionid: event.sectionid, 
-            termid: event.termid, 
-            eventid: event.eventid, 
-          });
-        }
         if (cachedData) {
           const attendanceData = JSON.parse(cachedData);
           
@@ -214,13 +199,6 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
             try {
               const metadata = JSON.parse(sharedMetadata);
               if (metadata._isSharedEvent) {
-                if (import.meta.env.DEV) {
-                  logger.debug('Using demo shared event data from localStorage', {
-                    eventId: event.eventid,
-                    attendeeCount: attendanceData.length,
-                    sectionsCount: metadata._allSections?.length || 0,
-                  }, LOG_CATEGORIES.COMPONENT);
-                }
                 
                 // For shared events in demo mode, we might need to combine with other sections
                 // Check if there are other sections' data to combine
@@ -257,12 +235,6 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
             }
           }
           
-          if (import.meta.env.DEV) {
-            logger.debug('Using demo attendance data from localStorage', {
-              eventId: event.eventid,
-              attendeeCount: attendanceData.length,
-            }, LOG_CATEGORIES.COMPONENT);
-          }
           return attendanceData;
         }
       } catch (error) {

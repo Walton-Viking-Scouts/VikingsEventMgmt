@@ -714,13 +714,6 @@ export async function getEvents(sectionId, termId, token) {
     if (demoMode) {
       const cacheKey = `viking_events_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(cacheKey, []);
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached events', {
-          sectionId,
-          termId,
-          eventsCount: cached.length,
-        }, LOG_CATEGORIES.API);
-      }
       return cached;
     }
     
@@ -892,12 +885,6 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     if (demoMode) {
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexi records', {
-          sectionId,
-          recordsCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.API);
-      }
       return cached;
     }
     
@@ -1028,14 +1015,6 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
     if (demoMode) {
       const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexi record data', {
-          flexirecordid,
-          sectionid,
-          termid,
-          itemsCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.API);
-      }
       return cached;
     }
     
@@ -1097,14 +1076,6 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     if (demoMode) {
       const cacheKey = `viking_flexi_structure_${extraid}_offline`;
       const cached = safeGetItem(cacheKey, null);
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached flexi structure', {
-          extraid,
-          sectionid,
-          termid,
-          hasStructure: !!cached,
-        }, LOG_CATEGORIES.API);
-      }
       return cached;
     }
     
@@ -1318,6 +1289,21 @@ export async function getStartupData(token) {
  * await updateFlexiRecord(123, 456, 789, 'f_1', 'Blue Group', '2024', 'Beavers', token);
  */
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating updateFlexiRecord success', {
+      scoutid,
+      flexirecordid,
+      columnid,
+      value,
+    }, LOG_CATEGORIES.API);
+    return {
+      ok: true,
+      success: true,
+      message: 'Demo mode: FlexiRecord update simulated',
+    };
+  }
+  
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
@@ -1372,6 +1358,22 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
  * await multiUpdateFlexiRecord(123, ['456', '789'], 'Yellow', 'f_1', '999', token);
  */
 export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, flexirecordid, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating multiUpdateFlexiRecord success', {
+      sectionid,
+      flexirecordid,
+      column,
+      value,
+      scoutCount: Array.isArray(scouts) ? scouts.length : 0,
+    }, LOG_CATEGORIES.API);
+    return {
+      ok: true,
+      success: true,
+      message: `Demo mode: Multi-update simulated for ${Array.isArray(scouts) ? scouts.length : 0} scouts`,
+    };
+  }
+  
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');

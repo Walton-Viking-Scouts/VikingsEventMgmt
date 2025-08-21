@@ -1,6 +1,8 @@
 import { updateFlexiRecord } from './api.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
 import { sentryUtils } from './sentry.js';
+import { isDemoMode } from '../config/demoMode.js';
+import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 
 /**
  * Service for managing camp group member allocations
@@ -25,7 +27,69 @@ import { sentryUtils } from './sentry.js';
  * @param {string} token - Authentication token
  * @returns {Promise<Object>} Result with success status and details
  */
+/**
+ * Demo mode version of camp group assignment
+ * Updates localStorage cache instead of calling OSM API
+ */
+function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
+  try {
+    const memberName = moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown';
+    
+    logger.info('Demo mode: Assigning member to camp group', {
+      memberId: moveData.member.scoutid,
+      memberName,
+      toGroup: moveData.toGroupNumber,
+    }, LOG_CATEGORIES.API);
+    
+    // In demo mode, use standardized values
+    const flexirecordid = flexiRecordContext?.flexirecordid || 'flexi_viking_event';
+    const sectionid = flexiRecordContext?.sectionid || moveData.member.sectionid;
+    const termid = flexiRecordContext?.termid || '12345';
+    
+    const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
+    const cached = safeGetItem(cacheKey, { items: [] });
+    
+    // Convert scoutid to match the type in cache (both to numbers for comparison)
+    const memberScoutId = Number(moveData.member.scoutid);
+    const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === memberScoutId);
+    if (memberIndex >= 0) {
+      const newValue = (moveData.toGroupNumber === 'Unassigned' || !moveData.toGroupNumber) ? '' : moveData.toGroupNumber.toString();
+      
+      // Update both f_1 (the flexi field) and CampGroup (the transformed field)
+      cached.items[memberIndex].f_1 = newValue;
+      cached.items[memberIndex].CampGroup = newValue;
+      
+      safeSetItem(cacheKey, cached);
+      
+      return {
+        ok: true,
+        success: true,
+        message: `Demo mode: ${memberName} moved to group ${moveData.toGroupNumber}`,
+      };
+    } else {
+      throw new Error(`Member ${memberName} not found in demo cache`);
+    }
+  } catch (error) {
+    logger.error('Demo mode: Failed to assign member to camp group', {
+      error: error.message,
+      moveData,
+    }, LOG_CATEGORIES.API);
+    
+    return {
+      ok: false,
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
 export async function assignMemberToCampGroup(moveData, flexiRecordContext, token) {
+  // Handle demo mode
+  if (isDemoMode()) {
+    return assignMemberToCampGroupDemo(moveData, flexiRecordContext);
+  }
+  
+  // Production mode continues below
   const startTime = Date.now();
   
   try {
@@ -281,16 +345,6 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
  * @returns {Object} Validation result with success/error details
  */
 export function validateMemberMove(member, targetGroupNumber, currentGroups) {
-  // Debug: Log validation input to diagnose undefined member
-  console.log('validateMemberMove called with:', {
-    member,
-    memberDefined: !!member,
-    memberType: typeof member,
-    personType: member?.person_type,
-    targetGroupNumber,
-    hasCurrentGroups: !!currentGroups,
-  });
-
   // Validate member object exists
   if (!member) {
     return {
