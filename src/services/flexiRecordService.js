@@ -91,6 +91,20 @@ function cacheData(cacheKey, data) {
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (isDemoMode) {
+      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cached = safeGetItem(cacheKey, { items: [] });
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Using cached flexirecords list', {
+          sectionId,
+          itemsCount: cached.items?.length || 0,
+        }, LOG_CATEGORIES.APP);
+      }
+      return cached;
+    }
+    
     const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
     
     // Check network status first
@@ -159,6 +173,20 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (isDemoMode) {
+      const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
+      const cached = safeGetItem(cacheKey, null);
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Using cached flexirecord structure', {
+          flexirecordId,
+          hasStructure: !!cached,
+        }, LOG_CATEGORIES.APP);
+      }
+      return cached;
+    }
+    
     const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
     
     // Check network status first
@@ -235,6 +263,23 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (isDemoMode) {
+      const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
+      const cached = safeGetItem(storageKey, null);
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Using cached flexirecord data', {
+          flexirecordId,
+          sectionId,
+          termId,
+          hasData: !!cached,
+          itemsCount: cached?.items?.length || 0,
+        }, LOG_CATEGORIES.APP);
+      }
+      return cached;
+    }
+    
     const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
     
     // Check network status first

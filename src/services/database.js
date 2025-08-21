@@ -217,8 +217,6 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const sectionsData = safeGetItem('viking_sections_offline', []);
-      console.log('🔍 Database getSections() raw data:', sectionsData);
-      console.log('🔍 Database getSections() raw data type:', typeof sectionsData, Array.isArray(sectionsData));
       
       // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
       // In production, they might be timestamped format with {items: [...]}
@@ -228,8 +226,6 @@ class DatabaseService {
       } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
         sections = sectionsData.items;
       }
-      
-      console.log('🔍 Database getSections() returning:', sections);
       return sections;
     }
     
@@ -283,8 +279,6 @@ class DatabaseService {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
       const eventsData = safeGetItem(key, []);
-      console.log(`🔍 Database getEvents(${sectionId}) raw data:`, eventsData);
-      console.log(`🔍 Database getEvents(${sectionId}) raw data type:`, typeof eventsData, Array.isArray(eventsData));
       
       // In demo mode, events are stored as flat array (already parsed by safeGetItem)
       // In production, they might be timestamped format with {items: [...]}
@@ -294,8 +288,6 @@ class DatabaseService {
       } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
         events = eventsData.items;
       }
-      
-      console.log(`🔍 Database getEvents(${sectionId}) returning:`, events);
       return events;
     }
     

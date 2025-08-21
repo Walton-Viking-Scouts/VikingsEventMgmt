@@ -14,6 +14,13 @@ function OfflineIndicator({ hideBanner = false }) {
 
   // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
+    // Skip API connectivity tests in demo mode
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (isDemoMode) {
+      setApiConnected(true);
+      return true;
+    }
+    
     try {
 
       // Use the rate-limited testBackendConnection function from API service

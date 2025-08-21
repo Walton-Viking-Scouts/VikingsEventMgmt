@@ -90,7 +90,18 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Additional StrictMode protection: use a global flag to prevent multiple initializations
       const initKey = 'eventdashboard_initializing';
       if (sessionStorage.getItem(initKey) === 'true') {
+        if (import.meta.env.DEV) {
+          console.log('EventDashboard: Skipping duplicate initialization (StrictMode protection)');
+        }
         return; // Skip duplicate initialization
+      }
+
+      // Additional protection: prevent initialization if already loading or loaded
+      if (loading === false && (sections.length > 0 || eventCards.length > 0)) {
+        if (import.meta.env.DEV) {
+          console.log('EventDashboard: Skipping initialization - data already loaded');
+        }
+        return;
       }
 
       try {
@@ -104,7 +115,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       }
     };
 
-    initializeDashboard();
+    // Add a small delay to prevent race conditions in StrictMode
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        initializeDashboard();
+      }
+    }, 50);
+
+    // Cleanup timeout if component unmounts before initialization
+    const originalCleanup = () => {
+      mounted = false;
+      isMountedRef.current = false;
+      clearTimeout(timeoutId);
+      if (backgroundSyncTimeoutIdRef.current) {
+        clearTimeout(backgroundSyncTimeoutIdRef.current);
+      }
+    };
 
     // Update queue stats every second
     const interval = setInterval(() => {
@@ -116,12 +142,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }, 1000);
 
     return () => {
-      mounted = false;
-      isMountedRef.current = false;
+      originalCleanup();
       clearInterval(interval);
-      if (backgroundSyncTimeoutIdRef.current) {
-        clearTimeout(backgroundSyncTimeoutIdRef.current);
-      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -210,6 +232,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setLoading(true);
       setError(null);
+      
+      // Initialize demo mode if enabled (moved from main.jsx)
+      const { isDemoMode, initializeDemoMode } = await import('../config/demoMode.js');
+      if (isDemoMode()) {
+        await initializeDemoMode();
+      }
 
       // Check if we have offline data
       const hasOfflineData = await databaseService.hasOfflineData();
@@ -402,6 +430,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   // Only function that triggers OSM API calls - user must explicitly click sync button
   const syncData = async () => {
+    // Skip sync entirely in demo mode to prevent loops
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (isDemoMode) {
+      logger.debug('Demo mode: Skipping syncData entirely', {}, LOG_CATEGORIES.SYNC);
+      return;
+    }
+    
     let dataSource = 'api'; // Track whether data came from API or cache
     
     try {
@@ -526,10 +561,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
 
   const buildEventCards = async (sectionsData, token = null) => {
-    logger.info('buildEventCards called', {
-      hasToken: !!token,
+    logger.debug('buildEventCards called', {
       sectionCount: sectionsData?.length || 0,
-      mode: token ? 'FRESH_API_CALLS' : 'CACHED_DATA_ONLY',
+      mode: token ? 'API' : 'CACHE',
     }, LOG_CATEGORIES.COMPONENT);
     
     const now = new Date();

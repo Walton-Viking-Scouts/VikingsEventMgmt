@@ -13,8 +13,6 @@ import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 
 function AttendanceView({ events, members, onBack }) {
-  console.log('AttendanceView: component mounted');
-  
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
   window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
   
@@ -155,6 +153,17 @@ function AttendanceView({ events, members, onBack }) {
       const personTypeMatch = shouldIncludeInSummary(record);
 
       return attendanceMatch && sectionMatch && personTypeMatch;
+    });
+  };
+
+  // Filter for record count display - includes all person types
+  const filterAttendanceDataForCount = (data, attendanceFilters, sectionFilters) => {
+    return data.filter((record) => {
+      const attendanceStatus = getAttendanceStatus(record.attending);
+      const attendanceMatch = attendanceFilters[attendanceStatus];
+      const sectionMatch = sectionFilters[record.sectionid];
+
+      return attendanceMatch && sectionMatch;
     });
   };
 
@@ -612,13 +621,16 @@ function AttendanceView({ events, members, onBack }) {
       <Card className="m-4">
         <Card.Header>
           <Card.Title>
-            Attendance Data{' '}
-            {filteredAttendanceData.length !== attendanceData.length && (
-              <span className="text-sm font-normal text-gray-600">
-                ({filteredAttendanceData.length} of {attendanceData.length}{' '}
-                records)
-              </span>
-            )}
+            Attendance Data - {events.length === 1 ? events[0].name : `${events[0].name} (${events.length} sections)`}{' '}
+            {(() => {
+              const filteredForCount = filterAttendanceDataForCount(attendanceData, attendanceFilters, sectionFilters);
+              return filteredForCount.length !== attendanceData.length && (
+                <span className="text-sm font-normal text-gray-600">
+                  ({filteredForCount.length} of {attendanceData.length}{' '}
+                  records)
+                </span>
+              );
+            })()}
           </Card.Title>
           <div className="flex gap-2 items-center flex-wrap">
             <Button variant="outline-scout-blue" onClick={onBack} type="button">

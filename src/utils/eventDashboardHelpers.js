@@ -166,256 +166,12 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
  * @param {Array|null} allEvents - Array of all events (needed for shared event processing)
  * @returns {Promise<Array|null>} Attendance data (merged for shared events) or null if failed
  */
-export const fetchEventAttendance = async (event, token, allEvents = null) => {
+export const fetchEventAttendance = async (event, token, _allEvents = null) => {
   try {
-    (import.meta.env.DEV ? logger.info : logger.debug)('fetchEventAttendance called', {
-      eventId: event.eventid,
-      eventName: event.name,
-      sectionId: event.sectionid,
-      hasToken: !!token,
-      hasAllEvents: !!allEvents,
-      allEventsCount: allEvents?.length || 0,
-    }, LOG_CATEGORIES.COMPONENT);
-    
-    if (token) {
-      // Rate limiting handled by queue
-      
-      // If termid is missing, get it from API
-      let termId = event.termid;
-      if (!termId) {
-        // Rate limiting handled by queue
-        termId = await fetchMostRecentTermId(event.sectionid, token);
-        // DON'T MUTATE THE ORIGINAL EVENT - just use the local termId variable
-      }
-      
-      if (termId) {
-        // Rate limiting now handled by RateLimitQueue
-        const sectionSpecificAttendanceData = await getEventAttendance(
-          event.sectionid, 
-          event.eventid, 
-          termId, 
-          token,
-        );
-        
-        if (sectionSpecificAttendanceData) {
-          logger.info('Got section-specific attendance data', {
-            eventId: event.eventid,
-            eventName: event.name,
-            dataLength: Array.isArray(sectionSpecificAttendanceData) ? sectionSpecificAttendanceData.length : 'NOT_ARRAY',
-            dataType: typeof sectionSpecificAttendanceData,
-            hasAttendanceData: !!sectionSpecificAttendanceData,
-          }, LOG_CATEGORIES.COMPONENT);
-          
-          // Step 1: Get event summary to check for sharing information
-          try {
-            logger.info('Fetching event summary to check for sharing', {
-              eventId: event.eventid,
-              eventName: event.name,
-              sectionId: event.sectionid,
-              eventDate: event.startdate,
-              sectionName: event.sectionname,
-            }, LOG_CATEGORIES.COMPONENT);
-            
-            const eventSummary = await getEventSummary(event.eventid, token);
-            
-            logger.info('Event summary response received', {
-              eventId: event.eventid,
-              hasResponse: !!eventSummary,
-              responseKeys: eventSummary ? Object.keys(eventSummary) : [],
-              hasSharingKey: !!(eventSummary?.data?.sharing),
-              sharingValue: eventSummary?.data?.sharing ?? 'NO_RESPONSE',
-            }, LOG_CATEGORIES.COMPONENT);
-            
-            // Step 2: Check if this event has sharing information
-            if (eventSummary && eventSummary.data && eventSummary.data.sharing) {
-              logger.info('🔍 Event has sharing data', {
-                eventId: event.eventid,
-                eventName: event.name,
-                isOwner: eventSummary.data.sharing.is_owner,
-                owner: eventSummary.data.sharing.owner,
-                hasAllEvents: !!allEvents,
-                allEventsCount: allEvents?.length || 0,
-                conditionCheck: `is_owner=${eventSummary.data.sharing.is_owner} && allEvents=${!!allEvents}`,
-                sharingData: eventSummary.data.sharing,
-              }, LOG_CATEGORIES.COMPONENT);
-              
-              // Step 3: If this section is the owner of a shared event
-              if (eventSummary.data.sharing.is_owner && allEvents) {
-                logger.info('🚀 SHARED EVENT OWNER - fetching shared attendance', {
-                  eventId: event.eventid,
-                  eventName: event.name,
-                  sectionId: event.sectionid,
-                  hasAllEvents: !!allEvents,
-                  allEventsCount: allEvents?.length || 0,
-                }, LOG_CATEGORIES.COMPONENT);
-                
-                try {
-                  logger.info('📞 Calling getEventSharingStatus API', {
-                    eventId: event.eventid,
-                    sectionId: event.sectionid,
-                    hasToken: !!token,
-                  }, LOG_CATEGORIES.COMPONENT);
-                  
-                  // Get shared event data with section attendance counts
-                  const sharedEventData = await getEventSharingStatus(event.eventid, event.sectionid, token);
-                  
-                  logger.info('📋 getEventSharingStatus API response', {
-                    eventId: event.eventid,
-                    hasResponse: !!sharedEventData,
-                    responseKeys: sharedEventData ? Object.keys(sharedEventData) : [],
-                    sectionsCount: sharedEventData?.items?.length || 0,
-                    identifier: sharedEventData?.identifier || 'none',
-                  }, LOG_CATEGORIES.COMPONENT);
-                  
-                  if (sharedEventData) {
-                    // For shared events, create attendance data from section-level counts
-                    // Convert section attendance counts to individual attendance records for EventCard compatibility
-                    const sharedAttendanceData = convertSharedEventToAttendanceFormat(sharedEventData);
-                    
-                    logger.info('✅ Successfully processed shared event data', {
-                      eventId: event.eventid,
-                      totalAttendees: sharedAttendanceData.items?.length || 0,
-                      sectionsCount: sharedEventData.items?.length || 0,
-                      sectionsWithAttendance: sharedEventData.items?.filter(s => s.attendance > 0).length || 0,
-                    }, LOG_CATEGORIES.COMPONENT);
-                    
-                    // Combine section-specific and shared data for maximum detail
-                    const combinedAttendanceData = [
-                      // Include real section-specific data (has No/Invited/NotInvited details)
-                      ...sectionSpecificAttendanceData,
-                      // Include synthetic data for sections we don't have access to
-                      ...sharedAttendanceData.items.filter(item => 
-                        item.scoutid && item.scoutid.startsWith('synthetic-'),
-                      ),
-                    ];
-                    
-                    // Save combined attendance data to cache
-                    await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
-                    
-                    // Store shared event metadata separately for event expansion
-                    const metadata = {
-                      _isSharedEvent: true,
-                      _allSections: sharedEventData.items,
-                      _sourceEvent: event,
-                    };
-                    localStorage.setItem(`viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
-                    
-                    // Return combined data for EventCard
-                    return combinedAttendanceData;
-                  }
-                } catch (sharedErr) {
-                  logger.warn('Failed to fetch shared event data, falling back to section-specific data', {
-                    eventId: event.eventid,
-                    error: sharedErr.message,
-                  }, LOG_CATEGORIES.API);
-                  // Fall through to use section-specific data only
-                }
-              } else if (eventSummary.data.sharing.is_owner === false && allEvents) {
-                logger.info('Event is shared but this section is not the owner - still fetching shared data', {
-                  eventId: event.eventid,
-                  eventName: event.name,
-                  owner: eventSummary.data.sharing.owner,
-                  sectionId: event.sectionid,
-                }, LOG_CATEGORIES.COMPONENT);
-                
-                // Even for non-owner sections, we want to show shared attendance data
-                try {
-                  logger.info('📞 Calling getEventSharingStatus API (non-owner section)', {
-                    eventId: event.eventid,
-                    sectionId: event.sectionid,
-                    hasToken: !!token,
-                  }, LOG_CATEGORIES.COMPONENT);
-                  
-                  // Get shared event data with section attendance counts (should work with any section ID for shared events)
-                  const sharedEventData = await getEventSharingStatus(event.eventid, event.sectionid, token);
-                  
-                  logger.info('📋 getEventSharingStatus API response (non-owner)', {
-                    eventId: event.eventid,
-                    hasResponse: !!sharedEventData,
-                    responseKeys: sharedEventData ? Object.keys(sharedEventData) : [],
-                    sectionsCount: sharedEventData?.items?.length || 0,
-                    identifier: sharedEventData?.identifier || 'none',
-                  }, LOG_CATEGORIES.COMPONENT);
-                  
-                  if (sharedEventData) {
-                    // For shared events, create attendance data from section-level counts  
-                    // Convert section attendance counts to individual attendance records for EventCard compatibility
-                    const sharedAttendanceData = convertSharedEventToAttendanceFormat(sharedEventData);
-                    
-                    logger.info('✅ Successfully processed shared event data (non-owner)', {
-                      eventId: event.eventid,
-                      totalAttendees: sharedAttendanceData.items?.length || 0,
-                      sectionsCount: sharedEventData.items?.length || 0,
-                      sectionsWithAttendance: sharedEventData.items?.filter(s => s.attendance > 0).length || 0,
-                    }, LOG_CATEGORIES.COMPONENT);
-                    
-                    // Combine section-specific and shared data for maximum detail
-                    const combinedAttendanceData = [
-                      // Include real section-specific data (has No/Invited/NotInvited details)
-                      ...sectionSpecificAttendanceData,
-                      // Include synthetic data for sections we don't have access to
-                      ...sharedAttendanceData.items.filter(item => 
-                        item.scoutid && item.scoutid.startsWith('synthetic-'),
-                      ),
-                    ];
-                    
-                    // Save combined attendance data to cache
-                    await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
-                    
-                    // Store shared event metadata separately for event expansion
-                    const metadata = {
-                      _isSharedEvent: true,
-                      _allSections: sharedEventData.items,
-                      _sourceEvent: event,
-                    };
-                    localStorage.setItem(`viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
-                    
-                    // Return combined data for EventCard
-                    return combinedAttendanceData;
-                  }
-                } catch (sharedErr) {
-                  logger.warn('Failed to fetch shared event data for non-owner section, falling back to section-specific data', {
-                    eventId: event.eventid,
-                    error: sharedErr.message,
-                  }, LOG_CATEGORIES.API);
-                  // Fall through to use section-specific data only
-                }
-              }
-            } else {
-              logger.info('Regular event (no sharing data)', {
-                eventId: event.eventid,
-                eventName: event.name,
-                sectionId: event.sectionid,
-              }, LOG_CATEGORIES.COMPONENT);
-            }
-          } catch (summaryErr) {
-            logger.warn('Failed to fetch event summary, treating as regular event', {
-              eventId: event.eventid,
-              error: summaryErr.message,
-            }, LOG_CATEGORIES.API);
-            // Continue to return section-specific data for regular events
-          }
-          
-          // Default: Save section-specific data to cache and return it
-          await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-          return sectionSpecificAttendanceData;
-        } else {
-          logger.warn('No section-specific attendance data returned from API', {
-            eventId: event.eventid,
-            eventName: event.name,
-            sectionId: event.sectionid,
-            termId: termId,
-            hasToken: !!token,
-          }, LOG_CATEGORIES.COMPONENT);
-        }
-      }
-    } else {
-      // Load from cache
-      logger.info('Loading attendance from cache (shared events not checked)', {
-        eventId: event.eventid,
-        eventName: event.name,
-        sectionId: event.sectionid,
-      }, LOG_CATEGORIES.COMPONENT);
+    // Skip all API calls in demo mode to prevent rate limiting, but still process shared events
+    const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+    if (!token && !isDemoMode) {
+      // No token and not demo mode - load from database cache only
       const cachedAttendance = await databaseService.getAttendance(event.eventid);
       // Handle both array format (regular events) and object format (shared events)
       if (Array.isArray(cachedAttendance)) {
@@ -425,6 +181,228 @@ export const fetchEventAttendance = async (event, token, allEvents = null) => {
       }
       return cachedAttendance || [];
     }
+    
+    // In demo mode, first check localStorage cache (where demo data is stored)
+    if (isDemoMode) {
+      try {
+        const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
+        const cachedData = localStorage.getItem(cacheKey);
+        if (cachedData) {
+          const attendanceData = JSON.parse(cachedData);
+          
+          // Check if this is a shared event in demo mode by looking for shared metadata
+          const sharedMetadataKey = `viking_shared_metadata_${event.eventid}`;
+          const sharedMetadata = localStorage.getItem(sharedMetadataKey);
+          if (sharedMetadata) {
+            try {
+              const metadata = JSON.parse(sharedMetadata);
+              if (metadata._isSharedEvent) {
+                if (import.meta.env.DEV) {
+                  logger.debug('Using demo shared event data from localStorage', {
+                    eventId: event.eventid,
+                    attendeeCount: attendanceData.length,
+                    sectionsCount: metadata._allSections?.length || 0,
+                  }, LOG_CATEGORIES.COMPONENT);
+                }
+                
+                // For shared events in demo mode, we might need to combine with other sections
+                // Check if there are other sections' data to combine
+                const allSections = metadata._allSections || [];
+                const combinedAttendanceData = [...attendanceData];
+                
+                // Add synthetic attendance data for other sections if needed
+                for (const section of allSections) {
+                  if (section.sectionid !== event.sectionid && section.attendance > 0) {
+                    // Generate synthetic attendees for this section
+                    for (let i = 0; i < section.attendance; i++) {
+                      combinedAttendanceData.push({
+                        scoutid: `synthetic-${section.sectionid}-${i}`,
+                        sectionid: section.sectionid,
+                        sectionname: section.sectionname,
+                        attending: 'Yes',
+                        firstname: `Member ${i + 1}`,
+                        lastname: `(${section.sectionname})`,
+                        groupname: section.groupname,
+                      });
+                    }
+                  }
+                }
+                
+                return combinedAttendanceData;
+              }
+            } catch (metadataError) {
+              if (import.meta.env.DEV) {
+                logger.warn('Failed to parse shared metadata in demo mode', {
+                  eventId: event.eventid,
+                  error: metadataError.message,
+                }, LOG_CATEGORIES.COMPONENT);
+              }
+            }
+          }
+          
+          if (import.meta.env.DEV) {
+            logger.debug('Using demo attendance data from localStorage', {
+              eventId: event.eventid,
+              attendeeCount: attendanceData.length,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+          return attendanceData;
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          logger.warn('Failed to parse demo attendance data from localStorage', {
+            eventId: event.eventid,
+            error: error.message,
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+      }
+      
+      // If no localStorage data found, return empty array for demo mode
+      return [];
+    }
+    
+    // Only log when actually making API calls to reduce console spam
+    if (import.meta.env.DEV) {
+      logger.debug('fetchEventAttendance called', {
+        eventId: event.eventid,
+        eventName: event.name,
+        sectionId: event.sectionid,
+      }, LOG_CATEGORIES.COMPONENT);
+    }
+    
+    // Check for cached attendance first to avoid unnecessary API calls
+    const cachedAttendance = await databaseService.getAttendance(event.eventid);
+    if (cachedAttendance) {
+      // Check cache age to determine if we should refresh
+      const cacheKey = `viking_attendance_cache_time_${event.eventid}`;
+      const cacheTime = localStorage.getItem(cacheKey);
+      const cacheAge = cacheTime ? Date.now() - parseInt(cacheTime) : Infinity;
+      const maxCacheAge = 60 * 60 * 1000; // 1 hour
+      
+      if (cacheAge < maxCacheAge) {
+        // Use cached data if it's fresh
+        if (import.meta.env.DEV) {
+          logger.debug('Using cached attendance data', {
+            eventId: event.eventid,
+            cacheAgeMinutes: Math.floor(cacheAge / (1000 * 60)),
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+        return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
+      }
+    }
+    
+    // If termid is missing, get it from API
+    let termId = event.termid;
+    if (!termId) {
+      termId = await fetchMostRecentTermId(event.sectionid, token);
+    }
+    
+    if (!termId) {
+      return cachedAttendance || [];
+    }
+    
+    // Get basic attendance data first
+    const sectionSpecificAttendanceData = await getEventAttendance(
+      event.sectionid, 
+      event.eventid, 
+      termId, 
+      token,
+    );
+    
+    if (!sectionSpecificAttendanceData) {
+      if (import.meta.env.DEV) {
+        logger.warn('No section-specific attendance data returned from API', {
+          eventId: event.eventid,
+          eventName: event.name,
+        }, LOG_CATEGORIES.COMPONENT);
+      }
+      return cachedAttendance || [];
+    }
+
+    // For production, limit shared event processing to reduce API calls
+    // Only check for shared events if explicitly enabled or in development
+    const checkForSharedEvents = import.meta.env.DEV || import.meta.env.VITE_ENABLE_SHARED_EVENT_DETECTION === 'true';
+    
+    if (!checkForSharedEvents) {
+      // Save basic attendance data to cache and return it
+      await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
+      localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+      return sectionSpecificAttendanceData;
+    }
+    
+    // Check for shared event only if enabled (reduces API calls significantly)
+    try {
+      const eventSummary = await getEventSummary(event.eventid, token);
+      
+      // Check if this event has sharing information
+      if (eventSummary?.data?.sharing) {
+        if (import.meta.env.DEV) {
+          logger.debug('Event has sharing data', {
+            eventId: event.eventid,
+            isOwner: eventSummary.data.sharing.is_owner,
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+        
+        // If this section is the owner or participant of a shared event
+        if (eventSummary.data.sharing.is_owner || eventSummary.data.sharing.is_owner === false) {
+          try {
+            // Get shared event data with section attendance counts
+            const sharedEventData = await getEventSharingStatus(event.eventid, event.sectionid, token);
+            
+            if (sharedEventData) {
+              // For shared events, create attendance data from section-level counts
+              const sharedAttendanceData = convertSharedEventToAttendanceFormat(sharedEventData);
+              
+              // Combine section-specific and shared data for maximum detail
+              const combinedAttendanceData = [
+                // Include real section-specific data (has No/Invited/NotInvited details)
+                ...sectionSpecificAttendanceData,
+                // Include synthetic data for sections we don't have access to
+                ...sharedAttendanceData.items.filter(item => 
+                  item.scoutid && item.scoutid.startsWith('synthetic-'),
+                ),
+              ];
+              
+              // Save combined attendance data to cache
+              await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
+              localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+              
+              // Store shared event metadata separately for event expansion
+              const metadata = {
+                _isSharedEvent: true,
+                _allSections: sharedEventData.items,
+                _sourceEvent: event,
+              };
+              localStorage.setItem(`viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
+              
+              return combinedAttendanceData;
+            }
+          } catch (sharedErr) {
+            if (import.meta.env.DEV) {
+              logger.warn('Failed to fetch shared event data, falling back to section-specific data', {
+                eventId: event.eventid,
+                error: sharedErr.message,
+              }, LOG_CATEGORIES.API);
+            }
+            // Fall through to use section-specific data only
+          }
+        }
+      }
+    } catch (summaryErr) {
+      if (import.meta.env.DEV) {
+        logger.warn('Failed to fetch event summary, treating as regular event', {
+          eventId: event.eventid,
+          error: summaryErr.message,
+        }, LOG_CATEGORIES.API);
+      }
+      // Continue to return section-specific data for regular events
+    }
+    
+    // Default: Save section-specific data to cache and return it
+    await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
+    localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+    return sectionSpecificAttendanceData;
+    
   } catch (err) {
     logger.error('Error fetching attendance for event {eventId}', { 
       error: err, 
@@ -432,8 +410,11 @@ export const fetchEventAttendance = async (event, token, allEvents = null) => {
       eventName: event.name,
       sectionId: event.sectionid,
     }, LOG_CATEGORIES.API);
+    
+    // Return cached data as fallback
+    const cachedAttendance = await databaseService.getAttendance(event.eventid);
+    return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance?.items || []);
   }
-  return [];
 };
 
 /**
@@ -558,15 +539,17 @@ export const convertSharedEventToAttendanceFormat = (sharedEventData) => {
       attendanceSummary.total_members += (section.attendance || 0) + (section.none || 0);
     });
     
-    logger.info('Converted shared event data to attendance format', {
-      totalSections: sections.length,
-      totalAttendees: attendanceSummary.Yes,
-      totalNotInvited: attendanceSummary['Not invited'],
-      sectionsWithAttendance: sections.filter(s => s.attendance > 0).length,
-      attendanceItemsCreated: attendanceItems.length,
-      sectionsInfo: sectionsInfo.map(s => `${s.section_name}: ${s.member_count}`),
-      allSectionsData: sections.map(s => `${s.sectionname} (${s.sectionid}): ${s.attendance || 0} attending`),
-    }, LOG_CATEGORIES.COMPONENT);
+    if (import.meta.env.DEV) {
+      logger.info('Converted shared event data to attendance format', {
+        totalSections: sections.length,
+        totalAttendees: attendanceSummary.Yes,
+        totalNotInvited: attendanceSummary['Not invited'],
+        sectionsWithAttendance: sections.filter(s => s.attendance > 0).length,
+        attendanceItemsCreated: attendanceItems.length,
+        sectionsInfo: sectionsInfo.map(s => `${s.section_name}: ${s.member_count}`),
+        allSectionsData: sections.map(s => `${s.sectionname} (${s.sectionid}): ${s.attendance || 0} attending`),
+      }, LOG_CATEGORIES.COMPONENT);
+    }
     
     return {
       items: attendanceItems,
@@ -606,11 +589,13 @@ export const expandSharedEvents = (events, attendanceMap) => {
   // Instead, we want the EventCard to handle displaying all sections within a single card
   // So we'll just return the original events array without expansion
   
-  logger.info('expandSharedEvents called - returning original events to prevent duplicate cards', {
-    eventsCount: events.length,
-    attendanceMapSize: attendanceMap.size,
-    eventNames: events.map(e => e.name).slice(0, 5), // First 5 event names
-  }, LOG_CATEGORIES.COMPONENT);
+  if (import.meta.env.DEV) {
+    logger.debug('expandSharedEvents called - returning original events to prevent duplicate cards', {
+      eventsCount: events.length,
+      attendanceMapSize: attendanceMap.size,
+      eventNames: events.map(e => e.name).slice(0, 5), // First 5 event names
+    }, LOG_CATEGORIES.COMPONENT);
+  }
 
   // The shared event data is already combined in the attendance data
   // EventCard will handle displaying all sections using the combined attendance data

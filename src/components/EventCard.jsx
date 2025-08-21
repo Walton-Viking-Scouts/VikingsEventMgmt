@@ -219,7 +219,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     }
   };
 
-  const getStatusBadge = (event) => {
+  const _getStatusBadge = (event) => {
     const status = getEventStatus(event);
 
     switch (status) {
@@ -255,9 +255,20 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {eventCard.events.map((event) => (
-              <div key={event.eventid}>{getStatusBadge(event)}</div>
-            ))}
+            {(() => {
+              // Get all unique statuses from events in this card
+              const statuses = [...new Set(eventCard.events.map(event => getEventStatus(event)))];
+              
+              // Priority: ongoing > upcoming > past
+              if (statuses.includes('ongoing')) {
+                return <Badge variant="scout-green">Ongoing</Badge>;
+              } else if (statuses.includes('upcoming')) {
+                return <Badge variant="scout-blue">Upcoming</Badge>;
+              } else if (statuses.includes('past')) {
+                return <Badge variant="secondary">Past</Badge>;
+              }
+              return null;
+            })()}
           </div>
         </div>
 

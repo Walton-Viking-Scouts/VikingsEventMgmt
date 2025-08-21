@@ -26,6 +26,11 @@ export function useAttendanceData(events) {
       setLoading(true);
       setError(null);
       
+      // Skip API calls in demo mode - only use cached data
+      const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+      if (isDemoMode) {
+        logger.debug('Demo mode: Skipping API calls, using cached attendance only', {}, LOG_CATEGORIES.COMPONENT);
+      }
       
       // Validate event data integrity
       const hasInvalidEvents = events.some(event => !event.sectionid || event.termid === null || event.termid === undefined);
@@ -69,8 +74,8 @@ export function useAttendanceData(events) {
           console.warn('Failed to parse cached attendance data:', error);
         }
         
-        if (!attendanceResponse && token) {
-          // Fallback to API call if no cached data
+        if (!attendanceResponse && token && !isDemoMode) {
+          // Fallback to API call if no cached data (skip in demo mode)
           try {
             const attendanceItems = await getEventAttendance(
               event.sectionid, 
