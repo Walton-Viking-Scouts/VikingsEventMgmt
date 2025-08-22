@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Badge } from './ui';
 import DraggableMember from './DraggableMember.jsx';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
@@ -35,12 +35,9 @@ function CampGroupCard({
   // Drop zone state
   const [isDragOver, setIsDragOver] = useState(false);
   const [canDrop, setCanDrop] = useState(false);
+  const cardRef = useRef(null);
 
-  if (!group) {
-    return null;
-  }
-
-  const { name, leaders = [], youngPeople = [] } = group;
+  const { name, leaders = [], youngPeople = [] } = group || {};
 
   const handleMemberClick = (member) => {
     if (onMemberClick && typeof onMemberClick === 'function') {
@@ -95,8 +92,15 @@ function CampGroupCard({
     if (!onMemberMove) {
       return;
     }
+    
+    let dragData;
     try {
-      const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      // Handle both desktop drag/drop and mobile touch drop
+      if (e.type === 'mobile-drop') {
+        dragData = e.detail;
+      } else {
+        dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+      }
 
 
       // Don't allow dropping on the same group
@@ -135,15 +139,17 @@ function CampGroupCard({
       }
       // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
       // we can safely create a member object with person_type: 'Young People'
-      // Try to get sectionid from any member in this group as they should all be from the same section
-      const sampleMember = [...(group.leaders || []), ...(group.youngPeople || [])][0];
-      const sectionid = sampleMember?.sectionid || sampleMember?.section_id || dragData.sectionid;
+      // For mobile drag, reconstruct the complete member object from original member data
+      // Find the original member in the group to preserve all fields
+      const originalMember = [...(group.youngPeople || [])].find(m => 
+        String(m.scoutid) === String(dragData.memberId)
+      );
       
-      const member = {
+      const member = originalMember || {
         scoutid: dragData.memberId,
         name: dragData.memberName,
-        person_type: 'Young People', // Safe assumption since only Young People can be dragged
-        sectionid: sectionid, // Derived from group members, with dragData fallback
+        person_type: 'Young People',
+        sectionid: dragData.sectionid,
       };
 
 
@@ -160,6 +166,26 @@ function CampGroupCard({
     }
   };
 
+  // Add mobile drop event listener
+  useEffect(() => {
+    const cardElement = cardRef.current;
+    if (!cardElement) return;
+
+    const handleMobileDrop = (e) => {
+      handleDrop(e);
+    };
+
+    cardElement.addEventListener('mobile-drop', handleMobileDrop);
+    
+    return () => {
+      cardElement.removeEventListener('mobile-drop', handleMobileDrop);
+    };
+  }, [dragDisabled, group?.number, onMemberMove, onOfflineError]);
+
+  if (!group) {
+    return null;
+  }
+
   const MemberName = ({ member }) => (
     <span
       className={`text-sm break-words ${
@@ -172,8 +198,10 @@ function CampGroupCard({
     </span>
   );
 
+
   return (
     <Card
+      ref={cardRef}
       className={`
         camp-group-card transition-all duration-200 w-full
         ${isDragInProgress ? 'drop-zone-available' : ''}
@@ -184,6 +212,8 @@ function CampGroupCard({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      data-drop-zone="true"
+      data-group-number={group.number}
     >
       {/* Header with group name and leaders */}
       <Card.Header className="pb-2">

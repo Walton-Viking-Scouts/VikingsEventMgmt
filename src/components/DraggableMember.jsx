@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 // Constants for draggable member types
 const DRAGGABLE_MEMBER_TYPES = ['Young People'];
@@ -28,6 +28,12 @@ function DraggableMember({
 }) {
   const [dragPreview, setDragPreview] = useState(false);
   const [mouseDown, setMouseDown] = useState(false);
+  const [touchDragActive, setTouchDragActive] = useState(false);
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+  const elementRef = useRef(null);
+  const dragPreviewRef = useRef(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const dragThreshold = 10; // pixels to start drag
 
   // Compute member name once (DRY principle)
   // Debug: Check different name field possibilities
@@ -39,6 +45,106 @@ function DraggableMember({
   // Only specific member types can be dragged between groups
   const isDraggable =
     DRAGGABLE_MEMBER_TYPES.includes(member.person_type) && !disabled;
+
+  // Mobile drag simulation using touch events
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || !isDraggable) return;
+
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+      setMouseDown(true);
+    };
+
+    const handleTouchMove = (e) => {
+      if (!mouseDown) return;
+      e.preventDefault();
+      
+      const touch = e.touches[0];
+      const deltaX = Math.abs(touch.clientX - touchStartPos.current.x);
+      const deltaY = Math.abs(touch.clientY - touchStartPos.current.y);
+      
+      // Update drag position for visual preview
+      setDragPosition({ x: touch.clientX, y: touch.clientY });
+      
+      // Start drag simulation if moved beyond threshold
+      if ((deltaX > dragThreshold || deltaY > dragThreshold) && !touchDragActive) {
+        setTouchDragActive(true);
+        setDragPreview(true);
+        
+        // Trigger drag start
+        const dragData = {
+          memberId: member.scoutid,
+          memberName: memberName,
+          fromGroupNumber: group?.number || 'Unknown',
+          fromGroupName: group?.name || 'Unknown Group',
+          sectionid: member.sectionid || member.section_id,
+        };
+        
+        
+        if (onDragStart) {
+          onDragStart(dragData);
+        }
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      setMouseDown(false);
+      setDragPosition({ x: 0, y: 0 });
+      
+      if (touchDragActive) {
+        setTouchDragActive(false);
+        setDragPreview(false);
+        
+        // Find drop target under touch point
+        const touch = e.changedTouches[0];
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        if (elementBelow) {
+          // Look for drop zone in element hierarchy
+          let dropZone = elementBelow;
+          while (dropZone && !dropZone.dataset.dropZone) {
+            dropZone = dropZone.parentElement;
+          }
+          
+          if (dropZone) {
+            // Create synthetic drop event
+            const dropEventData = {
+              memberId: member.scoutid,
+              memberName: memberName,
+              fromGroupNumber: group?.number || 'Unknown',
+              fromGroupName: group?.name || 'Unknown Group',
+              sectionid: member.sectionid || member.section_id,
+              targetGroupNumber: dropZone.dataset.groupNumber,
+            };
+            
+            
+            const dropEvent = new window.CustomEvent('mobile-drop', {
+              detail: dropEventData,
+            });
+            dropZone.dispatchEvent(dropEvent);
+          }
+        }
+        
+        if (onDragEnd) {
+          onDragEnd();
+        }
+      }
+    };
+
+    // Add non-passive event listeners for mobile drag simulation
+    element.addEventListener('touchstart', handleTouchStart, { passive: false });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    return () => {
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDraggable, mouseDown, touchDragActive, member, group, memberName, onDragStart, onDragEnd, dragThreshold]);
 
   const handleMouseDown = (_e) => {
     if (!isDraggable) return;
@@ -120,6 +226,7 @@ function DraggableMember({
 
   return (
     <div
+      ref={elementRef}
       className={`
         relative p-2 rounded-lg transition-all duration-200 select-none w-full max-w-full
         ${
@@ -129,6 +236,7 @@ function DraggableMember({
     }
         ${mouseDown ? 'cursor-grabbing scale-[1.01] shadow-lg' : ''}
         ${dragPreview ? 'opacity-60 transform rotate-1 scale-95 shadow-xl' : ''}
+        ${touchDragActive ? 'opacity-30' : ''}
         ${isDragging ? 'opacity-40' : ''}
         ${className}
       `}
@@ -137,18 +245,6 @@ function DraggableMember({
       onDragEnd={handleDragEnd}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onTouchStart={(_e) => {
-        if (isDraggable) {
-          // Don't call preventDefault() in touch events due to passive listener restrictions
-          // Instead, use CSS touch-action: none; to prevent default behaviors
-          setMouseDown(true);
-        }
-      }}
-      onTouchEnd={(_e) => {
-        if (isDraggable) {
-          setMouseDown(false);
-        }
-      }}
       style={{
         maxWidth: '100%',
         touchAction: isDraggable ? 'none' : 'auto',
@@ -205,6 +301,38 @@ function DraggableMember({
         </div>
 
       </div>
+
+      {/* Mobile drag preview that follows finger */}
+      {touchDragActive && dragPosition.x > 0 && (
+        <div
+          ref={dragPreviewRef}
+          className="fixed pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2 opacity-80 scale-95 rotate-2 shadow-xl"
+          style={{
+            left: dragPosition.x,
+            top: dragPosition.y,
+            maxWidth: '200px',
+          }}
+        >
+          <div className="p-2 rounded-lg bg-blue-100 border-2 border-blue-300 shadow-lg">
+            <div className="flex items-center gap-1">
+              {/* Drag handle indicator */}
+              <div className="text-blue-500">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+                  <circle cx="4" cy="4" r="1.2" />
+                  <circle cx="12" cy="4" r="1.2" />
+                  <circle cx="4" cy="8" r="1.2" />
+                  <circle cx="12" cy="8" r="1.2" />
+                  <circle cx="4" cy="12" r="1.2" />
+                  <circle cx="12" cy="12" r="1.2" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-blue-700 truncate">
+                {memberName}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
