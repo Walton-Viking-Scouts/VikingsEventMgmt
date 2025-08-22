@@ -164,7 +164,7 @@ jobs:
         run: |
           echo "🔢 Setting version based on deployment environment..."
           set -Eeuo pipefail
-          
+
           # Function to safely escape shell input
           escape_shell_input() {
             local input="$1"
@@ -174,13 +174,13 @@ jobs:
               | sed -e 's/[;&|`$(){}]/\\&/g' \
               | head -c 200
           }
-          
+
           # Function to detect version type from raw (unescaped) PR title
           detect_version_type() {
             local raw_title="$1"
             local version_type="patch"  # Default to patch
             local title_lc="${raw_title,,}"  # Convert to lowercase
-            
+
             # Check for explicit version type tags and patterns (case-insensitive)
             case "$title_lc" in
               *"[major]"*)
@@ -215,13 +215,13 @@ jobs:
                 echo "🟢 No semantic versioning patterns detected, defaulting to patch" >&2
                 ;;
             esac
-            
+
             echo "$version_type"
           }
-          
+
           # Export GH_TOKEN for gh CLI commands
           export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
-          
+
           # Get the actual PR title (not commit message) with input validation
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # For PR events, use the PR title directly
@@ -235,14 +235,14 @@ jobs:
             # For push events, find associated PR via GitHub API
             echo "🔍 Push event detected, searching for associated PR..."
             COMMIT_SHA="${{ github.sha }}"
-            
+
             # Use GitHub API to find PRs associated with this commit (with error handling)
             API_RESPONSE=$(curl -s -f --connect-timeout 5 --max-time 10 \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/commits/${COMMIT_SHA}/pulls" \
               2>/dev/null | jq -r '.[0].title // empty' 2>/dev/null || echo "")
-            
+
             if [ -n "$API_RESPONSE" ] && [ "$API_RESPONSE" != "null" ]; then
               # Detect version type from raw API response before escaping
               VERSION_TYPE=$(detect_version_type "$API_RESPONSE")
@@ -259,34 +259,34 @@ jobs:
               echo "📋 No associated PR found, using commit message: $PR_TITLE"
             fi
           fi
-          
+
           # Final fallback if still empty
           if [ -z "$PR_TITLE" ]; then
             PR_TITLE="(no title)"
             VERSION_TYPE="patch"  # Default for empty titles
           fi
-          
+
           # Export PR_TITLE for use in subsequent steps using safe block syntax
           {
             printf 'PR_TITLE<<__EOF__\n'
             printf '%s\n' "$PR_TITLE"
             printf '__EOF__\n'
           } >> "$GITHUB_ENV"
-          
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # Preview deployment - calculate upcoming version that will be created on merge
             echo "🔍 Preview deployment detected"
             echo "📋 Using PR title: $PR_TITLE"
-            
+
             # Get current production version from latest git tag
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
             BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
             echo "🏷️ Latest production tag: $LATEST_TAG (base: $BASE_VERSION)"
-            
+
             # Look for explicit version pattern like v1.2.3 in raw PR title
             RAW_PR_TITLE_FOR_EXPLICIT="${{ github.event.pull_request.title }}"
             EXPLICIT_VERSION=$(echo "$RAW_PR_TITLE_FOR_EXPLICIT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
-            
+
             if [ -n "$EXPLICIT_VERSION" ]; then
               # Explicit version found - use it as the upcoming version
               UPCOMING_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
@@ -295,12 +295,12 @@ jobs:
             else
               # Use the VERSION_TYPE already detected from raw title
               echo "🔍 Using detected version type: $VERSION_TYPE"
-              
+
               # Calculate upcoming version using semantic versioning rules
               BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
               IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
               echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-              
+
               # Compute upcoming version based on already-detected bump type
               if [ "$VERSION_TYPE" = "major" ]; then
                 NEXT_MAJOR=$((MAJOR + 1))
@@ -317,7 +317,7 @@ jobs:
                 echo "🟢 Computing patch version bump: $BASE_VERSION → $UPCOMING_VERSION"
               fi
             fi
-            
+
             # Create preview version with upcoming version + PR info
             SHORT_SHA="${{ github.event.pull_request.head.sha }}"
             # Fallback in case head.sha is empty
@@ -325,36 +325,40 @@ jobs:
             SHORT_SHA="${SHORT_SHA:0:7}"
             NEW_VERSION="${UPCOMING_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
             DEPLOYMENT_TYPE="preview"
-            
+
             echo "✅ Preview version set: $NEW_VERSION"
             echo "   → This represents what version $UPCOMING_VERSION will look like when merged"
           else
             # Production deployment (main branch) - bump version properly
             echo "🚀 Production deployment detected"
-            
+
             # Configure git for automated commits (only for production)
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
-            
+
             # Use the PR title that was extracted and exported earlier
             echo "📋 Using extracted PR title: $PR_TITLE"
-            
+
             # Look for version pattern like v1.2.3 in PR title
             EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
-            
+
             if [ -n "$EXPLICIT_VERSION" ]; then
               # Explicit version found in PR title - use it directly
               CLEAN_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
               echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
               echo "Setting version directly to: $CLEAN_VERSION"
-              
+
               # Set NEW_VERSION immediately for explicit versions
               NEW_VERSION="$CLEAN_VERSION"
               VERSION_TYPE="explicit"
-              
+
               # Update package.json to match explicit version
               npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
-              
+
+              # Commit package.json changes for explicit versions
+              git add package.json package-lock.json 2>/dev/null || true
+              git commit -m "chore(release): v${CLEAN_VERSION} [explicit]" || echo "No changes to commit"
+
               echo "✅ Explicit version set: $NEW_VERSION"
             else
               # No explicit version - apply semantic versioning rules
@@ -362,21 +366,21 @@ jobs:
               echo "PR titles can include version like: 'feat: new feature v1.2.0'"
               echo "Or version tags like: 'Add new feature [minor]' or 'Breaking change [major]'"
               echo "Or conventional commits like: 'feat:', 'fix:', 'BREAKING CHANGE:'"
-              
+
               # Get base version from latest git tag (more reliable than package.json)
               LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
               # Remove only a leading 'v'
               BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
               echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
-              
+
               # Parse base version into components (strip any pre-release/build suffixes)
               BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
               IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
               echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-              
+
               # Determine version bump type based on PR title patterns (using safer case matching)
               VERSION_TYPE="patch"  # Default to patch
-              
+
               # Check for explicit version type tags and patterns in PR title
               case "$PR_TITLE" in
                 *"[major]"*|*"[MAJOR]"*)
@@ -411,7 +415,7 @@ jobs:
                   echo "🟢 No semantic versioning patterns detected, defaulting to patch"
                   ;;
               esac
-              
+
               # Compute new version based on bump type
               if [ "$VERSION_TYPE" = "major" ]; then
                 NEXT_MAJOR=$((MAJOR + 1))
@@ -427,24 +431,28 @@ jobs:
                 NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
                 echo "🟢 Computing patch version bump: $BASE_VERSION → $NEW_VERSION"
               fi
-              
+
               echo "✅ Semantic versioning result: $NEW_VERSION (type: $VERSION_TYPE)"
-              
+
               # Update package.json to computed version
               npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+
+              # Commit package.json changes for semantic versions
+              git add package.json package-lock.json 2>/dev/null || true
+              git commit -m "chore(release): v${NEW_VERSION} [${VERSION_TYPE}]" || echo "No changes to commit"
             fi
-            
+
             DEPLOYMENT_TYPE="production"
             echo "Production version: $NEW_VERSION"
           fi
-          
+
           # Export version and deployment type for subsequent steps using safe syntax
           {
             echo "NEW_VERSION=$NEW_VERSION"
             echo "DEPLOYMENT_TYPE=$DEPLOYMENT_TYPE"
           } >> "$GITHUB_ENV"
           echo "✅ Version set: $NEW_VERSION (${DEPLOYMENT_TYPE})"
-          
+
           # Create tags and releases only for production deployments
           if [ "$DEPLOYMENT_TYPE" = "production" ]; then
             # Check if tag already exists before creating (idempotent)
@@ -459,7 +467,7 @@ jobs:
               TAG_CREATED="true"
               echo "✅ Git tag v${NEW_VERSION} created and pushed"
             fi
-            
+
             # Create GitHub releases based on version type (only if tag was created)
             if [ "$TAG_CREATED" = "true" ]; then
               # Guard GitHub CLI usage
@@ -475,7 +483,7 @@ jobs:
                     --title "Release v${NEW_VERSION} - Minor Update" \
                     --notes "Minor release v${NEW_VERSION} with new features or enhancements. This release includes backward-compatible functionality additions. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Minor. Notes auto-generated by CI/CD." \
                     --latest
-                  
+
                   echo "✅ Production version released: v${NEW_VERSION} (minor - new features)"
                 elif [ "$VERSION_TYPE" = "major" ]; then
                   # Major versions: Create GitHub Release for breaking changes
@@ -483,7 +491,7 @@ jobs:
                     --title "Release v${NEW_VERSION} - Major Update" \
                     --notes "Major release v${NEW_VERSION} with breaking changes. This release may require migration or configuration updates. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Major. Notes auto-generated by CI/CD." \
                     --latest
-                  
+
                   echo "✅ Production version released: v${NEW_VERSION} (major - breaking changes)"
                 elif [ "$VERSION_TYPE" = "explicit" ]; then
                   # Explicit versions: Create GitHub Release for visibility
@@ -491,7 +499,7 @@ jobs:
                     --title "Release v${NEW_VERSION}" \
                     --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Explicit. Notes auto-generated by CI/CD." \
                     --latest
-                  
+
                   echo "✅ Production version released: v${NEW_VERSION} (explicit from PR title)"
                 else
                   # Other version types: Create GitHub Release with generic notes
@@ -499,7 +507,7 @@ jobs:
                     --title "Release v${NEW_VERSION}" \
                     --notes "Auto-generated release v${NEW_VERSION}. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: ${VERSION_TYPE}. Notes auto-generated by CI/CD." \
                     --latest
-                  
+
                   echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
                 fi
               fi
@@ -520,28 +528,28 @@ jobs:
           # Use the environment-aware version set in previous step
           RELEASE="vikings-eventmgmt-mobile@$NEW_VERSION"
           ENVIRONMENT="$DEPLOYMENT_TYPE"
-          
+
           echo "📊 Creating Sentry release: $RELEASE"
           echo "🌍 Environment: $ENVIRONMENT"
-          
+
           if [ -n "$SENTRY_AUTH_TOKEN" ]; then
             # Create Sentry release with environment
             npx @sentry/cli releases new "$RELEASE" || echo "Release may already exist"
-            
+
             # Upload source maps if they exist
             if [ -d "./dist" ] && [ "$(find "./dist" -name '*.map' | wc -l)" -gt 0 ]; then
               echo "📂 Uploading source maps for error tracking..."
               npx @sentry/cli sourcemaps inject ./dist
               npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix "~/" ./dist
             fi
-            
+
             # Set commits and finalize
             npx @sentry/cli releases set-commits "$RELEASE" --auto || { echo "⚠️ Sentry: failed to set commits (non-fatal). Check repo integration/token scopes." >&2; }
             npx @sentry/cli releases finalize "$RELEASE" || { echo "⚠️ Sentry: finalize failed or already finalized (non-fatal)." >&2; }
-            
+
             # Mark deployment in the appropriate environment
             npx @sentry/cli releases deploys "$RELEASE" new -e "$ENVIRONMENT"
-            
+
             echo "✅ Sentry release $RELEASE created for $ENVIRONMENT environment"
           else
             echo "⚠️ SENTRY_AUTH_TOKEN not configured, skipping Sentry release"
@@ -553,7 +561,7 @@ jobs:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           echo "🚀 Deploying to production..."
-          
+
           # Deploy to Render.com via webhook
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
             echo "Triggering Render deployment via webhook..."
