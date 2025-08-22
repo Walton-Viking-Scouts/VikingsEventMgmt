@@ -208,8 +208,9 @@ jobs:
           echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
           
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Preview deployment - use PR-specific version with commit SHA
-            BASE_VERSION=$(node -p "require('./package.json').version")
+            # Preview deployment - use git tag for consistent versioning (same as production)
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
             SHORT_SHA="${{ github.event.pull_request.head.sha }}"
             # Fallback in case head.sha is empty
             [ -z "$SHORT_SHA" ] && SHORT_SHA="${{ github.sha }}"
@@ -217,6 +218,7 @@ jobs:
             NEW_VERSION="${BASE_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
             DEPLOYMENT_TYPE="preview"
             echo "🔍 Preview deployment detected"
+            echo "Latest git tag: $LATEST_TAG"
             echo "Base version: $BASE_VERSION"
             echo "Commit SHA: ${SHORT_SHA}"
             echo "Preview version: $NEW_VERSION"
