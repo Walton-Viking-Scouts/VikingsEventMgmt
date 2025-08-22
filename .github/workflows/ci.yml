@@ -543,8 +543,8 @@ jobs:
               npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix "~/" ./dist
             fi
 
-            # Set commits and finalize
-            npx @sentry/cli releases set-commits "$RELEASE" --auto || { echo "⚠️ Sentry: failed to set commits (non-fatal). Check repo integration/token scopes." >&2; }
+            # Set commits and finalize (with shallow clone handling)
+            npx @sentry/cli releases set-commits "$RELEASE" --auto --ignore-missing || { echo "⚠️ Sentry: failed to set commits (non-fatal). Likely shallow clone or missing SHA." >&2; }
             npx @sentry/cli releases finalize "$RELEASE" || { echo "⚠️ Sentry: finalize failed or already finalized (non-fatal)." >&2; }
 
             # Mark deployment in the appropriate environment
