@@ -278,7 +278,7 @@ function DraggableMember({
           className="absolute top-1 right-1 text-blue-500 hover:text-blue-700 transition-colors cursor-grab z-10"
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: (mouseDown || touchDragActive) ? 'none' : 'auto' }}
           title="Drag to move"
         >
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
