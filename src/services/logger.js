@@ -1,10 +1,9 @@
 // Centralized logging service for Vikings Event Management Mobile
 import * as Sentry from '@sentry/react';
-import { config } from '../config/env.js';
 
-// Environment configuration - Use robust detection from config
-const isDevelopment = config.actualEnvironment === 'development';
-const isProduction = config.actualEnvironment === 'production';
+// Environment configuration - Direct environment detection to avoid circular dependencies
+const isDevelopment = import.meta.env.DEV;
+const isProduction = import.meta.env.PROD;
 
 // Log levels
 export const LOG_LEVELS = {

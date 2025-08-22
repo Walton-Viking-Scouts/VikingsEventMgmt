@@ -23,6 +23,8 @@ import {
 } from '../services/campGroupAllocationService.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 import { findMemberSectionType, findMemberSectionName } from '../utils/sectionHelpers.js';
+import { isDemoMode } from '../config/demoMode.js';
+import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 
 /**
  * Simple organization function that works with getSummaryStats() data structure
@@ -677,9 +679,88 @@ function CampGroupsView({
     [calculateTotalMembers, recalculateSummary],
   );
 
+  /**
+   * Update camp group assignment in demo mode cache
+   * In demo mode, we standardize on f_1 for CampGroup field
+   */
+  const updateDemoCampGroupAssignment = useCallback((member, newGroupNumber, memberSectionId) => {
+    // In demo mode, we use standardized flexi record ID and term
+    const flexirecordid = 'flexi_viking_event';
+    const termid = '12345';
+    const cacheKey = `viking_flexi_data_${flexirecordid}_${memberSectionId}_${termid}_offline`;
+    
+    const cached = safeGetItem(cacheKey, { items: [] });
+    
+    // Convert scoutid to match the type in cache (both to numbers for comparison)
+    const memberScoutId = Number(member.scoutid);
+    const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === memberScoutId);
+    
+    if (memberIndex >= 0) {
+      // Update the CampGroup field (f_1 in demo mode)
+      cached.items[memberIndex].f_1 = newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
+      // Also update the CampGroup field for consistency
+      cached.items[memberIndex].CampGroup = newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
+      safeSetItem(cacheKey, cached);
+      
+      logger.info('Demo mode: Updated camp group in cache', {
+        memberId: member.scoutid,
+        memberName: member.name,
+        newGroup: newGroupNumber,
+        cacheKey,
+      }, LOG_CATEGORIES.APP);
+    } else {
+      logger.warn('Demo mode: Member not found in cache', {
+        memberId: member.scoutid,
+        memberScoutId,
+        cacheKey,
+        cachedScoutIds: cached.items.map(m => m.scoutid).slice(0, 5), // Show first 5 for debugging
+      }, LOG_CATEGORIES.APP);
+    }
+  }, []);
+
   // Handle member move between groups
   const handleMemberMove = useCallback(
     async (moveData) => {
+      // Check if we're in demo mode first
+      if (isDemoMode()) {
+        const memberName = moveData.member.name || `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() || 'Unknown Member';
+        
+        // Validate the move
+        const validation = validateMemberMove(
+          moveData.member,
+          moveData.toGroupNumber,
+          organizedGroups.groups,
+        );
+        if (!validation.valid) {
+          showToast('error', validation.error);
+          return;
+        }
+        
+        logger.info('Demo mode: Processing member move (cache-only)', {
+          memberId: moveData.member.scoutid,
+          memberName,
+          fromGroup: moveData.fromGroupName,
+          toGroup: moveData.toGroupName,
+        }, LOG_CATEGORIES.APP);
+        
+        // 1. Optimistic UI update
+        updateGroupsOptimistically(moveData);
+        
+        // 2. Update cache in demo mode
+        // In demo mode, use the first available section since all sections share the same event
+        const memberSectionId = moveData.member.sectionid || 11107; // Default to Adults section
+        updateDemoCampGroupAssignment(moveData.member, moveData.toGroupNumber, memberSectionId);
+        
+        // 3. Show success message
+        showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+        
+        // The optimistic update already handles the UI update
+        // The cache has been updated so next reload will show correct data
+        
+        return; // Exit early for demo mode
+      }
+      
+      // Production mode - existing logic
       if (
         !flexiRecordContext &&
         !organizedGroups.summary?.vikingEventDataAvailable

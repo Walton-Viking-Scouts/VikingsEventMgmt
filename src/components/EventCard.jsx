@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, Button, Badge } from './ui';
 import AttendanceGrid from './AttendanceGrid.jsx';
 
@@ -219,23 +219,14 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     }
   };
 
-  const getStatusBadge = (event) => {
-    const status = getEventStatus(event);
-
-    switch (status) {
-    case 'upcoming':
-      return <Badge variant="scout-blue">Upcoming</Badge>;
-
-    case 'ongoing':
-      return <Badge variant="scout-green">Ongoing</Badge>;
-
-    case 'past':
-      return <Badge variant="secondary">Past</Badge>;
-
-    default:
-      return null;
-    }
-  };
+  // Compute aggregated status once to avoid inline IIFE
+  const aggregatedStatus = useMemo(() => {
+    const statuses = new Set(eventCard.events.map(e => getEventStatus(e)));
+    if (statuses.has('ongoing')) return 'ongoing';
+    if (statuses.has('upcoming')) return 'upcoming';
+    if (statuses.has('past')) return 'past';
+    return null;
+  }, [eventCard.events]);
 
   const attendanceGrid = buildAttendanceGrid(eventCard.events);
   const hasAttendanceData = eventCard.events.some(
@@ -255,9 +246,13 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {eventCard.events.map((event) => (
-              <div key={event.eventid}>{getStatusBadge(event)}</div>
-            ))}
+            {aggregatedStatus === 'ongoing' ? (
+              <Badge variant="scout-green">Ongoing</Badge>
+            ) : aggregatedStatus === 'upcoming' ? (
+              <Badge variant="scout-blue">Upcoming</Badge>
+            ) : aggregatedStatus === 'past' ? (
+              <Badge variant="light">Past</Badge>
+            ) : null}
           </div>
         </div>
 

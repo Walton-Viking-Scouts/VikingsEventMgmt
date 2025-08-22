@@ -4,6 +4,7 @@ import { Network } from '@capacitor/network';
 import { Alert, Button, Modal } from './ui';
 import syncService from '../services/sync.js';
 import { testBackendConnection } from '../services/api.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 function OfflineIndicator({ hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
@@ -14,6 +15,12 @@ function OfflineIndicator({ hideBanner = false }) {
 
   // Test actual API connectivity using the rate-limited API service
   const testApiConnectivity = async () => {
+    // Skip API connectivity tests in demo mode
+    if (isDemoMode()) {
+      setApiConnected(true);
+      return true;
+    }
+    
     try {
 
       // Use the rate-limited testBackendConnection function from API service

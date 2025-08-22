@@ -10,6 +10,7 @@ import { getMostRecentTermId } from '../utils/termUtils.js';
 import { checkNetworkStatus, addNetworkListener } from '../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
@@ -304,6 +305,19 @@ const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 // API functions
 export async function getTerms(token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = 'viking_terms_offline';
+      const cached = safeGetItem(cacheKey, { items: [] });
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Using cached terms data', {
+          termsCount: cached.items?.length || 0,
+        }, LOG_CATEGORIES.API);
+      }
+      return cached;
+    }
+    
     const cacheKey = 'viking_terms_offline';
     
     // Check network status first
@@ -511,6 +525,20 @@ async function retrieveUserInfo(token) {
  * });
  */
 export async function getUserRoles(token) {
+  // Skip API calls in demo mode - use cached data only
+  const demoMode = isDemoMode();
+  if (demoMode) {
+    const cacheKey = 'viking_user_roles_offline';
+    const cached = safeGetItem(cacheKey, { sections: [] });
+    const sections = cached.sections || [];
+    if (import.meta.env.DEV) {
+      logger.debug('Demo mode: Using cached user roles', {
+        sectionsCount: sections.length,
+      }, LOG_CATEGORIES.API);
+    }
+    return sections;
+  }
+
   return sentryUtils.startSpan(
     {
       op: 'http.client',
@@ -681,6 +709,14 @@ export async function getUserRoles(token) {
  */
 export async function getEvents(sectionId, termId, token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = `viking_events_${sectionId}_${termId}_offline`;
+      const cached = safeGetItem(cacheKey, []);
+      return cached;
+    }
+    
     // Check network status first
     isOnline = await checkNetworkStatus();
         
@@ -753,6 +789,24 @@ export async function getEvents(sectionId, termId, token) {
  */
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = `viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
+      const cached = safeGetItem(cacheKey, []);
+      // Normalize to array format if cached as object with items
+      const attendance = Array.isArray(cached) ? cached : (cached.items || []);
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Using cached attendance', {
+          sectionId,
+          eventId,
+          termId,
+          attendanceCount: attendance.length,
+        }, LOG_CATEGORIES.API);
+      }
+      return attendance;
+    }
+    
     // Check network status first
     isOnline = await checkNetworkStatus();
         
@@ -826,6 +880,14 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
  */
 export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cached = safeGetItem(cacheKey, { items: [] });
+      return cached;
+    }
+    
     const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
     
     // Check network status first
@@ -948,6 +1010,14 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
  */
 export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
+      const cached = safeGetItem(cacheKey, { items: [] });
+      return cached;
+    }
+    
     if (!token) {
       throw new Error('No authentication token');
     }
@@ -1001,6 +1071,14 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
  */
 export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cacheKey = `viking_flexi_structure_${extraid}_offline`;
+      const cached = safeGetItem(cacheKey, null);
+      return cached;
+    }
+    
     const storageKey = `viking_flexi_structure_${extraid}_offline`;
     
     // Check network status first
@@ -1211,6 +1289,21 @@ export async function getStartupData(token) {
  * await updateFlexiRecord(123, 456, 789, 'f_1', 'Blue Group', '2024', 'Beavers', token);
  */
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating updateFlexiRecord success', {
+      scoutid,
+      flexirecordid,
+      columnid,
+      value,
+    }, LOG_CATEGORIES.API);
+    return {
+      ok: true,
+      success: true,
+      message: 'Demo mode: FlexiRecord update simulated',
+    };
+  }
+  
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
@@ -1265,6 +1358,22 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
  * await multiUpdateFlexiRecord(123, ['456', '789'], 'Yellow', 'f_1', '999', token);
  */
 export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, flexirecordid, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating multiUpdateFlexiRecord success', {
+      sectionid,
+      flexirecordid,
+      column,
+      value,
+      scoutCount: Array.isArray(scouts) ? scouts.length : 0,
+    }, LOG_CATEGORIES.API);
+    return {
+      ok: true,
+      success: true,
+      message: `Demo mode: Multi-update simulated for ${Array.isArray(scouts) ? scouts.length : 0} scouts`,
+    };
+  }
+  
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
@@ -1615,6 +1724,23 @@ export async function getListOfMembers(sections, token) {
  */
 export async function getEventSummary(eventId, token) {
   try {
+    // Skip API calls in demo mode - return mock data
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Returning mock event summary', {
+          eventId,
+        }, LOG_CATEGORIES.API);
+      }
+      // Return a basic mock summary for demo mode
+      return {
+        eventId,
+        attendees: 0,
+        invited: 0,
+        confirmed: 0,
+      };
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -1668,6 +1794,21 @@ export async function getEventSummary(eventId, token) {
  */
 export async function getEventSharingStatus(eventId, sectionId, token) {
   try {
+    // Skip API calls in demo mode - return mock data
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      if (import.meta.env.DEV) {
+        logger.debug('Demo mode: Returning mock sharing status', {
+          eventId,
+          sectionId,
+        }, LOG_CATEGORIES.API);
+      }
+      // Return empty sharing status for demo mode
+      return {
+        items: [],
+      };
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -1727,11 +1868,50 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
+    // Skip API calls in demo mode - return mock shared attendance data
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      logger.debug('Demo mode: Generating mock shared attendance data', {}, LOG_CATEGORIES.API);
+      return generateDemoSharedAttendance(eventId, sectionId);
+    }
+
+    // Check for cached data first
+    const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const cachedData = JSON.parse(cached);
+        // Check if cache is still fresh (within 1 hour)
+        const cacheAge = Date.now() - (cachedData._cacheTimestamp || 0);
+        const maxAge = 60 * 60 * 1000; // 1 hour
+        
+        if (cacheAge < maxAge) {
+          logger.debug('Using cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
+          return cachedData;
+        } else {
+          logger.debug('Cached shared attendance data expired, fetching fresh data', { eventId, sectionId }, LOG_CATEGORIES.API);
+        }
+      }
+    } catch (cacheError) {
+      logger.warn('Failed to parse cached shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
     if (!isOnline) {
-      throw new Error('No network connection available for shared attendance');
+      // If offline, try to return stale cache
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const cachedData = JSON.parse(cached);
+          logger.info('Using stale cached shared attendance data (offline)', { eventId, sectionId }, LOG_CATEGORIES.API);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        // Ignore cache errors when offline
+      }
+      throw new Error('No network connection and no cached shared attendance available');
     }
 
     if (!token) {
@@ -1740,7 +1920,18 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
     // Simple circuit breaker - use cache if auth already failed  
     if (!authHandler.shouldMakeAPICall()) {
-      throw new Error('Authentication failed - cannot fetch shared attendance');
+      // Try to return stale cache if auth failed
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const cachedData = JSON.parse(cached);
+          logger.info('Using stale cached shared attendance data (auth failed)', { eventId, sectionId }, LOG_CATEGORIES.API);
+          return cachedData;
+        }
+      } catch (cacheError) {
+        // Ignore cache errors when auth failed
+      }
+      throw new Error('Authentication failed and no cached shared attendance available');
     }
 
     const data = await withRateLimitQueue(async () => {
@@ -1758,7 +1949,39 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
     });
 
-    return data || { combined_attendance: [], summary: {}, sections: [] };
+    const result = data || { combined_attendance: [], summary: {}, sections: [] };
+    
+    // Log the data shape for development (only when fresh API data is received)
+    if (import.meta.env.DEV) {
+      console.log('🔍 Shared Event Attendance API Response Shape:', {
+        eventId,
+        sectionId,
+        dataStructure: {
+          combined_attendance_count: result.combined_attendance?.length || 0,
+          combined_attendance_sample: result.combined_attendance?.[0] || null,
+          summary_keys: Object.keys(result.summary || {}),
+          summary_data: result.summary,
+          sections_count: result.sections?.length || 0,
+          sections_sample: result.sections?.[0] || null,
+          top_level_keys: Object.keys(result),
+        },
+        full_response: result,
+      });
+    }
+    
+    // Cache the successful response
+    try {
+      const dataToCache = {
+        ...result,
+        _cacheTimestamp: Date.now(),
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      logger.debug('Cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
+    } catch (cacheError) {
+      logger.warn('Failed to cache shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
+    }
+
+    return result;
 
   } catch (error) {
     logger.error('Error fetching shared event attendance', { 
@@ -1766,6 +1989,19 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       sectionId, 
       error: error.message, 
     }, LOG_CATEGORIES.API);
+    
+    // Try to return stale cached data as a last resort
+    const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    try {
+      const cached = localStorage.getItem(sharedCacheKey);
+      if (cached) {
+        const cachedData = JSON.parse(cached);
+        logger.info('Using stale cached shared attendance data (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
+        return cachedData;
+      }
+    } catch (cacheError) {
+      // Ignore cache errors in fallback
+    }
     
     // Re-throw the error to let calling code handle it
     throw error;
@@ -1787,6 +2023,12 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
  * }
  */
 export async function testBackendConnection() {
+  // Skip health checks in demo mode
+  const demoMode = isDemoMode();
+  if (demoMode) {
+    return { status: 'ok' };
+  }
+  
   try {
     const result = await withRateLimitQueue(async () => {
       const response = await fetch(`${BACKEND_URL}/health`, {
@@ -1810,4 +2052,36 @@ export async function testBackendConnection() {
   }
 }
 
-
+/**
+ * Get cached shared attendance data for demo mode
+ */
+function generateDemoSharedAttendance(eventId, sectionId) {
+  // Simply fetch the cached shared attendance data
+  const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+  const cachedSharedAttendance = localStorage.getItem(sharedCacheKey);
+  
+  if (import.meta.env.DEV) {
+    logger.debug('Demo mode: Looking for cached shared attendance', {
+      eventId,
+      sectionId,
+      cacheKey: sharedCacheKey,
+      found: !!cachedSharedAttendance,
+    }, LOG_CATEGORIES.API);
+  }
+  
+  if (cachedSharedAttendance) {
+    try {
+      const attendanceData = JSON.parse(cachedSharedAttendance);
+      return attendanceData;
+    } catch (error) {
+      logger.warn('Failed to parse cached shared attendance', { error: error.message }, LOG_CATEGORIES.API);
+    }
+  }
+  
+  // Return empty structure if no cached data found
+  return {
+    identifier: 'scoutsectionid',
+    items: [],
+    _cacheTimestamp: Date.now(),
+  };
+}

@@ -216,7 +216,17 @@ class DatabaseService {
     
     if (!this.isNative || !this.db) {
       // localStorage fallback
-      return safeGetItem('viking_sections_offline', []);
+      const sectionsData = safeGetItem('viking_sections_offline', []);
+      
+      // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
+      // In production, they might be timestamped format with {items: [...]}
+      let sections = [];
+      if (Array.isArray(sectionsData)) {
+        sections = sectionsData;
+      } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+        sections = sectionsData.items;
+      }
+      return sections;
     }
     
     const query = 'SELECT * FROM sections ORDER BY sectionname';
@@ -268,7 +278,17 @@ class DatabaseService {
     if (!this.isNative || !this.db) {
       // localStorage fallback
       const key = `viking_events_${sectionId}_offline`;
-      return safeGetItem(key, []);
+      const eventsData = safeGetItem(key, []);
+      
+      // In demo mode, events are stored as flat array (already parsed by safeGetItem)
+      // In production, they might be timestamped format with {items: [...]}
+      let events = [];
+      if (Array.isArray(eventsData)) {
+        events = eventsData;
+      } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
+        events = eventsData.items;
+      }
+      return events;
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';

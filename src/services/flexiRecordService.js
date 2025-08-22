@@ -5,6 +5,7 @@ import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
 import { sentryUtils } from './sentry.js';
+import { isDemoMode } from '../config/demoMode.js';
 import { 
   getFlexiRecords,
   getFlexiStructure, 
@@ -91,6 +92,13 @@ function cacheData(cacheKey, data) {
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    if (isDemoMode()) {
+      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cached = safeGetItem(cacheKey, { items: [] });
+      return cached;
+    }
+    
     const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
     
     // Check network status first
@@ -159,6 +167,13 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    if (isDemoMode()) {
+      const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
+      const cached = safeGetItem(cacheKey, null);
+      return cached;
+    }
+    
     const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
     
     // Check network status first
@@ -235,6 +250,13 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    if (isDemoMode()) {
+      const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
+      const cached = safeGetItem(storageKey, null);
+      return cached;
+    }
+    
     const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
     
     // Check network status first

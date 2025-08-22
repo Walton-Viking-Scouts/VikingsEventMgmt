@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
@@ -11,19 +11,20 @@ import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
-  console.log('AttendanceView: component mounted');
-  
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
   window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
   
   // Debug what members data we're receiving (only log once)
   const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
   if (members?.length > 0 && !hasLoggedMembers) {
-    console.log('🔍 AttendanceView members count:', members.length);
-    console.log('🔍 AttendanceView first member keys:', Object.keys(members[0]).sort());
-    console.log('🔍 AttendanceView first member data:', members[0]);
+    if (import.meta.env.DEV) {
+      console.log('🔍 AttendanceView members count:', members.length);
+      console.log('🔍 AttendanceView first member keys:', Object.keys(members[0]).sort());
+      console.log('🔍 AttendanceView first member data:', members[0]);
+    }
     setHasLoggedMembers(true);
   }
   
@@ -69,7 +70,9 @@ function AttendanceView({ events, members, onBack }) {
         localStorage.getItem('viking_sections_offline') || '[]',
       );
     } catch (error) {
-      console.warn('Failed to parse cached sections data:', error);
+      if (import.meta.env.DEV) {
+        console.warn('Failed to parse cached sections data:', error);
+      }
       return [];
     }
   }, []);
@@ -158,6 +161,17 @@ function AttendanceView({ events, members, onBack }) {
     });
   };
 
+  // Filter for record count display - includes all person types
+  const filterAttendanceDataForCount = (data, attendanceFilters, sectionFilters) => {
+    return data.filter((record) => {
+      const attendanceStatus = getAttendanceStatus(record.attending);
+      const attendanceMatch = attendanceFilters[attendanceStatus];
+      const sectionMatch = sectionFilters[record.sectionid];
+
+      return attendanceMatch && sectionMatch;
+    });
+  };
+
   // Update filtered data when attendance data or filters change
   useEffect(() => {
     const filtered = filterAttendanceData(
@@ -185,18 +199,11 @@ function AttendanceView({ events, members, onBack }) {
     });
   }, [events]);
 
-  // Load shared attendance data when switching to shared attendance view
-  useEffect(() => {
-    if (viewMode === 'sharedAttendance' && hasSharedEvents && !sharedAttendanceData && !loadingSharedAttendance) {
-      loadSharedAttendanceData();
-    }
-  }, [viewMode, hasSharedEvents]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadSharedAttendanceData = async () => {
+  const loadSharedAttendanceData = useCallback(async () => {
     setLoadingSharedAttendance(true);
     try {
       const token = getToken();
-      if (!token) {
+      if (!isDemoMode() && !token) {
         throw new Error('No authentication token available');
       }
 
@@ -218,20 +225,33 @@ function AttendanceView({ events, members, onBack }) {
         throw new Error('No shared event found');
       }
 
-      console.log('Loading shared attendance for event:', sharedEvent.eventid, 'section:', sharedEvent.sectionid);
+      if (import.meta.env.DEV) {
+        console.log('Loading shared attendance for event:', sharedEvent.eventid, 'section:', sharedEvent.sectionid);
+      }
       
       const sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
       
-      console.log('Received shared attendance data:', sharedData);
+      if (import.meta.env.DEV) {
+        console.log('Received shared attendance data:', sharedData);
+      }
       setSharedAttendanceData(sharedData);
       
     } catch (error) {
-      console.error('Error loading shared attendance data:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error loading shared attendance data:', error);
+      }
       setSharedAttendanceData({ error: error.message });
     } finally {
       setLoadingSharedAttendance(false);
     }
-  };
+  }, [events]);
+
+  // Load shared attendance data when switching to shared attendance view
+  useEffect(() => {
+    if (viewMode === 'sharedAttendance' && hasSharedEvents && !sharedAttendanceData && !loadingSharedAttendance) {
+      loadSharedAttendanceData();
+    }
+  }, [viewMode, hasSharedEvents, sharedAttendanceData, loadingSharedAttendance, loadSharedAttendanceData]);
 
   const getSummaryStats = () => {
     const memberStats = {};
@@ -460,17 +480,19 @@ function AttendanceView({ events, members, onBack }) {
   const transformMemberForModal = (cachedMember) => {
     if (!cachedMember) return null;
     
-    console.log('🔄 transformMemberForModal - Checking cached member:', {
-      scoutid: cachedMember.scoutid,
-      has_firstname: 'firstname' in cachedMember,
-      firstname_value: cachedMember.firstname,
-      has_first_name: 'first_name' in cachedMember,
-      first_name_value: cachedMember.first_name,
-      has_lastname: 'lastname' in cachedMember,
-      lastname_value: cachedMember.lastname,
-      has_last_name: 'last_name' in cachedMember,
-      last_name_value: cachedMember.last_name,
-    });
+    if (import.meta.env.DEV) {
+      console.log('🔄 transformMemberForModal - Checking cached member:', {
+        scoutid: cachedMember.scoutid,
+        has_firstname: 'firstname' in cachedMember,
+        firstname_value: cachedMember.firstname,
+        has_first_name: 'first_name' in cachedMember,
+        first_name_value: cachedMember.first_name,
+        has_lastname: 'lastname' in cachedMember,
+        lastname_value: cachedMember.lastname,
+        has_last_name: 'last_name' in cachedMember,
+        last_name_value: cachedMember.last_name,
+      });
+    }
     
     // The cached data should already have both firstname and first_name
     // Just ensure firstname/lastname are set (modal uses these)
@@ -486,10 +508,12 @@ function AttendanceView({ events, members, onBack }) {
       sectionname: memberSectionName || cachedMember.sectionname, // Also set sectionname for consistency
     };
     
-    console.log('🔄 transformMemberForModal - Result:', {
-      firstname: transformed.firstname,
-      lastname: transformed.lastname,
-    });
+    if (import.meta.env.DEV) {
+      console.log('🔄 transformMemberForModal - Result:', {
+        firstname: transformed.firstname,
+        lastname: transformed.lastname,
+      });
+    }
     
     return transformed;
   };
@@ -509,16 +533,18 @@ function AttendanceView({ events, members, onBack }) {
       member = transformMemberForModal(cachedMember);
       
       // Debug log to see what data Register/AttendanceView is passing to modal
-      console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
-        memberScoutId: member.scoutid,
-        memberName: member.name || `${member.firstname} ${member.lastname}`,
-        memberKeys: Object.keys(member),
-        memberData: member,
-        hasContactInfo: !!(member.contact_primary_member || member.contact_primary_1),
-        hasMedicalInfo: !!(member.medical || member.dietary || member.allergies),
-        totalFields: Object.keys(member).length,
-        source: 'transformMemberForModal (cached member)',
-      });
+      if (import.meta.env.DEV) {
+        console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
+          memberScoutId: member.scoutid,
+          memberName: member.name || `${member.firstname} ${member.lastname}`,
+          memberKeys: Object.keys(member),
+          memberData: member,
+          hasContactInfo: !!(member.contact_primary_member || member.contact_primary_1),
+          hasMedicalInfo: !!(member.medical || member.dietary || member.allergies),
+          totalFields: Object.keys(member).length,
+          source: 'transformMemberForModal (cached member)',
+        });
+      }
     } else {
       // Fallback to basic data from attendance record
       member = {
@@ -530,16 +556,18 @@ function AttendanceView({ events, members, onBack }) {
       };
       
       // Debug log for fallback case
-      console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
-        memberScoutId: member.scoutid,
-        memberName: `${member.firstname} ${member.lastname}`,
-        memberKeys: Object.keys(member),
-        memberData: member,
-        hasContactInfo: false,
-        hasMedicalInfo: false,
-        totalFields: Object.keys(member).length,
-        source: 'fallback (attendance record only)',
-      });
+      if (import.meta.env.DEV) {
+        console.log('AttendanceView (Register) - Member clicked, passing to modal:', {
+          memberScoutId: member.scoutid,
+          memberName: `${member.firstname} ${member.lastname}`,
+          memberKeys: Object.keys(member),
+          memberData: member,
+          hasContactInfo: false,
+          hasMedicalInfo: false,
+          totalFields: Object.keys(member).length,
+          source: 'fallback (attendance record only)',
+        });
+      }
     }
 
     setSelectedMember(member);
@@ -612,13 +640,16 @@ function AttendanceView({ events, members, onBack }) {
       <Card className="m-4">
         <Card.Header>
           <Card.Title>
-            Attendance Data{' '}
-            {filteredAttendanceData.length !== attendanceData.length && (
-              <span className="text-sm font-normal text-gray-600">
-                ({filteredAttendanceData.length} of {attendanceData.length}{' '}
-                records)
-              </span>
-            )}
+            Attendance Data - {events.length === 1 ? events[0].name : `${events[0].name} (${events.length} sections)`}{' '}
+            {(() => {
+              const filteredForCount = filterAttendanceDataForCount(attendanceData, attendanceFilters, sectionFilters);
+              return filteredForCount.length !== attendanceData.length && (
+                <span className="text-sm font-normal text-gray-600">
+                  ({filteredForCount.length} of {attendanceData.length}{' '}
+                  records)
+                </span>
+              );
+            })()}
           </Card.Title>
           <div className="flex gap-2 items-center flex-wrap">
             <Button variant="outline-scout-blue" onClick={onBack} type="button">
@@ -1082,7 +1113,7 @@ function AttendanceView({ events, members, onBack }) {
                                 </Badge>
                               )}
                               {member.notInvited > 0 && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="light" className="text-xs">
                                   Not Invited
                                 </Badge>
                               )}
@@ -1350,7 +1381,7 @@ function AttendanceView({ events, members, onBack }) {
                             <Badge variant="scout-purple" size="md">
                               {totalAdults} Adults
                             </Badge>
-                            <Badge variant="secondary" size="md">
+                            <Badge variant="light" size="md">
                               {sections.length} Sections
                             </Badge>
                           </div>

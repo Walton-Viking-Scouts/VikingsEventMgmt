@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance } from '../services/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../services/auth.js';
+import { isDemoMode } from '../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
@@ -26,11 +27,17 @@ export function useAttendanceData(events) {
       setLoading(true);
       setError(null);
       
+      // Skip API calls in demo mode - only use cached data
+      if (isDemoMode()) {
+        logger.debug('Demo mode: Skipping API calls, using cached attendance only', {}, LOG_CATEGORIES.COMPONENT);
+      }
       
       // Validate event data integrity
       const hasInvalidEvents = events.some(event => !event.sectionid || event.termid === null || event.termid === undefined);
       if (events.length > 0 && hasInvalidEvents) {
-        console.error('🚫 Invalid events detected:', events.filter(event => !event.sectionid || event.termid === null || event.termid === undefined));
+        if (import.meta.env.DEV) {
+          console.error('🚫 Invalid events detected:', events.filter(event => !event.sectionid || event.termid === null || event.termid === undefined));
+        }
         setError('Invalid event data detected. Please refresh the page to reload.');
         return;
       }
@@ -44,13 +51,15 @@ export function useAttendanceData(events) {
       for (const event of events) {
         // Validate that event has required fields (should be included from eventDashboardHelpers)
         if (!event.sectionid || !event.termid || !event.eventid) {
-          console.warn('Event missing required fields:', {
-            name: event.name,
-            sectionid: event.sectionid,
-            termid: event.termid,
-            eventid: event.eventid,
-            availableKeys: Object.keys(event),
-          });
+          if (import.meta.env.DEV) {
+            console.warn('Event missing required fields:', {
+              name: event.name,
+              sectionid: event.sectionid,
+              termid: event.termid,
+              eventid: event.eventid,
+              availableKeys: Object.keys(event),
+            });
+          }
           continue; // Skip this event
         }
         
@@ -63,14 +72,18 @@ export function useAttendanceData(events) {
           if (cached) {
             const cachedAttendance = JSON.parse(cached);
             attendanceResponse = { items: cachedAttendance };
-            console.log(`Found cached attendance for event ${event.name}:`, cachedAttendance.length, 'records');
+            if (import.meta.env.DEV) {
+              console.log(`Found cached attendance for event ${event.name}:`, cachedAttendance.length, 'records');
+            }
           }
         } catch (error) {
-          console.warn('Failed to parse cached attendance data:', error);
+          if (import.meta.env.DEV) {
+            console.warn('Failed to parse cached attendance data:', error);
+          }
         }
         
-        if (!attendanceResponse && token) {
-          // Fallback to API call if no cached data
+        if (!attendanceResponse && token && !isDemoMode()) {
+          // Fallback to API call if no cached data (skip in demo mode)
           try {
             const attendanceItems = await getEventAttendance(
               event.sectionid, 
@@ -81,7 +94,9 @@ export function useAttendanceData(events) {
             
             attendanceResponse = { items: attendanceItems || [] };
           } catch (eventError) {
-            console.warn(`Error loading attendance for event ${event.name}:`, eventError);
+            if (import.meta.env.DEV) {
+              console.warn(`Error loading attendance for event ${event.name}:`, eventError);
+            }
             attendanceResponse = { items: [] };
           }
         }
@@ -124,7 +139,9 @@ export function useAttendanceData(events) {
       await loadVikingEventData();
       
     } catch (err) {
-      console.error('Error loading attendance:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error loading attendance:', err);
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -182,12 +199,14 @@ export function useAttendanceData(events) {
       const token = getToken();
       
       // Enhanced logging for debugging deployed environment issues
-      console.log('useAttendanceData: Loading Viking Event data', {
-        eventsCount: events?.length || 0,
-        hasToken: !!token,
-        tokenLength: token?.length || 0,
-        eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
-      });
+      if (import.meta.env.DEV) {
+        console.log('useAttendanceData: Loading Viking Event data', {
+          eventsCount: events?.length || 0,
+          hasToken: !!token,
+          tokenLength: token?.length || 0,
+          eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
+        });
+      }
       
       if (!token) {
         logger.info(
@@ -215,21 +234,25 @@ export function useAttendanceData(events) {
       // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token);
       
-      console.log('useAttendanceData: Viking Event data loaded successfully', {
-        sectionsWithData: Array.from(vikingEventMap.entries())
-          .filter(([_, data]) => data !== null)
-          .map(([sectionId, _]) => sectionId),
-        totalSections: vikingEventMap.size,
-      });
+      if (import.meta.env.DEV) {
+        console.log('useAttendanceData: Viking Event data loaded successfully', {
+          sectionsWithData: Array.from(vikingEventMap.entries())
+            .filter(([_, data]) => data !== null)
+            .map(([sectionId, _]) => sectionId),
+          totalSections: vikingEventMap.size,
+        });
+      }
       
       setVikingEventData(vikingEventMap);
       
     } catch (error) {
-      console.error('useAttendanceData: Error loading Viking Event Management data', {
-        error: error.message,
-        stack: error.stack,
-        eventsCount: events?.length || 0,
-      });
+      if (import.meta.env.DEV) {
+        console.error('useAttendanceData: Error loading Viking Event Management data', {
+          error: error.message,
+          stack: error.stack,
+          eventsCount: events?.length || 0,
+        });
+      }
       // Don't set error state as this is supplementary data
     }
   };
