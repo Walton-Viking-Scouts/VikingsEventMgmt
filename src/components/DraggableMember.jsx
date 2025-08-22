@@ -137,9 +137,10 @@ function DraggableMember({
       onDragEnd={handleDragEnd}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onTouchStart={(e) => {
+      onTouchStart={(_e) => {
         if (isDraggable) {
-          e.preventDefault(); // Prevent context menu on long press
+          // Don't call preventDefault() in touch events due to passive listener restrictions
+          // Instead, use CSS touch-action: none; to prevent default behaviors
           setMouseDown(true);
         }
       }}
