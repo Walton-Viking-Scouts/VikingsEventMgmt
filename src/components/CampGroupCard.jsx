@@ -142,7 +142,7 @@ function CampGroupCard({
       // For mobile drag, reconstruct the complete member object from original member data
       // Find the original member in the group to preserve all fields
       const originalMember = [...(group.youngPeople || [])].find(m => 
-        String(m.scoutid) === String(dragData.memberId)
+        String(m.scoutid) === String(dragData.memberId),
       );
       
       const member = originalMember || {
