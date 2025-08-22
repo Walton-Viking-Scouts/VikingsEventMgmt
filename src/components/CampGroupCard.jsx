@@ -139,18 +139,31 @@ function CampGroupCard({
       }
       // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
       // we can safely create a member object with person_type: 'Young People'
-      // For mobile drag, reconstruct the complete member object from original member data
-      // Find the original member in the group to preserve all fields
-      const originalMember = [...(group.youngPeople || [])].find(m => 
-        String(m.scoutid) === String(dragData.memberId),
-      );
+      // Prefer dragData.member when available (complete object from drag source)
+      let member;
+      if (dragData.member) {
+        // Use complete member object from drag data
+        member = dragData.member;
+      } else {
+        // Fall back to constructing minimal object from dragData fields
+        member = {
+          scoutid: dragData.memberId,
+          name: dragData.memberName,
+          person_type: 'Young People',
+          sectionid: dragData.sectionid,
+        };
+        
+        // Last resort: lookup in drop target group for missing fields (may not find anything)
+        const originalMember = [...(group.youngPeople || [])].find(m => 
+          String(m.scoutid) === String(dragData.memberId),
+        );
+        if (originalMember) {
+          member = { ...member, ...originalMember };
+        }
+      }
       
-      const member = originalMember || {
-        scoutid: dragData.memberId,
-        name: dragData.memberName,
-        person_type: 'Young People',
-        sectionid: dragData.sectionid,
-      };
+      // TODO: Ensure DraggableMember emits a full member object on mobile drags 
+      // so dragData.member is provided to the drop handler
 
 
       // Call the move handler
