@@ -262,7 +262,7 @@ function DraggableMember({
       onMouseUp={handleMouseUp}
       style={{
         maxWidth: '100%',
-        touchAction: isDraggable && (mouseDown || touchDragActive) ? 'none' : 'auto',
+        touchAction: (mouseDown || touchDragActive) ? 'none' : 'auto',
         userSelect: 'none',
         WebkitUserSelect: 'none',
         msUserSelect: 'none',
