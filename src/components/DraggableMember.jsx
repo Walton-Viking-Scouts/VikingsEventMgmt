@@ -159,7 +159,7 @@ function DraggableMember({
       element.removeEventListener('touchend', handleTouchEnd);
       element.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [isDraggable, member, group, onDragStart, onDragEnd]);
+  }, [isDraggable, mouseDown, touchDragActive, member, group, memberName, onDragStart, onDragEnd, dragThreshold]);
 
   const handleMouseDown = (_e) => {
     if (!isDraggable) return;
