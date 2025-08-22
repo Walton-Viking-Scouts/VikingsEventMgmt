@@ -4,9 +4,10 @@ import { cn } from '../../utils/cn';
 /**
  * Tailwind-based Card component to replace Bootstrap cards
  */
-const Card = ({ children, className = '', ...props }) => {
+const Card = React.forwardRef(({ children, className = '', ...props }, ref) => {
   return (
     <div
+      ref={ref}
       className={cn(
         'bg-white rounded-lg border border-gray-200 shadow-sm',
         className,
@@ -16,7 +17,8 @@ const Card = ({ children, className = '', ...props }) => {
       {children}
     </div>
   );
-};
+});
+Card.displayName = 'Card';
 
 const CardHeader = ({ children, className = '', ...props }) => {
   return (
