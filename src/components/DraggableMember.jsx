@@ -318,7 +318,7 @@ function DraggableMember({
       </div>
 
       {/* Mobile drag preview that follows finger */}
-      {touchDragActive && dragPosition.x > 0 && (
+      {touchDragActive && (
         <div
           className="fixed pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2 opacity-80 scale-95 rotate-2 shadow-xl"
           style={{
