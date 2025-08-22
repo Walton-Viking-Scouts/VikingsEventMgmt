@@ -165,32 +165,41 @@ jobs:
           echo "🔢 Setting version based on deployment environment..."
           set -Eeuo pipefail
           
+          # Function to safely escape shell input
+          escape_shell_input() {
+            local input="$1"
+            # Remove potentially dangerous characters and limit length
+            echo "$input" | sed 's/[;&|`$(){}]/\\&/g' | cut -c1-200
+          }
+          
           # Export GH_TOKEN for gh CLI commands
           export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           
-          # Get the actual PR title (not commit message)
+          # Get the actual PR title (not commit message) with input validation
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # For PR events, use the PR title directly
-            PR_TITLE="${{ github.event.pull_request.title }}"
+            RAW_PR_TITLE="${{ github.event.pull_request.title }}"
+            PR_TITLE=$(escape_shell_input "$RAW_PR_TITLE")
             echo "📋 Using PR title from pull_request event: $PR_TITLE"
           else
             # For push events, find associated PR via GitHub API
             echo "🔍 Push event detected, searching for associated PR..."
             COMMIT_SHA="${{ github.sha }}"
             
-            # Use GitHub API to find PRs associated with this commit
-            API_RESPONSE=$(curl -s \
+            # Use GitHub API to find PRs associated with this commit (with error handling)
+            API_RESPONSE=$(curl -s -f \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/commits/${COMMIT_SHA}/pulls" \
-              | jq -r '.[0].title // empty' 2>/dev/null || echo "")
+              2>/dev/null | jq -r '.[0].title // empty' 2>/dev/null || echo "")
             
             if [ -n "$API_RESPONSE" ] && [ "$API_RESPONSE" != "null" ]; then
-              PR_TITLE="$API_RESPONSE"
+              PR_TITLE=$(escape_shell_input "$API_RESPONSE")
               echo "📋 Found associated PR title: $PR_TITLE"
             else
               # Fallback to commit message if no PR found
-              PR_TITLE="${{ github.event.head_commit.message }}"
+              RAW_COMMIT_MSG="${{ github.event.head_commit.message }}"
+              PR_TITLE=$(escape_shell_input "$RAW_COMMIT_MSG")
               echo "📋 No associated PR found, using commit message: $PR_TITLE"
             fi
           fi
@@ -257,38 +266,43 @@ jobs:
               IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
               echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
               
-              # Determine version bump type based on PR title patterns
+              # Determine version bump type based on PR title patterns (using safer case matching)
               VERSION_TYPE="patch"  # Default to patch
               
-              # Check for explicit version type tags in PR title
-              if echo "$PR_TITLE" | grep -iq '\[major\]'; then
-                VERSION_TYPE="major"
-                echo "🔴 [major] tag detected in PR title"
-              elif echo "$PR_TITLE" | grep -iq '\[minor\]'; then
-                VERSION_TYPE="minor"
-                echo "🟡 [minor] tag detected in PR title"
-              elif echo "$PR_TITLE" | grep -iq '\[patch\]'; then
-                VERSION_TYPE="patch"
-                echo "🟢 [patch] tag detected in PR title"
-              # Check for conventional commit patterns (using ERE with optional scopes)
-              elif echo "$PR_TITLE" | grep -iE '^(feat|feature)(\(.+\))?:'; then
-                VERSION_TYPE="minor"
-                echo "🟡 feat: conventional commit detected in PR title"
-              elif echo "$PR_TITLE" | grep -iq 'BREAKING CHANGE' \
-                || echo "$PR_TITLE" | grep -iE '^(feat|feature|fix|bugfix|chore|refactor|style|perf|test|build|ci|docs|revert)(\([^)]+\))?!:' \
-                || echo "$PR_TITLE" | grep -iq '^breaking:'; then
-                VERSION_TYPE="major"
-                echo "🔴 BREAKING CHANGE detected in PR title"
-              elif echo "$PR_TITLE" | grep -iE '^(fix|bugfix)(\(.+\))?:'; then
-                VERSION_TYPE="patch"
-                echo "🟢 fix: conventional commit detected in PR title"
-              # Additional semantic patterns
-              elif echo "$PR_TITLE" | grep -iE '^(perf|refactor|style)(\(.+\))?:'; then
-                VERSION_TYPE="patch"
-                echo "🟢 performance/refactor/style change detected in PR title"
-              else
-                echo "🟢 No semantic versioning patterns detected, defaulting to patch"
-              fi
+              # Check for explicit version type tags and patterns in PR title
+              case "$PR_TITLE" in
+                *"[major]"*|*"[MAJOR]"*)
+                  VERSION_TYPE="major"
+                  echo "🔴 [major] tag detected in PR title"
+                  ;;
+                *"[minor]"*|*"[MINOR]"*)
+                  VERSION_TYPE="minor"
+                  echo "🟡 [minor] tag detected in PR title"
+                  ;;
+                *"[patch]"*|*"[PATCH]"*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 [patch] tag detected in PR title"
+                  ;;
+                *"BREAKING CHANGE"*|*"breaking:"*|*"!:"*)
+                  VERSION_TYPE="major"
+                  echo "🔴 BREAKING CHANGE detected in PR title"
+                  ;;
+                "feat:"*|"feature:"*|"feat("*|"feature("*)
+                  VERSION_TYPE="minor"
+                  echo "🟡 feat: conventional commit detected in PR title"
+                  ;;
+                "fix:"*|"bugfix:"*|"fix("*|"bugfix("*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 fix: conventional commit detected in PR title"
+                  ;;
+                "perf:"*|"refactor:"*|"style:"*|"perf("*|"refactor("*|"style("*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 performance/refactor/style change detected in PR title"
+                  ;;
+                *)
+                  echo "🟢 No semantic versioning patterns detected, defaulting to patch"
+                  ;;
+              esac
               
               # Compute new version based on bump type
               if [ "$VERSION_TYPE" = "major" ]; then
