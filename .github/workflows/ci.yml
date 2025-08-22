@@ -378,43 +378,9 @@ jobs:
               IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
               echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
 
-              # Determine version bump type based on PR title patterns (using safer case matching)
-              VERSION_TYPE="patch"  # Default to patch
-
-              # Check for explicit version type tags and patterns in PR title
-              case "$PR_TITLE" in
-                *"[major]"*|*"[MAJOR]"*)
-                  VERSION_TYPE="major"
-                  echo "🔴 [major] tag detected in PR title"
-                  ;;
-                *"[minor]"*|*"[MINOR]"*)
-                  VERSION_TYPE="minor"
-                  echo "🟡 [minor] tag detected in PR title"
-                  ;;
-                *"[patch]"*|*"[PATCH]"*)
-                  VERSION_TYPE="patch"
-                  echo "🟢 [patch] tag detected in PR title"
-                  ;;
-                *"BREAKING CHANGE"*|*"breaking:"*|*"!:"*)
-                  VERSION_TYPE="major"
-                  echo "🔴 BREAKING CHANGE detected in PR title"
-                  ;;
-                "feat:"*|"feature:"*|"feat("*|"feature("*)
-                  VERSION_TYPE="minor"
-                  echo "🟡 feat: conventional commit detected in PR title"
-                  ;;
-                "fix:"*|"bugfix:"*|"fix("*|"bugfix("*)
-                  VERSION_TYPE="patch"
-                  echo "🟢 fix: conventional commit detected in PR title"
-                  ;;
-                "perf:"*|"refactor:"*|"style:"*|"perf("*|"refactor("*|"style("*)
-                  VERSION_TYPE="patch"
-                  echo "🟢 performance/refactor/style change detected in PR title"
-                  ;;
-                *)
-                  echo "🟢 No semantic versioning patterns detected, defaulting to patch"
-                  ;;
-              esac
+              # Use the VERSION_TYPE already computed by detect_version_type() from raw PR title
+              # This ensures consistent pattern matching between preview and production deployments
+              echo "🔍 Using pre-computed version type: $VERSION_TYPE (from raw PR title analysis)"
 
               # Compute new version based on bump type
               if [ "$VERSION_TYPE" = "major" ]; then
