@@ -51,7 +51,6 @@ function DraggableMember({
     if (!element || !isDraggable) return;
 
     const handleTouchStart = (e) => {
-      e.preventDefault();
       const touch = e.touches[0];
       touchStartPos.current = { x: touch.clientX, y: touch.clientY };
       setMouseDown(true);
@@ -59,7 +58,6 @@ function DraggableMember({
 
     const handleTouchMove = (e) => {
       if (!mouseDown) return;
-      e.preventDefault();
       
       const touch = e.touches[0];
       const deltaX = Math.abs(touch.clientX - touchStartPos.current.x);
@@ -146,11 +144,11 @@ function DraggableMember({
       }
     };
 
-    // Add non-passive event listeners for mobile drag simulation
-    element.addEventListener('touchstart', handleTouchStart, { passive: false });
-    element.addEventListener('touchmove', handleTouchMove, { passive: false });
-    element.addEventListener('touchend', handleTouchEnd, { passive: false });
-    element.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+    // Add passive listeners; rely on CSS touch-action for default prevention
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: true });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
+    element.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
       element.removeEventListener('touchstart', handleTouchStart);
