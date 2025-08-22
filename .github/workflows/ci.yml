@@ -208,20 +208,94 @@ jobs:
           echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
           
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Preview deployment - use git tag for consistent versioning (same as production)
+            # Preview deployment - calculate upcoming version that will be created on merge
+            echo "🔍 Preview deployment detected"
+            echo "📋 Using PR title: $PR_TITLE"
+            
+            # Get current production version from latest git tag
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
             BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+            echo "🏷️ Latest production tag: $LATEST_TAG (base: $BASE_VERSION)"
+            
+            # Look for explicit version pattern like v1.2.3 in PR title
+            EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+            
+            if [ -n "$EXPLICIT_VERSION" ]; then
+              # Explicit version found - use it as the upcoming version
+              UPCOMING_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
+              echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
+              echo "Upcoming version: $UPCOMING_VERSION"
+            else
+              # Calculate upcoming version using semantic versioning rules
+              BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
+              echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
+              
+              # Determine version bump type based on PR title patterns
+              VERSION_TYPE="patch"  # Default to patch
+              
+              # Check for explicit version type tags and patterns in PR title
+              case "$PR_TITLE" in
+                *"[major]"*|*"[MAJOR]"*)
+                  VERSION_TYPE="major"
+                  echo "🔴 [major] tag detected in PR title"
+                  ;;
+                *"[minor]"*|*"[MINOR]"*)
+                  VERSION_TYPE="minor"
+                  echo "🟡 [minor] tag detected in PR title"
+                  ;;
+                *"[patch]"*|*"[PATCH]"*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 [patch] tag detected in PR title"
+                  ;;
+                *"BREAKING CHANGE"*|*"breaking:"*|*"!:"*)
+                  VERSION_TYPE="major"
+                  echo "🔴 BREAKING CHANGE detected in PR title"
+                  ;;
+                "feat:"*|"feature:"*|"feat("*|"feature("*)
+                  VERSION_TYPE="minor"
+                  echo "🟡 feat: conventional commit detected in PR title"
+                  ;;
+                "fix:"*|"bugfix:"*|"fix("*|"bugfix("*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 fix: conventional commit detected in PR title"
+                  ;;
+                "perf:"*|"refactor:"*|"style:"*|"perf("*|"refactor("*|"style("*)
+                  VERSION_TYPE="patch"
+                  echo "🟢 performance/refactor/style change detected in PR title"
+                  ;;
+                *)
+                  echo "🟢 No semantic versioning patterns detected, defaulting to patch"
+                  ;;
+              esac
+              
+              # Compute upcoming version based on bump type
+              if [ "$VERSION_TYPE" = "major" ]; then
+                NEXT_MAJOR=$((MAJOR + 1))
+                UPCOMING_VERSION="${NEXT_MAJOR}.0.0"
+                echo "🔴 Computing major version bump: $BASE_VERSION → $UPCOMING_VERSION"
+              elif [ "$VERSION_TYPE" = "minor" ]; then
+                NEXT_MINOR=$((MINOR + 1))
+                UPCOMING_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+                echo "🟡 Computing minor version bump: $BASE_VERSION → $UPCOMING_VERSION"
+              else
+                # patch bump (default)
+                NEXT_PATCH=$((PATCH + 1))
+                UPCOMING_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+                echo "🟢 Computing patch version bump: $BASE_VERSION → $UPCOMING_VERSION"
+              fi
+            fi
+            
+            # Create preview version with upcoming version + PR info
             SHORT_SHA="${{ github.event.pull_request.head.sha }}"
             # Fallback in case head.sha is empty
             [ -z "$SHORT_SHA" ] && SHORT_SHA="${{ github.sha }}"
             SHORT_SHA="${SHORT_SHA:0:7}"
-            NEW_VERSION="${BASE_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
+            NEW_VERSION="${UPCOMING_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
             DEPLOYMENT_TYPE="preview"
-            echo "🔍 Preview deployment detected"
-            echo "Latest git tag: $LATEST_TAG"
-            echo "Base version: $BASE_VERSION"
-            echo "Commit SHA: ${SHORT_SHA}"
-            echo "Preview version: $NEW_VERSION"
+            
+            echo "✅ Preview version set: $NEW_VERSION"
+            echo "   → This represents what version $UPCOMING_VERSION will look like when merged"
           else
             # Production deployment (main branch) - bump version properly
             echo "🚀 Production deployment detected"
