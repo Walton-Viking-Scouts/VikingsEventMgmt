@@ -31,7 +31,6 @@ function DraggableMember({
   const [touchDragActive, setTouchDragActive] = useState(false);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
-  const dragPreviewRef = useRef(null);
   const touchStartPos = useRef({ x: 0, y: 0 });
   const dragThreshold = 10; // pixels to start drag
 
@@ -134,15 +133,30 @@ function DraggableMember({
       }
     };
 
+    const handleTouchCancel = (_e) => {
+      // Treat like touch end to ensure cleanup on interrupted gestures
+      setMouseDown(false);
+      setDragPosition({ x: 0, y: 0 });
+      if (touchDragActive) {
+        setTouchDragActive(false);
+        setDragPreview(false);
+        if (onDragEnd) {
+          onDragEnd();
+        }
+      }
+    };
+
     // Add non-passive event listeners for mobile drag simulation
     element.addEventListener('touchstart', handleTouchStart, { passive: false });
     element.addEventListener('touchmove', handleTouchMove, { passive: false });
     element.addEventListener('touchend', handleTouchEnd, { passive: false });
+    element.addEventListener('touchcancel', handleTouchCancel, { passive: false });
 
     return () => {
       element.removeEventListener('touchstart', handleTouchStart);
       element.removeEventListener('touchmove', handleTouchMove);
       element.removeEventListener('touchend', handleTouchEnd);
+      element.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [isDraggable, mouseDown, touchDragActive, member, group, memberName, onDragStart, onDragEnd, dragThreshold]);
 
@@ -256,13 +270,13 @@ function DraggableMember({
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
       data-member-id={member.scoutid}
-      aria-grabbed={isDraggable ? (isDragging ? 'true' : 'false') : undefined}
     >
       {/* Drag handle indicator for draggable members - top corner */}
       {isDraggable && (
         <div
           className="absolute top-1 right-1 text-blue-500 hover:text-blue-700 transition-colors cursor-grab z-10"
           onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           style={{ touchAction: 'none' }}
           title="Drag to move"
         >
@@ -305,7 +319,6 @@ function DraggableMember({
       {/* Mobile drag preview that follows finger */}
       {touchDragActive && dragPosition.x > 0 && (
         <div
-          ref={dragPreviewRef}
           className="fixed pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2 opacity-80 scale-95 rotate-2 shadow-xl"
           style={{
             left: dragPosition.x,
