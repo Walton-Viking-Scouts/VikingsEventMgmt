@@ -241,22 +241,69 @@ jobs:
               
               echo "✅ Explicit version set: $NEW_VERSION"
             else
-              # No explicit version - derive base from git tags for idempotency
-              echo "📝 No explicit version in PR title, computing patch bump from git tags"
+              # No explicit version - apply semantic versioning rules
+              echo "📝 No explicit version in PR title, applying semantic versioning rules"
               echo "PR titles can include version like: 'feat: new feature v1.2.0'"
+              echo "Or version tags like: 'Add new feature [minor]' or 'Breaking change [major]'"
+              echo "Or conventional commits like: 'feat:', 'fix:', 'BREAKING CHANGE:'"
               
               # Get base version from latest git tag (more reliable than package.json)
               LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
               BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
               echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
               
-              # Compute next patch version
+              # Parse base version into components
               IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
-              NEXT_PATCH=$((PATCH + 1))
-              NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
-              VERSION_TYPE="patch"
+              echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
               
-              echo "🔧 Computed next patch version: $NEW_VERSION"
+              # Determine version bump type based on PR title patterns
+              VERSION_TYPE="patch"  # Default to patch
+              
+              # Check for explicit version type tags in PR title
+              if echo "$PR_TITLE" | grep -iq '\[major\]'; then
+                VERSION_TYPE="major"
+                echo "🔴 [major] tag detected in PR title"
+              elif echo "$PR_TITLE" | grep -iq '\[minor\]'; then
+                VERSION_TYPE="minor"
+                echo "🟡 [minor] tag detected in PR title"
+              elif echo "$PR_TITLE" | grep -iq '\[patch\]'; then
+                VERSION_TYPE="patch"
+                echo "🟢 [patch] tag detected in PR title"
+              # Check for conventional commit patterns
+              elif echo "$PR_TITLE" | grep -iq '^feat\(.*\):' || echo "$PR_TITLE" | grep -iq '^feature\(.*\):'; then
+                VERSION_TYPE="minor"
+                echo "🟡 feat: conventional commit detected in PR title"
+              elif echo "$PR_TITLE" | grep -iq 'BREAKING CHANGE' || echo "$PR_TITLE" | grep -iq 'breaking:'; then
+                VERSION_TYPE="major"
+                echo "🔴 BREAKING CHANGE detected in PR title"
+              elif echo "$PR_TITLE" | grep -iq '^fix\(.*\):' || echo "$PR_TITLE" | grep -iq '^bugfix\(.*\):'; then
+                VERSION_TYPE="patch"
+                echo "🟢 fix: conventional commit detected in PR title"
+              # Additional semantic patterns
+              elif echo "$PR_TITLE" | grep -iq '^perf\(.*\):' || echo "$PR_TITLE" | grep -iq '^refactor\(.*\):' || echo "$PR_TITLE" | grep -iq '^style\(.*\):'; then
+                VERSION_TYPE="patch"
+                echo "🟢 performance/refactor/style change detected in PR title"
+              else
+                echo "🟢 No semantic versioning patterns detected, defaulting to patch"
+              fi
+              
+              # Compute new version based on bump type
+              if [ "$VERSION_TYPE" = "major" ]; then
+                NEXT_MAJOR=$((MAJOR + 1))
+                NEW_VERSION="${NEXT_MAJOR}.0.0"
+                echo "🔴 Computing major version bump: $BASE_VERSION → $NEW_VERSION"
+              elif [ "$VERSION_TYPE" = "minor" ]; then
+                NEXT_MINOR=$((MINOR + 1))
+                NEW_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+                echo "🟡 Computing minor version bump: $BASE_VERSION → $NEW_VERSION"
+              else
+                # patch bump (default)
+                NEXT_PATCH=$((PATCH + 1))
+                NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+                echo "🟢 Computing patch version bump: $BASE_VERSION → $NEW_VERSION"
+              fi
+              
+              echo "✅ Semantic versioning result: $NEW_VERSION (type: $VERSION_TYPE)"
               
               # Update package.json to computed version
               npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
@@ -291,19 +338,35 @@ jobs:
               if [ "$VERSION_TYPE" = "patch" ]; then
                 # Patch versions: Just tag for Sentry tracking (no GitHub release)
                 echo "✅ Production version tagged: v${NEW_VERSION} (patch)"
+              elif [ "$VERSION_TYPE" = "minor" ]; then
+                # Minor versions: Create GitHub Release for new features
+                gh release create "v${NEW_VERSION}" \
+                  --title "Release v${NEW_VERSION} - Minor Update" \
+                  --notes "Minor release v${NEW_VERSION} with new features or enhancements. This release includes backward-compatible functionality additions. PR: ${PR_TITLE}. Sentry Tracking: Version v${NEW_VERSION}, Type: Minor. All errors will be attributed to this release. Generated with Claude Code." \
+                  --latest
+                
+                echo "✅ Production version released: v${NEW_VERSION} (minor - new features)"
+              elif [ "$VERSION_TYPE" = "major" ]; then
+                # Major versions: Create GitHub Release for breaking changes
+                gh release create "v${NEW_VERSION}" \
+                  --title "Release v${NEW_VERSION} - Major Update" \
+                  --notes "Major release v${NEW_VERSION} with breaking changes. This release may require migration or configuration updates. PR: ${PR_TITLE}. Sentry Tracking: Version v${NEW_VERSION}, Type: Major. All errors will be attributed to this release. Generated with Claude Code." \
+                  --latest
+                
+                echo "✅ Production version released: v${NEW_VERSION} (major - breaking changes)"
               elif [ "$VERSION_TYPE" = "explicit" ]; then
                 # Explicit versions: Create GitHub Release for visibility
                 gh release create "v${NEW_VERSION}" \
                   --title "Release v${NEW_VERSION}" \
-                  --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. Sentry Tracking: Version v${NEW_VERSION}, Type: Explicit. All errors will be attributed to this release. Generated with Claude Code." \
+                  --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. PR: ${PR_TITLE}. Sentry Tracking: Version v${NEW_VERSION}, Type: Explicit. All errors will be attributed to this release. Generated with Claude Code." \
                   --latest
                 
                 echo "✅ Production version released: v${NEW_VERSION} (explicit from PR title)"
               else
-                # Other version types: Create GitHub Release
+                # Other version types: Create GitHub Release with generic notes
                 gh release create "v${NEW_VERSION}" \
                   --title "Release v${NEW_VERSION}" \
-                  --notes "Auto-generated release v${NEW_VERSION}. Sentry Tracking: Version v${NEW_VERSION}, Type: ${VERSION_TYPE}. All errors will be attributed to this release. Generated with Claude Code." \
+                  --notes "Auto-generated release v${NEW_VERSION}. PR: ${PR_TITLE}. Sentry Tracking: Version v${NEW_VERSION}, Type: ${VERSION_TYPE}. All errors will be attributed to this release. Generated with Claude Code." \
                   --latest
                 
                 echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
