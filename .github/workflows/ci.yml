@@ -269,18 +269,18 @@ jobs:
               elif echo "$PR_TITLE" | grep -iq '\[patch\]'; then
                 VERSION_TYPE="patch"
                 echo "🟢 [patch] tag detected in PR title"
-              # Check for conventional commit patterns
-              elif echo "$PR_TITLE" | grep -iq '^feat\(.*\):' || echo "$PR_TITLE" | grep -iq '^feature\(.*\):'; then
+              # Check for conventional commit patterns (using ERE with optional scopes)
+              elif echo "$PR_TITLE" | grep -iE '^(feat|feature)(\(.+\))?:'; then
                 VERSION_TYPE="minor"
                 echo "🟡 feat: conventional commit detected in PR title"
-              elif echo "$PR_TITLE" | grep -iq 'BREAKING CHANGE' || echo "$PR_TITLE" | grep -iq 'breaking:'; then
+              elif echo "$PR_TITLE" | grep -iq 'BREAKING CHANGE' || echo "$PR_TITLE" | grep -iE '^.+!:' || echo "$PR_TITLE" | grep -iq 'breaking:'; then
                 VERSION_TYPE="major"
                 echo "🔴 BREAKING CHANGE detected in PR title"
-              elif echo "$PR_TITLE" | grep -iq '^fix\(.*\):' || echo "$PR_TITLE" | grep -iq '^bugfix\(.*\):'; then
+              elif echo "$PR_TITLE" | grep -iE '^(fix|bugfix)(\(.+\))?:'; then
                 VERSION_TYPE="patch"
                 echo "🟢 fix: conventional commit detected in PR title"
               # Additional semantic patterns
-              elif echo "$PR_TITLE" | grep -iq '^perf\(.*\):' || echo "$PR_TITLE" | grep -iq '^refactor\(.*\):' || echo "$PR_TITLE" | grep -iq '^style\(.*\):'; then
+              elif echo "$PR_TITLE" | grep -iE '^(perf|refactor|style)(\(.+\))?:'; then
                 VERSION_TYPE="patch"
                 echo "🟢 performance/refactor/style change detected in PR title"
               else
