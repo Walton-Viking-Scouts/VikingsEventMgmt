@@ -114,12 +114,15 @@ function DraggableMember({
               fromGroupNumber: group?.number || 'Unknown',
               fromGroupName: group?.name || 'Unknown Group',
               sectionid: member.sectionid || member.section_id,
-              targetGroupNumber: dropZone.dataset.groupNumber,
+              targetGroupNumber: Number(dropZone.dataset.groupNumber),
             };
             
             
             const dropEvent = new window.CustomEvent('mobile-drop', {
               detail: dropEventData,
+              bubbles: true,
+              cancelable: true,
+              composed: true,
             });
             dropZone.dispatchEvent(dropEvent);
           }
@@ -156,7 +159,7 @@ function DraggableMember({
       element.removeEventListener('touchend', handleTouchEnd);
       element.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [isDraggable, mouseDown, touchDragActive, member, group, memberName, onDragStart, onDragEnd, dragThreshold]);
+  }, [isDraggable, member, group, onDragStart, onDragEnd]);
 
   const handleMouseDown = (_e) => {
     if (!isDraggable) return;
