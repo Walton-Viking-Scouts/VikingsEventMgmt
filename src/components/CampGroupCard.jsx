@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, Badge } from './ui';
 import DraggableMember from './DraggableMember.jsx';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
@@ -81,7 +81,7 @@ function CampGroupCard({
     }
   };
 
-  const handleDrop = async (e) => {
+  const handleDrop = useCallback(async (e) => {
     e.preventDefault();
     setIsDragOver(false);
     setCanDrop(false);
@@ -164,7 +164,7 @@ function CampGroupCard({
     } catch (error) {
       // Silently ignore malformed drag data - validation happens during drop
     }
-  };
+  }, [dragDisabled, onMemberMove, onOfflineError, group]);
 
   // Add mobile drop event listener
   useEffect(() => {
@@ -180,7 +180,7 @@ function CampGroupCard({
     return () => {
       cardElement.removeEventListener('mobile-drop', handleMobileDrop);
     };
-  }, [dragDisabled, group?.number, onMemberMove, onOfflineError]);
+  }, [handleDrop]);
 
   if (!group) {
     return null;
