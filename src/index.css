@@ -344,6 +344,14 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow: auto !important; /* Ensure scrolling is always enabled */
+  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+}
+
+#root {
+  min-height: 100vh;
+  overflow: auto;
+  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
 }
 
 /* Offline Indicator Styles */

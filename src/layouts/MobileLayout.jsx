@@ -16,6 +16,7 @@ function MobileLayout({
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
+      style={{ touchAction: 'pan-y' }}
     >
       <OfflineIndicator />
       <Header
@@ -29,7 +30,7 @@ function MobileLayout({
       />
 
 
-      <main className="flex-1" data-testid="mobile-main">
+      <main className="flex-1 overflow-y-auto" data-testid="mobile-main" style={{ touchAction: 'pan-y' }}>
         <div className="h-full">{children}</div>
       </main>
     </div>
