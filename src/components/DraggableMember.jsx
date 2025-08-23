@@ -33,6 +33,9 @@ function DraggableMember({
   const elementRef = useRef(null);
   const touchStartPos = useRef({ x: 0, y: 0 });
   const dragThreshold = 10; // pixels to start drag
+  const pressHoldTimer = useRef(null);
+  const [isPressHolding, setIsPressHolding] = useState(false);
+  const PRESS_HOLD_DELAY = 200; // ms to hold before drag starts
 
   // Compute member name once (DRY principle)
   // Debug: Check different name field possibilities
@@ -50,52 +53,75 @@ function DraggableMember({
     const element = elementRef.current;
     if (!element || !isDraggable) return;
 
+    const clearPressHoldTimer = () => {
+      if (pressHoldTimer.current) {
+        clearTimeout(pressHoldTimer.current);
+        pressHoldTimer.current = null;
+      }
+    };
+
     const handleTouchStart = (e) => {
       const touch = e.touches[0];
       touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-      setMouseDown(true);
-    };
-
-    const handleTouchMove = (e) => {
-      if (!mouseDown) return;
       
-      const touch = e.touches[0];
-      const deltaX = Math.abs(touch.clientX - touchStartPos.current.x);
-      const deltaY = Math.abs(touch.clientY - touchStartPos.current.y);
-      
-      // Update drag position for visual preview
-      setDragPosition({ x: touch.clientX, y: touch.clientY });
-      
-      // Start drag simulation if moved beyond threshold
-      if ((deltaX > dragThreshold || deltaY > dragThreshold) && !touchDragActive) {
+      // Start press-and-hold timer
+      pressHoldTimer.current = setTimeout(() => {
+        // Enter drag mode after delay
+        setIsPressHolding(true);
+        setMouseDown(true);
         setTouchDragActive(true);
         setDragPreview(true);
         
-        // Trigger drag start
-        const dragData = {
-          memberId: member.scoutid,
-          memberName: memberName,
-          fromGroupNumber: group?.number || 'Unknown',
-          fromGroupName: group?.name || 'Unknown Group',
-          sectionid: member.sectionid || member.section_id,
-        };
-        
+        // Provide haptic feedback if available
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
         
         if (onDragStart) {
+          const dragData = {
+            memberId: member.scoutid,
+            memberName: memberName,
+            fromGroupNumber: group?.number || 'Unknown',
+            fromGroupName: group?.name || 'Unknown Group',
+            sectionid: member.sectionid || member.section_id,
+          };
           onDragStart(dragData);
         }
+      }, PRESS_HOLD_DELAY);
+      
+      // DON'T prevent default - allow scrolling until drag mode starts
+    };
+
+    const handleTouchMove = (e) => {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartPos.current.x;
+      const deltaY = touch.clientY - touchStartPos.current.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      // If user moves before press-hold timer expires, cancel drag and allow scroll
+      if (pressHoldTimer.current && distance > dragThreshold) {
+        clearPressHoldTimer();
+        setIsPressHolding(false);
+        return; // Let browser handle scroll
+      }
+
+      // If we're in drag mode, handle the drag
+      if (touchDragActive && isPressHolding) {
+        e.preventDefault(); // NOW prevent scrolling during drag
+        
+        // Update drag position to follow finger
+        setDragPosition({
+          x: touch.clientX,
+          y: touch.clientY
+        });
       }
     };
 
     const handleTouchEnd = (e) => {
-      setMouseDown(false);
-      setDragPosition({ x: 0, y: 0 });
+      clearPressHoldTimer();
       
-      if (touchDragActive) {
-        setTouchDragActive(false);
-        setDragPreview(false);
-        
-        // Find drop target under touch point
+      if (touchDragActive && isPressHolding) {
+        // Handle drop
         const touch = e.changedTouches[0];
         const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
         
@@ -117,7 +143,6 @@ function DraggableMember({
               targetGroupNumber: Number(dropZone.dataset.groupNumber),
             };
             
-            
             const dropEvent = new window.CustomEvent('mobile-drop', {
               detail: dropEventData,
               bubbles: true,
@@ -127,39 +152,47 @@ function DraggableMember({
             dropZone.dispatchEvent(dropEvent);
           }
         }
-        
-        if (onDragEnd) {
-          onDragEnd();
-        }
       }
-    };
-
-    const handleTouchCancel = (_e) => {
-      // Treat like touch end to ensure cleanup on interrupted gestures
+      
+      // Reset all state
       setMouseDown(false);
+      setTouchDragActive(false);
+      setDragPreview(false);
+      setIsPressHolding(false);
       setDragPosition({ x: 0, y: 0 });
-      if (touchDragActive) {
-        setTouchDragActive(false);
-        setDragPreview(false);
-        if (onDragEnd) {
-          onDragEnd();
-        }
+      
+      if (touchDragActive && onDragEnd) {
+        onDragEnd();
       }
     };
 
-    // Add passive listeners; rely on CSS touch-action for default prevention
-    element.addEventListener('touchstart', handleTouchStart, { passive: true });
-    element.addEventListener('touchmove', handleTouchMove, { passive: true });
+    const handleTouchCancel = () => {
+      clearPressHoldTimer();
+      setMouseDown(false);
+      setTouchDragActive(false);
+      setDragPreview(false);
+      setIsPressHolding(false);
+      setDragPosition({ x: 0, y: 0 });
+      
+      if (touchDragActive && onDragEnd) {
+        onDragEnd();
+      }
+    };
+
+    // Add non-passive listeners so we can preventDefault during drag
+    element.addEventListener('touchstart', handleTouchStart, { passive: true }); // Start is passive to allow scrolling initially
+    element.addEventListener('touchmove', handleTouchMove, { passive: false }); // Move needs to preventDefault during drag
     element.addEventListener('touchend', handleTouchEnd, { passive: true });
     element.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
+      clearPressHoldTimer();
       element.removeEventListener('touchstart', handleTouchStart);
       element.removeEventListener('touchmove', handleTouchMove);
       element.removeEventListener('touchend', handleTouchEnd);
       element.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [isDraggable, member, group, onDragStart, onDragEnd]);
+  }, [isDraggable, member, group, onDragStart, onDragEnd, memberName, touchDragActive, isPressHolding]);
 
   const handleMouseDown = (_e) => {
     if (!isDraggable) return;
@@ -262,7 +295,7 @@ function DraggableMember({
       onMouseUp={handleMouseUp}
       style={{
         maxWidth: '100%',
-        touchAction: (mouseDown || touchDragActive) ? 'none' : 'auto',
+        touchAction: (isPressHolding && touchDragActive) ? 'none' : 'auto',
         userSelect: 'none',
         WebkitUserSelect: 'none',
         msUserSelect: 'none',
@@ -278,7 +311,7 @@ function DraggableMember({
           className="absolute top-1 right-1 text-blue-500 hover:text-blue-700 transition-colors cursor-grab z-10"
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          style={{ touchAction: (mouseDown || touchDragActive) ? 'none' : 'auto' }}
+          style={{ touchAction: (isPressHolding && touchDragActive) ? 'none' : 'auto' }}
           title="Drag to move"
         >
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
