@@ -254,8 +254,10 @@ function CampGroupsView({
   // Cache parsed sections data to avoid JSON.parse on every drag operation
   const sectionsCache = useMemo(() => {
     try {
+      const demoMode = isDemoMode();
+      const cacheKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
       return JSON.parse(
-        localStorage.getItem('viking_sections_offline') || '[]',
+        localStorage.getItem(cacheKey) || '[]',
       );
     } catch (error) {
       logger.error(

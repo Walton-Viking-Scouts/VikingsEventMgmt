@@ -30,7 +30,9 @@ export const fetchAllSectionEvents = async (sections, token) => {
     // Load offline cached terms once (avoid per-section localStorage parsing)
     try {
       if (typeof localStorage !== 'undefined') {
-        const cachedTerms = localStorage.getItem('viking_terms_offline');
+        const demoMode = isDemoMode();
+        const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+        const cachedTerms = localStorage.getItem(termsKey);
         if (cachedTerms) {
           allTerms = JSON.parse(cachedTerms);
           logger.info('Using offline cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
@@ -129,7 +131,9 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
         // If still no termId, try to get from localStorage terms cache
         if (!termId) {
           try {
-            const cachedTerms = localStorage.getItem('viking_terms_offline');
+            const demoMode = isDemoMode();
+            const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+            const cachedTerms = localStorage.getItem(termsKey);
             if (cachedTerms) {
               const parsedTerms = JSON.parse(cachedTerms);
               termId = getMostRecentTermId(section.sectionid, parsedTerms);

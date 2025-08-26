@@ -396,7 +396,10 @@ export async function initializeDemoMode() {
       for (let i = 0; i < attendingCount && i < namePool.length; i++) {
         const firstName = namePool[i].split(' ')[0];
         const lastName = namePool[i].split(' ')[1] || 'Member';
-        const scoutId = `${sectionid}${String(i + 1000).slice(-3)}`;
+        // Handle non-numeric section IDs like 'external_scouts_001'
+        const scoutId = sectionid === 'external_scouts_001' 
+          ? `${90000 + i + 1}` // External scouts start from 90001
+          : `${String(parseInt(sectionid) * 1000 + i + 1)}`;
         const scoutSectionId = `${scoutId}-${sectionid}`;
         const isAdults = sectionname.toLowerCase().includes('adult');
         const age = isAdults ? '25+' : `${10 + (i % 3)} / ${String(i % 12).padStart(2, '0')}`;
@@ -427,7 +430,10 @@ export async function initializeDemoMode() {
       for (let i = 0; i < notAttendingCount && i < remainingNames.length; i++) {
         const firstName = remainingNames[i].split(' ')[0];
         const lastName = remainingNames[i].split(' ')[1] || 'Member';
-        const scoutId = `${sectionid}${String(i + attendingCount + 1000).slice(-3)}`;
+        // Handle non-numeric section IDs like 'external_scouts_001'
+        const scoutId = sectionid === 'external_scouts_001' 
+          ? `${90000 + attendingCount + i + 1}` // External scouts continue numbering
+          : `${String(parseInt(sectionid) * 1000 + attendingCount + i + 1)}`;
         const scoutSectionId = `${scoutId}-${sectionid}`;
         const isAdults = sectionname.toLowerCase().includes('adult');
         const age = isAdults ? '25+' : `${10 + ((i + attendingCount) % 3)} / ${String((i + attendingCount) % 12).padStart(2, '0')}`;
@@ -567,7 +573,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < leaderCount; i++) {
     const [firstname, lastname] = sectionNames.Leaders[i % sectionNames.Leaders.length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Leaders',
@@ -583,7 +589,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < youngLeaderCount; i++) {
     const [firstname, lastname] = sectionNames['Young Leaders'][i % sectionNames['Young Leaders'].length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Young Leaders',
@@ -599,7 +605,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < youngPeopleCount; i++) {
     const [firstname, lastname] = sectionNames['Young People'][i % sectionNames['Young People'].length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Young People',
@@ -762,6 +768,7 @@ function generateFlexiData(section, flexiRecord) {
         scoutid: member.scoutid,
         firstname: member.firstname,
         lastname: member.lastname,
+        person_type: member.person_type, // Preserve person_type for drag/drop functionality
         f_1: campGroup, // CampGroup (f_1 standardized for demo)
         f_2: isSignedIn ? leaders[index % leaders.length] : '', // SignedInBy
         f_3: isSignedIn ? `2025-08-23 ${signInTimes[index % signInTimes.length]}` : '', // SignedInWhen
@@ -937,7 +944,10 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
   for (let i = 0; i < attendingCount && i < namePool.length; i++) {
     const firstName = namePool[i].split(' ')[0];
     const lastName = namePool[i].split(' ')[1] || 'Member';
-    const scoutId = `${sectionid}${String(i + 1000).slice(-3)}`; // Generate realistic scout IDs
+    // Handle non-numeric section IDs like 'external_scouts_001'
+    const scoutId = sectionid === 'external_scouts_001' 
+      ? `${90000 + i + 1}` // External scouts start from 90001
+      : `${String(parseInt(sectionid) * 1000 + i + 1)}`;
     const scoutSectionId = `${scoutId}-${sectionid}`;
     
     // Generate age based on section type - Adults get "25+", others get "yy / mm" format
@@ -970,7 +980,10 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
   for (let i = 0; i < notAttendingCount && i < remainingNames.length; i++) {
     const firstName = remainingNames[i].split(' ')[0];
     const lastName = remainingNames[i].split(' ')[1] || 'Member';
-    const scoutId = `${sectionid}${String(i + attendingCount + 1000).slice(-3)}`;
+    // Handle non-numeric section IDs like 'external_scouts_001'
+    const scoutId = sectionid === 'external_scouts_001' 
+      ? `${90000 + attendingCount + i + 1}` // External scouts continue numbering
+      : `${String(parseInt(sectionid) * 1000 + attendingCount + i + 1)}`;
     const scoutSectionId = `${scoutId}-${sectionid}`;
     
     // Generate age for non-attending members - same logic as attending

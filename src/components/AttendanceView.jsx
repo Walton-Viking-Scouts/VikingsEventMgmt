@@ -67,8 +67,10 @@ function AttendanceView({ events, members, onBack }) {
   // Cache parsed sections data for section name resolution
   const sectionsCache = useMemo(() => {
     try {
+      const demoMode = isDemoMode();
+      const cacheKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
       return JSON.parse(
-        localStorage.getItem('viking_sections_offline') || '[]',
+        localStorage.getItem(cacheKey) || '[]',
       );
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -187,7 +189,9 @@ function AttendanceView({ events, members, onBack }) {
   const hasSharedEvents = useMemo(() => {
     return events.some(event => {
       // Check if this event has shared event metadata stored
-      const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+      const demoMode = isDemoMode();
+      const prefix = demoMode ? 'demo_' : '';
+      const metadata = localStorage.getItem(`${prefix}viking_shared_metadata_${event.eventid}`);
       if (metadata) {
         try {
           const parsed = JSON.parse(metadata);
@@ -205,7 +209,9 @@ function AttendanceView({ events, members, onBack }) {
     try {
       // Find the shared event (the one that has shared metadata)
       const sharedEvent = events.find(event => {
-        const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+        const demoMode = isDemoMode();
+        const prefix = demoMode ? 'demo_' : '';
+        const metadata = localStorage.getItem(`${prefix}viking_shared_metadata_${event.eventid}`);
         if (metadata) {
           try {
             const parsed = JSON.parse(metadata);
@@ -226,7 +232,9 @@ function AttendanceView({ events, members, onBack }) {
       }
 
       // First try to load from cache for offline support
-      const cacheKey = `viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
+      const demoMode = isDemoMode();
+      const prefix = demoMode ? 'demo_' : '';
+      const cacheKey = `${prefix}viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
       let cachedData = null;
       
       try {

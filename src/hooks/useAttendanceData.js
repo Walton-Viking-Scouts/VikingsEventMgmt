@@ -65,8 +65,10 @@ export function useAttendanceData(events) {
         
         // Check if we have cached attendance data for this specific event
         // Try multiple cache key formats for backward compatibility
+        const demoMode = isDemoMode();
+        const prefix = demoMode ? 'demo_' : '';
         const cacheKeys = [
-          `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`, // New format (demo mode)
+          `${prefix}viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`, // API format with demo prefix
           `viking_attendance_${event.eventid}_offline`, // Database service format
         ];
         

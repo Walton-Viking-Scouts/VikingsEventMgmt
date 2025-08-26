@@ -336,9 +336,14 @@ export async function validateToken() {
 function checkForCachedData() {
   try {
     // Check localStorage for all cached data types (comprehensive check)
-    const cachedSections = localStorage.getItem('viking_sections_offline');
-    const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
-    const cachedTerms = localStorage.getItem('viking_terms_offline');
+    const demoMode = isDemoMode();
+    const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
+    const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+    const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+    
+    const cachedSections = localStorage.getItem(sectionsKey);
+    const cachedStartupData = localStorage.getItem(startupKey);
+    const cachedTerms = localStorage.getItem(termsKey);
     
     // Check static cache keys
     if (cachedSections && JSON.parse(cachedSections).length > 0) {
@@ -410,9 +415,14 @@ export function logout() {
   clearToken();
   
   // Clear all offline cached data
-  localStorage.removeItem('viking_sections_offline');
-  localStorage.removeItem('viking_terms_offline');
-  localStorage.removeItem('viking_startup_data_offline');
+  const demoMode = isDemoMode();
+  const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
+  const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+  const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+  
+  localStorage.removeItem(sectionsKey);
+  localStorage.removeItem(termsKey);
+  localStorage.removeItem(startupKey);
   
   // Clear all event-related and FlexiRecord cached data
   Object.keys(localStorage).forEach(key => {
