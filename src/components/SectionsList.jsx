@@ -78,28 +78,21 @@ function SectionsList({
             const sectionType = section.section.toLowerCase();
 
             // Determine background color based on section type
-            let bgColor, hoverBgColor;
+            let bgColor;
             if (sectionType.includes('earlyyears')) {
               bgColor = 'var(--scout-red)';
-              hoverBgColor = 'var(--scout-red-dark)';
             } else if (sectionType.includes('beavers')) {
               bgColor = 'var(--scout-blue)';
-              hoverBgColor = 'var(--scout-blue-dark)';
             } else if (sectionType.includes('cubs')) {
               bgColor = 'var(--scout-forest-green)';
-              hoverBgColor = 'var(--scout-forest-green-dark)';
             } else if (sectionType.includes('scouts')) {
               bgColor = 'var(--scout-navy)';
-              hoverBgColor = 'var(--scout-navy-dark)';
             } else if (sectionType.includes('adults')) {
               bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
             } else if (sectionType.includes('waitinglist')) {
               bgColor = 'var(--scout-teal)';
-              hoverBgColor = 'var(--scout-teal-dark)';
             } else {
               bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
             }
 
             return (
