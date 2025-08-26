@@ -76,9 +76,10 @@ export function useAttendanceData(events) {
           try {
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
-              const cachedAttendance = JSON.parse(cached);
-              // Handle both array format and object with items property
-              const attendanceItems = Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
+              const parsed = JSON.parse(cached);
+              // Safely handle null, arrays, and objects with/without items
+              const attendanceItems = Array.isArray(parsed) ? parsed : 
+                                     (parsed && Array.isArray(parsed.items) ? parsed.items : []);
               attendanceResponse = { items: attendanceItems };
               if (import.meta.env.DEV) {
                 console.log(`Found cached attendance for event ${event.name} with key ${cacheKey}:`, attendanceItems.length, 'records');
