@@ -3,6 +3,7 @@ import { Card, Badge } from './ui';
 import DraggableMember from './DraggableMember.jsx';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 import { getToken } from '../services/auth.js';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
@@ -129,11 +130,16 @@ function CampGroupCard({
           return;
         }
       } catch (networkError) {
-        console.error('Network status check failed:', networkError);
+        logger.error('Network status check failed in CampGroupCard drag operation', { 
+          error: networkError?.message,
+          memberName: dragData.memberName, 
+        }, LOG_CATEGORIES.COMPONENT);
         if (onOfflineError) {
           onOfflineError(dragData.memberName);
         } else {
-          console.warn(`Cannot move ${dragData.memberName}: Unable to verify network status.`);
+          logger.warn('Network status check failed - no error handler provided', {
+            memberName: dragData.memberName,
+          }, LOG_CATEGORIES.COMPONENT);
         }
         return;
       }

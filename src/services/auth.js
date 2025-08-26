@@ -358,11 +358,14 @@ function checkForCachedData() {
       return true;
     }
     
-    // Check for dynamic keys (events, attendance, members)
+    // Check for dynamic keys (events, attendance, members) - include demo keys
     const hasEventData = Object.keys(localStorage).some(key => 
       key.startsWith('viking_events_') || 
       key.startsWith('viking_attendance_') || 
-      key.startsWith('viking_members_'),
+      key.startsWith('viking_members_') ||
+      key.startsWith('demo_viking_events_') || 
+      key.startsWith('demo_viking_attendance_') || 
+      key.startsWith('demo_viking_members_'),
     );
     
     if (hasEventData) {

@@ -1545,7 +1545,10 @@ function CampGroupsView({
                     : `Cannot move ${memberName}: Authentication expired. Please sign in to OSM to move members.`;
                   showToast('error', errorMessage);
                 } catch (networkError) {
-                  console.error('Network status check failed in onOfflineError:', networkError);
+                  logger.error('Network status check failed in onOfflineError', { 
+                    error: networkError?.message,
+                    memberName, 
+                  }, LOG_CATEGORIES.COMPONENT);
                   showToast('error', `Cannot move ${memberName}: Unable to verify network status.`);
                 }
               }}

@@ -539,7 +539,9 @@ function AttendanceView({ events, members, onBack }) {
         key.includes('__') &&
         value !== undefined &&
         value !== null &&
-        !(typeof value === 'string' && value.trim() === '')
+        !(typeof value === 'string' && value.trim() === '') &&
+        value !== false &&
+        value !== 0
       ) {
         const [groupName, fieldName] = key.split('__');
         if (!groups[groupName]) {
@@ -572,7 +574,7 @@ function AttendanceView({ events, members, onBack }) {
           Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
             const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim() === '';
-            if (fieldValue !== undefined && fieldValue !== null && !isEmptyString) {
+            if (fieldValue !== undefined && fieldValue !== null && !isEmptyString && fieldValue !== false && fieldValue !== 0) {
               groups[normalizedGroupName][normalizedFieldName] = fieldValue;
             }
           });
@@ -658,7 +660,12 @@ function AttendanceView({ events, members, onBack }) {
         const group = contactGroups[groupName];
         if (group) {
           for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (Object.prototype.hasOwnProperty.call(group, fieldName)) return group[fieldName];
+            if (Object.prototype.hasOwnProperty.call(group, fieldName)) {
+              const value = group[fieldName];
+              if (value !== undefined && value !== null) {
+                return value;
+              }
+            }
           }
         }
       }
@@ -673,7 +680,9 @@ function AttendanceView({ events, members, onBack }) {
         if (group) {
           for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
             const v = group[fieldName];
-            if (v !== undefined && v !== null && String(v).trim() !== '') values.push(v);
+            if (v !== undefined && v !== null && String(v).trim() !== '') {
+              values.push(v);
+            }
           }
         }
       }
