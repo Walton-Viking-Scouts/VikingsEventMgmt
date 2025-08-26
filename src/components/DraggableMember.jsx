@@ -112,7 +112,7 @@ function DraggableMember({
         // Update drag position to follow finger
         setDragPosition({
           x: touch.clientX,
-          y: touch.clientY
+          y: touch.clientY,
         });
       }
     };
