@@ -308,7 +308,7 @@ export async function getTerms(token, forceRefresh = false) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = 'viking_terms_offline';
+      const cacheKey = 'demo_viking_terms_offline';
       const cached = safeGetItem(cacheKey, { items: [] });
       if (import.meta.env.DEV) {
         logger.debug('Demo mode: Using cached terms data', {
@@ -318,7 +318,7 @@ export async function getTerms(token, forceRefresh = false) {
       return cached;
     }
     
-    const cacheKey = 'viking_terms_offline';
+    const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
     
     // Check network status first
     isOnline = await checkNetworkStatus();
@@ -528,7 +528,7 @@ export async function getUserRoles(token) {
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
-    const cacheKey = 'viking_user_roles_offline';
+    const cacheKey = 'demo_viking_user_roles_offline';
     const cached = safeGetItem(cacheKey, { sections: [] });
     const sections = cached.sections || [];
     if (import.meta.env.DEV) {
@@ -888,7 +888,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cacheKey = `demo_viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
@@ -1018,7 +1018,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
+      const cacheKey = `demo_viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
@@ -1079,12 +1079,12 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_structure_${extraid}_offline`;
+      const cacheKey = `demo_viking_flexi_structure_${extraid}_offline`;
       const cached = safeGetItem(cacheKey, null);
       return cached;
     }
     
-    const storageKey = `viking_flexi_structure_${extraid}_offline`;
+    const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -1179,7 +1179,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
-        const storageKey = `viking_flexi_structure_${extraid}_offline`;
+        const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
         const cacheData = safeGetItem(storageKey, null);
         logger.info('Using cached fallback data after API error, not updating cache timestamp', {}, LOG_CATEGORIES.API);
         return cacheData;

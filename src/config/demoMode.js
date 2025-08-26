@@ -187,7 +187,7 @@ export async function initializeDemoMode() {
     // Store sections as array with demo prefix - safeSetItem will handle JSON stringification
     safeSetItem('demo_viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
 
-    // Store other demo cache data
+    // Store other demo cache data with demo prefix for consistency
     Object.entries(DEMO_CACHE_DATA).forEach(([key, value]) => {
       if (key === 'viking_sections_offline') return; // Already stored above
       
@@ -195,7 +195,9 @@ export async function initializeDemoMode() {
         ? value 
         : { items: value, _cacheTimestamp: Date.now() };
       
-      safeSetItem(key, dataWithTimestamp);
+      // Add demo prefix to all cache keys for consistency
+      const demoKey = `demo_${key}`;
+      safeSetItem(demoKey, dataWithTimestamp);
     });
 
     // Generate events for each section and store as arrays - safeSetItem will handle JSON stringification
@@ -232,7 +234,7 @@ export async function initializeDemoMode() {
         items: demoMembers,
         _cacheTimestamp: Date.now(),
       };
-      safeSetItem(`viking_members_${section.sectionid}_offline`, membersWithTimestamp);
+      safeSetItem(`demo_viking_members_${section.sectionid}_offline`, membersWithTimestamp);
       allMembers.push(...demoMembers);
     });
 
@@ -241,7 +243,7 @@ export async function initializeDemoMode() {
       items: allMembers,
       _cacheTimestamp: Date.now(),
     };
-    safeSetItem('viking_members_offline', consolidatedMembersWithTimestamp);
+    safeSetItem('demo_viking_members_offline', consolidatedMembersWithTimestamp);
 
     // Store comprehensive member data for getMembers() function (flat array format)
     safeSetItem('demo_viking_members_comprehensive_offline', allMembers);
@@ -272,7 +274,7 @@ export async function initializeDemoMode() {
         items: flexiLists,
         _cacheTimestamp: Date.now(),
       };
-      safeSetItem(`viking_flexi_lists_${section.sectionid}_offline`, flexiListsWithTimestamp);
+      safeSetItem(`demo_viking_flexi_lists_${section.sectionid}_offline`, flexiListsWithTimestamp);
 
       // Generate flexi structures and data for each flexi record
       flexiLists.forEach(flexiRecord => {
@@ -281,7 +283,7 @@ export async function initializeDemoMode() {
           ...flexiStructure,
           _cacheTimestamp: Date.now(),
         };
-        safeSetItem(`viking_flexi_structure_${flexiRecord.extraid}_offline`, flexiStructureWithTimestamp);
+        safeSetItem(`demo_viking_flexi_structure_${flexiRecord.extraid}_offline`, flexiStructureWithTimestamp);
 
         // Generate flexi data for the current term
         const flexiData = generateFlexiData(section, flexiRecord);
@@ -289,7 +291,7 @@ export async function initializeDemoMode() {
           items: flexiData,
           _cacheTimestamp: Date.now(),
         };
-        safeSetItem(`viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_12345_offline`, flexiDataWithTimestamp);
+        safeSetItem(`demo_viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_12345_offline`, flexiDataWithTimestamp);
       });
     });
 
