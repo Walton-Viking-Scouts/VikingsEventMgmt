@@ -476,6 +476,142 @@ function AttendanceView({ events, members, onBack }) {
     );
   };
 
+  // Helper function to group contact information (reused from MemberDetailModal)
+  const groupContactInfo = (member) => {
+    const groups = {};
+
+    // Process flattened contact fields
+    Object.entries(member).forEach(([key, value]) => {
+      if (key.includes('__') && value) {
+        const [groupName, fieldName] = key.split('__');
+        if (!groups[groupName]) {
+          groups[groupName] = {};
+        }
+        groups[groupName][fieldName] = value;
+      }
+    });
+
+    // Add legacy fields to appropriate groups
+    if (member.email || member.phone) {
+      if (!groups.member_contact) {
+        groups.member_contact = {};
+      }
+      if (member.email) groups.member_contact.email = member.email;
+      if (member.phone) groups.member_contact.phone = member.phone;
+    }
+
+    // Also process nested contact_groups data if available
+    if (member.contact_groups) {
+      Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
+        if (groupData && typeof groupData === 'object') {
+          const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          if (!groups[normalizedGroupName]) {
+            groups[normalizedGroupName] = {};
+          }
+          // Merge nested data with flattened data (nested takes precedence)
+          Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
+            if (fieldValue) {
+              const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              groups[normalizedGroupName][normalizedFieldName] = fieldValue;
+            }
+          });
+        }
+      });
+    }
+
+    return groups;
+  };
+
+  // Extract comprehensive member data for attendance detailed view
+  const getComprehensiveMemberData = (attendanceRecord) => {
+    // Find the full member data from the members prop
+    const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
+    const cachedMember = members?.find((m) => m.scoutid === scoutidAsNumber);
+    
+    if (!cachedMember) {
+      // Return basic data if no comprehensive member data available
+      return {
+        name: `${attendanceRecord.firstname} ${attendanceRecord.lastname}`,
+        section: attendanceRecord.sectionname,
+        attendance: attendanceRecord.attending,
+        // Basic fallback data
+        pc1_name: '',
+        pc1_phone: '',
+        pc1_email: '',
+        allergies: '',
+        medical_details: '',
+        consent_photos: '',
+        consent_sensitive: '',
+      };
+    }
+
+    const contactGroups = groupContactInfo(cachedMember);
+    
+    // Helper to get field from any group
+    const getField = (groupNames, fieldNames) => {
+      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+        const group = contactGroups[groupName];
+        if (group) {
+          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+            if (group[fieldName]) return group[fieldName];
+          }
+        }
+      }
+      return '';
+    };
+
+    // Helper to combine multiple fields
+    const combineFields = (groupNames, fieldNames) => {
+      const values = [];
+      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+        const group = contactGroups[groupName];
+        if (group) {
+          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+            if (group[fieldName]) values.push(group[fieldName]);
+          }
+        }
+      }
+      return values.join(', ');
+    };
+
+    return {
+      // Basic info
+      name: `${cachedMember.firstname || cachedMember.first_name} ${cachedMember.lastname || cachedMember.last_name}`,
+      section: attendanceRecord.sectionname,
+      attendance: attendanceRecord.attending,
+      patrol: cachedMember.patrol || '',
+      age: cachedMember.date_of_birth ? Math.floor((Date.now() - new Date(cachedMember.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
+      
+      // Primary Contact 1 (check both flattened and nested)
+      pc1_name: combineFields(['primary_contact_1'], ['first_name', 'last_name']) || 
+                [cachedMember.primary_contact_1__first_name, cachedMember.primary_contact_1__last_name].filter(Boolean).join(' ') || '',
+      pc1_phone: combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || 
+                 [cachedMember.primary_contact_1__phone_1, cachedMember.primary_contact_1__phone_2].filter(Boolean).join(', ') || '',
+      pc1_email: combineFields(['primary_contact_1'], ['email_1', 'email_2']) || 
+                 [cachedMember.primary_contact_1__email_1, cachedMember.primary_contact_1__email_2].filter(Boolean).join(', ') || '',
+      
+      // Emergency Contact (check both flattened and nested)
+      ec_name: combineFields(['emergency_contact'], ['first_name', 'last_name']) || 
+               [cachedMember.emergency_contact__first_name, cachedMember.emergency_contact__last_name].filter(Boolean).join(' ') || '',
+      ec_phone: combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || 
+                [cachedMember.emergency_contact__phone_1, cachedMember.emergency_contact__phone_2].filter(Boolean).join(', ') || '',
+      
+      // Essential Information (check both flattened and nested)
+      allergies: getField(['essential_information'], ['allergies']) || cachedMember.essential_information__allergies || '',
+      medical_details: getField(['essential_information'], ['medical_details']) || cachedMember.essential_information__medical_details || '',
+      dietary_requirements: getField(['essential_information'], ['dietary_requirements']) || cachedMember.essential_information__dietary_requirements || '',
+      
+      // Consents - General (check nested contact_groups.Consents first, then flattened)
+      consent_photos: getField(['consents'], ['photographs', 'photos']) || cachedMember.consents__photographs || '',
+      consent_sensitive: getField(['consents'], ['sensitive_information']) || cachedMember.consents__sensitive_information || '',
+      
+      // Consents - Medical Treatment (check nested contact_groups.Consents first, then flattened)
+      consent_paracetamol: getField(['consents'], ['paracetamol']) || cachedMember.consents__paracetamol || '',
+      consent_ibuprofen: getField(['consents'], ['ibuprofen']) || cachedMember.consents__ibuprofen || '',
+      consent_suncream: getField(['consents'], ['suncream', 'sun_cream']) || cachedMember.consents__suncream || '',
+    };
+  };
+
   // Transform cached member data to match what MemberDetailModal expects
   const transformMemberForModal = (cachedMember) => {
     if (!cachedMember) return null;
@@ -1171,32 +1307,71 @@ function AttendanceView({ events, members, onBack }) {
 
           {viewMode === 'detailed' && (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('member')}
-                    >
-                      <div className="flex items-center">
-                        Member {getSortIcon('member')}
-                      </div>
+                    {/* Basic Info Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+                      Member
                     </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('section')}
-                    >
-                      <div className="flex items-center">
-                        Section {getSortIcon('section')}
-                      </div>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Section
                     </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('attendance')}
-                    >
-                      <div className="flex items-center">
-                        Attendance {getSortIcon('attendance')}
-                      </div>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Attendance
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Patrol
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Age
+                    </th>
+                    
+                    {/* Contact Info Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
+                      Primary Contact
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
+                      PC Phone
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
+                      PC Email
+                    </th>
+                    
+                    {/* Emergency Contact Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
+                      Emergency Contact
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
+                      EC Phone
+                    </th>
+                    
+                    {/* Medical Info Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
+                      Allergies
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
+                      Medical
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
+                      Dietary
+                    </th>
+                    
+                    {/* Consent Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Photos
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Sensitive Info
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Paracetamol
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Ibuprofen
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Suncream
                     </th>
                   </tr>
                 </thead>
@@ -1232,27 +1407,114 @@ function AttendanceView({ events, members, onBack }) {
                       break;
                     }
 
+                    // Get comprehensive member data
+                    const memberData = getComprehensiveMemberData(record);
+
                     return (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-2 whitespace-nowrap">
+                      <tr key={index} className="hover:bg-gray-50 text-xs">
+                        {/* Basic Info Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
                           <button
                             onClick={() => handleMemberClick(record)}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left text-xs"
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
                           >
-                            {record.firstname} {record.lastname}
+                            {memberData.name}
                           </button>
                         </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-gray-900 text-xs">
-                          {record.sectionname}
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.section}
                         </td>
-                        <td className="px-6 py-2 whitespace-nowrap">
-                          <Badge variant={badgeVariant}>{statusText}</Badge>
-                          {record.attending &&
-                            record.attending !== statusText && (
-                            <div className="text-gray-500 text-xs mt-1">
-                                Raw: &quot;{record.attending}&quot;
-                            </div>
-                          )}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <Badge variant={badgeVariant} size="sm">{statusText}</Badge>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.patrol}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.age}
+                        </td>
+                        
+                        {/* Contact Info Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
+                          {memberData.pc1_name}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
+                          {memberData.pc1_phone}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
+                          {memberData.pc1_email}
+                        </td>
+                        
+                        {/* Emergency Contact Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
+                          {memberData.ec_name}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
+                          {memberData.ec_phone}
+                        </td>
+                        
+                        {/* Medical Info Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
+                          <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
+                            {memberData.allergies || 'None'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
+                          <span className={memberData.medical_details ? 'text-orange-700' : 'text-gray-400'}>
+                            {memberData.medical_details || 'None'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
+                          <span className={memberData.dietary_requirements ? 'text-orange-700' : 'text-gray-400'}>
+                            {memberData.dietary_requirements || 'None'}
+                          </span>
+                        </td>
+                        
+                        {/* Consent Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_photos === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_photos === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_photos || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_sensitive === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_sensitive === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_sensitive || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_paracetamol === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_paracetamol === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_paracetamol || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_ibuprofen === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_ibuprofen === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_ibuprofen || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_suncream === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_suncream === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_suncream || 'N/A'}
+                          </span>
                         </td>
                       </tr>
                     );
