@@ -7,7 +7,7 @@ const groupContactInfo = (member) => {
 
   // Process flattened contact fields
   Object.entries(member).forEach(([key, value]) => {
-    if (key.includes('__') && value) {
+    if (key.includes('__') && value !== undefined && value !== null) {
       const [groupName, fieldName] = key.split('__');
       if (!groups[groupName]) {
         groups[groupName] = {};
@@ -35,7 +35,7 @@ const groupContactInfo = (member) => {
         }
         // Merge nested data with flattened data (nested takes precedence)
         Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-          if (fieldValue) {
+          if (fieldValue !== undefined && fieldValue !== null) {
             const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             groups[normalizedGroupName][normalizedFieldName] = fieldValue;
           }
@@ -677,19 +677,31 @@ function ComprehensiveMemberTable({
                         'consent_paracetamol', 'consent_ibuprofen', 'consent_antihistamine',
                         'consent_antiseptics', 'consent_plasters', 'consent_bite_sting',
                         'consent_suncream', 'consent_aftersun', 'consent_insect_repellent',
-                      ].map(consentField => (
-                        isColumnVisible(consentField) && (
+                      ].map(consentField => {
+                        // Normalize consent value to handle booleans and variants
+                        const normalizeConsent = (value) => {
+                          if (value === true || value === 'true' || value === 'Y' || value === 'yes' || value === 'Yes') {
+                            return 'Yes';
+                          } else if (value === false || value === 'false' || value === 'N' || value === 'no' || value === 'No') {
+                            return 'No';
+                          }
+                          return 'N/A';
+                        };
+                        
+                        const normalized = normalizeConsent(memberData[consentField]);
+                        
+                        return isColumnVisible(consentField) && (
                           <td key={consentField} className="p-2 whitespace-nowrap text-center bg-emerald-25">
                             <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                              memberData[consentField] === 'Yes' ? 'bg-green-100 text-green-800' : 
-                                memberData[consentField] === 'No' ? 'bg-red-100 text-red-800' :
+                              normalized === 'Yes' ? 'bg-green-100 text-green-800' : 
+                                normalized === 'No' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                             }`}>
-                              {memberData[consentField] || 'N/A'}
+                              {normalized}
                             </span>
                           </td>
-                        )
-                      ))}
+                        );
+                      })}
                     </>
                   )}
 

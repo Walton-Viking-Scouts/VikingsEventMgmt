@@ -121,15 +121,15 @@ function SectionsList({
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading) {
-                    e.target.style.backgroundColor = bgColor;
-                    e.target.style.color = 'white';
+                    e.currentTarget.style.backgroundColor = bgColor;
+                    e.currentTarget.style.color = 'white';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isLoading) {
-                    e.target.style.backgroundColor = isSelected ? bgColor : 'white';
-                    e.target.style.color = isSelected ? 'white' : bgColor;
-                    e.target.style.border = `2px solid ${bgColor}`;
+                    e.currentTarget.style.backgroundColor = isSelected ? bgColor : 'white';
+                    e.currentTarget.style.color = isSelected ? 'white' : bgColor;
+                    e.currentTarget.style.border = `2px solid ${bgColor}`;
                   }
                 }}
               >
