@@ -75,10 +75,12 @@ function checkForDemoData(data) {
   // Check if data is an array and has demo events
   if (Array.isArray(data)) {
     return data.some((item) => {
-      if (typeof item === 'string') return item.includes('demo_event_');
+      if (typeof item === 'string') return item.includes('demo_event_') || item.startsWith('Demo ');
       if (Array.isArray(item) || (item && typeof item === 'object')) return checkForDemoData(item);
       const eid = item?.eventid;
-      return typeof eid === 'string' && eid.startsWith('demo_event_');
+      const sectionname = item?.sectionname;
+      return (typeof eid === 'string' && eid.startsWith('demo_event_')) ||
+             (typeof sectionname === 'string' && sectionname.startsWith('Demo '));
     });
   }
 
@@ -95,10 +97,15 @@ function checkForDemoData(data) {
     return true;
   }
 
+  // Check if data is a demo section (by sectionname)
+  if (typeof data.sectionname === 'string' && data.sectionname.startsWith('Demo ')) {
+    return true;
+  }
+
   // Check nested properties for demo references
   if (typeof data === 'object') {
     for (const value of Object.values(data)) {
-      if (typeof value === 'string' && value.includes('demo_event_')) {
+      if (typeof value === 'string' && (value.includes('demo_event_') || value.startsWith('Demo '))) {
         return true;
       }
       if (Array.isArray(value) && checkForDemoData(value)) {

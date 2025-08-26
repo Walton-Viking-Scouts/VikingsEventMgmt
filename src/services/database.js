@@ -192,8 +192,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      safeSetItem('viking_sections_offline', sections);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      safeSetItem(key, sections);
       return;
     }
     
@@ -215,8 +218,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const sectionsData = safeGetItem('viking_sections_offline', []);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      const sectionsData = safeGetItem(key, []);
       
       // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
       // In production, they might be timestamped format with {items: [...]}
@@ -226,6 +232,15 @@ class DatabaseService {
       } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
         sections = sectionsData.items;
       }
+      
+      // Filter out demo sections if not in demo mode
+      if (!isDemoMode()) {
+        sections = sections.filter((section) => {
+          const name = section?.sectionname;
+          return !(typeof name === 'string' && name.startsWith('Demo '));
+        });
+      }
+      
       return sections;
     }
     
@@ -559,8 +574,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const sections = safeGetItem('viking_sections_offline', []);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      const sections = safeGetItem(key, []);
       return sections.length > 0;
     }
     

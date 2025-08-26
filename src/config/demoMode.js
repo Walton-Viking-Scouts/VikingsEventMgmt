@@ -184,8 +184,8 @@ export async function initializeDemoMode() {
   logger.info('🎯 Initializing demo mode with production-based data structure', {}, LOG_CATEGORIES.APP);
   
   try {
-    // Store sections as array - safeSetItem will handle JSON stringification
-    safeSetItem('viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
+    // Store sections as array with demo prefix - safeSetItem will handle JSON stringification
+    safeSetItem('demo_viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
 
     // Store other demo cache data
     Object.entries(DEMO_CACHE_DATA).forEach(([key, value]) => {
