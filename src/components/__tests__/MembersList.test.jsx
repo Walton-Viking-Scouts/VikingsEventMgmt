@@ -40,6 +40,7 @@ describe('MembersList', () => {
       patrol: 'Red Patrol',
       rank: 'Scout',
       date_of_birth: '2010-05-15',
+      person_type: 'Young People',
     },
     {
       scoutid: 2,
@@ -51,6 +52,7 @@ describe('MembersList', () => {
       patrol: 'Blue Patrol',
       rank: 'Senior Scout',
       date_of_birth: '2009-03-20',
+      person_type: 'Young People',
     },
   ];
 
