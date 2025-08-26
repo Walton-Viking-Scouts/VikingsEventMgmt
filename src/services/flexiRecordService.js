@@ -169,7 +169,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
+      const cacheKey = `demo_viking_flexi_structure_${flexirecordId}_offline`;
       const cached = safeGetItem(cacheKey, null);
       return cached;
     }
@@ -252,7 +252,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
+      const storageKey = `demo_viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(storageKey, null);
       return cached;
     }

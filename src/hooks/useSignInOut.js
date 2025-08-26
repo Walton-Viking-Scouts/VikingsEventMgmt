@@ -4,6 +4,7 @@ import { getFlexiRecordStructure } from '../services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
 import { getToken, handleApiAuthError } from '../services/auth.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 /**
  * Custom hook for handling sign-in/out functionality with memory leak prevention
@@ -35,8 +36,10 @@ export function useSignInOut(events, onDataRefresh) {
       return userInfo;
     }
     
-    // Fallback to startup data in localStorage
-    const startupData = safeGetItem('viking_startup_data_offline', {});
+    // Fallback to startup data in localStorage with demo mode awareness
+    const demoMode = isDemoMode();
+    const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+    const startupData = safeGetItem(cacheKey, {});
     return startupData.user || { firstname: 'Unknown', lastname: 'User' };
   };
 

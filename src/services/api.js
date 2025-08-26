@@ -474,8 +474,10 @@ async function retrieveUserInfo(token) {
   } catch (startupError) {
     logger.warn('Failed to get startup data for user info:', startupError.message);
     
-    // Fallback: try to get from cache/localStorage  
-    const cachedStartupData = safeGetItem('viking_startup_data_offline');
+    // Fallback: try to get from cache/localStorage with demo mode awareness
+    const demoMode = isDemoMode();
+    const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+    const cachedStartupData = safeGetItem(cacheKey);
     if (cachedStartupData && cachedStartupData.globals) {
       const userInfo = {
         firstname: cachedStartupData.globals.firstname || 'Scout Leader',
@@ -1206,6 +1208,12 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
  */
 export async function getStartupData(token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      return safeGetItem('demo_viking_startup_data_offline', null);
+    }
+
     // Check network status first
     isOnline = await checkNetworkStatus();
     
@@ -1266,7 +1274,8 @@ export async function getStartupData(token) {
     // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
       try {
-        return safeGetItem('viking_startup_data_offline', null);
+        const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+        return safeGetItem(cacheKey, null);
       } catch (cacheError) {
         logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }
