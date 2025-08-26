@@ -55,7 +55,7 @@ const DEMO_MEMBERS_BY_SECTION = new Map();
 const DEMO_CACHE_DATA = {
   viking_sections_offline: [
     {
-      'sectionid': 11107,
+      'sectionid': 999901,
       'sectionname': 'Demo Adults',
       'section': 'adults', 
       'sectiontype': 'adults',
@@ -73,7 +73,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 63813,
+      'sectionid': 999902,
       'sectionname': 'Demo Squirrels',
       'section': 'earlyyears',
       'sectiontype': 'earlyyears', 
@@ -91,7 +91,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 11113,
+      'sectionid': 999903,
       'sectionname': 'Demo Beavers',
       'section': 'beavers',
       'sectiontype': 'beavers',
@@ -109,7 +109,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 49097,
+      'sectionid': 999904,
       'sectionname': 'Demo Cubs',
       'section': 'cubs',
       'sectiontype': 'cubs',
@@ -129,7 +129,7 @@ const DEMO_CACHE_DATA = {
   ],
 
   viking_terms_offline: {
-    '11107': [
+    '999901': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -137,7 +137,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '63813': [
+    '999902': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -145,7 +145,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '11113': [
+    '999903': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -153,7 +153,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '49097': [
+    '999904': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -305,7 +305,7 @@ export async function initializeDemoMode() {
       // Add _isOwner flag based on section
       const metadataWithOwnerFlag = {
         ...swimmingGalaMetadata,
-        _isOwner: section.sectionid === 11107, // Adults section is owner
+        _isOwner: section.sectionid === 999901, // Adults section is owner
       };
       
       // Store with the correct eventid key that the code expects - demo prefixed
@@ -380,14 +380,14 @@ export async function initializeDemoMode() {
       
       // Generate demo member names based on section
       const memberNamesBySection = {
-        '11107': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
-        '63813': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
-        '11113': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
-        '49097': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
+        '999901': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
+        '999902': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
+        '999903': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
+        '999904': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
         'external_scouts_001': ['Lisa Harper', 'James Peterson', 'Amy Carter', 'Ryan Foster', 'Emma Taylor', 'Nathan Hill', 'Olivia White'],
       };
       
-      const namePool = memberNamesBySection[sectionid] || memberNamesBySection['49097'];
+      const namePool = memberNamesBySection[sectionid] || memberNamesBySection['999904'];
       const eventDate = '2025-08-30';
       
       // Generate attending members
@@ -696,7 +696,7 @@ function generateFlexiStructure(flexiRecord) {
   if (flexiRecord.name === 'Viking Event Mgmt') {
     return {
       extraid: flexiRecord.extraid,
-      sectionid: '49097',
+      sectionid: '999904',
       name: 'Viking Event Mgmt',
       config: JSON.stringify([
         {'id': 'f_1', 'name': 'CampGroup', 'width': '150'},
@@ -805,12 +805,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Adults',
-        eventid: 'demo_event_11107_2',
-        sectionid: '11107', // String like production shared metadata
+        eventid: 'demo_event_999901_2',
+        sectionid: '999901', // Fake demo section ID
         none: 3,
         status: 'Owner',
         attendancelimit: 0, // 0 like JOTI production
-        receiving_eventid: 'demo_event_11107_2',
+        receiving_eventid: 'demo_event_999901_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Adults Owner',
       },
       {
@@ -818,12 +818,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Squirrels', 
-        eventid: 'demo_event_63813_2',
-        sectionid: '63813', // String like production
+        eventid: 'demo_event_999902_2',
+        sectionid: '999902', // Fake demo section ID
         none: 5,
         status: 'Accepted',
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_63813_2',
+        receiving_eventid: 'demo_event_999902_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Squirrels Accepted',
       },
       {
@@ -831,12 +831,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts', 
         sectionname: 'Demo Beavers',
-        eventid: 'demo_event_11113_2',
-        sectionid: '11113', // String like production
+        eventid: 'demo_event_999903_2',
+        sectionid: '999903', // Fake demo section ID
         none: 4,
         status: 'Accepted',
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_11113_2',
+        receiving_eventid: 'demo_event_999903_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Beavers Accepted',
       },
       {
@@ -844,12 +844,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Cubs',
-        eventid: 'demo_event_49097_2', 
-        sectionid: '49097', // String like production
+        eventid: 'demo_event_999904_2', 
+        sectionid: '999904', // Fake demo section ID
         none: 2,
         status: 'Accepted', 
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_49097_2',
+        receiving_eventid: 'demo_event_999904_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Cubs Accepted',
       },
       // External section - accepted with attending members
@@ -906,7 +906,7 @@ function generateSwimmingGalaSharedMetadata() {
       startdate_original: '30/08/2025',
       enddate_iso: '2025-08-30', 
       enddate_original: '30/08/2025',
-      sectionid: 11107, // Numeric like production
+      sectionid: 999901, // Fake numeric section ID for demo
       sectionname: 'Demo Adults', 
       termid: '12345',
     },
@@ -921,14 +921,14 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
   
   // Generate demo member names based on section
   const memberNamesBySection = {
-    '11107': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
-    '63813': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
-    '11113': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
-    '49097': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
+    '999901': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
+    '999902': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
+    '999903': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
+    '999904': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
     'external_scouts_001': ['Lisa Harper', 'James Peterson', 'Amy Carter', 'Ryan Foster', 'Emma Taylor'],
   };
   
-  const namePool = memberNamesBySection[sectionid] || memberNamesBySection['49097'];
+  const namePool = memberNamesBySection[sectionid] || memberNamesBySection['999904'];
   const eventDate = '2025-08-30'; // Swimming Gala date
   
   // Generate attending members with full production structure
