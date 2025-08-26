@@ -397,8 +397,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive key
-      const key = 'viking_members_comprehensive_offline';
+      // localStorage fallback - use single comprehensive key with demo mode awareness
+      const demoMode = isDemoMode();
+      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
       
       // Get existing members
       let existingMembers = [];
