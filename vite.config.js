@@ -66,6 +66,9 @@ export default defineConfig({
     target: 'esnext',
     keepNames: true,
     rollupOptions: {
+      input: {
+        main: './index.html',
+      },
       output: {
         // Preserve function names for better stack traces
         manualChunks: undefined,
@@ -75,7 +78,10 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
+    // Copy _redirects file to dist for client-side routing
+    copyPublicDir: true,
   },
+  publicDir: 'public',
   test: {
     globals: true,
     environment: 'jsdom',
