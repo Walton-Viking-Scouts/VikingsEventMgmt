@@ -94,7 +94,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cacheKey = `demo_viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
