@@ -1461,6 +1461,17 @@ export {
  */
 export async function getMembersGrid(sectionId, termId, token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cachedMembers = await databaseService.getMembers([sectionId]);
+      logger.debug('Demo mode: Using cached members from database service', {
+        sectionId,
+        memberCount: cachedMembers.length,
+      }, LOG_CATEGORIES.API);
+      return cachedMembers;
+    }
+
     // Check network status first
     isOnline = await checkNetworkStatus();
     
@@ -1598,6 +1609,19 @@ export async function getMembersGrid(sectionId, termId, token) {
  * console.log(`Total unique members: ${allMembers.length}`);
  */
 export async function getListOfMembers(sections, token) {
+  // Skip API calls in demo mode - use cached data only
+  const demoMode = isDemoMode();
+  if (demoMode) {
+    const validSections = sections.filter(section => section.sectionid);
+    const sectionIds = validSections.map(s => s.sectionid);
+    const cachedMembers = await databaseService.getMembers(sectionIds);
+    logger.debug('Demo mode: Using cached members from database service', {
+      sectionCount: validSections.length,
+      memberCount: cachedMembers.length,
+    }, LOG_CATEGORIES.API);
+    return cachedMembers;
+  }
+
   // Check network status first
   isOnline = await checkNetworkStatus();
   
