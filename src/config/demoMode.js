@@ -199,8 +199,10 @@ export async function initializeDemoMode() {
     });
 
     // Generate events for each section and store as arrays - safeSetItem will handle JSON stringification
+    const allEvents = [];
     DEMO_CACHE_DATA.viking_sections_offline.forEach(section => {
       const demoEvents = generateEventsForSection(section);
+      allEvents.push(...demoEvents);
       
       // Store events with TWO cache keys to support both patterns:
       // 1. With termId for api.js getEvents() function - DEMO PREFIXED
@@ -220,6 +222,13 @@ export async function initializeDemoMode() {
       };
       safeSetItem(eventsKeyWithoutTerm, eventsWithTimestamp);
     });
+
+    // Store comprehensive event data for cross-section viewing (timestamped format)
+    const comprehensiveEventsWithTimestamp = {
+      items: allEvents,
+      _cacheTimestamp: Date.now(),
+    };
+    safeSetItem('demo_viking_events_comprehensive_offline', comprehensiveEventsWithTimestamp);
 
 
     // Generate members for each section and consolidated list
