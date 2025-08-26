@@ -237,6 +237,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const { isDemoMode, initializeDemoMode } = await import('../config/demoMode.js');
       if (isDemoMode()) {
         await initializeDemoMode();
+      } else {
+        // Clean up any demo cache data when not in demo mode
+        const { cleanupDemoCache } = await import('../utils/cacheCleanup.js');
+        cleanupDemoCache();
       }
 
       // Check if we have offline data

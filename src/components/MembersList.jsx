@@ -152,8 +152,9 @@ function MembersList({
     ];
 
     // Convert members to CSV rows using enhanced data
+    const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const csvRows = [
-      headers.join(','),
+      headers.map(csv).join(','), // keep headers safe too
       ...filteredMembers.map((member) => {
         const emergencyContacts = (member.emergency_contacts || [])
           .map((c) => {
@@ -167,29 +168,29 @@ function MembersList({
           .join('; ');
 
         return [
-          `"${member.firstname || ''}"`,
-          `"${member.lastname || ''}"`,
-          `"${member.email || ''}"`,
-          `"${member.phone || ''}"`,
-          `"${(member.sections || []).join('; ')}"`,
-          `"${member.patrol || ''}"`,
-          `"${member.person_type || 'Young People'}"`,
-          `"${calculateAge(member.date_of_birth)}"`,
-          `"${member.date_of_birth || ''}"`,
-          `"${member.address || ''}"`,
-          `"${member.postcode || ''}"`,
-          `"${emergencyContacts}"`,
-          `"${member.medical_notes || ''}"`,
-          `"${member.dietary_requirements || ''}"`,
-          `"${member.active === true ? 'Yes' : member.active === false ? 'No' : ''}"`,
-          `"${member.started || ''}"`,
-          `"${member.joined || ''}"`,
+          csv(member.firstname),
+          csv(member.lastname),
+          csv(member.email),
+          csv(member.phone),
+          csv((member.sections || []).join('; ')),
+          csv(member.patrol),
+          csv(member.person_type || 'Young People'),
+          csv(calculateAge(member.date_of_birth)),
+          csv(member.date_of_birth),
+          csv(member.address),
+          csv(member.postcode),
+          csv(emergencyContacts),
+          csv(member.medical_notes),
+          csv(member.dietary_requirements),
+          csv(member.active === true ? 'Yes' : member.active === false ? 'No' : ''),
+          csv(member.started),
+          csv(member.joined),
         ].join(',');
       }),
     ];
 
-    // Create and download CSV file
-    const csvContent = csvRows.join('\n');
+    // Create and download CSV file (prepend BOM for Excel)
+    const csvContent = '\uFEFF' + csvRows.join('\n');
     const blob = new globalThis.Blob([csvContent], {
       type: 'text/csv;charset=utf-8;',
     });
@@ -211,18 +212,13 @@ function MembersList({
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
-    console.log('✅ MembersList (WORKING) member structure:', {
-      scoutid: member.scoutid,
-      firstname: member.firstname,
-      lastname: member.lastname,
-      date_of_birth: member.date_of_birth,
-      email: member.email,
-      phone: member.phone,
-      emergency_contacts: member.emergency_contacts,
-      medical_notes: member.medical_notes,
-      sections: member.sections,
-      allKeys: Object.keys(member).sort(),
-    });
+    if (import.meta.env?.DEV) {
+      console.log('MembersList — member selected:', {
+        scoutid: member.scoutid,
+        name: member.name || `${member.firstname} ${member.lastname}`,
+        keyCount: Object.keys(member).length,
+      });
+    }
     setSelectedMember(member);
     setShowMemberModal(true);
   };

@@ -187,13 +187,15 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
     // In demo mode, first check localStorage cache (where demo data is stored)
     if (demoMode) {
       try {
-        const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
+        const cacheKey = `demo_viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
         const cachedData = localStorage.getItem(cacheKey);
         if (cachedData) {
           const attendanceData = JSON.parse(cachedData);
           
           // Check if this is a shared event in demo mode by looking for shared metadata
-          const sharedMetadataKey = `viking_shared_metadata_${event.eventid}`;
+          const { isDemoMode } = await import('../config/demoMode.js');
+          const prefix = isDemoMode() ? 'demo_' : '';
+          const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
           const sharedMetadata = localStorage.getItem(sharedMetadataKey);
           if (sharedMetadata) {
             try {
@@ -357,12 +359,14 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
               localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
               
               // Store shared event metadata separately for event expansion
+              const { isDemoMode } = await import('../config/demoMode.js');
+              const prefix = isDemoMode() ? 'demo_' : '';
               const metadata = {
                 _isSharedEvent: true,
                 _allSections: sharedEventData.items,
                 _sourceEvent: event,
               };
-              localStorage.setItem(`viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
+              localStorage.setItem(`${prefix}viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
               
               return combinedAttendanceData;
             }

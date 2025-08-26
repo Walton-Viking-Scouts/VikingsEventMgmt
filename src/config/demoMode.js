@@ -203,12 +203,12 @@ export async function initializeDemoMode() {
       const demoEvents = generateEventsForSection(section);
       
       // Store events with TWO cache keys to support both patterns:
-      // 1. With termId for api.js getEvents() function
+      // 1. With termId for api.js getEvents() function - DEMO PREFIXED
       const termId = '12345';
-      const eventsKeyWithTerm = `viking_events_${section.sectionid}_${termId}_offline`;
+      const eventsKeyWithTerm = `demo_viking_events_${section.sectionid}_${termId}_offline`;
       
-      // 2. Without termId for database.js
-      const eventsKeyWithoutTerm = `viking_events_${section.sectionid}_offline`;
+      // 2. Without termId for database.js - DEMO PREFIXED
+      const eventsKeyWithoutTerm = `demo_viking_events_${section.sectionid}_offline`;
       
       // Store as flat array for api.js getEvents (it expects flat array in demo mode)
       safeSetItem(eventsKeyWithTerm, demoEvents);
@@ -255,8 +255,8 @@ export async function initializeDemoMode() {
         const event = events[i - 1];
         const eventId = event.eventid;
         const attendanceData = generateAttendanceForEvent(section, eventId);
-        // Use the correct cache key format expected by useAttendanceData hook
-        const cacheKey = `viking_attendance_${section.sectionid}_${event.termid}_${event.eventid}_offline`;
+        // Use demo-prefixed cache key format
+        const cacheKey = `demo_viking_attendance_${section.sectionid}_${event.termid}_${event.eventid}_offline`;
         safeSetItem(cacheKey, attendanceData);
       }
     });
@@ -308,8 +308,8 @@ export async function initializeDemoMode() {
         _isOwner: section.sectionid === 11107, // Adults section is owner
       };
       
-      // Store with the correct eventid key that the code expects
-      const metadataKey = `viking_shared_metadata_${swimmingGalaEvent.eventid}`;
+      // Store with the correct eventid key that the code expects - demo prefixed
+      const metadataKey = `demo_viking_shared_metadata_${swimmingGalaEvent.eventid}`;
       safeSetItem(metadataKey, metadataWithOwnerFlag);
       
     });
@@ -355,8 +355,8 @@ export async function initializeDemoMode() {
       const events = generateEventsForSection(section);
       const swimmingGalaEvent = events[1]; // Swimming Gala is second event
       
-      // Use THIS section's eventid in the cache key
-      const sharedCacheKey = `viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
+      // Use THIS section's eventid in the cache key - demo prefixed
+      const sharedCacheKey = `demo_viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
       
       
       safeSetItem(sharedCacheKey, {

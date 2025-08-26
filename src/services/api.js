@@ -712,7 +712,7 @@ export async function getEvents(sectionId, termId, token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_events_${sectionId}_${termId}_offline`;
+      const cacheKey = `demo_viking_events_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       return cached;
     }
@@ -751,11 +751,13 @@ export async function getEvents(sectionId, termId, token) {
     // Events are in the 'items' property of the response
     const events = (data && data.items) ? data.items : [];
     
+    // Filter out any demo events that might be in production data
+    const filteredEvents = events.filter(event => !event.eventid || !event.eventid.startsWith('demo_event_'));
 
     // Save to local database when online (even if empty to cache the result)
-    await databaseService.saveEvents(sectionId, events);
+    await databaseService.saveEvents(sectionId, filteredEvents);
 
-    return events;
+    return filteredEvents;
 
   } catch (error) {
     logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);
@@ -792,7 +794,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
+      const cacheKey = `demo_viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       // Normalize to array format if cached as object with items
       const attendance = Array.isArray(cached) ? cached : (cached.items || []);
@@ -1875,8 +1877,9 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       return generateDemoSharedAttendance(eventId, sectionId);
     }
 
-    // Check for cached data first
-    const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    // Check for cached data first - use demo prefix if in demo mode
+    const prefix = demoMode ? 'demo_' : '';
+    const cacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -1991,7 +1994,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     }, LOG_CATEGORIES.API);
     
     // Try to return stale cached data as a last resort
-    const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    const sharedCacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
       const cached = localStorage.getItem(sharedCacheKey);
       if (cached) {
@@ -2056,8 +2059,8 @@ export async function testBackendConnection() {
  * Get cached shared attendance data for demo mode
  */
 function generateDemoSharedAttendance(eventId, sectionId) {
-  // Simply fetch the cached shared attendance data
-  const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+  // Simply fetch the cached shared attendance data - use demo prefix
+  const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
   const cachedSharedAttendance = localStorage.getItem(sharedCacheKey);
   
   if (import.meta.env.DEV) {
