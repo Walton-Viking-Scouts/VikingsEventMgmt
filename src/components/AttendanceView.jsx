@@ -483,7 +483,12 @@ function AttendanceView({ events, members, onBack }) {
 
     // Process flattened contact fields
     Object.entries(member).forEach(([key, value]) => {
-      if (key.includes('__') && value) {
+      if (
+        key.includes('__') &&
+        value !== undefined &&
+        value !== null &&
+        !(typeof value === 'string' && value.trim() === '')
+      ) {
         const [groupName, fieldName] = key.split('__');
         if (!groups[groupName]) {
           groups[groupName] = {};
@@ -493,12 +498,14 @@ function AttendanceView({ events, members, onBack }) {
     });
 
     // Add legacy fields to appropriate groups
-    if (member.email || member.phone) {
+    const hasEmail = member.email !== undefined && member.email !== null && String(member.email).trim() !== '';
+    const hasPhone = member.phone !== undefined && member.phone !== null && String(member.phone).trim() !== '';
+    if (hasEmail || hasPhone) {
       if (!groups.member_contact) {
         groups.member_contact = {};
       }
-      if (member.email) groups.member_contact.email = member.email;
-      if (member.phone) groups.member_contact.phone = member.phone;
+      if (hasEmail) groups.member_contact.email = member.email;
+      if (hasPhone) groups.member_contact.phone = member.phone;
     }
 
     // Also process nested contact_groups data if available
@@ -511,8 +518,9 @@ function AttendanceView({ events, members, onBack }) {
           }
           // Merge nested data with flattened data (nested takes precedence)
           Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-            if (fieldValue) {
-              const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim() === '';
+            if (fieldValue !== undefined && fieldValue !== null && !isEmptyString) {
               groups[normalizedGroupName][normalizedFieldName] = fieldValue;
             }
           });
@@ -583,13 +591,22 @@ function AttendanceView({ events, members, onBack }) {
 
     const contactGroups = groupContactInfo(cachedMember);
     
+    // Helper to normalize consent values for stable pill coloring
+    const normalizeConsent = (v) => {
+      if (v === undefined || v === null || String(v).trim() === '') return '';
+      const s = String(v).trim().toLowerCase();
+      if (['yes','y','true','1'].includes(s)) return 'Yes';
+      if (['no','n','false','0'].includes(s)) return 'No';
+      return v;
+    };
+    
     // Helper to get field from any group
     const getField = (groupNames, fieldNames) => {
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
         const group = contactGroups[groupName];
         if (group) {
           for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) return group[fieldName];
+            if (Object.prototype.hasOwnProperty.call(group, fieldName)) return group[fieldName];
           }
         }
       }
@@ -597,17 +614,18 @@ function AttendanceView({ events, members, onBack }) {
     };
 
     // Helper to combine multiple fields
-    const combineFields = (groupNames, fieldNames) => {
+    const combineFields = (groupNames, fieldNames, joiner = ', ') => {
       const values = [];
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
         const group = contactGroups[groupName];
         if (group) {
           for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) values.push(group[fieldName]);
+            const v = group[fieldName];
+            if (v !== undefined && v !== null && String(v).trim() !== '') values.push(v);
           }
         }
       }
-      return values.join(', ');
+      return values.join(joiner);
     };
 
     return {
@@ -638,13 +656,13 @@ function AttendanceView({ events, members, onBack }) {
       dietary_requirements: getField(['essential_information'], ['dietary_requirements']) || cachedMember.essential_information__dietary_requirements || '',
       
       // Consents - General (check nested contact_groups.Consents first, then flattened)
-      consent_photos: getField(['consents'], ['photographs', 'photos']) || cachedMember.consents__photographs || '',
-      consent_sensitive: getField(['consents'], ['sensitive_information']) || cachedMember.consents__sensitive_information || '',
+      consent_photos: normalizeConsent(getField(['consents'], ['photographs', 'photos']) || cachedMember.consents__photographs),
+      consent_sensitive: normalizeConsent(getField(['consents'], ['sensitive_information']) || cachedMember.consents__sensitive_information),
       
       // Consents - Medical Treatment (check nested contact_groups.Consents first, then flattened)
-      consent_paracetamol: getField(['consents'], ['paracetamol']) || cachedMember.consents__paracetamol || '',
-      consent_ibuprofen: getField(['consents'], ['ibuprofen']) || cachedMember.consents__ibuprofen || '',
-      consent_suncream: getField(['consents'], ['suncream', 'sun_cream']) || cachedMember.consents__suncream || '',
+      consent_paracetamol: normalizeConsent(getField(['consents'], ['paracetamol']) || cachedMember.consents__paracetamol),
+      consent_ibuprofen: normalizeConsent(getField(['consents'], ['ibuprofen']) || cachedMember.consents__ibuprofen),
+      consent_suncream: normalizeConsent(getField(['consents'], ['suncream', 'sun_cream']) || cachedMember.consents__suncream),
     };
   };
 
