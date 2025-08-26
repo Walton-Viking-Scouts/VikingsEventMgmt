@@ -1,6 +1,7 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 class DatabaseService {
   constructor() {
@@ -509,8 +510,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive cache
-      const key = 'viking_members_comprehensive_offline';
+      // localStorage fallback - use single comprehensive cache with demo mode awareness
+      const demoMode = isDemoMode();
+      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
       
       try {
         const members = safeGetItem(key, []);
