@@ -79,7 +79,7 @@ export function useAttendanceData(events) {
               const parsed = JSON.parse(cached);
               // Safely handle null, arrays, and objects with/without items
               const attendanceItems = Array.isArray(parsed) ? parsed : 
-                                     (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+                (parsed && Array.isArray(parsed.items) ? parsed.items : []);
               attendanceResponse = { items: attendanceItems };
               if (import.meta.env.DEV) {
                 console.log(`Found cached attendance for event ${event.name} with key ${cacheKey}:`, attendanceItems.length, 'records');
