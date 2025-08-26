@@ -11,7 +11,6 @@ import { Button, Card, Input, Alert } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
-import { isMobileLayout } from '../utils/platform.js';
 
 function MembersList({ 
   sections, 
@@ -24,14 +23,11 @@ function MembersList({
   const [loading, setLoading] = useState(!propsMembers);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('lastname');
-  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
 
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
-  const isMobile = isMobileLayout();
   const sectionIds = useMemo(
     () => sections.map((s) => s.sectionid),
     [sections],
@@ -110,9 +106,9 @@ function MembersList({
   };
 
 
-  // Filter and sort members
-  const filteredAndSortedMembers = useMemo(() => {
-    const filtered = members.filter((member) => {
+  // Filter members (sorting is handled by ComprehensiveMemberTable)
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
       const searchLower = searchTerm.toLowerCase();
       const fullName =
         `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
@@ -125,49 +121,11 @@ function MembersList({
         sectionsText.includes(searchLower)
       );
     });
+  }, [members, searchTerm]);
 
-    filtered.sort((a, b) => {
-      let aValue = a[sortField] || '';
-      let bValue = b[sortField] || '';
-
-      // Special handling for specific fields
-      if (sortField === 'name') {
-        aValue = `${a.lastname || ''} ${a.firstname || ''}`;
-        bValue = `${b.lastname || ''} ${b.firstname || ''}`;
-      } else if (sortField === 'sections') {
-        aValue = (a.sections || []).join(', ');
-        bValue = (b.sections || []).join(', ');
-      } else if (sortField === 'age') {
-        aValue = calculateAge(a.date_of_birth);
-        bValue = calculateAge(b.date_of_birth);
-      }
-
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
-  }, [members, searchTerm, sortField, sortDirection]);
-
-  const _handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   const exportToCSV = () => {
-    if (filteredAndSortedMembers.length === 0) {
+    if (filteredMembers.length === 0) {
       alert('No members to export');
       return;
     }
@@ -196,11 +154,16 @@ function MembersList({
     // Convert members to CSV rows using enhanced data
     const csvRows = [
       headers.join(','),
-      ...filteredAndSortedMembers.map((member) => {
+      ...filteredMembers.map((member) => {
         const emergencyContacts = (member.emergency_contacts || [])
-          .map((contact) =>
-            `${contact.name} (${contact.phone}) ${contact.email}`.trim(),
-          )
+          .map((c) => {
+            const parts = [];
+            if (c?.name && String(c.name).trim() !== '') parts.push(String(c.name).trim());
+            if (c?.phone && String(c.phone).trim() !== '') parts.push(`(${String(c.phone).trim()})`);
+            if (c?.email && String(c.email).trim() !== '') parts.push(String(c.email).trim());
+            return parts.join(' ').trim();
+          })
+          .filter((s) => s.length > 0)
           .join('; ');
 
         return [
@@ -218,7 +181,7 @@ function MembersList({
           `"${emergencyContacts}"`,
           `"${member.medical_notes || ''}"`,
           `"${member.dietary_requirements || ''}"`,
-          `"${member.active ? 'Yes' : 'No'}"`,
+          `"${member.active === true ? 'Yes' : member.active === false ? 'No' : ''}"`,
           `"${member.started || ''}"`,
           `"${member.joined || ''}"`,
         ].join(',');
@@ -241,18 +204,10 @@ function MembersList({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    // Revoke on next tick to allow the click to proceed in all browsers
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const _SortIcon = ({ field }) => {
-    if (sortField !== field) {
-      return <span className="text-gray-300">↕</span>;
-    }
-    return (
-      <span className="text-scout-blue">
-        {sortDirection === 'asc' ? '↑' : '↓'}
-      </span>
-    );
-  };
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
@@ -306,7 +261,7 @@ function MembersList({
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             <h1 className="text-xl font-semibold text-gray-900">
-              Members ({filteredAndSortedMembers.length})
+              Members ({filteredMembers.length})
             </h1>
             <p className="mt-2 text-sm text-gray-700">
               Members from selected sections:{' '}
@@ -317,7 +272,7 @@ function MembersList({
             <Button
               variant="outline"
               onClick={exportToCSV}
-              disabled={filteredAndSortedMembers.length === 0}
+              disabled={filteredMembers.length === 0}
               type="button"
             >
               <svg
@@ -358,7 +313,7 @@ function MembersList({
 
       {/* Members table/cards */}
       <div className="mt-6">
-        {filteredAndSortedMembers.length === 0 ? (
+        {filteredMembers.length === 0 ? (
           <Card>
             <Card.Body className="text-center py-12">
               <svg
@@ -384,17 +339,9 @@ function MembersList({
               </p>
             </Card.Body>
           </Card>
-        ) : isMobile ? (
-          // Mobile: Card layout
-          <ComprehensiveMemberTable
-            members={filteredAndSortedMembers}
-            onMemberClick={handleMemberClick}
-            showFilters={true}
-          />
         ) : (
-          // Desktop: Use shared comprehensive table component
           <ComprehensiveMemberTable
-            members={filteredAndSortedMembers}
+            members={filteredMembers}
             onMemberClick={handleMemberClick}
             showFilters={true}
           />

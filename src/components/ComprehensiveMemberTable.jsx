@@ -190,7 +190,7 @@ function ComprehensiveMemberTable({
   const [visibleColumns] = useState({
     // Basic Info
     name: true,
-    sections: true,
+    section: true,
     patrol: true,
     person_type: true,
     age: true,
@@ -248,7 +248,7 @@ function ComprehensiveMemberTable({
     if (!visibleColumns[column]) return false;
     
     // Basic columns
-    if (['name', 'sections', 'patrol', 'person_type', 'age'].includes(column)) {
+    if (['name', 'section', 'patrol', 'person_type', 'age'].includes(column)) {
       return visibleColumnGroups.basic;
     }
     
@@ -281,6 +281,12 @@ function ComprehensiveMemberTable({
     if (column.startsWith('consent_')) return visibleColumnGroups.consents;
     
     return false;
+  };
+
+  // Calculate dynamic colSpan for Basic Info group
+  const getBasicInfoColSpan = () => {
+    const basicColumns = ['name', 'section', 'patrol', 'person_type', 'age'];
+    return basicColumns.filter(col => isColumnVisible(col)).length;
   };
 
   // Handle column group toggle
@@ -378,7 +384,7 @@ function ComprehensiveMemberTable({
             <tr className="bg-gray-100">
               {/* Basic Info Group */}
               {visibleColumnGroups.basic && (
-                <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2 border-r border-gray-300" colSpan="5">
+                <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2 border-r border-gray-300" colSpan={getBasicInfoColSpan()}>
                   📋 Basic Information
                 </th>
               )}
@@ -455,10 +461,10 @@ function ComprehensiveMemberTable({
               )}
               {visibleColumnGroups.basic && (
                 <>
-                  <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Section</th>
-                  <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Patrol</th>
-                  <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Type</th>
-                  <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Age</th>
+                  {isColumnVisible('section') && <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Section</th>}
+                  {isColumnVisible('patrol') && <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Patrol</th>}
+                  {isColumnVisible('person_type') && <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Type</th>}
+                  {isColumnVisible('age') && <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Age</th>}
                 </>
               )}
 
@@ -562,7 +568,7 @@ function ComprehensiveMemberTable({
               const memberData = getComprehensiveData(member, extraDataExtractor);
               
               return (
-                <tr key={index} className="hover:bg-gray-50 text-xs">
+                <tr key={member.memberid ?? member.member_id ?? member.scoutid ?? member.id ?? index} className="hover:bg-gray-50 text-xs">
                   {/* Basic Info Cells */}
                   {visibleColumnGroups.basic && isColumnVisible('name') && (
                     <td className="p-2 whitespace-nowrap">
@@ -576,10 +582,10 @@ function ComprehensiveMemberTable({
                   )}
                   {visibleColumnGroups.basic && (
                     <>
-                      <td className="p-2 whitespace-nowrap text-gray-900">{memberData.section}</td>
-                      <td className="p-2 whitespace-nowrap text-gray-900">{memberData.patrol}</td>
-                      <td className="p-2 whitespace-nowrap text-gray-900">{memberData.person_type}</td>
-                      <td className="p-2 whitespace-nowrap text-gray-900">{memberData.age}</td>
+                      {isColumnVisible('section') && <td className="p-2 whitespace-nowrap text-gray-900">{memberData.section}</td>}
+                      {isColumnVisible('patrol') && <td className="p-2 whitespace-nowrap text-gray-900">{memberData.patrol}</td>}
+                      {isColumnVisible('person_type') && <td className="p-2 whitespace-nowrap text-gray-900">{memberData.person_type}</td>}
+                      {isColumnVisible('age') && <td className="p-2 whitespace-nowrap text-gray-900">{memberData.age}</td>}
                     </>
                   )}
 

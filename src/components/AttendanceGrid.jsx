@@ -158,7 +158,7 @@ function AttendanceGrid({ data }) {
               {getTotalByStatus('notAttending')}
             </td>
             <td
-              className="px-3 py-2 text-center text-sm text-yellow-800"
+              className="px-3 py-2 text-center text-sm text-blue-800"
               data-oid="jq3n59y"
             >
               {getTotalByStatus('invited')}
