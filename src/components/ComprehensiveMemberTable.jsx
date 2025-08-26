@@ -85,6 +85,7 @@ const getComprehensiveData = (member, extraDataExtractor = null) => {
     name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
     section: member.sectionname || '',
     patrol: member.patrol || '',
+    person_type: member.person_type || 'Young People',
     age: member.date_of_birth ? Math.floor((Date.now() - new Date(member.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
     
     // Primary Contact 1 (check both flattened and nested)
@@ -456,6 +457,7 @@ function ComprehensiveMemberTable({
                 <>
                   <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Section</th>
                   <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Patrol</th>
+                  <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Type</th>
                   <th className="text-xs font-medium text-gray-500 uppercase tracking-wider p-2">Age</th>
                 </>
               )}
@@ -576,6 +578,7 @@ function ComprehensiveMemberTable({
                     <>
                       <td className="p-2 whitespace-nowrap text-gray-900">{memberData.section}</td>
                       <td className="p-2 whitespace-nowrap text-gray-900">{memberData.patrol}</td>
+                      <td className="p-2 whitespace-nowrap text-gray-900">{memberData.person_type}</td>
                       <td className="p-2 whitespace-nowrap text-gray-900">{memberData.age}</td>
                     </>
                   )}
