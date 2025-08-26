@@ -752,7 +752,10 @@ export async function getEvents(sectionId, termId, token) {
     const events = (data && data.items) ? data.items : [];
     
     // Filter out any demo events that might be in production data
-    const filteredEvents = events.filter(event => !event.eventid || !event.eventid.startsWith('demo_event_'));
+    const filteredEvents = events.filter((event) => {
+      const eid = event?.eventid;
+      return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+    });
 
     // Save to local database when online (even if empty to cache the result)
     await databaseService.saveEvents(sectionId, filteredEvents);

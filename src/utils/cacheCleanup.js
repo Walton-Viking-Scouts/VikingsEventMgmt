@@ -16,7 +16,7 @@ export function cleanupDemoCache() {
   // Check all localStorage keys for demo data
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith('demo_')) {
+    if (key && (key.startsWith('demo_') || key.includes('demo_event_'))) {
       keysToRemove.push(key);
     }
   }
@@ -74,20 +74,24 @@ function checkForDemoData(data) {
 
   // Check if data is an array and has demo events
   if (Array.isArray(data)) {
-    return data.some(item => 
-      item && item.eventid && item.eventid.startsWith('demo_event_'),
-    );
+    return data.some((item) => {
+      if (typeof item === 'string') return item.includes('demo_event_');
+      if (Array.isArray(item) || (item && typeof item === 'object')) return checkForDemoData(item);
+      const eid = item?.eventid;
+      return typeof eid === 'string' && eid.startsWith('demo_event_');
+    });
   }
 
   // Check if data has items property with demo events
   if (data.items && Array.isArray(data.items)) {
-    return data.items.some(item => 
-      item && item.eventid && item.eventid.startsWith('demo_event_'),
-    );
+    return data.items.some((item) => {
+      const eid = item?.eventid;
+      return typeof eid === 'string' && eid.startsWith('demo_event_');
+    });
   }
 
   // Check if data itself has demo eventid
-  if (data.eventid && data.eventid.startsWith('demo_event_')) {
+  if (typeof data.eventid === 'string' && data.eventid.startsWith('demo_event_')) {
     return true;
   }
 
@@ -98,6 +102,9 @@ function checkForDemoData(data) {
         return true;
       }
       if (Array.isArray(value) && checkForDemoData(value)) {
+        return true;
+      }
+      if (value && typeof value === 'object' && checkForDemoData(value)) {
         return true;
       }
     }

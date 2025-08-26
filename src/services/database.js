@@ -295,7 +295,10 @@ class DatabaseService {
       
       // Filter out demo events if not in demo mode
       if (!isDemoMode()) {
-        events = events.filter(event => !event.eventid || !event.eventid.startsWith('demo_event_'));
+        events = events.filter((event) => {
+          const eid = event?.eventid;
+          return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+        });
       }
       
       return events;
