@@ -1994,6 +1994,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     }, LOG_CATEGORIES.API);
     
     // Try to return stale cached data as a last resort
+    const demoMode = isDemoMode();
+    const prefix = demoMode ? 'demo_' : '';
     const sharedCacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
       const cached = localStorage.getItem(sharedCacheKey);

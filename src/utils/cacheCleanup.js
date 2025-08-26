@@ -75,14 +75,14 @@ function checkForDemoData(data) {
   // Check if data is an array and has demo events
   if (Array.isArray(data)) {
     return data.some(item => 
-      item && item.eventid && item.eventid.startsWith('demo_event_')
+      item && item.eventid && item.eventid.startsWith('demo_event_'),
     );
   }
 
   // Check if data has items property with demo events
   if (data.items && Array.isArray(data.items)) {
     return data.items.some(item => 
-      item && item.eventid && item.eventid.startsWith('demo_event_')
+      item && item.eventid && item.eventid.startsWith('demo_event_'),
     );
   }
 
