@@ -5,6 +5,7 @@ import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
 import SignInOutButton from './SignInOutButton.jsx';
+import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
@@ -522,8 +523,43 @@ function AttendanceView({ events, members, onBack }) {
     return groups;
   };
 
-  // Extract comprehensive member data for attendance detailed view
-  const getComprehensiveMemberData = (attendanceRecord) => {
+  // Transform attendance records to full member objects for the detailed view
+  const transformAttendanceToMembers = (attendanceRecords) => {
+    return attendanceRecords.map(attendanceRecord => {
+      const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
+      const fullMember = members?.find((m) => m.scoutid === scoutidAsNumber);
+      
+      if (!fullMember) {
+        // Return minimal member-like object if no full data available
+        return {
+          scoutid: scoutidAsNumber,
+          firstname: attendanceRecord.firstname,
+          lastname: attendanceRecord.lastname,
+          sectionname: attendanceRecord.sectionname,
+          sections: [attendanceRecord.sectionname],
+          patrol: attendanceRecord.patrol,
+          person_type: attendanceRecord.person_type,
+          date_of_birth: null,
+          email: attendanceRecord.email || '',
+          phone: attendanceRecord.phone || '',
+          // Add attendance info
+          attending: attendanceRecord.attending,
+          attendance_status: getAttendanceStatus(attendanceRecord.attending),
+        };
+      }
+      
+      // Return full member data with attendance info added
+      return {
+        ...fullMember,
+        // Add attendance info from the attendance record
+        attending: attendanceRecord.attending,
+        attendance_status: getAttendanceStatus(attendanceRecord.attending),
+      };
+    });
+  };
+
+  // Extract comprehensive member data for attendance detailed view (legacy - can be removed later)
+  const _getComprehensiveMemberData = (attendanceRecord) => {
     // Find the full member data from the members prop
     const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
     const cachedMember = members?.find((m) => m.scoutid === scoutidAsNumber);
@@ -888,7 +924,7 @@ function AttendanceView({ events, members, onBack }) {
                     <th className="px-3 py-2 text-left table-header-text text-gray-500 uppercase tracking-wider">
                       Section
                     </th>
-                    <th className="px-2 py-2 text-center table-header-text text-green-600 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-center table-header-text text-scout-green uppercase tracking-wider">
                       <div>Yes</div>
                       <div className="flex justify-center mt-1 text-xs">
                         <span className="w-8 text-center">YP</span>
@@ -906,7 +942,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">Total</span>
                       </div>
                     </th>
-                    <th className="px-2 py-2 text-center table-header-text text-yellow-600 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-center table-header-text text-scout-blue uppercase tracking-wider">
                       <div>Invited</div>
                       <div className="flex justify-center mt-1 text-xs">
                         <span className="w-8 text-center">YP</span>
@@ -941,7 +977,7 @@ function AttendanceView({ events, members, onBack }) {
                       <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                         {section.name}
                       </td>
-                      <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-scout-green font-semibold">
                         <div className="flex justify-center">
                           <span className="w-8 text-center">
                             {section.yes.yp}
@@ -973,7 +1009,7 @@ function AttendanceView({ events, members, onBack }) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
                         <div className="flex justify-center">
                           <span className="w-8 text-center">
                             {section.invited.yp}
@@ -1027,7 +1063,7 @@ function AttendanceView({ events, members, onBack }) {
                     <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                       Total
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-scout-green font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">
                           {simplifiedSummaryStats.totals.yes.yp}
@@ -1059,7 +1095,7 @@ function AttendanceView({ events, members, onBack }) {
                         </span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">
                           {simplifiedSummaryStats.totals.invited.yp}
@@ -1306,85 +1342,23 @@ function AttendanceView({ events, members, onBack }) {
           )}
 
           {viewMode === 'detailed' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {/* Basic Info Headers */}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
-                      Member
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Section
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Attendance
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Patrol
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Age
-                    </th>
-                    
-                    {/* Contact Info Headers */}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
-                      Primary Contact
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
-                      PC Phone
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
-                      PC Email
-                    </th>
-                    
-                    {/* Emergency Contact Headers */}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
-                      Emergency Contact
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
-                      EC Phone
-                    </th>
-                    
-                    {/* Medical Info Headers */}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
-                      Allergies
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
-                      Medical
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50">
-                      Dietary
-                    </th>
-                    
-                    {/* Consent Headers */}
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                      Photos
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                      Sensitive Info
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                      Paracetamol
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                      Ibuprofen
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                      Suncream
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortData(
-                    filteredAttendanceData,
-                    sortConfig.key,
-                    sortConfig.direction,
-                  ).map((record, index) => {
-                    const status = getAttendanceStatus(record.attending);
+            <ComprehensiveMemberTable
+              members={transformAttendanceToMembers(filteredAttendanceData)}
+              onMemberClick={(member) => {
+                setSelectedMember(member);
+                setShowMemberModal(true);
+              }}
+              showFilters={true}
+              extraColumns={[
+                {
+                  key: 'attendance_status',
+                  title: 'Attendance',
+                  group: 'Basic Info',
+                  groupColor: 'bg-scout-blue',
+                  render: (member) => {
                     let badgeVariant, statusText;
-
-                    switch (status) {
+                    
+                    switch (member.attendance_status) {
                     case 'yes':
                       badgeVariant = 'scout-green';
                       statusText = 'Yes';
@@ -1402,127 +1376,21 @@ function AttendanceView({ events, members, onBack }) {
                       statusText = 'Not Invited';
                       break;
                     default:
-                      badgeVariant = 'secondary';
+                      badgeVariant = 'light';
                       statusText = 'Unknown';
-                      break;
                     }
 
-                    // Get comprehensive member data
-                    const memberData = getComprehensiveMemberData(record);
-
                     return (
-                      <tr key={index} className="hover:bg-gray-50 text-xs">
-                        {/* Basic Info Cells */}
-                        <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
-                          <button
-                            onClick={() => handleMemberClick(record)}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
-                          >
-                            {memberData.name}
-                          </button>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                          {memberData.section}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge variant={badgeVariant} size="sm">{statusText}</Badge>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                          {memberData.patrol}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                          {memberData.age}
-                        </td>
-                        
-                        {/* Contact Info Cells */}
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
-                          {memberData.pc1_name}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
-                          {memberData.pc1_phone}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
-                          {memberData.pc1_email}
-                        </td>
-                        
-                        {/* Emergency Contact Cells */}
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
-                          {memberData.ec_name}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
-                          {memberData.ec_phone}
-                        </td>
-                        
-                        {/* Medical Info Cells */}
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                            {memberData.allergies || 'None'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.medical_details ? 'text-orange-700' : 'text-gray-400'}>
-                            {memberData.medical_details || 'None'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.dietary_requirements ? 'text-orange-700' : 'text-gray-400'}>
-                            {memberData.dietary_requirements || 'None'}
-                          </span>
-                        </td>
-                        
-                        {/* Consent Cells */}
-                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_photos === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_photos === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_photos || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_sensitive === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_sensitive === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_sensitive || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_paracetamol === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_paracetamol === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_paracetamol || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_ibuprofen === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_ibuprofen === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_ibuprofen || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_suncream === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_suncream === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_suncream || 'N/A'}
-                          </span>
-                        </td>
-                      </tr>
+                      <Badge variant={badgeVariant} size="sm">
+                        {statusText}
+                      </Badge>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  },
+                },
+              ]}
+            />
           )}
+
 
           {viewMode === 'campGroups' && (
             <CampGroupsView

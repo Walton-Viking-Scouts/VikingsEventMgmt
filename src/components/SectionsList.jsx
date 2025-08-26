@@ -109,15 +109,15 @@ function SectionsList({
                 disabled={isLoading}
                 style={{
                   padding: '10px',
-                  backgroundColor: isSelected ? hoverBgColor : bgColor,
-                  color: 'white',
-                  border: 'none',
+                  backgroundColor: isSelected ? bgColor : 'white',
+                  color: isSelected ? 'white' : bgColor,
+                  border: `2px solid ${bgColor}`,
                   borderRadius: '4px',
                   cursor: isLoading ? 'not-allowed' : 'pointer',
                   fontSize: '12px',
                   fontWeight: '500',
                   minWidth: '120px',
-                  opacity: isLoading ? 0.6 : isSelected ? 1 : 0.8,
+                  opacity: isLoading ? 0.6 : 1,
                   transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                   boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                   transition: 'all 0.2s ease',
@@ -128,16 +128,15 @@ function SectionsList({
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading) {
-                    e.target.style.backgroundColor = hoverBgColor;
-                    e.target.style.opacity = 1;
+                    e.target.style.backgroundColor = bgColor;
+                    e.target.style.color = 'white';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isLoading) {
-                    e.target.style.backgroundColor = isSelected
-                      ? hoverBgColor
-                      : bgColor;
-                    e.target.style.opacity = isSelected ? 1 : 0.8;
+                    e.target.style.backgroundColor = isSelected ? bgColor : 'white';
+                    e.target.style.color = isSelected ? 'white' : bgColor;
+                    e.target.style.border = `2px solid ${bgColor}`;
                   }
                 }}
               >

@@ -8,7 +8,7 @@ function AttendanceGrid({ data }) {
     case 'notAttending':
       return 'bg-red-100 text-red-800';
     case 'invited':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-blue-100 text-blue-800';
     case 'notInvited':
       return 'bg-gray-100 text-gray-800';
     default:
@@ -81,7 +81,7 @@ function AttendanceGrid({ data }) {
               Type
             </th>
             <th
-              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="2edtkr5"
             >
               <div className="flex flex-col items-center" data-oid="mymvun:">
@@ -93,7 +93,7 @@ function AttendanceGrid({ data }) {
               </div>
             </th>
             <th
-              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="d5tra5f"
             >
               <div className="flex flex-col items-center" data-oid="1v-984k">
@@ -105,19 +105,19 @@ function AttendanceGrid({ data }) {
               </div>
             </th>
             <th
-              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="jus_mnu"
             >
               <div className="flex flex-col items-center" data-oid="9d:s:ih">
                 <div
-                  className="w-3 h-3 bg-yellow-500 rounded-full mb-1"
+                  className="w-3 h-3 bg-blue-500 rounded-full mb-1"
                   data-oid="n9585cz"
                 ></div>
                 <span data-oid="h8qw-i5">Invited</span>
               </div>
             </th>
             <th
-              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              className="px-0 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="ox-.q6h"
             >
               <div className="flex flex-col items-center" data-oid="o4lada:">
