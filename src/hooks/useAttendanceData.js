@@ -64,21 +64,32 @@ export function useAttendanceData(events) {
         }
         
         // Check if we have cached attendance data for this specific event
-        const cacheKey = `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
+        // Try multiple cache key formats for backward compatibility
+        const cacheKeys = [
+          `viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`, // New format (demo mode)
+          `viking_attendance_${event.eventid}_offline`, // Database service format
+        ];
+        
         let attendanceResponse = null;
         
-        try {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            const cachedAttendance = JSON.parse(cached);
-            attendanceResponse = { items: cachedAttendance };
-            if (import.meta.env.DEV) {
-              console.log(`Found cached attendance for event ${event.name}:`, cachedAttendance.length, 'records');
+        for (const cacheKey of cacheKeys) {
+          try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              // Safely handle null, arrays, and objects with/without items
+              const attendanceItems = Array.isArray(parsed) ? parsed : 
+                (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+              attendanceResponse = { items: attendanceItems };
+              if (import.meta.env.DEV) {
+                console.log(`Found cached attendance for event ${event.name} with key ${cacheKey}:`, attendanceItems.length, 'records');
+              }
+              break; // Found data, stop trying other keys
             }
-          }
-        } catch (error) {
-          if (import.meta.env.DEV) {
-            console.warn('Failed to parse cached attendance data:', error);
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.warn(`Failed to parse cached attendance data for key ${cacheKey}:`, error);
+            }
           }
         }
         

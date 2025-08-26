@@ -203,11 +203,6 @@ function AttendanceView({ events, members, onBack }) {
   const loadSharedAttendanceData = useCallback(async () => {
     setLoadingSharedAttendance(true);
     try {
-      const token = getToken();
-      if (!isDemoMode() && !token) {
-        throw new Error('No authentication token available');
-      }
-
       // Find the shared event (the one that has shared metadata)
       const sharedEvent = events.find(event => {
         const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
@@ -229,11 +224,60 @@ function AttendanceView({ events, members, onBack }) {
       if (import.meta.env.DEV) {
         console.log('Loading shared attendance for event:', sharedEvent.eventid, 'section:', sharedEvent.sectionid);
       }
+
+      // First try to load from cache for offline support
+      const cacheKey = `viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
+      let cachedData = null;
       
-      const sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
-      
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          cachedData = JSON.parse(cached);
+          if (import.meta.env.DEV) {
+            console.log('Found cached shared attendance data:', cachedData);
+          }
+        }
+      } catch (cacheError) {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to parse cached shared attendance data:', cacheError);
+        }
+      }
+
+      const token = getToken();
+      let sharedData = null;
+
+      // Try API call if we have a token and not in demo mode
+      if (!isDemoMode() && token) {
+        try {
+          sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
+        } catch (apiError) {
+          if (import.meta.env.DEV) {
+            console.warn('API call failed, will use cached data if available:', apiError);
+          }
+          // If API fails, fallback to cached data
+          if (cachedData) {
+            sharedData = cachedData;
+          } else {
+            throw apiError; // Re-throw if no cached data available
+          }
+        }
+      } else if (isDemoMode()) {
+        // In demo mode, let getSharedEventAttendance handle it
+        sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
+      } else {
+        // No token and not demo mode - use cached data or fail gracefully
+        if (cachedData) {
+          sharedData = cachedData;
+          if (import.meta.env.DEV) {
+            console.log('Using cached shared attendance data (no token available)');
+          }
+        } else {
+          throw new Error('No authentication token available and no cached data found');
+        }
+      }
+
       if (import.meta.env.DEV) {
-        console.log('Received shared attendance data:', sharedData);
+        console.log('Final shared attendance data:', sharedData);
       }
       setSharedAttendanceData(sharedData);
       
