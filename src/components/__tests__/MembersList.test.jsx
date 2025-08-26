@@ -34,23 +34,29 @@ describe('MembersList', () => {
       scoutid: 1,
       firstname: 'John',
       lastname: 'Doe',
-      email: 'john.doe@example.com',
-      phone: '123-456-7890',
       sections: ['Beavers'],
       patrol: 'Red Patrol',
       rank: 'Scout',
       date_of_birth: '2010-05-15',
+      person_type: 'Young People',
+      primary_contact_1__first_name: 'Mary',
+      primary_contact_1__last_name: 'Doe',
+      primary_contact_1__email_1: 'mary.doe@example.com',
+      primary_contact_1__phone_1: '123-456-7890',
     },
     {
       scoutid: 2,
       firstname: 'Jane',
       lastname: 'Smith',
-      email: 'jane.smith@example.com',
-      phone: '098-765-4321',
       sections: ['Cubs', 'Beavers'],
       patrol: 'Blue Patrol',
       rank: 'Senior Scout',
       date_of_birth: '2009-03-20',
+      person_type: 'Young People',
+      primary_contact_1__first_name: 'Bob',
+      primary_contact_1__last_name: 'Smith',
+      primary_contact_1__email_1: 'bob.smith@example.com',
+      primary_contact_1__phone_1: '098-765-4321',
     },
   ];
 
@@ -112,14 +118,18 @@ describe('MembersList', () => {
     });
   });
 
-  it('displays member email addresses', async () => {
+  it('displays primary contact email addresses when column group enabled', async () => {
     await act(async () => {
       render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
+    // Enable Primary Contact 1 column group
+    const primaryContact1Button = await screen.findByText('👤 Primary Contact 1');
+    fireEvent.click(primaryContact1Button);
+
     await waitFor(() => {
-      expect(screen.getByText('john.doe@example.com')).toBeInTheDocument();
-      expect(screen.getByText('jane.smith@example.com')).toBeInTheDocument();
+      expect(screen.getByText('mary.doe@example.com')).toBeInTheDocument();
+      expect(screen.getByText('bob.smith@example.com')).toBeInTheDocument();
     });
   });
 
