@@ -78,7 +78,7 @@ function AttendanceGrid({ data }) {
               className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="ibi8k8g"
             >
-              Type
+              Section
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
