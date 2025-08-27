@@ -308,7 +308,7 @@ export async function getTerms(token, forceRefresh = false) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = 'viking_terms_offline';
+      const cacheKey = 'demo_viking_terms_offline';
       const cached = safeGetItem(cacheKey, { items: [] });
       if (import.meta.env.DEV) {
         logger.debug('Demo mode: Using cached terms data', {
@@ -318,7 +318,7 @@ export async function getTerms(token, forceRefresh = false) {
       return cached;
     }
     
-    const cacheKey = 'viking_terms_offline';
+    const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
     
     // Check network status first
     isOnline = await checkNetworkStatus();
@@ -407,7 +407,9 @@ export async function getTerms(token, forceRefresh = false) {
     // If online request fails, try localStorage as fallback
     if (isOnline) {
       try {
-        const cached = safeGetItem('viking_terms_offline', {});
+        const demoMode = isDemoMode();
+        const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+        const cached = safeGetItem(cacheKey, {});
         logger.warn('Using cached terms after API failure', {}, LOG_CATEGORIES.API);
         return cached;
       } catch (cacheError) {
@@ -474,8 +476,10 @@ async function retrieveUserInfo(token) {
   } catch (startupError) {
     logger.warn('Failed to get startup data for user info:', startupError.message);
     
-    // Fallback: try to get from cache/localStorage  
-    const cachedStartupData = safeGetItem('viking_startup_data_offline');
+    // Fallback: try to get from cache/localStorage with demo mode awareness
+    const demoMode = isDemoMode();
+    const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+    const cachedStartupData = safeGetItem(cacheKey);
     if (cachedStartupData && cachedStartupData.globals) {
       const userInfo = {
         firstname: cachedStartupData.globals.firstname || 'Scout Leader',
@@ -528,7 +532,7 @@ export async function getUserRoles(token) {
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
-    const cacheKey = 'viking_user_roles_offline';
+    const cacheKey = 'demo_viking_user_roles_offline';
     const cached = safeGetItem(cacheKey, { sections: [] });
     const sections = cached.sections || [];
     if (import.meta.env.DEV) {
@@ -712,7 +716,7 @@ export async function getEvents(sectionId, termId, token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_events_${sectionId}_${termId}_offline`;
+      const cacheKey = `demo_viking_events_${sectionId}_${termId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       return cached;
     }
@@ -751,11 +755,16 @@ export async function getEvents(sectionId, termId, token) {
     // Events are in the 'items' property of the response
     const events = (data && data.items) ? data.items : [];
     
+    // Filter out any demo events that might be in production data
+    const filteredEvents = events.filter((event) => {
+      const eid = event?.eventid;
+      return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+    });
 
     // Save to local database when online (even if empty to cache the result)
-    await databaseService.saveEvents(sectionId, events);
+    await databaseService.saveEvents(sectionId, filteredEvents);
 
-    return events;
+    return filteredEvents;
 
   } catch (error) {
     logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);
@@ -792,7 +801,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
+      const cacheKey = `demo_viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
       const cached = safeGetItem(cacheKey, []);
       // Normalize to array format if cached as object with items
       const attendance = Array.isArray(cached) ? cached : (cached.items || []);
@@ -883,7 +892,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const cacheKey = `demo_viking_flexi_lists_${sectionId}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
@@ -1013,7 +1022,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
+      const cacheKey = `demo_viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
@@ -1074,12 +1083,12 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      const cacheKey = `viking_flexi_structure_${extraid}_offline`;
+      const cacheKey = `demo_viking_flexi_structure_${extraid}_offline`;
       const cached = safeGetItem(cacheKey, null);
       return cached;
     }
     
-    const storageKey = `viking_flexi_structure_${extraid}_offline`;
+    const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -1174,7 +1183,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
-        const storageKey = `viking_flexi_structure_${extraid}_offline`;
+        const demoMode = isDemoMode();
+        const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
         const cacheData = safeGetItem(storageKey, null);
         logger.info('Using cached fallback data after API error, not updating cache timestamp', {}, LOG_CATEGORIES.API);
         return cacheData;
@@ -1201,12 +1211,20 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
  */
 export async function getStartupData(token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      return safeGetItem('demo_viking_startup_data_offline', null);
+    }
+
     // Check network status first
     isOnline = await checkNetworkStatus();
     
     // If offline, get from localStorage
     if (!isOnline) {
-      return safeGetItem('viking_startup_data_offline', null);
+      const demoMode = isDemoMode();
+      const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+      return safeGetItem(cacheKey, null);
     }
 
     if (!token) {
@@ -1227,7 +1245,9 @@ export async function getStartupData(token) {
     // Cache startup data for offline use - enhanced error handling
     if (startupData) {
       try {
-        const success = safeSetItem('viking_startup_data_offline', startupData);
+        const demoMode = isDemoMode();
+        const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+        const success = safeSetItem(cacheKey, startupData);
         if (success) {
           logger.info('Startup data successfully cached', {
             dataSize: JSON.stringify(startupData).length,
@@ -1261,7 +1281,9 @@ export async function getStartupData(token) {
     // If online request fails (non-auth errors), try localStorage as fallback
     if (isOnline) {
       try {
-        return safeGetItem('viking_startup_data_offline', null);
+        const demoMode = isDemoMode();
+        const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+        return safeGetItem(cacheKey, null);
       } catch (cacheError) {
         logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }
@@ -1456,6 +1478,17 @@ export {
  */
 export async function getMembersGrid(sectionId, termId, token) {
   try {
+    // Skip API calls in demo mode - use cached data only
+    const demoMode = isDemoMode();
+    if (demoMode) {
+      const cachedMembers = await databaseService.getMembers([sectionId]);
+      logger.debug('Demo mode: Using cached members from database service', {
+        sectionId,
+        memberCount: cachedMembers.length,
+      }, LOG_CATEGORIES.API);
+      return cachedMembers;
+    }
+
     // Check network status first
     isOnline = await checkNetworkStatus();
     
@@ -1593,6 +1626,19 @@ export async function getMembersGrid(sectionId, termId, token) {
  * console.log(`Total unique members: ${allMembers.length}`);
  */
 export async function getListOfMembers(sections, token) {
+  // Skip API calls in demo mode - use cached data only
+  const demoMode = isDemoMode();
+  if (demoMode) {
+    const validSections = sections.filter(section => section.sectionid);
+    const sectionIds = validSections.map(s => s.sectionid);
+    const cachedMembers = await databaseService.getMembers(sectionIds);
+    logger.debug('Demo mode: Using cached members from database service', {
+      sectionCount: validSections.length,
+      memberCount: cachedMembers.length,
+    }, LOG_CATEGORIES.API);
+    return cachedMembers;
+  }
+
   // Check network status first
   isOnline = await checkNetworkStatus();
   
@@ -1868,15 +1914,10 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
-    // Skip API calls in demo mode - return mock shared attendance data
+    // Check for cached data first - use demo prefix if in demo mode
     const demoMode = isDemoMode();
-    if (demoMode) {
-      logger.debug('Demo mode: Generating mock shared attendance data', {}, LOG_CATEGORIES.API);
-      return generateDemoSharedAttendance(eventId, sectionId);
-    }
-
-    // Check for cached data first
-    const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    const prefix = demoMode ? 'demo_' : '';
+    const cacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -1894,6 +1935,12 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       }
     } catch (cacheError) {
       logger.warn('Failed to parse cached shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
+    }
+    
+    // In demo mode, if no cached data found, generate fallback
+    if (demoMode) {
+      logger.debug('Demo mode: No cached shared attendance found, generating fallback data', { eventId, sectionId }, LOG_CATEGORIES.API);
+      return generateDemoSharedAttendance(eventId, sectionId);
     }
     
     // Check network status first
@@ -1991,7 +2038,9 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     }, LOG_CATEGORIES.API);
     
     // Try to return stale cached data as a last resort
-    const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+    const demoMode = isDemoMode();
+    const prefix = demoMode ? 'demo_' : '';
+    const sharedCacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
       const cached = localStorage.getItem(sharedCacheKey);
       if (cached) {
@@ -2056,8 +2105,8 @@ export async function testBackendConnection() {
  * Get cached shared attendance data for demo mode
  */
 function generateDemoSharedAttendance(eventId, sectionId) {
-  // Simply fetch the cached shared attendance data
-  const sharedCacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+  // Simply fetch the cached shared attendance data - use demo prefix
+  const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
   const cachedSharedAttendance = localStorage.getItem(sharedCacheKey);
   
   if (import.meta.env.DEV) {

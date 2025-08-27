@@ -55,7 +55,7 @@ const DEMO_MEMBERS_BY_SECTION = new Map();
 const DEMO_CACHE_DATA = {
   viking_sections_offline: [
     {
-      'sectionid': 11107,
+      'sectionid': 999901,
       'sectionname': 'Demo Adults',
       'section': 'adults', 
       'sectiontype': 'adults',
@@ -73,7 +73,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 63813,
+      'sectionid': 999902,
       'sectionname': 'Demo Squirrels',
       'section': 'earlyyears',
       'sectiontype': 'earlyyears', 
@@ -91,7 +91,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 11113,
+      'sectionid': 999903,
       'sectionname': 'Demo Beavers',
       'section': 'beavers',
       'sectiontype': 'beavers',
@@ -109,7 +109,7 @@ const DEMO_CACHE_DATA = {
       },
     },
     {
-      'sectionid': 49097,
+      'sectionid': 999904,
       'sectionname': 'Demo Cubs',
       'section': 'cubs',
       'sectiontype': 'cubs',
@@ -129,7 +129,7 @@ const DEMO_CACHE_DATA = {
   ],
 
   viking_terms_offline: {
-    '11107': [
+    '999901': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -137,7 +137,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '63813': [
+    '999902': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -145,7 +145,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '11113': [
+    '999903': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -153,7 +153,7 @@ const DEMO_CACHE_DATA = {
         'enddate': '2025-12-15',
       },
     ],
-    '49097': [
+    '999904': [
       {
         'termid': '12345',
         'name': 'Autumn Term 2025',
@@ -184,10 +184,10 @@ export async function initializeDemoMode() {
   logger.info('🎯 Initializing demo mode with production-based data structure', {}, LOG_CATEGORIES.APP);
   
   try {
-    // Store sections as array - safeSetItem will handle JSON stringification
-    safeSetItem('viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
+    // Store sections as array with demo prefix - safeSetItem will handle JSON stringification
+    safeSetItem('demo_viking_sections_offline', DEMO_CACHE_DATA.viking_sections_offline);
 
-    // Store other demo cache data
+    // Store other demo cache data with demo prefix for consistency
     Object.entries(DEMO_CACHE_DATA).forEach(([key, value]) => {
       if (key === 'viking_sections_offline') return; // Already stored above
       
@@ -195,7 +195,9 @@ export async function initializeDemoMode() {
         ? value 
         : { items: value, _cacheTimestamp: Date.now() };
       
-      safeSetItem(key, dataWithTimestamp);
+      // Add demo prefix to all cache keys for consistency
+      const demoKey = `demo_${key}`;
+      safeSetItem(demoKey, dataWithTimestamp);
     });
 
     // Generate events for each section and store as arrays - safeSetItem will handle JSON stringification
@@ -203,12 +205,12 @@ export async function initializeDemoMode() {
       const demoEvents = generateEventsForSection(section);
       
       // Store events with TWO cache keys to support both patterns:
-      // 1. With termId for api.js getEvents() function
+      // 1. With termId for api.js getEvents() function - DEMO PREFIXED
       const termId = '12345';
-      const eventsKeyWithTerm = `viking_events_${section.sectionid}_${termId}_offline`;
+      const eventsKeyWithTerm = `demo_viking_events_${section.sectionid}_${termId}_offline`;
       
-      // 2. Without termId for database.js
-      const eventsKeyWithoutTerm = `viking_events_${section.sectionid}_offline`;
+      // 2. Without termId for database.js - DEMO PREFIXED
+      const eventsKeyWithoutTerm = `demo_viking_events_${section.sectionid}_offline`;
       
       // Store as flat array for api.js getEvents (it expects flat array in demo mode)
       safeSetItem(eventsKeyWithTerm, demoEvents);
@@ -232,7 +234,7 @@ export async function initializeDemoMode() {
         items: demoMembers,
         _cacheTimestamp: Date.now(),
       };
-      safeSetItem(`viking_members_${section.sectionid}_offline`, membersWithTimestamp);
+      safeSetItem(`demo_viking_members_${section.sectionid}_offline`, membersWithTimestamp);
       allMembers.push(...demoMembers);
     });
 
@@ -241,10 +243,10 @@ export async function initializeDemoMode() {
       items: allMembers,
       _cacheTimestamp: Date.now(),
     };
-    safeSetItem('viking_members_offline', consolidatedMembersWithTimestamp);
+    safeSetItem('demo_viking_members_offline', consolidatedMembersWithTimestamp);
 
     // Store comprehensive member data for getMembers() function (flat array format)
-    safeSetItem('viking_members_comprehensive_offline', allMembers);
+    safeSetItem('demo_viking_members_comprehensive_offline', allMembers);
 
     // Demo sections stored successfully
 
@@ -255,8 +257,8 @@ export async function initializeDemoMode() {
         const event = events[i - 1];
         const eventId = event.eventid;
         const attendanceData = generateAttendanceForEvent(section, eventId);
-        // Use the correct cache key format expected by useAttendanceData hook
-        const cacheKey = `viking_attendance_${section.sectionid}_${event.termid}_${event.eventid}_offline`;
+        // Use demo-prefixed cache key format
+        const cacheKey = `demo_viking_attendance_${section.sectionid}_${event.termid}_${event.eventid}_offline`;
         safeSetItem(cacheKey, attendanceData);
       }
     });
@@ -272,7 +274,7 @@ export async function initializeDemoMode() {
         items: flexiLists,
         _cacheTimestamp: Date.now(),
       };
-      safeSetItem(`viking_flexi_lists_${section.sectionid}_offline`, flexiListsWithTimestamp);
+      safeSetItem(`demo_viking_flexi_lists_${section.sectionid}_offline`, flexiListsWithTimestamp);
 
       // Generate flexi structures and data for each flexi record
       flexiLists.forEach(flexiRecord => {
@@ -281,7 +283,7 @@ export async function initializeDemoMode() {
           ...flexiStructure,
           _cacheTimestamp: Date.now(),
         };
-        safeSetItem(`viking_flexi_structure_${flexiRecord.extraid}_offline`, flexiStructureWithTimestamp);
+        safeSetItem(`demo_viking_flexi_structure_${flexiRecord.extraid}_offline`, flexiStructureWithTimestamp);
 
         // Generate flexi data for the current term
         const flexiData = generateFlexiData(section, flexiRecord);
@@ -289,7 +291,7 @@ export async function initializeDemoMode() {
           items: flexiData,
           _cacheTimestamp: Date.now(),
         };
-        safeSetItem(`viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_12345_offline`, flexiDataWithTimestamp);
+        safeSetItem(`demo_viking_flexi_data_${flexiRecord.extraid}_${section.sectionid}_12345_offline`, flexiDataWithTimestamp);
       });
     });
 
@@ -305,11 +307,11 @@ export async function initializeDemoMode() {
       // Add _isOwner flag based on section
       const metadataWithOwnerFlag = {
         ...swimmingGalaMetadata,
-        _isOwner: section.sectionid === 11107, // Adults section is owner
+        _isOwner: section.sectionid === 999901, // Adults section is owner
       };
       
-      // Store with the correct eventid key that the code expects
-      const metadataKey = `viking_shared_metadata_${swimmingGalaEvent.eventid}`;
+      // Store with the correct eventid key that the code expects - demo prefixed
+      const metadataKey = `demo_viking_shared_metadata_${swimmingGalaEvent.eventid}`;
       safeSetItem(metadataKey, metadataWithOwnerFlag);
       
     });
@@ -355,8 +357,8 @@ export async function initializeDemoMode() {
       const events = generateEventsForSection(section);
       const swimmingGalaEvent = events[1]; // Swimming Gala is second event
       
-      // Use THIS section's eventid in the cache key
-      const sharedCacheKey = `viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
+      // Use THIS section's eventid in the cache key - demo prefixed
+      const sharedCacheKey = `demo_viking_shared_attendance_${swimmingGalaEvent.eventid}_${section.sectionid}_offline`;
       
       
       safeSetItem(sharedCacheKey, {
@@ -380,21 +382,24 @@ export async function initializeDemoMode() {
       
       // Generate demo member names based on section
       const memberNamesBySection = {
-        '11107': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
-        '63813': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
-        '11113': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
-        '49097': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
+        '999901': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
+        '999902': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
+        '999903': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
+        '999904': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
         'external_scouts_001': ['Lisa Harper', 'James Peterson', 'Amy Carter', 'Ryan Foster', 'Emma Taylor', 'Nathan Hill', 'Olivia White'],
       };
       
-      const namePool = memberNamesBySection[sectionid] || memberNamesBySection['49097'];
+      const namePool = memberNamesBySection[sectionid] || memberNamesBySection['999904'];
       const eventDate = '2025-08-30';
       
       // Generate attending members
       for (let i = 0; i < attendingCount && i < namePool.length; i++) {
         const firstName = namePool[i].split(' ')[0];
         const lastName = namePool[i].split(' ')[1] || 'Member';
-        const scoutId = `${sectionid}${String(i + 1000).slice(-3)}`;
+        // Handle non-numeric section IDs like 'external_scouts_001'
+        const scoutId = sectionid === 'external_scouts_001' 
+          ? `${90000 + i + 1}` // External scouts start from 90001
+          : `${String(parseInt(sectionid) * 1000 + i + 1)}`;
         const scoutSectionId = `${scoutId}-${sectionid}`;
         const isAdults = sectionname.toLowerCase().includes('adult');
         const age = isAdults ? '25+' : `${10 + (i % 3)} / ${String(i % 12).padStart(2, '0')}`;
@@ -425,7 +430,10 @@ export async function initializeDemoMode() {
       for (let i = 0; i < notAttendingCount && i < remainingNames.length; i++) {
         const firstName = remainingNames[i].split(' ')[0];
         const lastName = remainingNames[i].split(' ')[1] || 'Member';
-        const scoutId = `${sectionid}${String(i + attendingCount + 1000).slice(-3)}`;
+        // Handle non-numeric section IDs like 'external_scouts_001'
+        const scoutId = sectionid === 'external_scouts_001' 
+          ? `${90000 + attendingCount + i + 1}` // External scouts continue numbering
+          : `${String(parseInt(sectionid) * 1000 + attendingCount + i + 1)}`;
         const scoutSectionId = `${scoutId}-${sectionid}`;
         const isAdults = sectionname.toLowerCase().includes('adult');
         const age = isAdults ? '25+' : `${10 + ((i + attendingCount) % 3)} / ${String((i + attendingCount) % 12).padStart(2, '0')}`;
@@ -565,7 +573,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < leaderCount; i++) {
     const [firstname, lastname] = sectionNames.Leaders[i % sectionNames.Leaders.length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Leaders',
@@ -581,7 +589,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < youngLeaderCount; i++) {
     const [firstname, lastname] = sectionNames['Young Leaders'][i % sectionNames['Young Leaders'].length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Young Leaders',
@@ -597,7 +605,7 @@ function generateMembersForSection(section) {
   for (let i = 0; i < youngPeopleCount; i++) {
     const [firstname, lastname] = sectionNames['Young People'][i % sectionNames['Young People'].length].split(' ');
     members.push({
-      scoutid: `demo_${section.sectionid}_${memberIndex++}`,
+      scoutid: String(parseInt(section.sectionid) * 1000 + memberIndex++),
       firstname,
       lastname,
       person_type: 'Young People',
@@ -696,7 +704,7 @@ function generateFlexiStructure(flexiRecord) {
   if (flexiRecord.name === 'Viking Event Mgmt') {
     return {
       extraid: flexiRecord.extraid,
-      sectionid: '49097',
+      sectionid: '999904',
       name: 'Viking Event Mgmt',
       config: JSON.stringify([
         {'id': 'f_1', 'name': 'CampGroup', 'width': '150'},
@@ -760,6 +768,7 @@ function generateFlexiData(section, flexiRecord) {
         scoutid: member.scoutid,
         firstname: member.firstname,
         lastname: member.lastname,
+        person_type: member.person_type, // Preserve person_type for drag/drop functionality
         f_1: campGroup, // CampGroup (f_1 standardized for demo)
         f_2: isSignedIn ? leaders[index % leaders.length] : '', // SignedInBy
         f_3: isSignedIn ? `2025-08-23 ${signInTimes[index % signInTimes.length]}` : '', // SignedInWhen
@@ -805,12 +814,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Adults',
-        eventid: 'demo_event_11107_2',
-        sectionid: '11107', // String like production shared metadata
+        eventid: 'demo_event_999901_2',
+        sectionid: '999901', // Fake demo section ID
         none: 3,
         status: 'Owner',
         attendancelimit: 0, // 0 like JOTI production
-        receiving_eventid: 'demo_event_11107_2',
+        receiving_eventid: 'demo_event_999901_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Adults Owner',
       },
       {
@@ -818,12 +827,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Squirrels', 
-        eventid: 'demo_event_63813_2',
-        sectionid: '63813', // String like production
+        eventid: 'demo_event_999902_2',
+        sectionid: '999902', // Fake demo section ID
         none: 5,
         status: 'Accepted',
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_63813_2',
+        receiving_eventid: 'demo_event_999902_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Squirrels Accepted',
       },
       {
@@ -831,12 +840,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts', 
         sectionname: 'Demo Beavers',
-        eventid: 'demo_event_11113_2',
-        sectionid: '11113', // String like production
+        eventid: 'demo_event_999903_2',
+        sectionid: '999903', // Fake demo section ID
         none: 4,
         status: 'Accepted',
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_11113_2',
+        receiving_eventid: 'demo_event_999903_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Beavers Accepted',
       },
       {
@@ -844,12 +853,12 @@ function generateSwimmingGalaSharedMetadata() {
         emailable: true,
         groupname: '1st Walton (Viking) Sea Scouts',
         sectionname: 'Demo Cubs',
-        eventid: 'demo_event_49097_2', 
-        sectionid: '49097', // String like production
+        eventid: 'demo_event_999904_2', 
+        sectionid: '999904', // Fake demo section ID
         none: 2,
         status: 'Accepted', 
         attendancelimit: 0,
-        receiving_eventid: 'demo_event_49097_2',
+        receiving_eventid: 'demo_event_999904_2',
         _filterString: '1st Walton (Viking) Sea Scouts Demo Cubs Accepted',
       },
       // External section - accepted with attending members
@@ -906,7 +915,7 @@ function generateSwimmingGalaSharedMetadata() {
       startdate_original: '30/08/2025',
       enddate_iso: '2025-08-30', 
       enddate_original: '30/08/2025',
-      sectionid: 11107, // Numeric like production
+      sectionid: 999901, // Fake numeric section ID for demo
       sectionname: 'Demo Adults', 
       termid: '12345',
     },
@@ -921,21 +930,24 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
   
   // Generate demo member names based on section
   const memberNamesBySection = {
-    '11107': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
-    '63813': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
-    '11113': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
-    '49097': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
+    '999901': ['Sarah Mitchell', 'David Parker', 'Rachel Thompson', 'Mark Roberts', 'Helen Clarke'],
+    '999902': ['Emma Johnson', 'Tom Williams', 'Sophie Davies', 'Oliver Thomas', 'Mia Jackson'], 
+    '999903': ['Kate Smith', 'Mike Jones', 'Ben Brown', 'Alice Wilson', 'Charlie Davis'],
+    '999904': ['Anna Green', 'Chris Cooper', 'Jamie Ward', 'Maya Bell', 'Sam King'],
     'external_scouts_001': ['Lisa Harper', 'James Peterson', 'Amy Carter', 'Ryan Foster', 'Emma Taylor'],
   };
   
-  const namePool = memberNamesBySection[sectionid] || memberNamesBySection['49097'];
+  const namePool = memberNamesBySection[sectionid] || memberNamesBySection['999904'];
   const eventDate = '2025-08-30'; // Swimming Gala date
   
   // Generate attending members with full production structure
   for (let i = 0; i < attendingCount && i < namePool.length; i++) {
     const firstName = namePool[i].split(' ')[0];
     const lastName = namePool[i].split(' ')[1] || 'Member';
-    const scoutId = `${sectionid}${String(i + 1000).slice(-3)}`; // Generate realistic scout IDs
+    // Handle non-numeric section IDs like 'external_scouts_001'
+    const scoutId = sectionid === 'external_scouts_001' 
+      ? `${90000 + i + 1}` // External scouts start from 90001
+      : `${String(parseInt(sectionid) * 1000 + i + 1)}`;
     const scoutSectionId = `${scoutId}-${sectionid}`;
     
     // Generate age based on section type - Adults get "25+", others get "yy / mm" format
@@ -968,7 +980,10 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
   for (let i = 0; i < notAttendingCount && i < remainingNames.length; i++) {
     const firstName = remainingNames[i].split(' ')[0];
     const lastName = remainingNames[i].split(' ')[1] || 'Member';
-    const scoutId = `${sectionid}${String(i + attendingCount + 1000).slice(-3)}`;
+    // Handle non-numeric section IDs like 'external_scouts_001'
+    const scoutId = sectionid === 'external_scouts_001' 
+      ? `${90000 + attendingCount + i + 1}` // External scouts continue numbering
+      : `${String(parseInt(sectionid) * 1000 + attendingCount + i + 1)}`;
     const scoutSectionId = `${scoutId}-${sectionid}`;
     
     // Generate age for non-attending members - same logic as attending

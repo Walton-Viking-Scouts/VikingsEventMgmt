@@ -75,71 +75,49 @@ function SectionsList({
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
             const isLoading = loadingSection === section.sectionid;
-            const sectionType = section.section.toLowerCase();
+            const sectionType = (section.section || section.sectionname || '').toLowerCase();
 
-            // Determine background color based on section type
-            let bgColor, hoverBgColor;
+            // Determine section color classes
+            let sectionColorClass, hoverColorClass;
             if (sectionType.includes('earlyyears')) {
-              bgColor = 'var(--scout-red)';
-              hoverBgColor = 'var(--scout-red-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-red text-white border-scout-red' : 'bg-white text-scout-red border-scout-red';
+              hoverColorClass = 'hover:bg-scout-red hover:text-white';
             } else if (sectionType.includes('beavers')) {
-              bgColor = 'var(--scout-blue)';
-              hoverBgColor = 'var(--scout-blue-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-blue text-white border-scout-blue' : 'bg-white text-scout-blue border-scout-blue';
+              hoverColorClass = 'hover:bg-scout-blue hover:text-white';
             } else if (sectionType.includes('cubs')) {
-              bgColor = 'var(--scout-forest-green)';
-              hoverBgColor = 'var(--scout-forest-green-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-forest-green text-white border-scout-forest-green' : 'bg-white text-scout-forest-green border-scout-forest-green';
+              hoverColorClass = 'hover:bg-scout-forest-green hover:text-white';
             } else if (sectionType.includes('scouts')) {
-              bgColor = 'var(--scout-navy)';
-              hoverBgColor = 'var(--scout-navy-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-navy text-white border-scout-navy' : 'bg-white text-scout-navy border-scout-navy';
+              hoverColorClass = 'hover:bg-scout-navy hover:text-white';
             } else if (sectionType.includes('adults')) {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-purple text-white border-scout-purple' : 'bg-white text-scout-purple border-scout-purple';
+              hoverColorClass = 'hover:bg-scout-purple hover:text-white';
             } else if (sectionType.includes('waitinglist')) {
-              bgColor = 'var(--scout-teal)';
-              hoverBgColor = 'var(--scout-teal-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-teal text-white border-scout-teal' : 'bg-white text-scout-teal border-scout-teal';
+              hoverColorClass = 'hover:bg-scout-teal hover:text-white';
             } else {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
+              sectionColorClass = isSelected ? 'bg-scout-purple text-white border-scout-purple' : 'bg-white text-scout-purple border-scout-purple';
+              hoverColorClass = 'hover:bg-scout-purple hover:text-white';
             }
 
             return (
               <button
                 key={section.sectionid}
                 onClick={() => onSectionToggle(section)}
+                type="button"
                 disabled={isLoading}
-                style={{
-                  padding: '10px',
-                  backgroundColor: isSelected ? hoverBgColor : bgColor,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  minWidth: '120px',
-                  opacity: isLoading ? 0.6 : isSelected ? 1 : 0.8,
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) {
-                    e.target.style.backgroundColor = hoverBgColor;
-                    e.target.style.opacity = 1;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isLoading) {
-                    e.target.style.backgroundColor = isSelected
-                      ? hoverBgColor
-                      : bgColor;
-                    e.target.style.opacity = isSelected ? 1 : 0.8;
-                  }
-                }}
+                className={`
+                  p-2.5 border-2 rounded text-xs font-medium min-w-[120px] 
+                  flex items-center justify-center gap-2
+                  transition-all duration-200 ease-in-out
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue
+                  ${sectionColorClass}
+                  ${!isLoading ? hoverColorClass : ''}
+                  ${isLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                  ${isSelected ? 'transform scale-105 shadow-lg' : 'transform scale-100'}
+                `}
               >
                 {isLoading && (
                   <svg

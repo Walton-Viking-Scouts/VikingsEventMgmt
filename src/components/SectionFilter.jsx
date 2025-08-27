@@ -64,8 +64,10 @@ function SectionFilter({
       {sections.map((section) => {
         const isActive = sectionFilters[section.sectionid];
         const activeStyles = getSectionColor(section);
-        const inactiveStyles =
-          'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50';
+        const colorName = activeStyles.match(/bg-scout-([\w-]+)/)?.[1];
+        const inactiveStyles = colorName 
+          ? `bg-white text-scout-${colorName} border-2 border-scout-${colorName}`
+          : 'bg-white text-gray-600 border-2 border-gray-300';
 
         return (
           <button

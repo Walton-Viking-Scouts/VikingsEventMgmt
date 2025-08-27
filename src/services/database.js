@@ -1,6 +1,7 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 class DatabaseService {
   constructor() {
@@ -192,8 +193,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      safeSetItem('viking_sections_offline', sections);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      safeSetItem(key, sections);
       return;
     }
     
@@ -215,8 +219,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const sectionsData = safeGetItem('viking_sections_offline', []);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      const sectionsData = safeGetItem(key, []);
       
       // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
       // In production, they might be timestamped format with {items: [...]}
@@ -226,6 +233,15 @@ class DatabaseService {
       } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
         sections = sectionsData.items;
       }
+      
+      // Filter out demo sections if not in demo mode
+      if (!isDemoMode()) {
+        sections = sections.filter((section) => {
+          const name = section?.sectionname;
+          return !(typeof name === 'string' && name.startsWith('Demo '));
+        });
+      }
+      
       return sections;
     }
     
@@ -239,8 +255,10 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const key = `viking_events_${sectionId}_offline`;
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_events_${sectionId}_offline`;
       safeSetItem(key, events);
       return;
     }
@@ -276,8 +294,10 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const key = `viking_events_${sectionId}_offline`;
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_events_${sectionId}_offline`;
       const eventsData = safeGetItem(key, []);
       
       // In demo mode, events are stored as flat array (already parsed by safeGetItem)
@@ -288,6 +308,15 @@ class DatabaseService {
       } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
         events = eventsData.items;
       }
+      
+      // Filter out demo events if not in demo mode
+      if (!isDemoMode()) {
+        events = events.filter((event) => {
+          const eid = event?.eventid;
+          return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+        });
+      }
+      
       return events;
     }
     
@@ -368,8 +397,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive key
-      const key = 'viking_members_comprehensive_offline';
+      // localStorage fallback - use single comprehensive key with demo mode awareness
+      const demoMode = isDemoMode();
+      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
       
       // Get existing members
       let existingMembers = [];
@@ -481,8 +511,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive cache
-      const key = 'viking_members_comprehensive_offline';
+      // localStorage fallback - use single comprehensive cache with demo mode awareness
+      const demoMode = isDemoMode();
+      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
       
       try {
         const members = safeGetItem(key, []);
@@ -546,8 +577,11 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
-      const sections = safeGetItem('viking_sections_offline', []);
+      // localStorage fallback - use demo prefix if in demo mode
+      const { isDemoMode } = await import('../config/demoMode.js');
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const key = `${prefix}viking_sections_offline`;
+      const sections = safeGetItem(key, []);
       return sections.length > 0;
     }
     

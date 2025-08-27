@@ -5,6 +5,7 @@ import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
 import SignInOutButton from './SignInOutButton.jsx';
+import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
@@ -14,8 +15,13 @@ import { getToken } from '../services/auth.js';
 import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
-  // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
-  window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  // VISIBLE TEST (dev only): Add timestamp to DOM to prove component is mounting
+  if (import.meta.env?.DEV) {
+    window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  }
+  
+  // Cache prefix for demo/production mode - computed once and reused
+  const cachePrefix = useMemo(() => (isDemoMode() ? 'demo_' : ''), []);
   
   // Debug what members data we're receiving (only log once)
   const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
@@ -66,8 +72,10 @@ function AttendanceView({ events, members, onBack }) {
   // Cache parsed sections data for section name resolution
   const sectionsCache = useMemo(() => {
     try {
+      const demoMode = isDemoMode();
+      const cacheKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
       return JSON.parse(
-        localStorage.getItem('viking_sections_offline') || '[]',
+        localStorage.getItem(cacheKey) || '[]',
       );
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -186,7 +194,7 @@ function AttendanceView({ events, members, onBack }) {
   const hasSharedEvents = useMemo(() => {
     return events.some(event => {
       // Check if this event has shared event metadata stored
-      const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+      const metadata = localStorage.getItem(`${cachePrefix}viking_shared_metadata_${event.eventid}`);
       if (metadata) {
         try {
           const parsed = JSON.parse(metadata);
@@ -197,14 +205,14 @@ function AttendanceView({ events, members, onBack }) {
       }
       return false;
     });
-  }, [events]);
+  }, [events, cachePrefix]);
 
   const loadSharedAttendanceData = useCallback(async () => {
     setLoadingSharedAttendance(true);
     try {
       // Find the shared event (the one that has shared metadata)
       const sharedEvent = events.find(event => {
-        const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+        const metadata = localStorage.getItem(`${cachePrefix}viking_shared_metadata_${event.eventid}`);
         if (metadata) {
           try {
             const parsed = JSON.parse(metadata);
@@ -225,7 +233,7 @@ function AttendanceView({ events, members, onBack }) {
       }
 
       // First try to load from cache for offline support
-      const cacheKey = `viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
+      const cacheKey = `${cachePrefix}viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
       let cachedData = null;
       
       try {
@@ -288,7 +296,7 @@ function AttendanceView({ events, members, onBack }) {
     } finally {
       setLoadingSharedAttendance(false);
     }
-  }, [events]);
+  }, [events, cachePrefix]);
 
   // Load shared attendance data when switching to shared attendance view
   useEffect(() => {
@@ -519,6 +527,43 @@ function AttendanceView({ events, members, onBack }) {
       </span>
     );
   };
+
+
+  // Transform attendance records to full member objects for the detailed view
+  const transformAttendanceToMembers = (attendanceRecords) => {
+    return attendanceRecords.map(attendanceRecord => {
+      const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
+      const fullMember = members?.find((m) => m.scoutid === scoutidAsNumber);
+      
+      if (!fullMember) {
+        // Return minimal member-like object if no full data available
+        return {
+          scoutid: scoutidAsNumber,
+          firstname: attendanceRecord.firstname,
+          lastname: attendanceRecord.lastname,
+          sectionname: attendanceRecord.sectionname,
+          sections: [attendanceRecord.sectionname],
+          patrol: attendanceRecord.patrol,
+          person_type: attendanceRecord.person_type,
+          date_of_birth: null,
+          email: attendanceRecord.email || '',
+          phone: attendanceRecord.phone || '',
+          // Add attendance info
+          attending: attendanceRecord.attending,
+          attendance_status: getAttendanceStatus(attendanceRecord.attending),
+        };
+      }
+      
+      // Return full member data with attendance info added
+      return {
+        ...fullMember,
+        // Add attendance info from the attendance record
+        attending: attendanceRecord.attending,
+        attendance_status: getAttendanceStatus(attendanceRecord.attending),
+      };
+    });
+  };
+
 
   // Transform cached member data to match what MemberDetailModal expects
   const transformMemberForModal = (cachedMember) => {
@@ -796,7 +841,7 @@ function AttendanceView({ events, members, onBack }) {
                     <th className="px-3 py-2 text-left table-header-text text-gray-500 uppercase tracking-wider">
                       Section
                     </th>
-                    <th className="px-2 py-2 text-center table-header-text text-green-600 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-center table-header-text text-scout-green uppercase tracking-wider">
                       <div>Yes</div>
                       <div className="flex justify-center mt-1 text-xs">
                         <span className="w-8 text-center">YP</span>
@@ -814,7 +859,7 @@ function AttendanceView({ events, members, onBack }) {
                         <span className="w-12 text-center">Total</span>
                       </div>
                     </th>
-                    <th className="px-2 py-2 text-center table-header-text text-yellow-600 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-center table-header-text text-scout-blue uppercase tracking-wider">
                       <div>Invited</div>
                       <div className="flex justify-center mt-1 text-xs">
                         <span className="w-8 text-center">YP</span>
@@ -849,7 +894,7 @@ function AttendanceView({ events, members, onBack }) {
                       <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                         {section.name}
                       </td>
-                      <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-scout-green font-semibold">
                         <div className="flex justify-center">
                           <span className="w-8 text-center">
                             {section.yes.yp}
@@ -881,7 +926,7 @@ function AttendanceView({ events, members, onBack }) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
+                      <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
                         <div className="flex justify-center">
                           <span className="w-8 text-center">
                             {section.invited.yp}
@@ -935,7 +980,7 @@ function AttendanceView({ events, members, onBack }) {
                     <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                       Total
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-scout-green font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">
                           {simplifiedSummaryStats.totals.yes.yp}
@@ -967,7 +1012,7 @@ function AttendanceView({ events, members, onBack }) {
                         </span>
                       </div>
                     </td>
-                    <td className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold">
+                    <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
                       <div className="flex justify-center">
                         <span className="w-8 text-center">
                           {simplifiedSummaryStats.totals.invited.yp}
@@ -1214,46 +1259,23 @@ function AttendanceView({ events, members, onBack }) {
           )}
 
           {viewMode === 'detailed' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('member')}
-                    >
-                      <div className="flex items-center">
-                        Member {getSortIcon('member')}
-                      </div>
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('section')}
-                    >
-                      <div className="flex items-center">
-                        Section {getSortIcon('section')}
-                      </div>
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('attendance')}
-                    >
-                      <div className="flex items-center">
-                        Attendance {getSortIcon('attendance')}
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortData(
-                    filteredAttendanceData,
-                    sortConfig.key,
-                    sortConfig.direction,
-                  ).map((record, index) => {
-                    const status = getAttendanceStatus(record.attending);
+            <ComprehensiveMemberTable
+              members={transformAttendanceToMembers(filteredAttendanceData)}
+              onMemberClick={(member) => {
+                setSelectedMember(member);
+                setShowMemberModal(true);
+              }}
+              showFilters={true}
+              extraColumns={[
+                {
+                  key: 'attendance_status',
+                  title: 'Attendance',
+                  group: 'Basic Info',
+                  groupColor: 'bg-scout-blue',
+                  render: (member) => {
                     let badgeVariant, statusText;
-
-                    switch (status) {
+                    
+                    switch (member.attendance_status) {
                     case 'yes':
                       badgeVariant = 'scout-green';
                       statusText = 'Yes';
@@ -1267,44 +1289,25 @@ function AttendanceView({ events, members, onBack }) {
                       statusText = 'Invited';
                       break;
                     case 'notInvited':
-                      badgeVariant = 'secondary';
+                      badgeVariant = 'light';
                       statusText = 'Not Invited';
                       break;
                     default:
-                      badgeVariant = 'secondary';
+                      badgeVariant = 'light';
                       statusText = 'Unknown';
-                      break;
                     }
 
                     return (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-2 whitespace-nowrap">
-                          <button
-                            onClick={() => handleMemberClick(record)}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left text-xs"
-                          >
-                            {record.firstname} {record.lastname}
-                          </button>
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap text-gray-900 text-xs">
-                          {record.sectionname}
-                        </td>
-                        <td className="px-6 py-2 whitespace-nowrap">
-                          <Badge variant={badgeVariant}>{statusText}</Badge>
-                          {record.attending &&
-                            record.attending !== statusText && (
-                            <div className="text-gray-500 text-xs mt-1">
-                                Raw: &quot;{record.attending}&quot;
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+                      <Badge variant={badgeVariant} size="sm">
+                        {statusText}
+                      </Badge>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  },
+                },
+              ]}
+            />
           )}
+
 
           {viewMode === 'campGroups' && (
             <CampGroupsView
