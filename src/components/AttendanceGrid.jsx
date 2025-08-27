@@ -86,7 +86,7 @@ function AttendanceGrid({ data }) {
             >
               <div className="flex flex-col items-center" data-oid=".rzbnj2">
                 <div
-                  className="w-3 h-3 bg-green-500 rounded-full mb-1"
+                  className="bg-green-500 rounded-full mb-1 h-[93px] w-[69px]"
                   data-oid="0jokv2p"
                 ></div>
                 <span data-oid="2f7__-c">Yes</span>
@@ -98,7 +98,7 @@ function AttendanceGrid({ data }) {
             >
               <div className="flex flex-col items-center" data-oid="hyc_08n">
                 <div
-                  className="w-3 h-3 bg-red-500 rounded-full mb-1"
+                  className="bg-red-500 rounded-full mb-1 w-[42px] h-[39px]"
                   data-oid="-zbhbnu"
                 ></div>
                 <span data-oid="4wg9gp6">No</span>
