@@ -97,6 +97,10 @@ function AttendanceGrid({ data }) {
               data-oid="uh28vpr"
             >
               <div className="flex flex-col items-center" data-oid="hyc_08n">
+                <div
+                  className="bg-red-500 rounded-full mb-1 w-[42px] h-[39px]"
+                  data-oid="-zbhbnu"
+                ></div>
                 <span data-oid="4wg9gp6">No</span>
               </div>
             </th>
