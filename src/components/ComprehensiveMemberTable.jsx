@@ -1,51 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui';
+import { groupContactInfo } from '../utils/contactGroups.js';
 
-// Helper function to group contact information (reused across components)
-const groupContactInfo = (member) => {
-  const groups = {};
-
-  // Process flattened contact fields
-  Object.entries(member).forEach(([key, value]) => {
-    if (key.includes('__') && value !== undefined && value !== null) {
-      const [groupName, fieldName] = key.split('__');
-      if (!groups[groupName]) {
-        groups[groupName] = {};
-      }
-      groups[groupName][fieldName] = value;
-    }
-  });
-
-  // Add legacy fields to appropriate groups
-  if (member.email || member.phone) {
-    if (!groups.member_contact) {
-      groups.member_contact = {};
-    }
-    if (member.email) groups.member_contact.email = member.email;
-    if (member.phone) groups.member_contact.phone = member.phone;
-  }
-
-  // Also process nested contact_groups data if available
-  if (member.contact_groups) {
-    Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
-      if (groupData && typeof groupData === 'object') {
-        const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        if (!groups[normalizedGroupName]) {
-          groups[normalizedGroupName] = {};
-        }
-        // Merge nested data with flattened data (nested takes precedence)
-        Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-          if (fieldValue !== undefined && fieldValue !== null) {
-            const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            groups[normalizedGroupName][normalizedFieldName] = fieldValue;
-          }
-        });
-      }
-    });
-  }
-
-  return groups;
-};
 
 // Extract comprehensive member data for table display
 const getComprehensiveData = (member, extraDataExtractor = null) => {

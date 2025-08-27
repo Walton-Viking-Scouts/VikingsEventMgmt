@@ -8,7 +8,6 @@ import SignInOutButton from './SignInOutButton.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
-import { groupContactInfo } from '../utils/contactGroups.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
@@ -20,6 +19,9 @@ function AttendanceView({ events, members, onBack }) {
   if (import.meta.env?.DEV) {
     window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
   }
+  
+  // Cache prefix for demo/production mode - computed once and reused
+  const cachePrefix = useMemo(() => (isDemoMode() ? 'demo_' : ''), []);
   
   // Debug what members data we're receiving (only log once)
   const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
@@ -192,9 +194,7 @@ function AttendanceView({ events, members, onBack }) {
   const hasSharedEvents = useMemo(() => {
     return events.some(event => {
       // Check if this event has shared event metadata stored
-      const demoMode = isDemoMode();
-      const prefix = demoMode ? 'demo_' : '';
-      const metadata = localStorage.getItem(`${prefix}viking_shared_metadata_${event.eventid}`);
+      const metadata = localStorage.getItem(`${cachePrefix}viking_shared_metadata_${event.eventid}`);
       if (metadata) {
         try {
           const parsed = JSON.parse(metadata);
@@ -205,16 +205,14 @@ function AttendanceView({ events, members, onBack }) {
       }
       return false;
     });
-  }, [events]);
+  }, [events, cachePrefix]);
 
   const loadSharedAttendanceData = useCallback(async () => {
     setLoadingSharedAttendance(true);
     try {
       // Find the shared event (the one that has shared metadata)
       const sharedEvent = events.find(event => {
-        const demoMode = isDemoMode();
-        const prefix = demoMode ? 'demo_' : '';
-        const metadata = localStorage.getItem(`${prefix}viking_shared_metadata_${event.eventid}`);
+        const metadata = localStorage.getItem(`${cachePrefix}viking_shared_metadata_${event.eventid}`);
         if (metadata) {
           try {
             const parsed = JSON.parse(metadata);
@@ -235,9 +233,7 @@ function AttendanceView({ events, members, onBack }) {
       }
 
       // First try to load from cache for offline support
-      const demoMode = isDemoMode();
-      const prefix = demoMode ? 'demo_' : '';
-      const cacheKey = `${prefix}viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
+      const cacheKey = `${cachePrefix}viking_shared_attendance_${sharedEvent.eventid}_${sharedEvent.sectionid}_offline`;
       let cachedData = null;
       
       try {
@@ -300,7 +296,7 @@ function AttendanceView({ events, members, onBack }) {
     } finally {
       setLoadingSharedAttendance(false);
     }
-  }, [events]);
+  }, [events, cachePrefix]);
 
   // Load shared attendance data when switching to shared attendance view
   useEffect(() => {
@@ -568,112 +564,6 @@ function AttendanceView({ events, members, onBack }) {
     });
   };
 
-  // Extract comprehensive member data for attendance detailed view (legacy - can be removed later)
-  const _getComprehensiveMemberData = (attendanceRecord) => {
-    // Find the full member data from the members prop
-    const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
-    const cachedMember = members?.find((m) => m.scoutid === scoutidAsNumber);
-    
-    if (!cachedMember) {
-      // Return basic data if no comprehensive member data available
-      return {
-        name: `${attendanceRecord.firstname} ${attendanceRecord.lastname}`,
-        section: attendanceRecord.sectionname,
-        attendance: attendanceRecord.attending,
-        // Basic fallback data
-        pc1_name: '',
-        pc1_phone: '',
-        pc1_email: '',
-        allergies: '',
-        medical_details: '',
-        consent_photos: '',
-        consent_sensitive: '',
-      };
-    }
-
-    const contactGroups = groupContactInfo(cachedMember);
-    
-    // Helper to normalize consent values for stable pill coloring
-    const normalizeConsent = (v) => {
-      if (v === undefined || v === null || String(v).trim() === '') return '';
-      const s = String(v).trim().toLowerCase();
-      if (['yes','y','true','1'].includes(s)) return 'Yes';
-      if (['no','n','false','0'].includes(s)) return 'No';
-      return v;
-    };
-    
-    // Helper to get field from any group
-    const getField = (groupNames, fieldNames) => {
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (Object.prototype.hasOwnProperty.call(group, fieldName)) {
-              const value = group[fieldName];
-              if (value !== undefined && value !== null) {
-                return value;
-              }
-            }
-          }
-        }
-      }
-      return '';
-    };
-
-    // Helper to combine multiple fields
-    const combineFields = (groupNames, fieldNames, joiner = ', ') => {
-      const values = [];
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            const v = group[fieldName];
-            if (v !== undefined && v !== null && String(v).trim() !== '') {
-              values.push(v);
-            }
-          }
-        }
-      }
-      return values.join(joiner);
-    };
-
-    return {
-      // Basic info
-      name: `${cachedMember.firstname || cachedMember.first_name} ${cachedMember.lastname || cachedMember.last_name}`,
-      section: attendanceRecord.sectionname,
-      attendance: attendanceRecord.attending,
-      patrol: cachedMember.patrol || '',
-      age: cachedMember.date_of_birth ? Math.floor((Date.now() - new Date(cachedMember.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
-      
-      // Primary Contact 1 (check both flattened and nested)
-      pc1_name: combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || 
-                [cachedMember.primary_contact_1__first_name, cachedMember.primary_contact_1__last_name].filter(Boolean).join(' ') || '',
-      pc1_phone: combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || 
-                 [cachedMember.primary_contact_1__phone_1, cachedMember.primary_contact_1__phone_2].filter(Boolean).join(', ') || '',
-      pc1_email: combineFields(['primary_contact_1'], ['email_1', 'email_2']) || 
-                 [cachedMember.primary_contact_1__email_1, cachedMember.primary_contact_1__email_2].filter(Boolean).join(', ') || '',
-      
-      // Emergency Contact (check both flattened and nested)
-      ec_name: combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || 
-               [cachedMember.emergency_contact__first_name, cachedMember.emergency_contact__last_name].filter(Boolean).join(' ') || '',
-      ec_phone: combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || 
-                [cachedMember.emergency_contact__phone_1, cachedMember.emergency_contact__phone_2].filter(Boolean).join(', ') || '',
-      
-      // Essential Information (check both flattened and nested)
-      allergies: getField(['essential_information'], ['allergies']) || cachedMember.essential_information__allergies || '',
-      medical_details: getField(['essential_information'], ['medical_details']) || cachedMember.essential_information__medical_details || '',
-      dietary_requirements: getField(['essential_information'], ['dietary_requirements']) || cachedMember.essential_information__dietary_requirements || '',
-      
-      // Consents - General (check nested contact_groups.Consents first, then flattened)
-      consent_photos: normalizeConsent(getField(['consents'], ['photographs', 'photos']) || cachedMember.consents__photographs),
-      consent_sensitive: normalizeConsent(getField(['consents'], ['sensitive_information']) || cachedMember.consents__sensitive_information),
-      
-      // Consents - Medical Treatment (check nested contact_groups.Consents first, then flattened)
-      consent_paracetamol: normalizeConsent(getField(['consents'], ['paracetamol']) || cachedMember.consents__paracetamol),
-      consent_ibuprofen: normalizeConsent(getField(['consents'], ['ibuprofen']) || cachedMember.consents__ibuprofen),
-      consent_suncream: normalizeConsent(getField(['consents'], ['suncream', 'sun_cream']) || cachedMember.consents__suncream),
-    };
-  };
 
   // Transform cached member data to match what MemberDetailModal expects
   const transformMemberForModal = (cachedMember) => {

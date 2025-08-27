@@ -7,6 +7,9 @@ import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
+// Inter-call delay to prevent API clashing - tunable for flaky APIs
+const STEP_DELAY_MS = 150;
+
 /**
  * Custom hook for handling sign-in/out functionality with memory leak prevention
  * 
@@ -59,8 +62,7 @@ export function useSignInOut(events, onDataRefresh) {
   };
 
   // Get Viking Event Mgmt flexirecord data for a section
-  const getVikingEventFlexiRecord = async (sectionId, termId) => {
-    const token = getToken();
+  const getVikingEventFlexiRecord = async (sectionId, termId, token) => {
     const flexiRecords = await getFlexiRecords(sectionId, token);
     
     const vikingRecord = flexiRecords.items.find(record => 
@@ -82,6 +84,9 @@ export function useSignInOut(events, onDataRefresh) {
 
   // Main sign in/out handler with memory leak prevention
   const handleSignInOut = async (member, action) => {
+    // Freeze token for this operation to ensure consistency
+    const opToken = getToken();
+    
     try {
       // Check if component is still mounted before starting
       if (abortControllerRef.current?.signal.aborted) {
@@ -98,7 +103,7 @@ export function useSignInOut(events, onDataRefresh) {
       
       // Get termId from events
       const event = events.find(e => e.sectionid === member.sectionid);
-      const termId = event?.termid || await fetchMostRecentTermId(member.sectionid, getToken());
+      const termId = event?.termid || await fetchMostRecentTermId(member.sectionid, opToken);
       
       if (!termId) {
         throw new Error('No term ID available - required for flexirecord updates');
@@ -114,7 +119,7 @@ export function useSignInOut(events, onDataRefresh) {
       const sectionType = sectionConfig?.sectiontype || 'beavers';
       
       // Get Viking Event Mgmt flexirecord structure for this section
-      const vikingFlexiRecord = await getVikingEventFlexiRecord(member.sectionid, termId);
+      const vikingFlexiRecord = await getVikingEventFlexiRecord(member.sectionid, termId, opToken);
       
       // Check if component is still mounted after async operation
       if (abortControllerRef.current?.signal.aborted) {
@@ -139,7 +144,7 @@ export function useSignInOut(events, onDataRefresh) {
             currentUser,
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info(`${callNames[0]} completed successfully`, {
             memberName: member.name || member.firstname,
@@ -147,7 +152,7 @@ export function useSignInOut(events, onDataRefresh) {
           }, LOG_CATEGORIES.API);
           
           // Delay to prevent clashing
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 2: Set SignedInWhen
           logger.info(`Setting ${callNames[1]} for member`, {
@@ -162,7 +167,7 @@ export function useSignInOut(events, onDataRefresh) {
             timestamp,
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info(`${callNames[1]} completed successfully`, {
             memberName: member.name || member.firstname,
@@ -170,7 +175,7 @@ export function useSignInOut(events, onDataRefresh) {
           }, LOG_CATEGORIES.API);
           
           // Delay to prevent clashing
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 3: Clear SignedOutBy
           logger.info(`${callNames[2]} for member`, {
@@ -185,7 +190,7 @@ export function useSignInOut(events, onDataRefresh) {
             '', // Clear the field
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info(`${callNames[2]} completed successfully`, {
             memberName: member.name || member.firstname,
@@ -193,7 +198,7 @@ export function useSignInOut(events, onDataRefresh) {
           }, LOG_CATEGORIES.API);
           
           // Delay to prevent clashing
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 4: Clear SignedOutWhen
           logger.info(`${callNames[3]} for member`, {
@@ -208,7 +213,7 @@ export function useSignInOut(events, onDataRefresh) {
             '', // Clear the field
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info(`${callNames[3]} completed successfully`, {
             memberName: member.name || member.firstname,
@@ -245,7 +250,7 @@ export function useSignInOut(events, onDataRefresh) {
             currentUser,
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info('SignedOutBy completed successfully', {
             memberName: member.name || member.firstname,
@@ -253,7 +258,7 @@ export function useSignInOut(events, onDataRefresh) {
           }, LOG_CATEGORIES.API);
           
           // Delay to prevent clashing
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 2: Set SignedOutWhen
           logger.info('Setting SignedOutWhen for member', {
@@ -268,7 +273,7 @@ export function useSignInOut(events, onDataRefresh) {
             timestamp,
             termId,
             sectionType,
-            getToken(),
+            opToken,
           );
           logger.info('SignedOutWhen completed successfully', {
             memberName: member.name || member.firstname,
@@ -307,10 +312,11 @@ export function useSignInOut(events, onDataRefresh) {
         return;
       }
       
+      const memberLabel = member.name || member.firstname || String(member.scoutid);
       logger.error(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} member`, {
-        memberName: member.name,
-        action: action,
-        error: error.message,
+        member: { id: member.scoutid, label: memberLabel },
+        action,
+        error: error?.stack || error?.message || String(error),
       }, LOG_CATEGORIES.API);
       
       // Check if this is a token expiration error
@@ -334,7 +340,7 @@ export function useSignInOut(events, onDataRefresh) {
         }
       } else {
         // Regular error - show generic message
-        alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${member.name}: ${error.message}`);
+        alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${memberLabel}: ${error.message}`);
       }
       
     } finally {
