@@ -170,6 +170,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="6sod:0m"
           />,
         );
       });
@@ -235,6 +236,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="_y88rlq"
           />,
         );
       });
@@ -267,6 +269,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="p_kaf4p"
           />,
         );
       });
@@ -302,6 +305,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="8kzu3py"
           />,
         );
       });
@@ -350,6 +354,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="0igoq1k"
           />,
         );
       });
@@ -382,6 +387,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="-1fom0n"
           />,
         );
       });
@@ -417,6 +423,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="xhh6j98"
           />,
         );
       });
@@ -467,6 +474,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
+            data-oid="m.4va9j"
           />,
         );
       });

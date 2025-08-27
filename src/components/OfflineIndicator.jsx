@@ -206,42 +206,63 @@ function OfflineIndicator({ hideBanner = false }) {
 
   // Helper function for rendering the Login Prompt Modal (reused in multiple places)
   const renderLoginPromptModal = () => (
-    <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
-      <Modal.Header>
-        <Modal.Title>Authentication Required</Modal.Title>
+    <Modal
+      isOpen={showLoginPrompt}
+      onClose={handleLoginCancel}
+      size="md"
+      data-oid="w4fgj_w"
+    >
+      <Modal.Header data-oid="jzysdfa">
+        <Modal.Title data-oid="o:p:vto">Authentication Required</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                <span className="text-amber-600 text-xl">🔐</span>
+      <Modal.Body data-oid="4..-3ul">
+        <div className="space-y-4" data-oid="5o4:fe6">
+          <div className="flex items-center gap-3" data-oid="g.t-.1x">
+            <div className="flex-shrink-0" data-oid="bhryokx">
+              <div
+                className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center"
+                data-oid="k4ih5u1"
+              >
+                <span className="text-amber-600 text-xl" data-oid="jklrzcz">
+                  🔐
+                </span>
               </div>
             </div>
-            <div>
-              <p className="text-gray-900 font-medium">
+            <div data-oid="smhyto5">
+              <p className="text-gray-900 font-medium" data-oid="pk-_ba1">
                 {loginPromptData?.message ||
                   "Authentication required to sync data."}
               </p>
-              <p className="text-gray-600 text-sm mt-1">
+              <p className="text-gray-600 text-sm mt-1" data-oid="3v3vfmc">
                 You will be redirected to Online Scout Manager to authenticate.
               </p>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-blue-800 text-sm">
-              <strong>Note:</strong> You can continue using the app with offline
-              data if you prefer not to sync at this time.
+          <div
+            className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+            data-oid="2a:6e:5"
+          >
+            <p className="text-blue-800 text-sm" data-oid="u4iv42e">
+              <strong data-oid="y75tyd7">Note:</strong> You can continue using
+              the app with offline data if you prefer not to sync at this time.
             </p>
           </div>
         </div>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline" onClick={handleLoginCancel}>
+      <Modal.Footer data-oid=":opa54r">
+        <Button
+          variant="outline"
+          onClick={handleLoginCancel}
+          data-oid="83g_u:."
+        >
           Stay Offline
         </Button>
-        <Button variant="scout-blue" onClick={handleLoginConfirm}>
+        <Button
+          variant="scout-blue"
+          onClick={handleLoginConfirm}
+          data-oid="z5kd54a"
+        >
           Login & Sync
         </Button>
       </Modal.Footer>
@@ -269,7 +290,7 @@ function OfflineIndicator({ hideBanner = false }) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
+    <div className="fixed top-0 left-0 right-0 z-50" data-oid="53hfg9s">
       {syncStatus && (
         <Alert
           variant={
@@ -280,24 +301,32 @@ function OfflineIndicator({ hideBanner = false }) {
                 : "error"
           }
           className="rounded-none border-x-0 border-t-0"
+          data-oid="w37nvcc"
         >
-          <div className="flex items-center justify-center gap-2">
+          <div
+            className="flex items-center justify-center gap-2"
+            data-oid="ha89izo"
+          >
             {syncStatus.status === "syncing" && (
               <>
-                <span className="animate-spin">⏳</span>
-                <span>{syncStatus.message}</span>
+                <span className="animate-spin" data-oid="pxaz5cw">
+                  ⏳
+                </span>
+                <span data-oid="i5yb.i3">{syncStatus.message}</span>
               </>
             )}
             {syncStatus.status === "completed" && (
               <>
-                <span>✅</span>
-                <span>Sync completed</span>
+                <span data-oid="oxnhfh4">✅</span>
+                <span data-oid="ybfuolc">Sync completed</span>
               </>
             )}
             {syncStatus.status === "error" && (
               <>
-                <span>⚠️</span>
-                <span>Sync failed: {syncStatus.message}</span>
+                <span data-oid="zlt1w0d">⚠️</span>
+                <span data-oid="418g.zp">
+                  Sync failed: {syncStatus.message}
+                </span>
               </>
             )}
           </div>

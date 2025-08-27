@@ -7,7 +7,7 @@ import { cn } from "../../utils/cn";
 
 const FormGroup = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("space-y-1", className)} {...props}>
+    <div className={cn("space-y-1", className)} {...props} data-oid="jfth695">
       {children}
     </div>
   );
@@ -18,6 +18,7 @@ const FormRow = ({ children, className = "", ...props }) => {
     <div
       className={cn("grid grid-cols-1 md:grid-cols-2 gap-4", className)}
       {...props}
+      data-oid="3vx5jo5"
     >
       {children}
     </div>
@@ -32,14 +33,22 @@ const FormSection = ({
   ...props
 }) => {
   return (
-    <div className={cn("space-y-4", className)} {...props}>
+    <div className={cn("space-y-4", className)} {...props} data-oid="riryzih">
       {title && (
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-          {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
+        <div data-oid="99jb:m:">
+          <h3 className="text-lg font-medium text-gray-900" data-oid="duw0_jn">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="text-sm text-gray-600 mt-1" data-oid="tja_imm">
+              {subtitle}
+            </p>
+          )}
         </div>
       )}
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-4" data-oid=":x8_ati">
+        {children}
+      </div>
     </div>
   );
 };
@@ -65,6 +74,7 @@ const FormActions = ({
         className,
       )}
       {...props}
+      data-oid="h33j262"
     >
       {children}
     </div>
@@ -83,9 +93,14 @@ const Label = ({
       htmlFor={htmlFor}
       className={cn("block text-sm font-medium text-gray-700", className)}
       {...props}
+      data-oid="0c3zm1d"
     >
       {children}
-      {required && <span className="text-red-500 ml-1">*</span>}
+      {required && (
+        <span className="text-red-500 ml-1" data-oid="u31b-4m">
+          *
+        </span>
+      )}
     </label>
   );
 };
@@ -99,6 +114,7 @@ const HelperText = ({ children, error = false, className = "", ...props }) => {
         className,
       )}
       {...props}
+      data-oid="17bc3n8"
     >
       {children}
     </p>
@@ -109,7 +125,11 @@ const ErrorText = ({ children, className = "", ...props }) => {
   if (!children) return null;
 
   return (
-    <p className={cn("text-sm text-red-600", className)} {...props}>
+    <p
+      className={cn("text-sm text-red-600", className)}
+      {...props}
+      data-oid="e6t8hgy"
+    >
       {children}
     </p>
   );

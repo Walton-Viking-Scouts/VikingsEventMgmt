@@ -7,7 +7,7 @@ import { cn } from "../../utils/cn";
 
 const Menu = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("relative", className)} {...props}>
+    <div className={cn("relative", className)} {...props} data-oid="j2lenme">
       {children}
     </div>
   );
@@ -35,6 +35,7 @@ const MenuButton = ({
         className,
       )}
       {...props}
+      data-oid="_:axvd6"
     >
       {children}
     </button>
@@ -65,8 +66,11 @@ const MenuItems = ({
         className,
       )}
       {...props}
+      data-oid="nj1:ux5"
     >
-      <div className="py-1">{children}</div>
+      <div className="py-1" data-oid="52xw1f2">
+        {children}
+      </div>
     </div>
   );
 };
@@ -95,6 +99,7 @@ const MenuItem = ({
         className,
       )}
       {...props}
+      data-oid="9ofty3."
     >
       {children}
     </button>
@@ -106,6 +111,7 @@ const MenuDivider = ({ className = "", ...props }) => {
     <div
       className={cn("border-t border-gray-100 my-1", className)}
       {...props}
+      data-oid=":pyoyt_"
     />
   );
 };
@@ -162,9 +168,11 @@ const Dropdown = ({
   };
 
   return (
-    <Menu ref={dropdownRef} className={className} {...props}>
-      <div onClick={handleToggle}>{trigger}</div>
-      <MenuItems isOpen={isOpen} position={position}>
+    <Menu ref={dropdownRef} className={className} {...props} data-oid="dfxvy_m">
+      <div onClick={handleToggle} data-oid="7::_ko0">
+        {trigger}
+      </div>
+      <MenuItems isOpen={isOpen} position={position} data-oid="v46.r3z">
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === MenuItem) {
             return React.cloneElement(child, {
@@ -191,7 +199,11 @@ const Nav = ({
   };
 
   return (
-    <nav className={cn(variants[variant], className)} {...props}>
+    <nav
+      className={cn(variants[variant], className)}
+      {...props}
+      data-oid="ts3zyjy"
+    >
       {children}
     </nav>
   );
@@ -225,6 +237,7 @@ const NavItem = ({
         className,
       )}
       {...props}
+      data-oid="o4qwzao"
     >
       {children}
     </Component>

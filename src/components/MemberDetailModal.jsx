@@ -199,7 +199,10 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      data-oid="8j_47is"
+    >
       <div
         ref={modalRef}
         role="dialog"
@@ -210,39 +213,53 @@ function MemberDetailModal({ member, isOpen, onClose }) {
           bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden
           ${isMobile ? "mx-2" : "mx-4"}
         `}
+        data-oid="3iz7g0b"
       >
         {/* Header */}
-        <div className="bg-scout-blue text-white px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0">
+        <div
+          className="bg-scout-blue text-white px-6 py-4 flex items-center justify-between"
+          data-oid="x.r2s_7"
+        >
+          <div className="flex items-center space-x-4" data-oid=":sedru5">
+            <div className="flex-shrink-0" data-oid="_8dkjqt">
               {member.photo_guid ? (
                 <img
                   src={`/api/photo/${member.photo_guid}`}
                   alt={`${member.firstname} ${member.lastname}`}
                   className="w-12 h-12 rounded-full object-cover"
+                  data-oid="68ma7yd"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold">
+                <div
+                  className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold"
+                  data-oid="uu1o1m5"
+                >
                   {member.firstname?.[0]}
                   {member.lastname?.[0]}
                 </div>
               )}
             </div>
-            <div>
+            <div data-oid="h57ejfo">
               <h2
                 id={`member-modal-title-${member.member_id || member.scoutid}`}
                 className="text-xl font-semibold"
+                data-oid="vpp9fcf"
               >
                 {member.firstname} {member.lastname}
               </h2>
               <div
                 id={`member-modal-description-${member.member_id || member.scoutid}`}
                 className="flex items-center space-x-2 text-scout-blue-light"
+                data-oid=":jd9tmx"
               >
-                {age && <span>Age {age}</span>}
-                {member.patrol && <span>• {member.patrol}</span>}
+                {age && <span data-oid="h.chzfb">Age {age}</span>}
+                {member.patrol && (
+                  <span data-oid="f8-m7-8">• {member.patrol}</span>
+                )}
                 {!age && !member.patrol && (
-                  <span>Member details and contact information</span>
+                  <span data-oid="h.p4age">
+                    Member details and contact information
+                  </span>
                 )}
               </div>
             </div>
@@ -250,18 +267,21 @@ function MemberDetailModal({ member, isOpen, onClose }) {
           <button
             onClick={onClose}
             className="text-white hover:text-scout-blue-light transition-colors"
+            data-oid="f_ksany"
           >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              data-oid="7ycb.y7"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M6 18L18 6M6 6l12 12"
+                data-oid="v-.9sem"
               />
             </svg>
           </button>
@@ -269,36 +289,46 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
         {/* Error Notification */}
         {errorNotification && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4 rounded">
-            <div className="flex items-center">
+          <div
+            className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4 rounded"
+            data-oid="ba207yh"
+          >
+            <div className="flex items-center" data-oid="jz_chbz">
               <svg
                 className="w-5 h-5 text-red-400 mr-3"
                 fill="currentColor"
                 viewBox="0 0 20 20"
+                data-oid="p_f3m9t"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
+                  data-oid="oc6.sne"
                 />
               </svg>
-              <p className="text-sm text-red-700">{errorNotification}</p>
+              <p className="text-sm text-red-700" data-oid="wd641th">
+                {errorNotification}
+              </p>
               <button
                 onClick={() => setErrorNotification(null)}
                 className="ml-auto text-red-400 hover:text-red-600"
                 aria-label="Dismiss error"
+                data-oid="f4hyhze"
               >
                 <svg
                   className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  data-oid="ga5avd1"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M6 18L18 6M6 6l12 12"
+                    data-oid="llp50sk"
                   />
                 </svg>
               </button>
@@ -307,58 +337,84 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         )}
 
         {/* Content - Scrollable */}
-        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="p-6 space-y-6">
+        <div
+          className="overflow-y-auto max-h-[calc(90vh-120px)]"
+          data-oid="9yzp2e7"
+        >
+          <div className="p-6 space-y-6" data-oid="cnjy852">
             {/* Basic Information */}
-            <Card>
-              <Card.Header>
-                <Card.Title>Basic Information</Card.Title>
+            <Card data-oid="9xj26:b">
+              <Card.Header data-oid="mjaw9r3">
+                <Card.Title data-oid="z4m_k0j">Basic Information</Card.Title>
               </Card.Header>
-              <Card.Body className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Card.Body className="space-y-3" data-oid="p05_cge">
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  data-oid="0tp_xkr"
+                >
+                  <div data-oid="8ohqa7y">
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                      data-oid="s1v.6at"
+                    >
                       Member ID
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900" data-oid="3pxo16n">
                       {member.scoutid || member.member_id}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div data-oid=":6dmlwf">
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                      data-oid="9-:l2em"
+                    >
                       Date of Birth
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900" data-oid="8sr1-_i">
                       {member.date_of_birth
                         ? new Date(member.date_of_birth).toLocaleDateString()
                         : "Not provided"}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div data-oid="cz-3d.y">
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                      data-oid=".d3az29"
+                    >
                       Section(s)
                     </label>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1" data-oid="o-i8ihb">
                       {(() => {
                         const sections = (
                           member.sections || [member.sectionname]
                         ).filter(Boolean);
                         return sections.length > 0 ? (
                           sections.map((section, idx) => (
-                            <Badge key={idx} variant="scout-blue" size="sm">
+                            <Badge
+                              key={idx}
+                              variant="scout-blue"
+                              size="sm"
+                              data-oid="72fhlsu"
+                            >
                               {section}
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-sm text-gray-500">
+                          <span
+                            className="text-sm text-gray-500"
+                            data-oid="9beb1an"
+                          >
                             No sections assigned
                           </span>
                         );
                       })()}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div data-oid="7pawpzy">
+                    <label
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                      data-oid="dj5gnuh"
+                    >
                       Member Type
                     </label>
                     <Badge
@@ -370,26 +426,33 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             : "scout-green"
                       }
                       size="sm"
+                      data-oid="ms2ov1e"
                     >
                       {member.person_type || "Young People"}
                     </Badge>
                   </div>
                   {member.started && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div data-oid="-kj8mj0">
+                      <label
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                        data-oid="5slbpsh"
+                      >
                         Started
                       </label>
-                      <p className="text-sm text-gray-900">
+                      <p className="text-sm text-gray-900" data-oid="rgdhu0f">
                         {new Date(member.started).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   {member.patrol_role_level_label && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div data-oid="j7b3jj3">
+                      <label
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                        data-oid="2a1.fnc"
+                      >
                         Role
                       </label>
-                      <p className="text-sm text-gray-900">
+                      <p className="text-sm text-gray-900" data-oid="o6kwm_7">
                         {member.patrol_role_level_label}
                       </p>
                     </div>
@@ -400,20 +463,26 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
             {/* Contact Information */}
             {Object.entries(contactGroups).map(([groupKey, groupData]) => (
-              <Card key={groupKey}>
-                <Card.Header>
-                  <Card.Title>
+              <Card key={groupKey} data-oid="si8f3it">
+                <Card.Header data-oid="tystn90">
+                  <Card.Title data-oid="-27my9y">
                     {groupLabels[groupKey] ||
                       groupKey
                         .replace(/_/g, " ")
                         .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Card.Title>
                 </Card.Header>
-                <Card.Body className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Card.Body className="space-y-3" data-oid="uqxqjfh">
+                  <div
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                    data-oid="sow1a_i"
+                  >
                     {Object.entries(groupData).map(([fieldKey, fieldValue]) => (
-                      <div key={fieldKey}>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div key={fieldKey} data-oid="5543zld">
+                        <label
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                          data-oid="1hbhr_d"
+                        >
                           {fieldKey
                             .replace(/_/g, " ")
                             .replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -430,6 +499,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             }}
                             aria-label={`Call ${fieldValue}`}
                             className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue focus:ring-offset-2 rounded"
+                            data-oid="qiq0db6"
                           >
                             {fieldValue}
                           </button>
@@ -439,11 +509,15 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             rel="noopener noreferrer"
                             aria-label={`Send email to ${fieldValue}`}
                             className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
+                            data-oid="i9v79wk"
                           >
                             {fieldValue}
                           </a>
                         ) : (
-                          <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                          <p
+                            className="text-sm text-gray-900 whitespace-pre-wrap"
+                            data-oid="n5fzdtr"
+                          >
                             {fieldValue}
                           </p>
                         )}
@@ -457,20 +531,29 @@ function MemberDetailModal({ member, isOpen, onClose }) {
             {/* Legacy emergency contacts if available */}
             {member.emergency_contacts &&
               member.emergency_contacts.length > 0 && (
-                <Card>
-                  <Card.Header>
-                    <Card.Title>Emergency Contacts (Legacy)</Card.Title>
+                <Card data-oid="qshkqbf">
+                  <Card.Header data-oid="xex8-ro">
+                    <Card.Title data-oid="rp-..o2">
+                      Emergency Contacts (Legacy)
+                    </Card.Title>
                   </Card.Header>
-                  <Card.Body className="space-y-3">
+                  <Card.Body className="space-y-3" data-oid="nr4e:.t">
                     {member.emergency_contacts.map((contact, idx) => (
                       <div
                         key={idx}
                         className="border-b border-gray-200 pb-3 last:border-b-0"
+                        data-oid="oy-hci8"
                       >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div
+                          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                          data-oid="1d.z:3h"
+                        >
                           {Object.entries(contact).map(([key, value]) => (
-                            <div key={key}>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <div key={key} data-oid="oy_xivv">
+                              <label
+                                className="block text-sm font-medium text-gray-700 mb-1"
+                                data-oid="8ocmqvq"
+                              >
                                 {key
                                   .replace(/_/g, " ")
                                   .replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -479,11 +562,17 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                                 <button
                                   onClick={() => handlePhoneCall(value)}
                                   className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
+                                  data-oid=":b:m5hz"
                                 >
                                   {value}
                                 </button>
                               ) : (
-                                <p className="text-sm text-gray-900">{value}</p>
+                                <p
+                                  className="text-sm text-gray-900"
+                                  data-oid="taf2pmy"
+                                >
+                                  {value}
+                                </p>
                               )}
                             </div>
                           ))}
@@ -496,27 +585,35 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
             {/* Medical Information (Legacy) */}
             {member.medical_notes && (
-              <Card>
-                <Card.Header>
-                  <Card.Title className="text-orange-600">
+              <Card data-oid="xv19w6b">
+                <Card.Header data-oid="rg0eued">
+                  <Card.Title className="text-orange-600" data-oid="3z3pg:l">
                     Medical Information
                   </Card.Title>
                 </Card.Header>
-                <Card.Body>
-                  <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                    <div className="flex items-start">
+                <Card.Body data-oid="cer3zes">
+                  <div
+                    className="bg-orange-50 border border-orange-200 rounded-md p-3"
+                    data-oid="13pcoi1"
+                  >
+                    <div className="flex items-start" data-oid="iyzbudr">
                       <svg
                         className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0"
                         fill="currentColor"
                         viewBox="0 0 20 20"
+                        data-oid="cbp-m28"
                       >
                         <path
                           fillRule="evenodd"
                           d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                           clipRule="evenodd"
+                          data-oid=".utkggk"
                         />
                       </svg>
-                      <p className="text-sm text-orange-800 whitespace-pre-wrap">
+                      <p
+                        className="text-sm text-orange-800 whitespace-pre-wrap"
+                        data-oid="5nukw19"
+                      >
                         {member.medical_notes}
                       </p>
                     </div>
@@ -528,8 +625,11 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end">
-          <Button variant="outline" onClick={onClose}>
+        <div
+          className="bg-gray-50 px-6 py-4 flex justify-end"
+          data-oid="eee-1c0"
+        >
+          <Button variant="outline" onClick={onClose} data-oid="s1u2xa2">
             Close
           </Button>
         </div>

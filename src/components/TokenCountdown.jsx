@@ -70,9 +70,11 @@ function TokenCountdown({ authState, className = "" }) {
   }
 
   return (
-    <div className={`text-sm text-gray-600 ${className}`}>
-      <span className="hidden md:inline">Session: </span>
-      <span>{displayText}</span>
+    <div className={`text-sm text-gray-600 ${className}`} data-oid="l0gx5:3">
+      <span className="hidden md:inline" data-oid="kibg4he">
+        Session:{" "}
+      </span>
+      <span data-oid="zj8u7e6">{displayText}</span>
     </div>
   );
 }

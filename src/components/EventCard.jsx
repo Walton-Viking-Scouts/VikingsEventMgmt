@@ -259,68 +259,83 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
   );
 
   return (
-    <Card className="h-full flex flex-col">
-      <Card.Header className="pb-3">
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <Card.Title className="text-lg font-semibold text-gray-900 mb-1">
+    <Card className="h-full flex flex-col" data-oid="xpfkr2h">
+      <Card.Header className="pb-3" data-oid="905v99_">
+        <div className="flex justify-between items-start" data-oid="priemg3">
+          <div className="flex-1" data-oid="hva6fzg">
+            <Card.Title
+              className="text-lg font-semibold text-gray-900 mb-1"
+              data-oid="tte620k"
+            >
               {eventCard.name}
             </Card.Title>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-2" data-oid="a57yumn">
               {formatDateRange(eventCard.events)}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1" data-oid=":._:fn9">
             {aggregatedStatus === "ongoing" ? (
-              <Badge variant="scout-green">Ongoing</Badge>
+              <Badge variant="scout-green" data-oid="uaog9uo">
+                Ongoing
+              </Badge>
             ) : aggregatedStatus === "upcoming" ? (
-              <Badge variant="scout-blue">Upcoming</Badge>
+              <Badge variant="scout-blue" data-oid="r:2.pso">
+                Upcoming
+              </Badge>
             ) : aggregatedStatus === "past" ? (
-              <Badge variant="light">Past</Badge>
+              <Badge variant="light" data-oid="oby4nxl">
+                Past
+              </Badge>
             ) : null}
           </div>
         </div>
       </Card.Header>
 
-      <Card.Body className="flex-1 pt-0">
+      <Card.Body className="flex-1 pt-0" data-oid="934it8p">
         {hasAttendanceData ? (
           <>
-            <h4 className="text-sm font-medium text-gray-900 mb-3">
+            <h4
+              className="text-sm font-medium text-gray-900 mb-3"
+              data-oid="qkiu50i"
+            >
               Attendance Summary
             </h4>
-            <AttendanceGrid data={attendanceGrid} />
+            <AttendanceGrid data={attendanceGrid} data-oid="4t51bf8" />
           </>
         ) : (
-          <div className="text-center py-4">
-            <div className="text-gray-400 mb-2">
+          <div className="text-center py-4" data-oid="0.0lisf">
+            <div className="text-gray-400 mb-2" data-oid="qt:fi8y">
               <svg
                 className="mx-auto h-8 w-8"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                data-oid=".vieayt"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  data-oid="vbyatga"
                 />
               </svg>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500" data-oid="3gfngb7">
               No attendance data available
             </p>
           </div>
         )}
       </Card.Body>
 
-      <Card.Footer className="pt-3">
+      <Card.Footer className="pt-3" data-oid="mqq.lf9">
         <Button
           variant="scout-blue"
           onClick={() => onViewAttendees(eventCard)}
           className="w-full flex items-center justify-center gap-2"
           type="button"
           disabled={loading}
+          data-oid=":iamf3j"
         >
           {loading ? (
             <>
@@ -328,6 +343,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 className="animate-spin h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
+                data-oid="8fe4ee7"
               >
                 <circle
                   className="opacity-25"
@@ -336,11 +352,13 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   r="10"
                   stroke="currentColor"
                   strokeWidth="4"
+                  data-oid="wb30umt"
                 ></circle>
                 <path
                   className="opacity-75"
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  data-oid="w67afo2"
                 ></path>
               </svg>
               Loading Members...
@@ -352,12 +370,14 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                data-oid="t9h79tp"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  data-oid="z03pbcb"
                 />
               </svg>
               View Attendees

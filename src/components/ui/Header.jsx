@@ -27,6 +27,7 @@ const Header = ({
         className,
       )}
       {...props}
+      data-oid="1mm744t"
     >
       {children}
     </header>
@@ -38,6 +39,7 @@ const HeaderContainer = ({ children, className = "", ...props }) => {
     <div
       className={cn("max-w-7xl mx-auto px-4 md:px-6 lg:px-8", className)}
       {...props}
+      data-oid="-:g-st8"
     >
       {children}
     </div>
@@ -52,6 +54,7 @@ const HeaderContent = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
+      data-oid="eld6gxg"
     >
       {children}
     </div>
@@ -63,6 +66,7 @@ const HeaderLeft = ({ children, className = "", ...props }) => {
     <div
       className={cn("flex items-center space-x-2 md:space-x-4", className)}
       {...props}
+      data-oid="suny.uw"
     >
       {children}
     </div>
@@ -74,6 +78,7 @@ const HeaderCenter = ({ children, className = "", ...props }) => {
     <div
       className={cn("flex-1 flex items-center justify-center px-4", className)}
       {...props}
+      data-oid="oi_ygqr"
     >
       {children}
     </div>
@@ -85,6 +90,7 @@ const HeaderRight = ({ children, className = "", ...props }) => {
     <div
       className={cn("flex items-center space-x-2 md:space-x-4", className)}
       {...props}
+      data-oid="o-y98w."
     >
       {children}
     </div>
@@ -98,7 +104,11 @@ const HeaderTitle = ({
   ...props
 }) => {
   return (
-    <Component className={cn("text-xl font-semibold", className)} {...props}>
+    <Component
+      className={cn("text-xl font-semibold", className)}
+      {...props}
+      data-oid="cnzg1dy"
+    >
       {children}
     </Component>
   );
@@ -111,6 +121,7 @@ const HeaderLogo = ({ src, alt = "Logo", className = "", ...props }) => {
       alt={alt}
       className={cn("h-8 w-auto", className)}
       {...props}
+      data-oid="byplz8w"
     />
   );
 };

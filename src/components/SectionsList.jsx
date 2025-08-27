@@ -10,12 +10,15 @@ function SectionsList({
 }) {
   if (!sections || sections.length === 0) {
     return (
-      <Card>
-        <Card.Body className="text-center p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <Card data-oid="9la:1ss">
+        <Card.Body className="text-center p-8" data-oid="3rp:gy2">
+          <h2
+            className="text-xl font-semibold text-gray-900 mb-2"
+            data-oid="v::7oa4"
+          >
             No Sections Available
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600" data-oid="1f8j:jt">
             No sections found for your account. Please check your OSM
             permissions.
           </p>
@@ -65,13 +68,17 @@ function SectionsList({
   });
 
   return (
-    <Card>
-      <Card.Header>
-        <Card.Title>Select Sections</Card.Title>
+    <Card data-oid="6wfx9c8">
+      <Card.Header data-oid="_208fce">
+        <Card.Title data-oid="9zg-w9.">Select Sections</Card.Title>
       </Card.Header>
 
-      <Card.Body>
-        <div className="flex flex-wrap justify-center" style={{ gap: "30px" }}>
+      <Card.Body data-oid="if_q1n_">
+        <div
+          className="flex flex-wrap justify-center"
+          style={{ gap: "30px" }}
+          data-oid="53w-qas"
+        >
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
             const isLoading = loadingSection === section.sectionid;
@@ -140,12 +147,14 @@ function SectionsList({
                     e.target.style.opacity = isSelected ? 1 : 0.8;
                   }
                 }}
+                data-oid="73xxzmu"
               >
                 {isLoading && (
                   <svg
                     className="animate-spin h-3 w-3"
                     fill="none"
                     viewBox="0 0 24 24"
+                    data-oid="2dq5c4y"
                   >
                     <circle
                       className="opacity-25"
@@ -154,11 +163,13 @@ function SectionsList({
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
+                      data-oid="z8c9wk1"
                     ></circle>
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      data-oid=":zmr_3x"
                     ></path>
                   </svg>
                 )}
@@ -171,23 +182,33 @@ function SectionsList({
 
       {/* Members Area - Show when sections are selected */}
       {selectedSections && selectedSections.length > 0 && (
-        <Card.Body className="border-t border-gray-200 bg-gray-50">
-          <div className="mb-4">
-            <h4 className="text-lg font-semibold text-gray-900">
+        <Card.Body
+          className="border-t border-gray-200 bg-gray-50"
+          data-oid="g8xot0p"
+        >
+          <div className="mb-4" data-oid="bgwrk9.">
+            <h4
+              className="text-lg font-semibold text-gray-900"
+              data-oid="l9r6ogo"
+            >
               Members from {selectedSections.length} section
               {selectedSections.length === 1 ? "" : "s"}
             </h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600" data-oid="g51780n">
               {selectedSections.map((s) => s.sectionname).join(", ")}
             </p>
           </div>
 
           {/* Embedded Members List */}
-          <div className="bg-white rounded-lg border border-gray-200">
+          <div
+            className="bg-white rounded-lg border border-gray-200"
+            data-oid="et2g344"
+          >
             <MembersList
               embedded={true}
               showHeader={false}
               sections={selectedSections}
+              data-oid="6bo.:nr"
             />
           </div>
         </Card.Body>
