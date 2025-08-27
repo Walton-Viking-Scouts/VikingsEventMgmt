@@ -67,7 +67,7 @@ describe('MembersList', () => {
 
     // Import and mock the API function
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockResolvedValue({ data: mockMembers });
+    vi.mocked(getListOfMembers).mockResolvedValue(mockMembers);
   });
 
   it('renders loading screen initially', async () => {
@@ -75,7 +75,7 @@ describe('MembersList', () => {
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockImplementation(
       () =>
-        new Promise((resolve) => setTimeout(() => resolve({ data: mockMembers }), 100)),
+        new Promise((resolve) => setTimeout(() => resolve(mockMembers), 100)),
     );
 
     await act(async () => {
@@ -309,7 +309,7 @@ describe('MembersList', () => {
   it('displays empty state when no members found', async () => {
     // Mock API to return empty array
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockResolvedValue({ data: [] });
+    vi.mocked(getListOfMembers).mockResolvedValue([]);
 
     await act(async () => {
       render(
