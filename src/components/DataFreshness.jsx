@@ -114,12 +114,12 @@ function DataFreshness({ lastSync, authState, className = "" }) {
   return (
     <div
       className={`data-freshness text-sm ${info.className} ${className}`}
-      data-oid="0gyzbdo"
+      data-oid="5au1hb6"
     >
       <span
         className="data-freshness-text"
         title={info.text}
-        data-oid="2g02ibo"
+        data-oid="7z:v346"
       >
         {info.text}
       </span>

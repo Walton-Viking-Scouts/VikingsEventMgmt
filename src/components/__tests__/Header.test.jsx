@@ -4,12 +4,12 @@ import Header from "../Header";
 
 describe("Header", () => {
   it("renders with default props", () => {
-    render(<Header data-oid="05-t8fe" />);
+    render(<Header data-oid="2njcwvq" />);
     expect(screen.getByRole("banner")).toBeInTheDocument();
   });
 
   it("displays hardcoded title", () => {
-    render(<Header data-oid="tuktoy:" />);
+    render(<Header data-oid="qct98fl" />);
     expect(
       screen.getByText("Viking Scouts (1st Walton on Thames)"),
     ).toBeInTheDocument();

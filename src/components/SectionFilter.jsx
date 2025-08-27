@@ -59,7 +59,7 @@ function SectionFilter({
       className={`flex gap-2 flex-wrap items-center ${className}`}
       role="group"
       aria-label="Section filters"
-      data-oid="ne.l:5_"
+      data-oid="8psoamn"
     >
       {/* Individual section filters */}
       {sections.map((section) => {
@@ -79,7 +79,7 @@ function SectionFilter({
             aria-pressed={isActive}
             aria-label={`Filter by ${section.sectionname} section`}
             title={section.sectionname}
-            data-oid="hakp:zy"
+            data-oid="hsq99uz"
           >
             {section.sectionname}
           </button>

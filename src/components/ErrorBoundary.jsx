@@ -61,37 +61,37 @@ export const EnhancedSentryErrorBoundary = ({
         return (
           <div
             className="error-boundary-container p-4 max-w-md mx-auto"
-            data-oid="9y8ir_e"
+            data-oid="e-mg-j_"
           >
-            <Alert variant="error" className="mb-4" data-oid="evfy1wm">
-              <strong data-oid="su_wt6s">Something went wrong</strong>
-              <p className="mt-2 text-sm" data-oid="rhutl69">
+            <Alert variant="error" className="mb-4" data-oid="7jptcm0">
+              <strong data-oid="kbhm2zj">Something went wrong</strong>
+              <p className="mt-2 text-sm" data-oid="hg17g-4">
                 {name
                   ? `Error in ${name} component`
                   : "An unexpected error occurred"}
               </p>
-              <details className="mt-2 text-xs" data-oid="u020e:v">
-                <summary className="cursor-pointer" data-oid="prdwv7g">
+              <details className="mt-2 text-xs" data-oid="1n7aa-h">
+                <summary className="cursor-pointer" data-oid="m3jjq0f">
                   Technical Details
                 </summary>
-                <pre className="mt-2 overflow-x-auto" data-oid=".05jkt1">
+                <pre className="mt-2 overflow-x-auto" data-oid="1qcf9ad">
                   {error.message}
                 </pre>
               </details>
             </Alert>
 
-            <div className="flex gap-2" data-oid="gon20w3">
+            <div className="flex gap-2" data-oid="u51w.u9">
               <button
                 onClick={resetError}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                data-oid="5h4e-w-"
+                data-oid="72b3al4"
               >
                 Try Again
               </button>
               <button
                 onClick={() => window.location.reload()}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-                data-oid="016qbkm"
+                data-oid=".yvs7t."
               >
                 Reload Page
               </button>
@@ -111,7 +111,7 @@ export const EnhancedSentryErrorBoundary = ({
         });
         scope.setLevel("error");
       }}
-      data-oid="6vxhv5p"
+      data-oid="nndg.gm"
     >
       {children}
     </Sentry.ErrorBoundary>
@@ -259,39 +259,39 @@ class ErrorBoundary extends React.Component {
       return (
         <div
           className="error-boundary-container p-4 max-w-md mx-auto"
-          data-oid="g_lk-ma"
+          data-oid="04llsky"
         >
-          <Alert variant="error" className="mb-4" data-oid="sby2oy9">
-            <strong data-oid="kr6ube:">Something went wrong</strong>
-            <p className="mt-2 text-sm" data-oid="2hesy.m">
+          <Alert variant="error" className="mb-4" data-oid="j04j8z8">
+            <strong data-oid="es1gexi">Something went wrong</strong>
+            <p className="mt-2 text-sm" data-oid="d1uggo8">
               {this.props.name
                 ? `Error in ${this.props.name} component`
                 : "An unexpected error occurred"}
             </p>
             {this.state.error && (
-              <details className="mt-2 text-xs" data-oid="w...801">
-                <summary className="cursor-pointer" data-oid="e9h6w7d">
+              <details className="mt-2 text-xs" data-oid="1tu9f4.">
+                <summary className="cursor-pointer" data-oid="4w9:.cc">
                   Technical Details
                 </summary>
-                <pre className="mt-2 overflow-x-auto" data-oid="7jt2aq9">
+                <pre className="mt-2 overflow-x-auto" data-oid="zf3hg:9">
                   {this.state.error.message}
                 </pre>
               </details>
             )}
           </Alert>
 
-          <div className="flex gap-2" data-oid="0emisn1">
+          <div className="flex gap-2" data-oid="j7jd.oi">
             <button
               onClick={this.handleRetry}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              data-oid="uk1n7m7"
+              data-oid="eg-9ui7"
             >
               Try Again
             </button>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              data-oid="ut8q-gk"
+              data-oid="gpzmaan"
             >
               Reload Page
             </button>
@@ -307,8 +307,8 @@ class ErrorBoundary extends React.Component {
 // HOC for easy wrapping of components
 export const withErrorBoundary = (Component, boundaryProps = {}) => {
   const WrappedComponent = (props) => (
-    <ErrorBoundary {...boundaryProps} data-oid="g3k10-2">
-      <Component {...props} data-oid="l2xddci" />
+    <ErrorBoundary {...boundaryProps} data-oid="rov1m6d">
+      <Component {...props} data-oid="h9:hoyo" />
     </ErrorBoundary>
   );
 

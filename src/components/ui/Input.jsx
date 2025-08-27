@@ -73,13 +73,13 @@ const Input = forwardRef(
         .join(" ") || undefined;
 
     const InputElement = (
-      <div className="relative" data-oid="krg31:9">
+      <div className="relative" data-oid="bn:_m9x">
         {leftIcon && (
           <div
             className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            data-oid="8.i69ly"
+            data-oid="j1pjd0i"
           >
-            <span className="text-gray-500" data-oid="_4:e55:">
+            <span className="text-gray-500" data-oid="k0kd4wc">
               {leftIcon}
             </span>
           </div>
@@ -94,15 +94,15 @@ const Input = forwardRef(
           id={inputId}
           aria-invalid={error || undefined}
           aria-describedby={describedBy}
-          data-oid="qqf:vkp"
+          data-oid=":wee3xw"
         />
 
         {rightIcon && (
           <div
             className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
-            data-oid="2whs9pm"
+            data-oid="q35obpp"
           >
-            <span className="text-gray-500" data-oid=".:wuszl">
+            <span className="text-gray-500" data-oid=":roao2y">
               {rightIcon}
             </span>
           </div>
@@ -113,7 +113,7 @@ const Input = forwardRef(
     // If no label, return just the input
     if (!label) {
       return (
-        <div data-oid="tqjt:wl">
+        <div data-oid="3983gq1">
           {InputElement}
           {(helperText || errorText) && (
             <p
@@ -124,7 +124,7 @@ const Input = forwardRef(
               )}
               aria-live={error ? "polite" : undefined}
               role={error ? "alert" : undefined}
-              data-oid="w9xrcd-"
+              data-oid="9ahgvs2"
             >
               {error ? errorText : helperText}
             </p>
@@ -135,11 +135,11 @@ const Input = forwardRef(
 
     // Return full form group with label
     return (
-      <div data-oid="gb9rkq0">
+      <div data-oid="1ayg7d7">
         <label
           className="block text-sm font-medium text-gray-700 mb-1"
           htmlFor={inputId}
-          data-oid="qn324a4"
+          data-oid="8k.3aj:"
         >
           {label}
         </label>
@@ -153,7 +153,7 @@ const Input = forwardRef(
             )}
             aria-live={error ? "polite" : undefined}
             role={error ? "alert" : undefined}
-            data-oid="0vkz84o"
+            data-oid="k-_cz_a"
           >
             {error ? errorText : helperText}
           </p>

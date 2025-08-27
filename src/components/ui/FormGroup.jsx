@@ -7,7 +7,7 @@ import { cn } from "../../utils/cn";
 
 const FormGroup = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("space-y-1", className)} {...props} data-oid="jfth695">
+    <div className={cn("space-y-1", className)} {...props} data-oid="l-g79w5">
       {children}
     </div>
   );
@@ -18,7 +18,7 @@ const FormRow = ({ children, className = "", ...props }) => {
     <div
       className={cn("grid grid-cols-1 md:grid-cols-2 gap-4", className)}
       {...props}
-      data-oid="3vx5jo5"
+      data-oid="g2t84z2"
     >
       {children}
     </div>
@@ -33,20 +33,20 @@ const FormSection = ({
   ...props
 }) => {
   return (
-    <div className={cn("space-y-4", className)} {...props} data-oid="riryzih">
+    <div className={cn("space-y-4", className)} {...props} data-oid="2bt456r">
       {title && (
-        <div data-oid="99jb:m:">
-          <h3 className="text-lg font-medium text-gray-900" data-oid="duw0_jn">
+        <div data-oid="k6wf0al">
+          <h3 className="text-lg font-medium text-gray-900" data-oid="f:mhy6z">
             {title}
           </h3>
           {subtitle && (
-            <p className="text-sm text-gray-600 mt-1" data-oid="tja_imm">
+            <p className="text-sm text-gray-600 mt-1" data-oid="onex4kt">
               {subtitle}
             </p>
           )}
         </div>
       )}
-      <div className="space-y-4" data-oid=":x8_ati">
+      <div className="space-y-4" data-oid="wlwnutl">
         {children}
       </div>
     </div>
@@ -74,7 +74,7 @@ const FormActions = ({
         className,
       )}
       {...props}
-      data-oid="h33j262"
+      data-oid="xzjvv1."
     >
       {children}
     </div>
@@ -93,11 +93,11 @@ const Label = ({
       htmlFor={htmlFor}
       className={cn("block text-sm font-medium text-gray-700", className)}
       {...props}
-      data-oid="0c3zm1d"
+      data-oid="mpak.87"
     >
       {children}
       {required && (
-        <span className="text-red-500 ml-1" data-oid="u31b-4m">
+        <span className="text-red-500 ml-1" data-oid="esg8450">
           *
         </span>
       )}
@@ -114,7 +114,7 @@ const HelperText = ({ children, error = false, className = "", ...props }) => {
         className,
       )}
       {...props}
-      data-oid="17bc3n8"
+      data-oid="u-v.qcx"
     >
       {children}
     </p>
@@ -128,7 +128,7 @@ const ErrorText = ({ children, className = "", ...props }) => {
     <p
       className={cn("text-sm text-red-600", className)}
       {...props}
-      data-oid="e6t8hgy"
+      data-oid="jasascj"
     >
       {children}
     </p>

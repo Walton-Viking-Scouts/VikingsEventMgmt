@@ -1604,21 +1604,21 @@ function CampGroupsView({
 
   if (loading) {
     return (
-      <LoadingScreen message="Loading camp groups..." data-oid="7wnaqjt" />
+      <LoadingScreen message="Loading camp groups..." data-oid="-hesc2w" />
     );
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4" data-oid="ydcnvlm">
-        <Alert.Title data-oid="mugrx45">Error Loading Camp Groups</Alert.Title>
-        <Alert.Description data-oid="qzldkk:">{error}</Alert.Description>
-        <Alert.Actions data-oid="1tywcvk">
+      <Alert variant="danger" className="m-4" data-oid="e.x5hs_">
+        <Alert.Title data-oid="jhl8cxv">Error Loading Camp Groups</Alert.Title>
+        <Alert.Description data-oid="0u76_nq">{error}</Alert.Description>
+        <Alert.Actions data-oid="e_anvv_">
           <Button
             variant="scout-blue"
             onClick={() => window.location.reload()}
             type="button"
-            data-oid="3j15cy0"
+            data-oid="zhnewwz"
           >
             Retry
           </Button>
@@ -1630,18 +1630,18 @@ function CampGroupsView({
   const { summary } = organizedGroups;
 
   return (
-    <div className="camp-groups-view" data-oid="hn6nm7n">
+    <div className="camp-groups-view" data-oid="i6ojt1i">
       {/* Header with summary stats */}
-      <div className="mb-6" data-oid="h541j5u">
+      <div className="mb-6" data-oid="hs29iv0">
         <div
           className="flex flex-wrap gap-4 mb-4 items-center justify-between"
-          data-oid="p:baj6."
+          data-oid="da1pojz"
         >
-          <div className="flex flex-wrap gap-4" data-oid="843p329">
-            <Badge variant="scout-blue" size="md" data-oid="m41c.hv">
+          <div className="flex flex-wrap gap-4" data-oid="c3-.7a_">
+            <Badge variant="scout-blue" size="md" data-oid="baw4-5w">
               {summary.totalGroups || 0} Groups
             </Badge>
-            <Badge variant="scout-green" size="md" data-oid=":vxtu2:">
+            <Badge variant="scout-green" size="md" data-oid="s.1tctx">
               {summary.totalMembers || 0} Members
             </Badge>
           </div>
@@ -1658,25 +1658,25 @@ function CampGroupsView({
               groupRenameLoading
             }
             type="button"
-            data-oid="cazl-b4"
+            data-oid="n8-gwr5"
           >
             {groupRenameLoading ? "Saving..." : "Edit Names"}
           </Button>
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <Alert variant="warning" className="mb-4" data-oid="lcrgdo:">
-            <Alert.Title data-oid="73khgdc">
+          <Alert variant="warning" className="mb-4" data-oid="-t28smo">
+            <Alert.Title data-oid="cgah5o-">
               No Viking Event Management Data
             </Alert.Title>
-            <Alert.Description data-oid="5l8u660">
+            <Alert.Description data-oid=":wdpvdf">
               No &quot;Viking Event Mgmt&quot; flexirecord found for the
               sections involved in these events. All members will be shown in
               the &quot;Unassigned&quot; group.
               {!flexiRecordContext && (
                 <>
-                  <br data-oid="y:vu:d_" />
-                  <strong data-oid="8_jdy83">Note:</strong> Drag and drop
+                  <br data-oid="q.2:msh" />
+                  <strong data-oid="up1hs79">Note:</strong> Drag and drop
                   functionality is not available without FlexiRecord data.
                 </>
               )}
@@ -1687,29 +1687,29 @@ function CampGroupsView({
 
       {/* Groups grid */}
       {filteredAndSortedGroups.length === 0 ? (
-        <div className="text-center py-12" data-oid="qsztel8">
+        <div className="text-center py-12" data-oid="ac3-5as">
           <svg
             className="mx-auto h-12 w-12 text-gray-400 mb-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            data-oid="gehn02o"
+            data-oid="zquhulf"
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"
-              data-oid=":79198p"
+              data-oid="7liyxkt"
             />
           </svg>
           <h3
             className="text-lg font-medium text-gray-900 mb-2"
-            data-oid="a5aqewm"
+            data-oid="2qhaw3z"
           >
             No Groups Found
           </h3>
-          <p className="text-gray-600" data-oid="kogvnh8">
+          <p className="text-gray-600" data-oid="7fb_8-q">
             No camp groups available for these events.
           </p>
         </div>
@@ -1735,7 +1735,7 @@ function CampGroupsView({
               return `repeat(auto-fit, minmax(${minWidth}, 1fr))`;
             })(),
           }}
-          data-oid="67j744j"
+          data-oid="gbjj-gc"
         >
           {filteredAndSortedGroups.map((group) => (
             <CampGroupCard
@@ -1771,7 +1771,7 @@ function CampGroupsView({
                 }
               }}
               className="h-fit"
-              data-oid="d98heqd"
+              data-oid=":yt8z1u"
             />
           ))}
         </div>
@@ -1785,21 +1785,21 @@ function CampGroupsView({
           ${toastMessage.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}
           ${toastMessage.type === "error" ? "border-l-4 border-red-700" : "border-l-4 border-green-700"}
         `}
-          data-oid="3t19vzb"
+          data-oid=".38:hh5"
         >
-          <div className="flex items-center" data-oid="ohe_596">
+          <div className="flex items-center" data-oid="5hyj4-7">
             {toastMessage.type === "success" ? (
               <svg
                 className="w-5 h-5 mr-2"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="yop4w2e"
+                data-oid="1ro:5h8"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clipRule="evenodd"
-                  data-oid="1mfw_3t"
+                  data-oid="92wb3i."
                 />
               </svg>
             ) : (
@@ -1807,17 +1807,17 @@ function CampGroupsView({
                 className="w-5 h-5 mr-2"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="2cwcnj7"
+                data-oid="4cxm7iv"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
-                  data-oid="z6u8k4u"
+                  data-oid="9rd02l_"
                 />
               </svg>
             )}
-            <span className="text-sm font-medium" data-oid="qhb3y9:">
+            <span className="text-sm font-medium" data-oid="3xl4xmj">
               {toastMessage.message}
             </span>
           </div>
@@ -1828,14 +1828,14 @@ function CampGroupsView({
       {pendingMoves.size > 0 && (
         <div
           className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg"
-          data-oid="on:x:bs"
+          data-oid="7pz.e8u"
         >
-          <div className="flex items-center" data-oid="gzt:cuj">
+          <div className="flex items-center" data-oid="7wwvmgw">
             <svg
               className="animate-spin w-4 h-4 mr-2"
               fill="none"
               viewBox="0 0 24 24"
-              data-oid="::v:-al"
+              data-oid="e7tj9v1"
             >
               <circle
                 className="opacity-25"
@@ -1844,17 +1844,17 @@ function CampGroupsView({
                 r="10"
                 stroke="currentColor"
                 strokeWidth="4"
-                data-oid="d9vigen"
+                data-oid="pfic.k8"
               />
 
               <path
                 className="opacity-75"
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                data-oid="fe2xoh7"
+                data-oid="xgsgwmo"
               />
             </svg>
-            <span className="text-sm font-medium" data-oid="7rpflnf">
+            <span className="text-sm font-medium" data-oid="dio7_xi">
               Syncing {pendingMoves.size} member{" "}
               {pendingMoves.size === 1 ? "move" : "moves"} to OSM...
             </span>
@@ -1867,7 +1867,7 @@ function CampGroupsView({
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}
-        data-oid="n9lggx7"
+        data-oid="er4qq.j"
       />
 
       {/* Group Names Edit Modal */}
@@ -1878,7 +1878,7 @@ function CampGroupsView({
         onRename={handleGroupRename}
         onDelete={handleGroupDelete}
         loading={groupRenameLoading}
-        data-oid="wkdq2q7"
+        data-oid="yvqwwfz"
       />
     </div>
   );

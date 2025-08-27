@@ -25,16 +25,16 @@ function Header({
       variant="white"
       fixed={false}
       data-testid="header"
-      data-oid="aa:5eo1"
+      data-oid="rzj40mt"
     >
-      <TailwindHeader.Container data-oid=".1b0:r8">
+      <TailwindHeader.Container data-oid="d_4g5b0">
         {/* Desktop: Single row layout */}
-        <TailwindHeader.Content className="hidden md:flex" data-oid="1e2upiw">
-          <TailwindHeader.Left data-oid="ry46o6v">
+        <TailwindHeader.Content className="hidden md:flex" data-oid="5-k:g.6">
+          <TailwindHeader.Left data-oid="or9bmbp">
             <TailwindHeader.Title
               className="text-xl font-semibold text-scout-blue"
               data-testid="app-title"
-              data-oid="_p6itzq"
+              data-oid="7:j1:xz"
             >
               Viking Scouts (1st Walton on Thames)
             </TailwindHeader.Title>
@@ -42,21 +42,21 @@ function Header({
 
           <TailwindHeader.Right
             data-testid="header-controls"
-            data-oid="rtk-t9c"
+            data-oid="5hkkovu"
           >
             {/* Data freshness indicator */}
             <DataFreshness
               lastSync={lastSyncTime}
               authState={authState}
               className="mr-3"
-              data-oid="a1jm9z:"
+              data-oid="bag1-c3"
             />
 
             {/* Token countdown - shows remaining login time */}
             <TokenCountdown
               authState={authState}
               className="mr-3"
-              data-oid="o:02r7_"
+              data-oid="f5w2vku"
             />
 
             {/* Authentication button - always visible */}
@@ -66,13 +66,13 @@ function Header({
               onRefresh={onRefresh}
               className="mr-3"
               data-testid="auth-button"
-              data-oid="x3aom2r"
+              data-oid="t3emshn"
             />
 
             {/* User menu (when authenticated) */}
             {user && (
-              <div className="flex items-center gap-3" data-oid="lbr0.c2">
-                <span className="text-gray-700 text-base" data-oid="a3znzwm">
+              <div className="flex items-center gap-3" data-oid="dy2cq:_">
+                <span className="text-gray-700 text-base" data-oid="whl1-qb">
                   Hi, {user.firstname}
                 </span>
                 <Button
@@ -81,7 +81,7 @@ function Header({
                   onClick={handleLogout}
                   data-testid="logout-button"
                   className="text-sm px-3 py-2"
-                  data-oid="dwuoyu3"
+                  data-oid="d6jmz53"
                 >
                   {isOfflineMode ? "Clear Data" : "Logout"}
                 </Button>
@@ -91,30 +91,30 @@ function Header({
         </TailwindHeader.Content>
 
         {/* Mobile: Two row layout */}
-        <div className="md:hidden py-3 space-y-3" data-oid="r3fjy4o">
+        <div className="md:hidden py-3 space-y-3" data-oid="5qow_e9">
           {/* Row 1: Title and essential status */}
-          <div className="flex items-center justify-between" data-oid="_d_lq-5">
+          <div className="flex items-center justify-between" data-oid="ttj6ak-">
             <TailwindHeader.Title
               className="text-lg font-semibold text-scout-blue"
               data-testid="app-title"
-              data-oid=".lzi-98"
+              data-oid="pl-oyx."
             >
               Viking Scouts
             </TailwindHeader.Title>
 
             {/* Essential status indicators */}
-            <div className="flex items-center space-x-2" data-oid="g:0kkqk">
+            <div className="flex items-center space-x-2" data-oid="nr5jvra">
               <DataFreshness
                 lastSync={lastSyncTime}
                 authState={authState}
                 className="text-xs"
-                data-oid="74ows.n"
+                data-oid="a570gyx"
               />
 
               <TokenCountdown
                 authState={authState}
                 className="text-xs"
-                data-oid="0mic55b"
+                data-oid="4own9gh"
               />
             </div>
           </div>
@@ -122,7 +122,7 @@ function Header({
           {/* Row 2: Authentication and user controls */}
           <div
             className="flex items-center justify-between min-w-0 overflow-hidden"
-            data-oid="rnmd9q4"
+            data-oid="utw0:wv"
           >
             {/* Always show AuthButton, especially important when token expired */}
             <AuthButton
@@ -132,15 +132,15 @@ function Header({
               data-testid="auth-button"
               size="sm"
               className="flex-shrink-0"
-              data-oid="2dxl:q-"
+              data-oid="tvyt9qu"
             />
 
             {/* User menu - show when authenticated, but ensure it doesn't hide AuthButton */}
             {user && (
-              <div className="flex items-center gap-2 ml-2" data-oid="v888bxy">
+              <div className="flex items-center gap-2 ml-2" data-oid="nsyt-zz">
                 <span
                   className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-gray-700 text-sm"
-                  data-oid="hwi.gg:"
+                  data-oid="j09ctd9"
                 >
                   Hi, {user.firstname}
                 </span>
@@ -150,7 +150,7 @@ function Header({
                   onClick={handleLogout}
                   data-testid="logout-button"
                   className="text-xs px-2 py-1 flex-shrink-0"
-                  data-oid="r-lmhwz"
+                  data-oid="r8bsuhr"
                 >
                   {isOfflineMode ? "Clear" : "Logout"}
                 </Button>
@@ -177,7 +177,7 @@ function Header({
         }}
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
-        data-oid="4kqqy_g"
+        data-oid="c8xcmbd"
       />
     </TailwindHeader>
   );

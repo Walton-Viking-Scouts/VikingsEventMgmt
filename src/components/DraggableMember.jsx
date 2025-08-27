@@ -319,7 +319,7 @@ function DraggableMember({
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
       data-member-id={member.scoutid}
-      data-oid="-gf2prf"
+      data-oid="fwf6x5q"
     >
       {/* Drag handle indicator for draggable members - top corner */}
       {isDraggable && (
@@ -331,20 +331,20 @@ function DraggableMember({
             touchAction: isPressHolding && touchDragActive ? "none" : "auto",
           }}
           title="Drag to move"
-          data-oid="jh4tdd9"
+          data-oid="47v_bdj"
         >
           <svg
             className="w-3 h-3"
             fill="currentColor"
             viewBox="0 0 16 16"
-            data-oid="zzxj5-c"
+            data-oid="91::_43"
           >
-            <circle cx="4" cy="4" r="1.2" data-oid="183knk7" />
-            <circle cx="12" cy="4" r="1.2" data-oid="l1g:c9p" />
-            <circle cx="4" cy="8" r="1.2" data-oid="z.b8993" />
-            <circle cx="12" cy="8" r="1.2" data-oid="h51nwul" />
-            <circle cx="4" cy="12" r="1.2" data-oid="mte80n5" />
-            <circle cx="12" cy="12" r="1.2" data-oid="p9s4tsu" />
+            <circle cx="4" cy="4" r="1.2" data-oid="5w.3j77" />
+            <circle cx="12" cy="4" r="1.2" data-oid="s96c23c" />
+            <circle cx="4" cy="8" r="1.2" data-oid="szd8zrd" />
+            <circle cx="12" cy="8" r="1.2" data-oid="gm63y4i" />
+            <circle cx="4" cy="12" r="1.2" data-oid="xwwx_b5" />
+            <circle cx="12" cy="12" r="1.2" data-oid="ssmxlcb" />
           </svg>
         </div>
       )}
@@ -352,9 +352,9 @@ function DraggableMember({
       <div
         className="w-full min-w-0"
         onClick={handleMemberClick}
-        data-oid="e52vi00"
+        data-oid="xha6ohm"
       >
-        <div className="flex items-start gap-1 min-w-0" data-oid="bi-9e-q">
+        <div className="flex items-start gap-1 min-w-0" data-oid="yj1oh:u">
           <span
             className={`text-sm font-medium break-words leading-tight w-full max-w-full ${
               member.SignedOutBy ||
@@ -376,7 +376,7 @@ function DraggableMember({
               overflowWrap: "break-word",
               hyphens: "auto",
             }}
-            data-oid="4ohe5xw"
+            data-oid="0t190.b"
           >
             {memberName}
           </span>
@@ -392,32 +392,32 @@ function DraggableMember({
             top: dragPosition.y,
             maxWidth: "200px",
           }}
-          data-oid="rvz:_-d"
+          data-oid="qagv6ys"
         >
           <div
             className="p-2 rounded-lg bg-blue-100 border-2 border-blue-300 shadow-lg"
-            data-oid="wa3wtsp"
+            data-oid="8xs9l6s"
           >
-            <div className="flex items-center gap-1" data-oid="-m1d73n">
+            <div className="flex items-center gap-1" data-oid="1sxqgir">
               {/* Drag handle indicator */}
-              <div className="text-blue-500" data-oid="jx.:5uq">
+              <div className="text-blue-500" data-oid="r3qq13o">
                 <svg
                   className="w-3 h-3"
                   fill="currentColor"
                   viewBox="0 0 16 16"
-                  data-oid="is9cque"
+                  data-oid="f0.7m9x"
                 >
-                  <circle cx="4" cy="4" r="1.2" data-oid="474xui4" />
-                  <circle cx="12" cy="4" r="1.2" data-oid="5d9gkh8" />
-                  <circle cx="4" cy="8" r="1.2" data-oid="c:e4dgg" />
-                  <circle cx="12" cy="8" r="1.2" data-oid="nmwqdlf" />
-                  <circle cx="4" cy="12" r="1.2" data-oid="fankd0n" />
-                  <circle cx="12" cy="12" r="1.2" data-oid="5azlyfj" />
+                  <circle cx="4" cy="4" r="1.2" data-oid="pzecr2h" />
+                  <circle cx="12" cy="4" r="1.2" data-oid="riysn0m" />
+                  <circle cx="4" cy="8" r="1.2" data-oid="rx8bv62" />
+                  <circle cx="12" cy="8" r="1.2" data-oid="9_hh_.2" />
+                  <circle cx="4" cy="12" r="1.2" data-oid="qf:ypxg" />
+                  <circle cx="12" cy="12" r="1.2" data-oid="84.3hgy" />
                 </svg>
               </div>
               <span
                 className="text-sm font-medium text-blue-700 truncate"
-                data-oid="lxuw8:q"
+                data-oid="l-h.4bv"
               >
                 {memberName}
               </span>

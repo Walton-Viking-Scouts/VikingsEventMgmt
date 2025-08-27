@@ -10,15 +10,15 @@ function SectionsList({
 }) {
   if (!sections || sections.length === 0) {
     return (
-      <Card data-oid="9la:1ss">
-        <Card.Body className="text-center p-8" data-oid="3rp:gy2">
+      <Card data-oid="sdv_3kr">
+        <Card.Body className="text-center p-8" data-oid="s3wd-e-">
           <h2
             className="text-xl font-semibold text-gray-900 mb-2"
-            data-oid="v::7oa4"
+            data-oid="rv7o3hv"
           >
             No Sections Available
           </h2>
-          <p className="text-gray-600" data-oid="1f8j:jt">
+          <p className="text-gray-600" data-oid="dina500">
             No sections found for your account. Please check your OSM
             permissions.
           </p>
@@ -68,16 +68,16 @@ function SectionsList({
   });
 
   return (
-    <Card data-oid="6wfx9c8">
-      <Card.Header data-oid="_208fce">
-        <Card.Title data-oid="9zg-w9.">Select Sections</Card.Title>
+    <Card data-oid="4kuz81n">
+      <Card.Header data-oid="bbwpu.x">
+        <Card.Title data-oid="03y-z.c">Select Sections</Card.Title>
       </Card.Header>
 
-      <Card.Body data-oid="if_q1n_">
+      <Card.Body data-oid="18o9g-l">
         <div
           className="flex flex-wrap justify-center"
           style={{ gap: "30px" }}
-          data-oid="53w-qas"
+          data-oid="az4syg3"
         >
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
@@ -147,14 +147,14 @@ function SectionsList({
                     e.target.style.opacity = isSelected ? 1 : 0.8;
                   }
                 }}
-                data-oid="73xxzmu"
+                data-oid="uzwr7en"
               >
                 {isLoading && (
                   <svg
                     className="animate-spin h-3 w-3"
                     fill="none"
                     viewBox="0 0 24 24"
-                    data-oid="2dq5c4y"
+                    data-oid="0oao4bz"
                   >
                     <circle
                       className="opacity-25"
@@ -163,13 +163,13 @@ function SectionsList({
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
-                      data-oid="z8c9wk1"
+                      data-oid="x7ls189"
                     ></circle>
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      data-oid=":zmr_3x"
+                      data-oid="d8tqx-a"
                     ></path>
                   </svg>
                 )}
@@ -184,17 +184,17 @@ function SectionsList({
       {selectedSections && selectedSections.length > 0 && (
         <Card.Body
           className="border-t border-gray-200 bg-gray-50"
-          data-oid="g8xot0p"
+          data-oid="dv5-.i_"
         >
-          <div className="mb-4" data-oid="bgwrk9.">
+          <div className="mb-4" data-oid="23j_s1x">
             <h4
               className="text-lg font-semibold text-gray-900"
-              data-oid="l9r6ogo"
+              data-oid="yu3kp-7"
             >
               Members from {selectedSections.length} section
               {selectedSections.length === 1 ? "" : "s"}
             </h4>
-            <p className="text-sm text-gray-600" data-oid="g51780n">
+            <p className="text-sm text-gray-600" data-oid="zy7akzx">
               {selectedSections.map((s) => s.sectionname).join(", ")}
             </p>
           </div>
@@ -202,13 +202,13 @@ function SectionsList({
           {/* Embedded Members List */}
           <div
             className="bg-white rounded-lg border border-gray-200"
-            data-oid="et2g344"
+            data-oid="cigx7mf"
           >
             <MembersList
               embedded={true}
               showHeader={false}
               sections={selectedSections}
-              data-oid="6bo.:nr"
+              data-oid="5ajsa:z"
             />
           </div>
         </Card.Body>

@@ -7,7 +7,7 @@ import { cn } from "../../utils/cn";
 
 const Menu = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("relative", className)} {...props} data-oid="j2lenme">
+    <div className={cn("relative", className)} {...props} data-oid="l5.plog">
       {children}
     </div>
   );
@@ -35,7 +35,7 @@ const MenuButton = ({
         className,
       )}
       {...props}
-      data-oid="_:axvd6"
+      data-oid=".78.j.l"
     >
       {children}
     </button>
@@ -66,9 +66,9 @@ const MenuItems = ({
         className,
       )}
       {...props}
-      data-oid="nj1:ux5"
+      data-oid="0w6-j7m"
     >
-      <div className="py-1" data-oid="52xw1f2">
+      <div className="py-1" data-oid=":u1d-57">
         {children}
       </div>
     </div>
@@ -99,7 +99,7 @@ const MenuItem = ({
         className,
       )}
       {...props}
-      data-oid="9ofty3."
+      data-oid="fp3b:iw"
     >
       {children}
     </button>
@@ -111,7 +111,7 @@ const MenuDivider = ({ className = "", ...props }) => {
     <div
       className={cn("border-t border-gray-100 my-1", className)}
       {...props}
-      data-oid=":pyoyt_"
+      data-oid="2em8eur"
     />
   );
 };
@@ -168,11 +168,11 @@ const Dropdown = ({
   };
 
   return (
-    <Menu ref={dropdownRef} className={className} {...props} data-oid="dfxvy_m">
-      <div onClick={handleToggle} data-oid="7::_ko0">
+    <Menu ref={dropdownRef} className={className} {...props} data-oid="m4._pg:">
+      <div onClick={handleToggle} data-oid="7ob5niy">
         {trigger}
       </div>
-      <MenuItems isOpen={isOpen} position={position} data-oid="v46.r3z">
+      <MenuItems isOpen={isOpen} position={position} data-oid="_sykoc5">
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === MenuItem) {
             return React.cloneElement(child, {
@@ -202,7 +202,7 @@ const Nav = ({
     <nav
       className={cn(variants[variant], className)}
       {...props}
-      data-oid="ts3zyjy"
+      data-oid="m23xrfp"
     >
       {children}
     </nav>
@@ -237,7 +237,7 @@ const NavItem = ({
         className,
       )}
       {...props}
-      data-oid="o4qwzao"
+      data-oid="3uu-k5j"
     >
       {children}
     </Component>

@@ -210,30 +210,30 @@ function OfflineIndicator({ hideBanner = false }) {
       isOpen={showLoginPrompt}
       onClose={handleLoginCancel}
       size="md"
-      data-oid="w4fgj_w"
+      data-oid="x4laluj"
     >
-      <Modal.Header data-oid="jzysdfa">
-        <Modal.Title data-oid="o:p:vto">Authentication Required</Modal.Title>
+      <Modal.Header data-oid="3xz_f75">
+        <Modal.Title data-oid="z83nhvd">Authentication Required</Modal.Title>
       </Modal.Header>
-      <Modal.Body data-oid="4..-3ul">
-        <div className="space-y-4" data-oid="5o4:fe6">
-          <div className="flex items-center gap-3" data-oid="g.t-.1x">
-            <div className="flex-shrink-0" data-oid="bhryokx">
+      <Modal.Body data-oid="kuzd-xo">
+        <div className="space-y-4" data-oid="ie15w_n">
+          <div className="flex items-center gap-3" data-oid="e4-q.3m">
+            <div className="flex-shrink-0" data-oid="wf65lc_">
               <div
                 className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center"
-                data-oid="k4ih5u1"
+                data-oid="18mh.hs"
               >
-                <span className="text-amber-600 text-xl" data-oid="jklrzcz">
+                <span className="text-amber-600 text-xl" data-oid="mdyfwl8">
                   🔐
                 </span>
               </div>
             </div>
-            <div data-oid="smhyto5">
-              <p className="text-gray-900 font-medium" data-oid="pk-_ba1">
+            <div data-oid="33_a_f:">
+              <p className="text-gray-900 font-medium" data-oid="k-t26xj">
                 {loginPromptData?.message ||
                   "Authentication required to sync data."}
               </p>
-              <p className="text-gray-600 text-sm mt-1" data-oid="3v3vfmc">
+              <p className="text-gray-600 text-sm mt-1" data-oid="ytesck8">
                 You will be redirected to Online Scout Manager to authenticate.
               </p>
             </div>
@@ -241,27 +241,27 @@ function OfflineIndicator({ hideBanner = false }) {
 
           <div
             className="bg-blue-50 border border-blue-200 rounded-lg p-3"
-            data-oid="2a:6e:5"
+            data-oid="9xhovs1"
           >
-            <p className="text-blue-800 text-sm" data-oid="u4iv42e">
-              <strong data-oid="y75tyd7">Note:</strong> You can continue using
+            <p className="text-blue-800 text-sm" data-oid="h6razn_">
+              <strong data-oid="6z-u55q">Note:</strong> You can continue using
               the app with offline data if you prefer not to sync at this time.
             </p>
           </div>
         </div>
       </Modal.Body>
-      <Modal.Footer data-oid=":opa54r">
+      <Modal.Footer data-oid="aptj4y1">
         <Button
           variant="outline"
           onClick={handleLoginCancel}
-          data-oid="83g_u:."
+          data-oid="11v0azr"
         >
           Stay Offline
         </Button>
         <Button
           variant="scout-blue"
           onClick={handleLoginConfirm}
-          data-oid="z5kd54a"
+          data-oid="u36otpl"
         >
           Login & Sync
         </Button>
@@ -290,7 +290,7 @@ function OfflineIndicator({ hideBanner = false }) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50" data-oid="53hfg9s">
+    <div className="fixed top-0 left-0 right-0 z-50" data-oid="1j4eluw">
       {syncStatus && (
         <Alert
           variant={
@@ -301,30 +301,30 @@ function OfflineIndicator({ hideBanner = false }) {
                 : "error"
           }
           className="rounded-none border-x-0 border-t-0"
-          data-oid="w37nvcc"
+          data-oid="6trkfc0"
         >
           <div
             className="flex items-center justify-center gap-2"
-            data-oid="ha89izo"
+            data-oid="hd7ej-p"
           >
             {syncStatus.status === "syncing" && (
               <>
-                <span className="animate-spin" data-oid="pxaz5cw">
+                <span className="animate-spin" data-oid=".y.67a2">
                   ⏳
                 </span>
-                <span data-oid="i5yb.i3">{syncStatus.message}</span>
+                <span data-oid="xhel:hf">{syncStatus.message}</span>
               </>
             )}
             {syncStatus.status === "completed" && (
               <>
-                <span data-oid="oxnhfh4">✅</span>
-                <span data-oid="ybfuolc">Sync completed</span>
+                <span data-oid="5mc45kg">✅</span>
+                <span data-oid="ovzk.bv">Sync completed</span>
               </>
             )}
             {syncStatus.status === "error" && (
               <>
-                <span data-oid="zlt1w0d">⚠️</span>
-                <span data-oid="418g.zp">
+                <span data-oid="1vooj.o">⚠️</span>
+                <span data-oid=":jth.6m">
                   Sync failed: {syncStatus.message}
                 </span>
               </>
