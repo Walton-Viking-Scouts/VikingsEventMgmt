@@ -8,14 +8,12 @@ const chevronIcon = (
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"
-    data-oid="-tfwvbn"
   >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
       d="M19 9l-7 7-7-7"
-      data-oid="f6g_sd6"
     />
   </svg>
 );
@@ -84,7 +82,7 @@ const Select = forwardRef(
           : undefined;
 
     const SelectElement = (
-      <div className="relative" data-oid="oo5n16n">
+      <div className="relative">
         <select
           ref={ref}
           id={finalSelectId}
@@ -98,19 +96,15 @@ const Select = forwardRef(
             ? { defaultValue: "" }
             : {})}
           {...props}
-          data-oid="vh:d0qv"
         >
           {placeholder && (
-            <option value="" disabled data-oid="dba4msn">
+            <option value="" disabled>
               {placeholder}
             </option>
           )}
           {children}
         </select>
-        <div
-          className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"
-          data-oid="s._fmj8"
-        >
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
           {chevronIcon}
         </div>
       </div>
@@ -119,7 +113,7 @@ const Select = forwardRef(
     // If no label, return just the select
     if (!label) {
       return (
-        <div data-oid="e3owdb0">
+        <div>
           {SelectElement}
           {(helperText || errorText) && (
             <p
@@ -128,7 +122,6 @@ const Select = forwardRef(
                 "mt-1 text-sm",
                 error ? "text-red-600" : "text-gray-600",
               )}
-              data-oid="gu8tpns"
             >
               {error ? errorText : helperText}
             </p>
@@ -139,11 +132,10 @@ const Select = forwardRef(
 
     // Return full form group with label
     return (
-      <div data-oid="9yfpb7t">
+      <div>
         <label
           htmlFor={finalSelectId}
           className="block text-sm font-medium text-gray-700 mb-1"
-          data-oid="d.tufe:"
         >
           {label}
         </label>
@@ -155,7 +147,6 @@ const Select = forwardRef(
               "mt-1 text-sm",
               error ? "text-red-600" : "text-gray-600",
             )}
-            data-oid="x7j7l8."
           >
             {error ? errorText : helperText}
           </p>

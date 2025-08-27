@@ -17,9 +17,8 @@ function MobileLayout({
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
       style={{ touchAction: "pan-y" }}
-      data-oid="h:0r24u"
     >
-      <OfflineIndicator data-oid="fm0:5-f" />
+      <OfflineIndicator />
       <Header
         user={user}
         onLogout={onLogout}
@@ -28,18 +27,14 @@ function MobileLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="2e7qly7"
       />
 
       <main
         className="flex-1 overflow-y-auto"
         data-testid="mobile-main"
         style={{ touchAction: "pan-y" }}
-        data-oid="y7hpes7"
       >
-        <div className="h-full" data-oid="dlhud7r">
-          {children}
-        </div>
+        <div className="h-full">{children}</div>
       </main>
     </div>
   );

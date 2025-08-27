@@ -319,7 +319,6 @@ function DraggableMember({
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
       data-member-id={member.scoutid}
-      data-oid="ygrqs9r"
     >
       {/* Drag handle indicator for draggable members - top corner */}
       {isDraggable && (
@@ -331,30 +330,20 @@ function DraggableMember({
             touchAction: isPressHolding && touchDragActive ? "none" : "auto",
           }}
           title="Drag to move"
-          data-oid="tdzm0sd"
         >
-          <svg
-            className="w-3 h-3"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-            data-oid="7ozvt8j"
-          >
-            <circle cx="4" cy="4" r="1.2" data-oid="sxt:iyt" />
-            <circle cx="12" cy="4" r="1.2" data-oid="vo8llxi" />
-            <circle cx="4" cy="8" r="1.2" data-oid="2pxgo_h" />
-            <circle cx="12" cy="8" r="1.2" data-oid="jk:9d86" />
-            <circle cx="4" cy="12" r="1.2" data-oid="ec2u:a3" />
-            <circle cx="12" cy="12" r="1.2" data-oid=".tp92p7" />
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+            <circle cx="4" cy="4" r="1.2" />
+            <circle cx="12" cy="4" r="1.2" />
+            <circle cx="4" cy="8" r="1.2" />
+            <circle cx="12" cy="8" r="1.2" />
+            <circle cx="4" cy="12" r="1.2" />
+            <circle cx="12" cy="12" r="1.2" />
           </svg>
         </div>
       )}
 
-      <div
-        className="w-full min-w-0"
-        onClick={handleMemberClick}
-        data-oid="8rcs.-n"
-      >
-        <div className="flex items-start gap-1 min-w-0" data-oid="b-wh3ed">
+      <div className="w-full min-w-0" onClick={handleMemberClick}>
+        <div className="flex items-start gap-1 min-w-0">
           <span
             className={`text-sm font-medium break-words leading-tight w-full max-w-full ${
               member.SignedOutBy ||
@@ -376,7 +365,6 @@ function DraggableMember({
               overflowWrap: "break-word",
               hyphens: "auto",
             }}
-            data-oid="46i-d8r"
           >
             {memberName}
           </span>
@@ -392,33 +380,25 @@ function DraggableMember({
             top: dragPosition.y,
             maxWidth: "200px",
           }}
-          data-oid="cbo91y_"
         >
-          <div
-            className="p-2 rounded-lg bg-blue-100 border-2 border-blue-300 shadow-lg"
-            data-oid="k7xnmo4"
-          >
-            <div className="flex items-center gap-1" data-oid="dn:cwum">
+          <div className="p-2 rounded-lg bg-blue-100 border-2 border-blue-300 shadow-lg">
+            <div className="flex items-center gap-1">
               {/* Drag handle indicator */}
-              <div className="text-blue-500" data-oid="k6cy3xs">
+              <div className="text-blue-500">
                 <svg
                   className="w-3 h-3"
                   fill="currentColor"
                   viewBox="0 0 16 16"
-                  data-oid=".y66l8m"
                 >
-                  <circle cx="4" cy="4" r="1.2" data-oid="2grtvbx" />
-                  <circle cx="12" cy="4" r="1.2" data-oid="qn-.u3i" />
-                  <circle cx="4" cy="8" r="1.2" data-oid="o4o9x1p" />
-                  <circle cx="12" cy="8" r="1.2" data-oid="d.9r2jk" />
-                  <circle cx="4" cy="12" r="1.2" data-oid="dijetun" />
-                  <circle cx="12" cy="12" r="1.2" data-oid="3:3vc-." />
+                  <circle cx="4" cy="4" r="1.2" />
+                  <circle cx="12" cy="4" r="1.2" />
+                  <circle cx="4" cy="8" r="1.2" />
+                  <circle cx="12" cy="8" r="1.2" />
+                  <circle cx="4" cy="12" r="1.2" />
+                  <circle cx="12" cy="12" r="1.2" />
                 </svg>
               </div>
-              <span
-                className="text-sm font-medium text-blue-700 truncate"
-                data-oid="j_.olas"
-              >
+              <span className="text-sm font-medium text-blue-700 truncate">
                 {memberName}
               </span>
             </div>

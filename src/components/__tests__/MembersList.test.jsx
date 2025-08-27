@@ -75,13 +75,7 @@ describe("MembersList", () => {
     );
 
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="j3iwitf"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     expect(screen.getByText("Loading members...")).toBeInTheDocument();
@@ -89,13 +83,7 @@ describe("MembersList", () => {
 
   it("displays members count after loading", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="ibl3:xz"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -105,13 +93,7 @@ describe("MembersList", () => {
 
   it("displays section information", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="4ncouc:"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -123,13 +105,7 @@ describe("MembersList", () => {
 
   it("shows member names after loading", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="439ai0q"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -140,13 +116,7 @@ describe("MembersList", () => {
 
   it("displays member email addresses", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="4sros4a"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -157,13 +127,7 @@ describe("MembersList", () => {
 
   it("shows search input", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="yciexh9"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -177,13 +141,7 @@ describe("MembersList", () => {
 
   it("filters members when searching", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="l00qmiy"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -203,13 +161,7 @@ describe("MembersList", () => {
 
   it("shows back button", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="a5qoea8"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -219,13 +171,7 @@ describe("MembersList", () => {
 
   it("calls onBack when back button is clicked", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="xf62sms"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -240,13 +186,7 @@ describe("MembersList", () => {
 
   it("shows export button", async () => {
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="13d3kxn"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -262,13 +202,7 @@ describe("MembersList", () => {
     );
 
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="z0sn6ni"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -283,13 +217,7 @@ describe("MembersList", () => {
     vi.mocked(getListOfMembers).mockRejectedValue(new Error("API Error"));
 
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="bae3lht"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {
@@ -304,13 +232,7 @@ describe("MembersList", () => {
     vi.mocked(getListOfMembers).mockResolvedValue([]);
 
     await act(async () => {
-      render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="d-h4q41"
-        />,
-      );
+      render(<MembersList sections={mockSections} onBack={mockOnBack} />);
     });
 
     await waitFor(() => {

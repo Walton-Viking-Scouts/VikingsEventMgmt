@@ -37,7 +37,6 @@ function SignInOutButton({ member, onSignInOut, loading }) {
       className={`${baseStyles} ${activeStyles} ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
       type="button"
       title={`${label} ${member.name}`}
-      data-oid="u8r6jia"
     >
       {loading ? "..." : label}
     </button>

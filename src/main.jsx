@@ -8,7 +8,7 @@ import { initSentry } from "./services/sentry.js";
 initSentry();
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode data-oid="qmjeisb">
-    <App data-oid="akaxkjo" />
+  <StrictMode>
+    <App />
   </StrictMode>,
 );

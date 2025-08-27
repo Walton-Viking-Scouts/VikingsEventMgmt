@@ -69,7 +69,6 @@ const Badge = ({
     <span
       className={cn(baseClasses, variants[variant], sizes[size], className)}
       {...props}
-      data-oid="8n6wfg4"
     >
       {children}
     </span>
@@ -117,7 +116,6 @@ const DotBadge = ({
         className,
       )}
       {...props}
-      data-oid="ga319pf"
     />
   );
 };
@@ -149,7 +147,6 @@ const NumberBadge = ({
       variant={variant}
       className={cn("justify-center leading-none", sizes[size], className)}
       {...props}
-      data-oid=":6zs8jb"
     >
       {displayCount}
     </Badge>

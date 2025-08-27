@@ -298,42 +298,30 @@ function GroupNamesEditModal({
   });
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      data-oid="mu.j.8y"
-    >
-      <div
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-        data-oid="wabzqes"
-      >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200" data-oid="3haujdh">
-          <h2
-            className="text-xl font-semibold text-gray-900"
-            data-oid="6ezagmk"
-          >
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
             Edit Group Names
           </h2>
-          <p className="text-sm text-gray-600 mt-1" data-oid="mfmcal.">
+          <p className="text-sm text-gray-600 mt-1">
             Rename camp groups - all members in each group will be updated
           </p>
         </div>
 
         {/* Content */}
-        <div
-          className="px-6 py-4 overflow-y-auto max-h-[60vh]"
-          data-oid="ro89lf:"
-        >
+        <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
           {Object.keys(errors).length > 0 && (
-            <Alert variant="danger" className="mb-4" data-oid="7o5-8pz">
-              <Alert.Title data-oid="k-vee:f">Validation Errors</Alert.Title>
-              <Alert.Description data-oid="119ilsm">
+            <Alert variant="danger" className="mb-4">
+              <Alert.Title>Validation Errors</Alert.Title>
+              <Alert.Description>
                 Please fix the errors below before saving.
               </Alert.Description>
             </Alert>
           )}
 
-          <div className="space-y-4" data-oid="25c03_9">
+          <div className="space-y-4">
             {groupEntries.map(([originalGroupName, group]) => {
               const memberCount =
                 (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
@@ -344,16 +332,12 @@ function GroupNamesEditModal({
                 <div
                   key={originalGroupName}
                   className="flex items-center space-x-4 p-4 border rounded-lg"
-                  data-oid="y3zf1h2"
                 >
-                  <div
-                    className="flex-shrink-0 w-20 text-sm text-gray-600"
-                    data-oid="07ip.ce"
-                  >
+                  <div className="flex-shrink-0 w-20 text-sm text-gray-600">
                     {memberCount} member{memberCount !== 1 ? "s" : ""}
                   </div>
 
-                  <div className="flex-1" data-oid="wivv.3_">
+                  <div className="flex-1">
                     <Input
                       id={`group-${originalGroupName}`}
                       value={currentValue}
@@ -365,16 +349,10 @@ function GroupNamesEditModal({
                         hasError ? "border-red-500 focus:border-red-500" : ""
                       }
                       disabled={loading}
-                      data-oid="09s:sgx"
                     />
 
                     {hasError && (
-                      <p
-                        className="text-red-500 text-xs mt-1"
-                        data-oid="ypxzxvx"
-                      >
-                        {hasError}
-                      </p>
+                      <p className="text-red-500 text-xs mt-1">{hasError}</p>
                     )}
                   </div>
 
@@ -389,7 +367,6 @@ function GroupNamesEditModal({
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         type="button"
                         title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? "s" : ""} to Unassigned)`}
-                        data-oid="tkz1cyg"
                       >
                         Delete
                       </Button>
@@ -400,23 +377,19 @@ function GroupNamesEditModal({
           </div>
 
           {groupEntries.length === 0 && (
-            <div className="text-center py-8 text-gray-500" data-oid="1meydxt">
+            <div className="text-center py-8 text-gray-500">
               No groups available to rename
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div
-          className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3"
-          data-oid="1sf.ao8"
-        >
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
           <Button
             variant="outline"
             onClick={handleCancel}
             disabled={loading}
             type="button"
-            data-oid="ekdcmgm"
           >
             Cancel
           </Button>
@@ -425,7 +398,6 @@ function GroupNamesEditModal({
             onClick={handleSave}
             disabled={loading || Object.keys(errors).length > 0 || !hasChanges}
             type="button"
-            data-oid="05l9b0e"
           >
             {loading ? "Saving..." : "Save Changes"}
           </Button>

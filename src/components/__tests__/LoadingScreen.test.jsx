@@ -4,13 +4,13 @@ import LoadingScreen from "../LoadingScreen";
 
 describe("LoadingScreen", () => {
   it("renders loading text", () => {
-    render(<LoadingScreen data-oid="bhntqx1" />);
+    render(<LoadingScreen />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
   it("displays custom message when provided", () => {
     const message = "Loading data...";
-    render(<LoadingScreen message={message} data-oid="n.8oogw" />);
+    render(<LoadingScreen message={message} />);
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 });

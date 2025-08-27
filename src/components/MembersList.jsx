@@ -255,14 +255,10 @@ function MembersList({
 
   const SortIcon = ({ field }) => {
     if (sortField !== field) {
-      return (
-        <span className="text-gray-300" data-oid="n2jjqj.">
-          ↕
-        </span>
-      );
+      return <span className="text-gray-300">↕</span>;
     }
     return (
-      <span className="text-scout-blue" data-oid="h95bg:5">
+      <span className="text-scout-blue">
         {sortDirection === "asc" ? "↑" : "↓"}
       </span>
     );
@@ -293,29 +289,19 @@ function MembersList({
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading members..." data-oid="y_gajl." />;
+    return <LoadingScreen message="Loading members..." />;
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4" data-oid="qs2ld9n">
-        <Alert.Title data-oid="1xfr:mq">Error Loading Members</Alert.Title>
-        <Alert.Description data-oid="u-7vt2k">{error}</Alert.Description>
-        <Alert.Actions data-oid="dj2..6-">
-          <Button
-            variant="scout-blue"
-            onClick={loadMembers}
-            type="button"
-            data-oid="wfalnlp"
-          >
+      <Alert variant="danger" className="m-4">
+        <Alert.Title>Error Loading Members</Alert.Title>
+        <Alert.Description>{error}</Alert.Description>
+        <Alert.Actions>
+          <Button variant="scout-blue" onClick={loadMembers} type="button">
             Retry
           </Button>
-          <Button
-            variant="outline"
-            onClick={onBack}
-            type="button"
-            data-oid="ceoftwi"
-          >
+          <Button variant="outline" onClick={onBack} type="button">
             Back to Dashboard
           </Button>
         </Alert.Actions>
@@ -324,57 +310,43 @@ function MembersList({
   }
 
   return (
-    <div className={embedded ? "" : "px-4 sm:px-6 lg:px-8"} data-oid="1kfb86u">
+    <div className={embedded ? "" : "px-4 sm:px-6 lg:px-8"}>
       {/* Header - only show if not embedded */}
       {showHeader && (
-        <div className="sm:flex sm:items-center" data-oid="6x41k5t">
-          <div className="sm:flex-auto" data-oid="bznp79f">
-            <h1
-              className="text-xl font-semibold text-gray-900"
-              data-oid="ecous.g"
-            >
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-xl font-semibold text-gray-900">
               Members ({filteredAndSortedMembers.length})
             </h1>
-            <p className="mt-2 text-sm text-gray-700" data-oid="yfzj8k6">
+            <p className="mt-2 text-sm text-gray-700">
               Members from selected sections:{" "}
               {sections.map((s) => s.sectionname).join(", ")}
             </p>
           </div>
-          <div
-            className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3"
-            data-oid="-lbr6aj"
-          >
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
             <Button
               variant="outline"
               onClick={exportToCSV}
               disabled={filteredAndSortedMembers.length === 0}
               type="button"
-              data-oid="znmk:86"
             >
               <svg
                 className="w-4 h-4 mr-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="1vk.2bp"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  data-oid="h6089to"
                 />
               </svg>
               Export CSV
             </Button>
             {onBack && (
-              <Button
-                variant="outline"
-                onClick={onBack}
-                type="button"
-                data-oid="emjr630"
-              >
+              <Button variant="outline" onClick={onBack} type="button">
                 Back to Dashboard
               </Button>
             )}
@@ -383,20 +355,19 @@ function MembersList({
       )}
 
       {/* Search and filters */}
-      <div className="mt-6 flex flex-col sm:flex-row gap-4" data-oid="4p29.y:">
-        <div className="flex-1" data-oid="7_rbvt3">
+      <div className="mt-6 flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
           <Input
             placeholder="Search members by name, email, or section..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full"
-            data-oid="5v3nea8"
           />
         </div>
 
         {/* Column visibility toggle for desktop */}
         {!isMobile && (
-          <div className="flex flex-wrap gap-2" data-oid="w::nxbw">
+          <div className="flex flex-wrap gap-2">
             {Object.entries(visibleColumns).map(([column, visible]) => (
               <Button
                 key={column}
@@ -406,7 +377,6 @@ function MembersList({
                   setVisibleColumns((prev) => ({ ...prev, [column]: !visible }))
                 }
                 type="button"
-                data-oid="oxxn7u7"
               >
                 {column}
               </Button>
@@ -416,32 +386,27 @@ function MembersList({
       </div>
 
       {/* Members table/cards */}
-      <div className="mt-6" data-oid="viyb7-4">
+      <div className="mt-6">
         {filteredAndSortedMembers.length === 0 ? (
-          <Card data-oid="kwpq04q">
-            <Card.Body className="text-center py-12" data-oid="tid8.__">
+          <Card>
+            <Card.Body className="text-center py-12">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                data-oid="p840bd2"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"
-                  data-oid="csyu:1j"
                 />
               </svg>
-              <h3
-                className="mt-2 text-sm font-medium text-gray-900"
-                data-oid="16e6v26"
-              >
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
                 No members found
               </h3>
-              <p className="mt-1 text-sm text-gray-500" data-oid="ga2wmxk">
+              <p className="mt-1 text-sm text-gray-500">
                 {searchTerm
                   ? "Try adjusting your search terms."
                   : "No members available for the selected sections."}
@@ -450,44 +415,29 @@ function MembersList({
           </Card>
         ) : isMobile ? (
           // Mobile: Card layout
-          <div className="space-y-4" data-oid="-ng.x0i">
+          <div className="space-y-4">
             {filteredAndSortedMembers.map((member) => (
               <Card
                 key={member.scoutid}
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handleMemberClick(member)}
-                data-oid="bfq4x45"
               >
-                <Card.Body data-oid="._5wan3">
-                  <div
-                    className="flex justify-between items-start"
-                    data-oid="xknba7x"
-                  >
-                    <div data-oid=":irwwqm">
-                      <h3
-                        className="text-lg font-medium text-gray-900"
-                        data-oid="rrbg48q"
-                      >
+                <Card.Body>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">
                         {member.firstname} {member.lastname}
                       </h3>
-                      <div
-                        className="mt-1 flex flex-wrap gap-1"
-                        data-oid="x:2nuwp"
-                      >
+                      <div className="mt-1 flex flex-wrap gap-1">
                         {(member.sections || []).map((section, idx) => (
-                          <Badge
-                            key={idx}
-                            variant="scout-blue"
-                            size="sm"
-                            data-oid="0hyz15."
-                          >
+                          <Badge key={idx} variant="scout-blue" size="sm">
                             {section}
                           </Badge>
                         ))}
                       </div>
                     </div>
                     {calculateAge(member.date_of_birth) && (
-                      <Badge variant="light" data-oid="qs52-n8">
+                      <Badge variant="light">
                         Age {calculateAge(member.date_of_birth)}
                       </Badge>
                     )}
@@ -500,76 +450,56 @@ function MembersList({
                             : "scout-green"
                       }
                       size="sm"
-                      data-oid=":73e03a"
                     >
                       {member.person_type || "Young People"}
                     </Badge>
                   </div>
 
-                  <div
-                    className="mt-3 space-y-1 text-sm text-gray-600"
-                    data-oid="5.s-kti"
-                  >
+                  <div className="mt-3 space-y-1 text-sm text-gray-600">
                     {member.email && (
-                      <div className="flex items-center" data-oid="y:tpnj0">
+                      <div className="flex items-center">
                         <svg
                           className="w-4 h-4 mr-2"
                           fill="currentColor"
                           viewBox="0 0 20 20"
-                          data-oid="t.udfx4"
                         >
-                          <path
-                            d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
-                            data-oid="r46.lt:"
-                          />
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
 
-                          <path
-                            d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
-                            data-oid="dhu:m7e"
-                          />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                         </svg>
                         {member.email}
                       </div>
                     )}
                     {member.phone && (
-                      <div className="flex items-center" data-oid="ndrsh-k">
+                      <div className="flex items-center">
                         <svg
                           className="w-4 h-4 mr-2"
                           fill="currentColor"
                           viewBox="0 0 20 20"
-                          data-oid="m2b4qnz"
                         >
-                          <path
-                            d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"
-                            data-oid="9n5yj2f"
-                          />
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
                         {member.phone}
                       </div>
                     )}
                     {member.patrol && (
-                      <div className="flex items-center" data-oid="kqr8jd2">
-                        <span data-oid="dsvb7qr">Patrol: {member.patrol}</span>
+                      <div className="flex items-center">
+                        <span>Patrol: {member.patrol}</span>
                       </div>
                     )}
 
                     {/* Medical info */}
                     {member.medical_notes && (
-                      <div
-                        className="flex items-center text-orange-600"
-                        data-oid="_jxtzk2"
-                      >
+                      <div className="flex items-center text-orange-600">
                         <svg
                           className="w-4 h-4 mr-2"
                           fill="currentColor"
                           viewBox="0 0 20 20"
-                          data-oid="9xng7xq"
                         >
                           <path
                             fillRule="evenodd"
                             d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                             clipRule="evenodd"
-                            data-oid="wejjfc6"
                           />
                         </svg>
                         Medical info available
@@ -579,10 +509,7 @@ function MembersList({
                     {/* Emergency contacts */}
                     {member.emergency_contacts &&
                       member.emergency_contacts.length > 0 && (
-                        <div
-                          className="text-xs text-gray-500"
-                          data-oid="9n-t257"
-                        >
+                        <div className="text-xs text-gray-500">
                           Emergency contacts: {member.emergency_contacts.length}
                         </div>
                       )}
@@ -593,26 +520,19 @@ function MembersList({
           </div>
         ) : (
           // Desktop: Table layout
-          <Card data-oid="toekp6v">
-            <div className="overflow-x-auto" data-oid="c18406y">
-              <table
-                className="min-w-full divide-y divide-gray-300"
-                data-oid="9d1jm:7"
-              >
-                <thead className="bg-gray-50" data-oid="3x_kr4k">
-                  <tr data-oid="rg2_atv">
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
                     {visibleColumns.name && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("name")}
-                        data-oid="7v-kiw0"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="4p_-ekc"
-                        >
-                          <span data-oid="4x2yzkm">Name</span>
-                          <SortIcon field="name" data-oid="v1cjnn7" />
+                        <div className="flex items-center space-x-1">
+                          <span>Name</span>
+                          <SortIcon field="name" />
                         </div>
                       </th>
                     )}
@@ -620,14 +540,10 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("sections")}
-                        data-oid="0vycpu-"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="_q4ehuo"
-                        >
-                          <span data-oid="ma5lvcb">Sections</span>
-                          <SortIcon field="sections" data-oid="s9lo0z:" />
+                        <div className="flex items-center space-x-1">
+                          <span>Sections</span>
+                          <SortIcon field="sections" />
                         </div>
                       </th>
                     )}
@@ -635,14 +551,10 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("email")}
-                        data-oid=".26qq:n"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="163a89g"
-                        >
-                          <span data-oid="s9jmuom">Email</span>
-                          <SortIcon field="email" data-oid="qc7900u" />
+                        <div className="flex items-center space-x-1">
+                          <span>Email</span>
+                          <SortIcon field="email" />
                         </div>
                       </th>
                     )}
@@ -650,14 +562,10 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("phone")}
-                        data-oid="55n9aqq"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="7vduiu_"
-                        >
-                          <span data-oid="z12v1j6">Phone</span>
-                          <SortIcon field="phone" data-oid="fl20sss" />
+                        <div className="flex items-center space-x-1">
+                          <span>Phone</span>
+                          <SortIcon field="phone" />
                         </div>
                       </th>
                     )}
@@ -665,14 +573,10 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("patrol")}
-                        data-oid=".6cuvy7"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid=":pdm00f"
-                        >
-                          <span data-oid="15q4cmh">Patrol</span>
-                          <SortIcon field="patrol" data-oid=".5rqmg3" />
+                        <div className="flex items-center space-x-1">
+                          <span>Patrol</span>
+                          <SortIcon field="patrol" />
                         </div>
                       </th>
                     )}
@@ -680,14 +584,10 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("person_type")}
-                        data-oid="2kwbeh7"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="e4i6m0j"
-                        >
-                          <span data-oid="wy:3nj2">Type</span>
-                          <SortIcon field="person_type" data-oid="f7hkicz" />
+                        <div className="flex items-center space-x-1">
+                          <span>Type</span>
+                          <SortIcon field="person_type" />
                         </div>
                       </th>
                     )}
@@ -695,30 +595,20 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("address")}
-                        data-oid="bstdlyz"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="jjto5bj"
-                        >
-                          <span data-oid="k8is7sc">Address</span>
-                          <SortIcon field="address" data-oid="odsmv:w" />
+                        <div className="flex items-center space-x-1">
+                          <span>Address</span>
+                          <SortIcon field="address" />
                         </div>
                       </th>
                     )}
                     {visibleColumns.medical && (
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        data-oid="hm1-xlw"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Medical
                       </th>
                     )}
                     {visibleColumns.emergency && (
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        data-oid="fxr8iy7"
-                      >
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Emergency
                       </th>
                     )}
@@ -726,59 +616,34 @@ function MembersList({
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort("age")}
-                        data-oid="85dmnl7"
                       >
-                        <div
-                          className="flex items-center space-x-1"
-                          data-oid="nkdmxnc"
-                        >
-                          <span data-oid="zg9wgeh">Age</span>
-                          <SortIcon field="age" data-oid="8bniwoc" />
+                        <div className="flex items-center space-x-1">
+                          <span>Age</span>
+                          <SortIcon field="age" />
                         </div>
                       </th>
                     )}
                   </tr>
                 </thead>
-                <tbody
-                  className="bg-white divide-y divide-gray-200"
-                  data-oid="3dvbu2_"
-                >
+                <tbody className="bg-white divide-y divide-gray-200">
                   {filteredAndSortedMembers.map((member) => (
                     <tr
                       key={member.scoutid}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => handleMemberClick(member)}
-                      data-oid="3_m1w3:"
                     >
                       {visibleColumns.name && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap"
-                          data-oid="nu3cxgy"
-                        >
-                          <div
-                            className="text-sm font-medium text-gray-900"
-                            data-oid="q765.8t"
-                          >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
                             {member.firstname} {member.lastname}
                           </div>
                         </td>
                       )}
                       {visibleColumns.sections && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap"
-                          data-oid="p_33oxd"
-                        >
-                          <div
-                            className="flex flex-wrap gap-1"
-                            data-oid="zbw.hhc"
-                          >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-wrap gap-1">
                             {(member.sections || []).map((section, idx) => (
-                              <Badge
-                                key={idx}
-                                variant="scout-blue"
-                                size="sm"
-                                data-oid=".1wzkjg"
-                              >
+                              <Badge key={idx} variant="scout-blue" size="sm">
                                 {section}
                               </Badge>
                             ))}
@@ -786,34 +651,22 @@ function MembersList({
                         </td>
                       )}
                       {visibleColumns.email && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid=":cpqswc"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.email}
                         </td>
                       )}
                       {visibleColumns.phone && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="1orex.m"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.phone}
                         </td>
                       )}
                       {visibleColumns.patrol && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="_:0l188"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.patrol}
                         </td>
                       )}
                       {visibleColumns.person_type && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="cacv41h"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <Badge
                             variant={
                               member.person_type === "Leaders"
@@ -823,27 +676,20 @@ function MembersList({
                                   : "scout-green"
                             }
                             size="sm"
-                            data-oid="cwp6x1j"
                           >
                             {member.person_type || "Young People"}
                           </Badge>
                         </td>
                       )}
                       {visibleColumns.address && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="pv6v6.y"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div
                             className="max-w-xs truncate"
                             title={`${member.address || ""} ${member.postcode || ""}`}
-                            data-oid="cvs-xm5"
                           >
-                            {member.address && (
-                              <div data-oid="ety7h11">{member.address}</div>
-                            )}
+                            {member.address && <div>{member.address}</div>}
                             {member.postcode && (
-                              <div className="text-gray-500" data-oid="mr6kx6v">
+                              <div className="text-gray-500">
                                 {member.postcode}
                               </div>
                             )}
@@ -851,72 +697,49 @@ function MembersList({
                         </td>
                       )}
                       {visibleColumns.medical && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid=":g3u_ds"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.medical_notes ? (
-                            <div
-                              className="flex items-center text-orange-600"
-                              data-oid="hrzwca5"
-                            >
+                            <div className="flex items-center text-orange-600">
                               <svg
                                 className="w-4 h-4 mr-1"
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
-                                data-oid="1_nzvki"
                               >
                                 <path
                                   fillRule="evenodd"
                                   d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                                   clipRule="evenodd"
-                                  data-oid="nno89lg"
                                 />
                               </svg>
-                              <span className="text-xs" data-oid="7iiofj5">
-                                Medical
-                              </span>
+                              <span className="text-xs">Medical</span>
                             </div>
                           ) : (
-                            <span className="text-gray-400" data-oid="mez5agt">
-                              -
-                            </span>
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                       )}
                       {visibleColumns.emergency && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="hbgx:16"
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {member.emergency_contacts &&
                           member.emergency_contacts.length > 0 ? (
-                            <div className="text-xs" data-oid="gl0rb6a">
-                              <div className="font-medium" data-oid="-pzrwqx">
+                            <div className="text-xs">
+                              <div className="font-medium">
                                 {member.emergency_contacts.length} contact
                                 {member.emergency_contacts.length > 1
                                   ? "s"
                                   : ""}
                               </div>
-                              <div
-                                className="text-gray-500 truncate max-w-xs"
-                                data-oid="_1x1pdb"
-                              >
+                              <div className="text-gray-500 truncate max-w-xs">
                                 {member.emergency_contacts[0].name}
                               </div>
                             </div>
                           ) : (
-                            <span className="text-gray-400" data-oid="60g4a1o">
-                              -
-                            </span>
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                       )}
                       {visibleColumns.age && (
-                        <td
-                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                          data-oid="rmf83t."
-                        >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {calculateAge(member.date_of_birth)}
                         </td>
                       )}
@@ -934,7 +757,6 @@ function MembersList({
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}
-        data-oid="m4zflk4"
       />
     </div>
   );
