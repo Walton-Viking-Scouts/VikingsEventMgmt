@@ -4,20 +4,20 @@ import React, {
   useRef,
   useMemo,
   useCallback,
-} from "react";
-import LoadingScreen from "./LoadingScreen.jsx";
-import MemberDetailModal from "./MemberDetailModal.jsx";
-import CompactAttendanceFilter from "./CompactAttendanceFilter.jsx";
-import SectionFilter from "./SectionFilter.jsx";
-import CampGroupsView from "./CampGroupsView.jsx";
-import SignInOutButton from "./SignInOutButton.jsx";
-import { Card, Button, Badge, Alert } from "./ui";
-import { useAttendanceData } from "../hooks/useAttendanceData.js";
-import { useSignInOut } from "../hooks/useSignInOut.js";
-import { findMemberSectionName } from "../utils/sectionHelpers.js";
-import { getSharedEventAttendance } from "../services/api.js";
-import { getToken } from "../services/auth.js";
-import { isDemoMode } from "../config/demoMode.js";
+} from 'react';
+import LoadingScreen from './LoadingScreen.jsx';
+import MemberDetailModal from './MemberDetailModal.jsx';
+import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
+import SectionFilter from './SectionFilter.jsx';
+import CampGroupsView from './CampGroupsView.jsx';
+import SignInOutButton from './SignInOutButton.jsx';
+import { Card, Button, Badge, Alert } from './ui';
+import { useAttendanceData } from '../hooks/useAttendanceData.js';
+import { useSignInOut } from '../hooks/useSignInOut.js';
+import { findMemberSectionName } from '../utils/sectionHelpers.js';
+import { getSharedEventAttendance } from '../services/api.js';
+import { getToken } from '../services/auth.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
@@ -27,12 +27,12 @@ function AttendanceView({ events, members, onBack }) {
   const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
   if (members?.length > 0 && !hasLoggedMembers) {
     if (import.meta.env.DEV) {
-      console.log("🔍 AttendanceView members count:", members.length);
+      console.log('🔍 AttendanceView members count:', members.length);
       console.log(
-        "🔍 AttendanceView first member keys:",
+        '🔍 AttendanceView first member keys:',
         Object.keys(members[0]).sort(),
       );
-      console.log("🔍 AttendanceView first member data:", members[0]);
+      console.log('🔍 AttendanceView first member data:', members[0]);
     }
     setHasLoggedMembers(true);
   }
@@ -53,13 +53,13 @@ function AttendanceView({ events, members, onBack }) {
 
   // Local state for UI
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
-  const [viewMode, setViewMode] = useState("overview"); // overview, register, detailed, campGroups, sharedAttendance
+  const [viewMode, setViewMode] = useState('overview'); // overview, register, detailed, campGroups, sharedAttendance
   const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
   const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);
-  const prevViewModeRef = useRef("overview"); // Track previous view mode without extra renders
+  const prevViewModeRef = useRef('overview'); // Track previous view mode without extra renders
   const [sortConfig, setSortConfig] = useState({
-    key: "attendance",
-    direction: "desc",
+    key: 'attendance',
+    direction: 'desc',
   });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -76,11 +76,11 @@ function AttendanceView({ events, members, onBack }) {
   const sectionsCache = useMemo(() => {
     try {
       return JSON.parse(
-        localStorage.getItem("viking_sections_offline") || "[]",
+        localStorage.getItem('viking_sections_offline') || '[]',
       );
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.warn("Failed to parse cached sections data:", error);
+        console.warn('Failed to parse cached sections data:', error);
       }
       return [];
     }
@@ -93,20 +93,25 @@ function AttendanceView({ events, members, onBack }) {
     uniqueSections.forEach((sectionId) => {
       // Find the section name to check if it's an Adults section
       const sectionEvent = events.find((e) => e.sectionid === sectionId);
-      const sectionName = sectionEvent?.sectionname?.toLowerCase() || "";
+      const sectionName = sectionEvent?.sectionname?.toLowerCase() || '';
 
       // Set Adults sections to false by default, all others to true
-      filters[sectionId] = !sectionName.includes("adults");
+      filters[sectionId] = !sectionName.includes('adults');
     });
     return filters;
+  });
+
+  // Data filter state - for controlling which columns to show
+  const [dataFilters, setDataFilters] = useState({
+    contacts: false, // Primary and Emergency contacts (hidden by default as requested)
   });
 
   // Refresh Viking Event data when switching to register view from camp groups
   // This ensures updated camp group assignments show in the register
   useEffect(() => {
     const prev = prevViewModeRef.current;
-    const switchingToRegister = viewMode === "register" && prev !== "register";
-    const switchingFromCampGroups = prev === "campGroups";
+    const switchingToRegister = viewMode === 'register' && prev !== 'register';
+    const switchingFromCampGroups = prev === 'campGroups';
 
     if (switchingToRegister && switchingFromCampGroups) {
       loadVikingEventData();
@@ -119,15 +124,15 @@ function AttendanceView({ events, members, onBack }) {
 
   // Format date and time in UK format (DD/MM/YYYY HH:MM)
   const formatUKDateTime = (dateString) => {
-    if (!dateString) return "";
+    if (!dateString) return '';
 
     try {
       const date = new Date(dateString);
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear();
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
 
       return `${day}/${month}/${year} ${hours}:${minutes}`;
     } catch {
@@ -135,14 +140,191 @@ function AttendanceView({ events, members, onBack }) {
     }
   };
 
+  // Helper function to group contact information (reused from MemberDetailModal)
+  const groupContactInfo = (member) => {
+    const groups = {};
+
+    // Process flattened contact fields
+    Object.entries(member).forEach(([key, value]) => {
+      if (key.includes('__') && value) {
+        const [groupName, fieldName] = key.split('__');
+        if (!groups[groupName]) {
+          groups[groupName] = {};
+        }
+        groups[groupName][fieldName] = value;
+      }
+    });
+
+    // Add legacy fields to appropriate groups
+    if (member.email || member.phone) {
+      if (!groups.member_contact) {
+        groups.member_contact = {};
+      }
+      if (member.email) groups.member_contact.email = member.email;
+      if (member.phone) groups.member_contact.phone = member.phone;
+    }
+
+    // Also process nested contact_groups data if available
+    if (member.contact_groups) {
+      Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
+        if (groupData && typeof groupData === 'object') {
+          const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          if (!groups[normalizedGroupName]) {
+            groups[normalizedGroupName] = {};
+          }
+          // Merge nested data with flattened data (nested takes precedence)
+          Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
+            if (fieldValue) {
+              const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              groups[normalizedGroupName][normalizedFieldName] = fieldValue;
+            }
+          });
+        }
+      });
+    }
+
+    return groups;
+  };
+
+  // Extract comprehensive member data for attendance detailed view
+  const getComprehensiveMemberData = (attendanceRecord) => {
+    // Find the full member data from the members prop
+    const scoutidAsNumber = parseInt(attendanceRecord.scoutid, 10);
+    const cachedMember = members?.find((m) => m.scoutid === scoutidAsNumber);
+    
+    if (!cachedMember) {
+      // Return basic fallback data if member not found
+      return {
+        name: `${attendanceRecord.firstname} ${attendanceRecord.lastname}`,
+        section: attendanceRecord.sectionname,
+        attendance: attendanceRecord.attending,
+        patrol: '',
+        age: '',
+        pc1_name: '',
+        pc1_phone: '',
+        pc1_email: '',
+        ec_name: '',
+        ec_phone: '',
+        allergies: '',
+        medical_details: '',
+        dietary_requirements: '',
+        consent_photos: '',
+        consent_sensitive: '',
+        consent_paracetamol: '',
+        consent_ibuprofen: '',
+        consent_suncream: '',
+      };
+    }
+
+    const contactGroups = groupContactInfo(cachedMember);
+    
+    // Helper to get field from any group
+    const getField = (groupNames, fieldNames) => {
+      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+        const group = contactGroups[groupName];
+        if (group) {
+          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+            if (group[fieldName]) return group[fieldName];
+          }
+        }
+      }
+      return '';
+    };
+
+    // Helper to combine multiple fields
+    const combineFields = (groupNames, fieldNames, separator = ', ') => {
+      const values = [];
+      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+        const group = contactGroups[groupName];
+        if (group) {
+          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+            if (group[fieldName]) values.push(group[fieldName]);
+          }
+        }
+      }
+      return values.join(separator);
+    };
+
+    return {
+      // Basic info
+      name: `${cachedMember.firstname || cachedMember.first_name} ${cachedMember.lastname || cachedMember.last_name}`,
+      section: attendanceRecord.sectionname,
+      attendance: attendanceRecord.attending,
+      patrol: cachedMember.patrol || '',
+      age: cachedMember.date_of_birth ? Math.floor((Date.now() - new Date(cachedMember.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
+      
+      // Primary Contacts (1 and 2)
+      primary_contacts: (() => {
+        const contacts = [];
+        
+        // Primary Contact 1
+        const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || 
+                        [cachedMember.primary_contact_1__first_name, cachedMember.primary_contact_1__last_name].filter(Boolean).join(' ') || '';
+        const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || 
+                         [cachedMember.primary_contact_1__phone_1, cachedMember.primary_contact_1__phone_2].filter(Boolean).join(', ') || '';
+        const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || 
+                         [cachedMember.primary_contact_1__email_1, cachedMember.primary_contact_1__email_2].filter(Boolean).join(', ') || '';
+        
+        if (pc1_name || pc1_phone || pc1_email) {
+          contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
+        }
+        
+        // Primary Contact 2
+        const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || 
+                        [cachedMember.primary_contact_2__first_name, cachedMember.primary_contact_2__last_name].filter(Boolean).join(' ') || '';
+        const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || 
+                         [cachedMember.primary_contact_2__phone_1, cachedMember.primary_contact_2__phone_2].filter(Boolean).join(', ') || '';
+        const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || 
+                         [cachedMember.primary_contact_2__email_1, cachedMember.primary_contact_2__email_2].filter(Boolean).join(', ') || '';
+        
+        if (pc2_name || pc2_phone || pc2_email) {
+          contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
+        }
+        
+        return contacts;
+      })(),
+      
+      // Emergency Contacts
+      emergency_contacts: (() => {
+        const contacts = [];
+        
+        // Emergency Contact
+        const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || 
+                       [cachedMember.emergency_contact__first_name, cachedMember.emergency_contact__last_name].filter(Boolean).join(' ') || '';
+        const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || 
+                        [cachedMember.emergency_contact__phone_1, cachedMember.emergency_contact__phone_2].filter(Boolean).join(', ') || '';
+        
+        if (ec_name || ec_phone) {
+          contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
+        }
+        
+        return contacts;
+      })(),
+      
+      // Essential Information (check both flattened and nested)
+      allergies: getField(['essential_information'], ['allergies']) || cachedMember.essential_information__allergies || '',
+      medical_details: getField(['essential_information'], ['medical_details']) || cachedMember.essential_information__medical_details || '',
+      dietary_requirements: getField(['essential_information'], ['dietary_requirements']) || cachedMember.essential_information__dietary_requirements || '',
+      
+      // Consents - General (check nested contact_groups.Consents first, then flattened)
+      consent_photos: getField(['consents'], ['photographs', 'photos']) || cachedMember.consents__photographs || '',
+      consent_sensitive: getField(['consents'], ['sensitive_information']) || cachedMember.consents__sensitive_information || '',
+      
+      // Consents - Medical Treatment (check nested contact_groups.Consents first, then flattened)
+      consent_paracetamol: getField(['consents'], ['paracetamol']) || cachedMember.consents__paracetamol || '',
+      consent_ibuprofen: getField(['consents'], ['ibuprofen']) || cachedMember.consents__ibuprofen || '',
+      consent_suncream: getField(['consents'], ['suncream', 'sun_cream']) || cachedMember.consents__suncream || '',
+    };
+  };
+
   // Viking Event data lookup is now handled by useAttendanceData hook
 
   const getAttendanceStatus = (attending) => {
-    if (attending === "Yes" || attending === "1") return "yes";
-    if (attending === "No") return "no";
-    if (attending === "Invited") return "invited";
+    if (attending === 'Yes' || attending === '1') return 'yes';
+    if (attending === 'No') return 'no';
+    if (attending === 'Invited') return 'invited';
     // Empty string, null, or any other value means not invited
-    return "notInvited";
+    return 'notInvited';
   };
 
   // Check if a member should be included in camp groups (same logic as Camp Groups tab)
@@ -155,7 +337,7 @@ function AttendanceView({ events, members, onBack }) {
 
     const personType = memberDetails.person_type;
     // Skip Leaders and Young Leaders - same as Camp Groups filtering
-    return personType !== "Leaders" && personType !== "Young Leaders";
+    return personType !== 'Leaders' && personType !== 'Young Leaders';
   };
 
   // Filter attendance data based on active filters (attendance status + sections + person type)
@@ -234,14 +416,14 @@ function AttendanceView({ events, members, onBack }) {
       });
 
       if (!sharedEvent) {
-        throw new Error("No shared event found");
+        throw new Error('No shared event found');
       }
 
       if (import.meta.env.DEV) {
         console.log(
-          "Loading shared attendance for event:",
+          'Loading shared attendance for event:',
           sharedEvent.eventid,
-          "section:",
+          'section:',
           sharedEvent.sectionid,
         );
       }
@@ -255,13 +437,13 @@ function AttendanceView({ events, members, onBack }) {
         if (cached) {
           cachedData = JSON.parse(cached);
           if (import.meta.env.DEV) {
-            console.log("Found cached shared attendance data:", cachedData);
+            console.log('Found cached shared attendance data:', cachedData);
           }
         }
       } catch (cacheError) {
         if (import.meta.env.DEV) {
           console.warn(
-            "Failed to parse cached shared attendance data:",
+            'Failed to parse cached shared attendance data:',
             cacheError,
           );
         }
@@ -281,7 +463,7 @@ function AttendanceView({ events, members, onBack }) {
         } catch (apiError) {
           if (import.meta.env.DEV) {
             console.warn(
-              "API call failed, will use cached data if available:",
+              'API call failed, will use cached data if available:',
               apiError,
             );
           }
@@ -305,23 +487,23 @@ function AttendanceView({ events, members, onBack }) {
           sharedData = cachedData;
           if (import.meta.env.DEV) {
             console.log(
-              "Using cached shared attendance data (no token available)",
+              'Using cached shared attendance data (no token available)',
             );
           }
         } else {
           throw new Error(
-            "No authentication token available and no cached data found",
+            'No authentication token available and no cached data found',
           );
         }
       }
 
       if (import.meta.env.DEV) {
-        console.log("Final shared attendance data:", sharedData);
+        console.log('Final shared attendance data:', sharedData);
       }
       setSharedAttendanceData(sharedData);
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error("Error loading shared attendance data:", error);
+        console.error('Error loading shared attendance data:', error);
       }
       setSharedAttendanceData({ error: error.message });
     } finally {
@@ -332,7 +514,7 @@ function AttendanceView({ events, members, onBack }) {
   // Load shared attendance data when switching to shared attendance view
   useEffect(() => {
     if (
-      viewMode === "sharedAttendance" &&
+      viewMode === 'sharedAttendance' &&
       hasSharedEvents &&
       !sharedAttendanceData &&
       !loadingSharedAttendance
@@ -355,7 +537,7 @@ function AttendanceView({ events, members, onBack }) {
     if (members && Array.isArray(members)) {
       members.forEach((member) => {
         memberPersonTypes[member.scoutid] =
-          member.person_type || "Young People";
+          member.person_type || 'Young People';
       });
     }
 
@@ -366,7 +548,7 @@ function AttendanceView({ events, members, onBack }) {
           name: memberKey,
           scoutid: record.scoutid,
           sectionid: record.sectionid, // Store section ID for Viking Event data lookup
-          person_type: memberPersonTypes[record.scoutid] || "Young People", // Add person_type
+          person_type: memberPersonTypes[record.scoutid] || 'Young People', // Add person_type
           yes: 0,
           no: 0,
           invited: 0,
@@ -426,13 +608,13 @@ function AttendanceView({ events, members, onBack }) {
     if (members && Array.isArray(members)) {
       members.forEach((member) => {
         memberPersonTypes[member.scoutid] =
-          member.person_type || "Young People";
+          member.person_type || 'Young People';
       });
     }
 
     attendanceData.forEach((record) => {
-      const sectionName = record.sectionname || "Unknown Section";
-      const personType = memberPersonTypes[record.scoutid] || "Young People";
+      const sectionName = record.sectionname || 'Unknown Section';
+      const personType = memberPersonTypes[record.scoutid] || 'Young People';
       const status = getAttendanceStatus(record.attending);
 
       // Initialize section stats if not exists
@@ -449,10 +631,10 @@ function AttendanceView({ events, members, onBack }) {
 
       // Map person types to abbreviations
       let roleKey;
-      if (personType === "Young People") roleKey = "yp";
-      else if (personType === "Young Leaders") roleKey = "yl";
-      else if (personType === "Leaders") roleKey = "l";
-      else roleKey = "yp"; // Default unknown to YP
+      if (personType === 'Young People') roleKey = 'yp';
+      else if (personType === 'Young Leaders') roleKey = 'yl';
+      else if (personType === 'Leaders') roleKey = 'l';
+      else roleKey = 'yp'; // Default unknown to YP
 
       // Update section-specific counts
       sectionStats[sectionName][status][roleKey]++;
@@ -474,9 +656,9 @@ function AttendanceView({ events, members, onBack }) {
   };
 
   const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
     }
     setSortConfig({ key, direction });
   };
@@ -486,57 +668,57 @@ function AttendanceView({ events, members, onBack }) {
       let aValue, bValue;
 
       switch (key) {
-        case "member":
-          if (viewMode === "register") {
-            aValue = a.name?.toLowerCase() || "";
-            bValue = b.name?.toLowerCase() || "";
-          } else {
-            aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
-            bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
-          }
-          break;
-        case "attendance":
-          if (viewMode === "register") {
-            // For register, determine primary status for each member and sort by priority
-            const getPrimaryStatus = (member) => {
-              if (member.yes > 0) return "yes";
-              if (member.no > 0) return "no";
-              if (member.invited > 0) return "invited";
-              if (member.notInvited > 0) return "notInvited";
-              return "unknown";
-            };
+      case 'member':
+        if (viewMode === 'register') {
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+        } else {
+          aValue = `${a.firstname} ${a.lastname}`.toLowerCase();
+          bValue = `${b.firstname} ${b.lastname}`.toLowerCase();
+        }
+        break;
+      case 'attendance':
+        if (viewMode === 'register') {
+          // For register, determine primary status for each member and sort by priority
+          const getPrimaryStatus = (member) => {
+            if (member.yes > 0) return 'yes';
+            if (member.no > 0) return 'no';
+            if (member.invited > 0) return 'invited';
+            if (member.notInvited > 0) return 'notInvited';
+            return 'unknown';
+          };
 
-            const statusA = getPrimaryStatus(a);
-            const statusB = getPrimaryStatus(b);
-            // Sort order: yes, no, invited, notInvited (higher values come first in desc)
-            const statusOrder = {
-              yes: 3,
-              no: 2,
-              invited: 1,
-              notInvited: 0,
-              unknown: -1,
-            };
-            aValue = statusOrder[statusA] || -1;
-            bValue = statusOrder[statusB] || -1;
-          } else {
-            const statusA = getAttendanceStatus(a.attending);
-            const statusB = getAttendanceStatus(b.attending);
-            // Sort order: yes, no, invited, notInvited (higher values come first in desc)
-            const statusOrder = { yes: 3, no: 2, invited: 1, notInvited: 0 };
-            aValue = statusOrder[statusA] || 0;
-            bValue = statusOrder[statusB] || 0;
-          }
-          break;
-        case "section":
-          aValue = a.sectionname?.toLowerCase() || "";
-          bValue = b.sectionname?.toLowerCase() || "";
-          break;
-        default:
-          return 0;
+          const statusA = getPrimaryStatus(a);
+          const statusB = getPrimaryStatus(b);
+          // Sort order: yes, no, invited, notInvited (higher values come first in desc)
+          const statusOrder = {
+            yes: 3,
+            no: 2,
+            invited: 1,
+            notInvited: 0,
+            unknown: -1,
+          };
+          aValue = statusOrder[statusA] || -1;
+          bValue = statusOrder[statusB] || -1;
+        } else {
+          const statusA = getAttendanceStatus(a.attending);
+          const statusB = getAttendanceStatus(b.attending);
+          // Sort order: yes, no, invited, notInvited (higher values come first in desc)
+          const statusOrder = { yes: 3, no: 2, invited: 1, notInvited: 0 };
+          aValue = statusOrder[statusA] || 0;
+          bValue = statusOrder[statusB] || 0;
+        }
+        break;
+      case 'section':
+        aValue = a.sectionname?.toLowerCase() || '';
+        bValue = b.sectionname?.toLowerCase() || '';
+        break;
+      default:
+        return 0;
       }
 
-      if (aValue < bValue) return direction === "asc" ? -1 : 1;
-      if (aValue > bValue) return direction === "asc" ? 1 : -1;
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
@@ -557,7 +739,7 @@ function AttendanceView({ events, members, onBack }) {
         </span>
       );
     }
-    return sortConfig.direction === "asc" ? (
+    return sortConfig.direction === 'asc' ? (
       <span className="ml-1 text-scout-blue" data-oid="b5fgmwp">
         <svg
           className="w-4 h-4 inline"
@@ -587,15 +769,15 @@ function AttendanceView({ events, members, onBack }) {
     if (!cachedMember) return null;
 
     if (import.meta.env.DEV) {
-      console.log("🔄 transformMemberForModal - Checking cached member:", {
+      console.log('🔄 transformMemberForModal - Checking cached member:', {
         scoutid: cachedMember.scoutid,
-        has_firstname: "firstname" in cachedMember,
+        has_firstname: 'firstname' in cachedMember,
         firstname_value: cachedMember.firstname,
-        has_first_name: "first_name" in cachedMember,
+        has_first_name: 'first_name' in cachedMember,
         first_name_value: cachedMember.first_name,
-        has_lastname: "lastname" in cachedMember,
+        has_lastname: 'lastname' in cachedMember,
         lastname_value: cachedMember.lastname,
-        has_last_name: "last_name" in cachedMember,
+        has_last_name: 'last_name' in cachedMember,
         last_name_value: cachedMember.last_name,
       });
     }
@@ -613,12 +795,12 @@ function AttendanceView({ events, members, onBack }) {
       ...cachedMember,
       firstname: cachedMember.firstname || cachedMember.first_name,
       lastname: cachedMember.lastname || cachedMember.last_name,
-      sections: [memberSectionName || cachedMember.sectionname || "Unknown"],
+      sections: [memberSectionName || cachedMember.sectionname || 'Unknown'],
       sectionname: memberSectionName || cachedMember.sectionname, // Also set sectionname for consistency
     };
 
     if (import.meta.env.DEV) {
-      console.log("🔄 transformMemberForModal - Result:", {
+      console.log('🔄 transformMemberForModal - Result:', {
         firstname: transformed.firstname,
         lastname: transformed.lastname,
       });
@@ -642,7 +824,7 @@ function AttendanceView({ events, members, onBack }) {
       // Debug log to see what data Register/AttendanceView is passing to modal
       if (import.meta.env.DEV) {
         console.log(
-          "AttendanceView (Register) - Member clicked, passing to modal:",
+          'AttendanceView (Register) - Member clicked, passing to modal:',
           {
             memberScoutId: member.scoutid,
             memberName: member.name || `${member.firstname} ${member.lastname}`,
@@ -659,7 +841,7 @@ function AttendanceView({ events, members, onBack }) {
             ),
 
             totalFields: Object.keys(member).length,
-            source: "transformMemberForModal (cached member)",
+            source: 'transformMemberForModal (cached member)',
           },
         );
       }
@@ -670,13 +852,13 @@ function AttendanceView({ events, members, onBack }) {
         firstname: attendanceRecord.firstname,
         lastname: attendanceRecord.lastname,
         sections: [attendanceRecord.sectionname],
-        person_type: attendanceRecord.person_type || "Young People",
+        person_type: attendanceRecord.person_type || 'Young People',
       };
 
       // Debug log for fallback case
       if (import.meta.env.DEV) {
         console.log(
-          "AttendanceView (Register) - Member clicked, passing to modal:",
+          'AttendanceView (Register) - Member clicked, passing to modal:',
           {
             memberScoutId: member.scoutid,
             memberName: `${member.firstname} ${member.lastname}`,
@@ -685,7 +867,7 @@ function AttendanceView({ events, members, onBack }) {
             hasContactInfo: false,
             hasMedicalInfo: false,
             totalFields: Object.keys(member).length,
-            source: "fallback (attendance record only)",
+            source: 'fallback (attendance record only)',
           },
         );
       }
@@ -767,10 +949,10 @@ function AttendanceView({ events, members, onBack }) {
       <Card className="m-4" data-oid="d4qs42k">
         <Card.Header className="flex items-start justify-between" data-oid="z7y_o.h">
           <Card.Title className="flex-1" data-oid="7b203a0">
-            Attendance Data -{" "}
+            Attendance Data -{' '}
             {events.length === 1
               ? events[0].name
-              : `${events[0].name} (${events.length} sections)`}{" "}
+              : `${events[0].name} (${events.length} sections)`}{' '}
             {(() => {
               const filteredForCount = filterAttendanceDataForCount(
                 attendanceData,
@@ -783,7 +965,7 @@ function AttendanceView({ events, members, onBack }) {
                     className="text-sm font-normal text-gray-600"
                     data-oid="dky3bp:"
                   >
-                    ({filteredForCount.length} of {attendanceData.length}{" "}
+                    ({filteredForCount.length} of {attendanceData.length}{' '}
                     records)
                   </span>
                 )
@@ -832,6 +1014,27 @@ function AttendanceView({ events, members, onBack }) {
                     />
                   </div>
                 )}
+
+                {viewMode === 'detailed' && (
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setDataFilters(prev => ({ ...prev, contacts: !prev.contacts }))}
+                        className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                          dataFilters.contacts
+                            ? 'bg-scout-blue text-white border-scout-blue'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                        type="button"
+                      >
+                        Contacts
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -841,11 +1044,11 @@ function AttendanceView({ events, members, onBack }) {
             <nav className="-mb-px flex space-x-8" data-oid=".r.4i39">
               <button
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === "overview"
-                    ? "border-scout-blue text-scout-blue"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  viewMode === 'overview'
+                    ? 'border-scout-blue text-scout-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setViewMode("overview")}
+                onClick={() => setViewMode('overview')}
                 type="button"
                 data-oid="ud6je5a"
               >
@@ -853,11 +1056,11 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               <button
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === "register"
-                    ? "border-scout-blue text-scout-blue"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  viewMode === 'register'
+                    ? 'border-scout-blue text-scout-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setViewMode("register")}
+                onClick={() => setViewMode('register')}
                 type="button"
                 data-oid="pruinjp"
               >
@@ -865,11 +1068,11 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               <button
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === "detailed"
-                    ? "border-scout-blue text-scout-blue"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  viewMode === 'detailed'
+                    ? 'border-scout-blue text-scout-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setViewMode("detailed")}
+                onClick={() => setViewMode('detailed')}
                 type="button"
                 data-oid="2a-y822"
               >
@@ -877,11 +1080,11 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               <button
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  viewMode === "campGroups"
-                    ? "border-scout-blue text-scout-blue"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  viewMode === 'campGroups'
+                    ? 'border-scout-blue text-scout-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setViewMode("campGroups")}
+                onClick={() => setViewMode('campGroups')}
                 type="button"
                 data-oid="1kn:pos"
               >
@@ -890,11 +1093,11 @@ function AttendanceView({ events, members, onBack }) {
               {hasSharedEvents && (
                 <button
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    viewMode === "sharedAttendance"
-                      ? "border-scout-blue text-scout-blue"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    viewMode === 'sharedAttendance'
+                      ? 'border-scout-blue text-scout-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
-                  onClick={() => setViewMode("sharedAttendance")}
+                  onClick={() => setViewMode('sharedAttendance')}
                   type="button"
                   data-oid="nbv6bxr"
                 >
@@ -905,7 +1108,7 @@ function AttendanceView({ events, members, onBack }) {
           </div>
 
           {/* Overview Tab - Attendance Summary */}
-          {viewMode === "overview" && members && members.length > 0 && (
+          {viewMode === 'overview' && members && members.length > 0 && (
             <div className="overflow-x-auto" data-oid="oiod0mn">
               <table
                 className="min-w-full divide-y divide-gray-200"
@@ -1309,7 +1512,7 @@ function AttendanceView({ events, members, onBack }) {
               </Button>
             </div>
           ) : (
-            viewMode === "register" && (
+            viewMode === 'register' && (
               <div className="overflow-x-auto" data-oid="w7m-tzf">
                 <table
                   className="min-w-full divide-y divide-gray-200"
@@ -1319,11 +1522,11 @@ function AttendanceView({ events, members, onBack }) {
                     <tr data-oid="nf_fnzu">
                       <th
                         className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("member")}
+                        onClick={() => handleSort('member')}
                         data-oid="4fqbk_t"
                       >
                         <div className="flex items-center" data-oid="95.3o.q">
-                          Member {getSortIcon("member")}
+                          Member {getSortIcon('member')}
                         </div>
                       </th>
                       <th
@@ -1334,11 +1537,11 @@ function AttendanceView({ events, members, onBack }) {
                       </th>
                       <th
                         className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("attendance")}
+                        onClick={() => handleSort('attendance')}
                         data-oid="8sv.ii."
                       >
                         <div className="flex items-center" data-oid="whdz_3z">
-                          Status {getSortIcon("attendance")}
+                          Status {getSortIcon('attendance')}
                         </div>
                       </th>
                       <th
@@ -1382,11 +1585,11 @@ function AttendanceView({ events, members, onBack }) {
                                 // Pass the member object with scoutid so handleMemberClick can find the full cached data
                                 handleMemberClick({
                                   scoutid: member.scoutid,
-                                  firstname: member.name.split(" ")[0],
+                                  firstname: member.name.split(' ')[0],
                                   lastname: member.name
-                                    .split(" ")
+                                    .split(' ')
                                     .slice(1)
-                                    .join(" "),
+                                    .join(' '),
                                   sectionname: member.events[0]?.sectionname,
                                 });
                               }}
@@ -1457,67 +1660,67 @@ function AttendanceView({ events, members, onBack }) {
                             className="px-3 py-2 whitespace-nowrap text-xs text-gray-900"
                             data-oid="dfn_ggw"
                           >
-                            {member.vikingEventData?.CampGroup || "-"}
+                            {member.vikingEventData?.CampGroup || '-'}
                           </td>
                           <td className="px-3 py-2 text-xs" data-oid="q-8ecs7">
                             {member.vikingEventData?.SignedInBy ||
                             member.vikingEventData?.SignedInWhen ? (
-                              <div className="space-y-0.5" data-oid="2:.oam3">
-                                <div
-                                  className="text-gray-900 font-medium leading-tight"
-                                  data-oid="g:cv.3z"
-                                >
-                                  {member.vikingEventData?.SignedInBy || "-"}
-                                </div>
-                                <div
-                                  className="text-gray-500 text-xs leading-tight"
-                                  data-oid="0vpduez"
-                                >
-                                  {member.vikingEventData?.SignedInWhen
-                                    ? formatUKDateTime(
+                                <div className="space-y-0.5" data-oid="2:.oam3">
+                                  <div
+                                    className="text-gray-900 font-medium leading-tight"
+                                    data-oid="g:cv.3z"
+                                  >
+                                    {member.vikingEventData?.SignedInBy || '-'}
+                                  </div>
+                                  <div
+                                    className="text-gray-500 text-xs leading-tight"
+                                    data-oid="0vpduez"
+                                  >
+                                    {member.vikingEventData?.SignedInWhen
+                                      ? formatUKDateTime(
                                         member.vikingEventData.SignedInWhen,
                                       )
-                                    : "-"}
+                                      : '-'}
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <span
-                                className="text-gray-400"
-                                data-oid="mjid:y9"
-                              >
+                              ) : (
+                                <span
+                                  className="text-gray-400"
+                                  data-oid="mjid:y9"
+                                >
                                 -
-                              </span>
-                            )}
+                                </span>
+                              )}
                           </td>
                           <td className="px-3 py-2 text-xs" data-oid="h.ozqa3">
                             {member.vikingEventData?.SignedOutBy ||
                             member.vikingEventData?.SignedOutWhen ? (
-                              <div className="space-y-0.5" data-oid="aglpaqx">
-                                <div
-                                  className="text-gray-900 font-medium leading-tight"
-                                  data-oid="ef6vr48"
-                                >
-                                  {member.vikingEventData?.SignedOutBy || "-"}
-                                </div>
-                                <div
-                                  className="text-gray-500 text-xs leading-tight"
-                                  data-oid="eml0-b."
-                                >
-                                  {member.vikingEventData?.SignedOutWhen
-                                    ? formatUKDateTime(
+                                <div className="space-y-0.5" data-oid="aglpaqx">
+                                  <div
+                                    className="text-gray-900 font-medium leading-tight"
+                                    data-oid="ef6vr48"
+                                  >
+                                    {member.vikingEventData?.SignedOutBy || '-'}
+                                  </div>
+                                  <div
+                                    className="text-gray-500 text-xs leading-tight"
+                                    data-oid="eml0-b."
+                                  >
+                                    {member.vikingEventData?.SignedOutWhen
+                                      ? formatUKDateTime(
                                         member.vikingEventData.SignedOutWhen,
                                       )
-                                    : "-"}
+                                      : '-'}
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <span
-                                className="text-gray-400"
-                                data-oid="yy:3ulr"
-                              >
+                              ) : (
+                                <span
+                                  className="text-gray-400"
+                                  data-oid="yy:3ulr"
+                                >
                                 -
-                              </span>
-                            )}
+                                </span>
+                              )}
                           </td>
                         </tr>
                       );
@@ -1528,7 +1731,7 @@ function AttendanceView({ events, members, onBack }) {
             )
           )}
 
-          {viewMode === "detailed" && (
+          {viewMode === 'detailed' && (
             <div className="overflow-x-auto" data-oid="ggnwymg">
               <table
                 className="min-w-full divide-y divide-gray-200"
@@ -1536,32 +1739,81 @@ function AttendanceView({ events, members, onBack }) {
               >
                 <thead className="bg-gray-50" data-oid="gvt1cmh">
                   <tr data-oid="9bjivav">
+                    {/* Basic Info Headers */}
                     <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("member")}
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50"
+                      onClick={() => handleSort('member')}
                       data-oid=":e8g3m_"
                     >
                       <div className="flex items-center" data-oid="vr14n:v">
-                        Member {getSortIcon("member")}
+                        Member {getSortIcon('member')}
                       </div>
                     </th>
                     <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("section")}
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('section')}
                       data-oid="blw6dhj"
                     >
                       <div className="flex items-center" data-oid="hsntyc.">
-                        Section {getSortIcon("section")}
+                        Section {getSortIcon('section')}
                       </div>
                     </th>
                     <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("attendance")}
+                      className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('attendance')}
                       data-oid="-bqy-.h"
                     >
                       <div className="flex items-center" data-oid=".d0cyow">
-                        Attendance {getSortIcon("attendance")}
+                        Attendance {getSortIcon('attendance')}
                       </div>
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Patrol
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Age
+                    </th>
+                    
+                    {/* Contact Info Headers - conditionally shown */}
+                    {dataFilters.contacts && (
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
+                        Primary Contacts
+                      </th>
+                    )}
+                    
+                    {/* Emergency Contact Headers - conditionally shown */}
+                    {dataFilters.contacts && (
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
+                        Emergency Contacts
+                      </th>
+                    )}
+                    
+                    {/* Medical Info Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                      Allergies
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                      Medical
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                      Dietary
+                    </th>
+                    
+                    {/* Consent Headers */}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Photos
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Sensitive Info
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Paracetamol
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Ibuprofen
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                      Suncream
                     </th>
                   </tr>
                 </thead>
@@ -1578,68 +1830,160 @@ function AttendanceView({ events, members, onBack }) {
                     let badgeVariant, statusText;
 
                     switch (status) {
-                      case "yes":
-                        badgeVariant = "scout-green";
-                        statusText = "Yes";
-                        break;
-                      case "no":
-                        badgeVariant = "scout-red";
-                        statusText = "No";
-                        break;
-                      case "invited":
-                        badgeVariant = "scout-blue";
-                        statusText = "Invited";
-                        break;
-                      case "notInvited":
-                        badgeVariant = "secondary";
-                        statusText = "Not Invited";
-                        break;
-                      default:
-                        badgeVariant = "secondary";
-                        statusText = "Unknown";
-                        break;
+                    case 'yes':
+                      badgeVariant = 'scout-green';
+                      statusText = 'Yes';
+                      break;
+                    case 'no':
+                      badgeVariant = 'scout-red';
+                      statusText = 'No';
+                      break;
+                    case 'invited':
+                      badgeVariant = 'scout-blue';
+                      statusText = 'Invited';
+                      break;
+                    case 'notInvited':
+                      badgeVariant = 'secondary';
+                      statusText = 'Not Invited';
+                      break;
+                    default:
+                      badgeVariant = 'secondary';
+                      statusText = 'Unknown';
+                      break;
                     }
 
+                    // Get comprehensive member data
+                    const memberData = getComprehensiveMemberData(record);
+
                     return (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-50"
-                        data-oid="gtpe523"
-                      >
-                        <td
-                          className="px-6 py-2 whitespace-nowrap"
-                          data-oid="g516pqy"
-                        >
+                      <tr key={index} className="hover:bg-gray-50 text-xs">
+                        {/* Basic Info Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
                           <button
                             onClick={() => handleMemberClick(record)}
-                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left text-xs"
-                            data-oid="3lbaxf2"
+                            className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
                           >
-                            {record.firstname} {record.lastname}
+                            {memberData.name}
                           </button>
                         </td>
-                        <td
-                          className="px-6 py-2 whitespace-nowrap text-gray-900 text-xs"
-                          data-oid="9m2xqjd"
-                        >
-                          {record.sectionname}
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.section}
                         </td>
-                        <td
-                          className="px-6 py-2 whitespace-nowrap"
-                          data-oid="pk0ljvv"
-                        >
-                          <Badge variant={badgeVariant} data-oid="8k16.fx">
-                            {statusText}
-                          </Badge>
-                          {record.attending &&
-                            record.attending !== statusText && (
-                              <div
-                                className="text-gray-500 text-xs mt-1"
-                                data-oid="huskhrh"
-                              >
-                                Raw: &quot;{record.attending}&quot;
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <Badge variant={badgeVariant} size="sm">{statusText}</Badge>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.patrol}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                          {memberData.age}
+                        </td>
+                        
+                        {/* Contact Info Cells - conditionally shown */}
+                        {dataFilters.contacts && (
+                          <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
+                            {memberData.primary_contacts.length > 0 ? (
+                              <div className="space-y-1">
+                                {memberData.primary_contacts.map((contact, index) => (
+                                  <div key={index} className="text-xs">
+                                    <div className="font-medium">{contact.label}: {contact.name}</div>
+                                    {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
+                                    {contact.email && <div className="text-gray-600">📧 {contact.email}</div>}
+                                  </div>
+                                ))}
                               </div>
+                            ) : (
+                              <span className="text-gray-400">None</span>
                             )}
+                          </td>
+                        )}
+                        
+                        {/* Emergency Contact Cells - conditionally shown */}
+                        {dataFilters.contacts && (
+                          <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
+                            {memberData.emergency_contacts.length > 0 ? (
+                              <div className="space-y-1">
+                                {memberData.emergency_contacts.map((contact, index) => (
+                                  <div key={index} className="text-xs">
+                                    <div className="font-medium">{contact.name}</div>
+                                    {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">None</span>
+                            )}
+                          </td>
+                        )}
+                        
+                        {/* Medical Info Cells */}
+                        <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                          <div className="max-w-32 break-words text-xs">
+                            <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
+                              {memberData.allergies || 'None'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                          <div className="max-w-32 break-words text-xs">
+                            <span className={memberData.medical_details ? 'text-orange-700' : 'text-gray-400'}>
+                              {memberData.medical_details || 'None'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                          <div className="max-w-32 break-words text-xs">
+                            <span className={memberData.dietary_requirements ? 'text-orange-700' : 'text-gray-400'}>
+                              {memberData.dietary_requirements || 'None'}
+                            </span>
+                          </div>
+                        </td>
+                        
+                        {/* Consent Cells */}
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_photos === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_photos === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_photos || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_sensitive === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_sensitive === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_sensitive || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_paracetamol === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_paracetamol === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_paracetamol || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_ibuprofen === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_ibuprofen === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_ibuprofen || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
+                            memberData.consent_suncream === 'Yes' ? 'bg-green-100 text-green-800' : 
+                              memberData.consent_suncream === 'No' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                            {memberData.consent_suncream || 'N/A'}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -1649,7 +1993,7 @@ function AttendanceView({ events, members, onBack }) {
             </div>
           )}
 
-          {viewMode === "campGroups" && (
+          {viewMode === 'campGroups' && (
             <CampGroupsView
               events={events}
               attendees={getSummaryStats()}
@@ -1661,7 +2005,7 @@ function AttendanceView({ events, members, onBack }) {
             />
           )}
 
-          {viewMode === "sharedAttendance" && (
+          {viewMode === 'sharedAttendance' && (
             <div data-oid="9.d0x7u">
               {loadingSharedAttendance ? (
                 <div className="text-center py-8" data-oid="23uyl_q">
@@ -1698,13 +2042,13 @@ function AttendanceView({ events, members, onBack }) {
                     // Helper function to determine if member is young person or adult based on age
                     const isYoungPerson = (age) => {
                       if (!age) return true; // Default to young person if no age
-                      return age !== "25+"; // Adults/leaders have '25+', young people have formats like '06 / 08'
+                      return age !== '25+'; // Adults/leaders have '25+', young people have formats like '06 / 08'
                     };
 
                     // Helper function to get numeric age for sorting (handle years/months format)
                     const getNumericAge = (age) => {
                       if (!age) return 0;
-                      if (age === "25+") return 999; // Put adults at the end
+                      if (age === '25+') return 999; // Put adults at the end
 
                       // Handle format like '06 / 08' which is years / months
                       const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
@@ -1827,7 +2171,7 @@ function AttendanceView({ events, members, onBack }) {
                                         {member.person_type === 'Young People' ? 'YP' : 'Adult'}
                                       </span>
                                       <div className="text-sm text-gray-500 w-16 text-right">
-                                        {member.age || "N/A"}
+                                        {member.age || 'N/A'}
                                       </div>
                                     </div>
                                   </div>
