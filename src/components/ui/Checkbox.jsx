@@ -1,5 +1,5 @@
-import React, { forwardRef } from "react";
-import { cn } from "../../utils/cn";
+import React, { forwardRef } from 'react';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Checkbox component with Scout theming
@@ -7,10 +7,10 @@ import { cn } from "../../utils/cn";
 const Checkbox = forwardRef(
   (
     {
-      size = "md",
-      variant = "scout",
+      size = 'md',
+      variant = 'scout',
       disabled = false,
-      className = "",
+      className = '',
       label,
       description,
       error = false,
@@ -20,26 +20,26 @@ const Checkbox = forwardRef(
     ref,
   ) => {
     const baseClasses =
-      "rounded border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed";
+      'rounded border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
       scout:
-        "border-scout-blue text-scout-blue focus:ring-scout-blue/20 checked:bg-scout-blue checked:border-scout-blue",
+        'border-scout-blue text-scout-blue focus:ring-scout-blue/20 checked:bg-scout-blue checked:border-scout-blue',
       default:
-        "border-gray-300 text-blue-600 focus:ring-blue-500/20 checked:bg-blue-600 checked:border-blue-600",
+        'border-gray-300 text-blue-600 focus:ring-blue-500/20 checked:bg-blue-600 checked:border-blue-600',
     };
 
     const sizes = {
-      sm: "h-4 w-4",
-      md: "h-5 w-5",
-      lg: "h-6 w-6",
+      sm: 'h-4 w-4',
+      md: 'h-5 w-5',
+      lg: 'h-6 w-6',
     };
 
     const checkboxClasses = cn(
       baseClasses,
       variants[variant],
       sizes[size],
-      error && "border-red-500 focus:ring-red-500/20",
+      error && 'border-red-500 focus:ring-red-500/20',
       className,
     );
 
@@ -69,9 +69,9 @@ const Checkbox = forwardRef(
           <div className="ml-3" data-oid="8kjb_wu">
             <label
               className={cn(
-                "text-sm font-medium",
-                error ? "text-red-700" : "text-gray-700",
-                disabled ? "text-gray-400" : "cursor-pointer",
+                'text-sm font-medium',
+                error ? 'text-red-700' : 'text-gray-700',
+                disabled ? 'text-gray-400' : 'cursor-pointer',
               )}
               data-oid="dplwftw"
             >
@@ -80,8 +80,8 @@ const Checkbox = forwardRef(
             {description && (
               <p
                 className={cn(
-                  "text-sm",
-                  error ? "text-red-600" : "text-gray-500",
+                  'text-sm',
+                  error ? 'text-red-600' : 'text-gray-500',
                 )}
                 data-oid="ts4mrnq"
               >
@@ -100,6 +100,6 @@ const Checkbox = forwardRef(
   },
 );
 
-Checkbox.displayName = "Checkbox";
+Checkbox.displayName = 'Checkbox';
 
 export default Checkbox;

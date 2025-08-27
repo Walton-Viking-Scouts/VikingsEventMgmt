@@ -1,15 +1,15 @@
-import React, { useMemo } from "react";
-import { Card, Button, Badge } from "./ui";
-import AttendanceGrid from "./AttendanceGrid.jsx";
+import React, { useMemo } from 'react';
+import { Card, Button, Badge } from './ui';
+import AttendanceGrid from './AttendanceGrid.jsx';
 
 function EventCard({ eventCard, onViewAttendees, loading = false }) {
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
+      return date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
       });
     } catch {
       return dateString;
@@ -43,7 +43,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     const hasSharedEventData = events.some(
       (e) =>
         Array.isArray(e.attendanceData) &&
-        e.attendanceData.some((a) => a.scoutid?.startsWith("synthetic-")),
+        e.attendanceData.some((a) => a.scoutid?.startsWith('synthetic-')),
     );
 
     if (hasSharedEventData) {
@@ -55,9 +55,9 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         ...new Set(
           events
             .flatMap((e) => e.attendanceData || [])
-            .filter((a) => a.scoutid?.startsWith("synthetic-"))
+            .filter((a) => a.scoutid?.startsWith('synthetic-'))
             .map((a) => a.sectionname)
-            .filter((sectionName) => !!sectionName && sectionName !== "null"),
+            .filter((sectionName) => !!sectionName && sectionName !== 'null'),
         ),
       ];
 
@@ -89,12 +89,12 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           // Check if this is real attendance data (not synthetic)
           const hasRealData = event.attendanceData.some(
             (person) =>
-              !person.scoutid || !person.scoutid.startsWith("synthetic-"),
+              !person.scoutid || !person.scoutid.startsWith('synthetic-'),
           );
 
           if (import.meta?.env?.DEV) {
             const syntheticCount = event.attendanceData.filter((p) =>
-              p.scoutid?.startsWith("synthetic-"),
+              p.scoutid?.startsWith('synthetic-'),
             ).length;
             const realCount = event.attendanceData.length - syntheticCount;
             console.debug(`EventCard: Processing section ${sectionName}`, {
@@ -109,7 +109,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             // Use detailed section-specific data
             event.attendanceData.forEach((person) => {
               // Skip synthetic attendees for sections we have real data for
-              if (person.scoutid && person.scoutid.startsWith("synthetic-"))
+              if (person.scoutid && person.scoutid.startsWith('synthetic-'))
                 return;
 
               // Ensure grid entry exists for this person's section (safety check)
@@ -123,11 +123,11 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 };
               }
 
-              if (person.attending === "Yes") {
+              if (person.attending === 'Yes') {
                 grid[personSectionName].attending++;
-              } else if (person.attending === "No") {
+              } else if (person.attending === 'No') {
                 grid[personSectionName].notAttending++;
-              } else if (person.attending === "Invited") {
+              } else if (person.attending === 'Invited') {
                 grid[personSectionName].invited++;
               } else {
                 grid[personSectionName].notInvited++;
@@ -147,7 +147,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             // Only use synthetic data if we don't have real data for this section
             if (
               person.scoutid &&
-              person.scoutid.startsWith("synthetic-") &&
+              person.scoutid.startsWith('synthetic-') &&
               !accessibleSections.has(sectionName)
             ) {
               // Ensure grid entry exists for this section (safety check)
@@ -160,7 +160,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 };
               }
 
-              if (person.attending === "Yes") {
+              if (person.attending === 'Yes') {
                 grid[sectionName].attending++;
               }
               // Note: shared data only provides "Yes" counts, no No/Invited/NotInvited for non-accessible sections
@@ -209,11 +209,11 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             };
           }
 
-          if (person.attending === "Yes") {
+          if (person.attending === 'Yes') {
             grid[personSectionName].attending++;
-          } else if (person.attending === "No") {
+          } else if (person.attending === 'No') {
             grid[personSectionName].notAttending++;
-          } else if (person.attending === "Invited") {
+          } else if (person.attending === 'Invited') {
             grid[personSectionName].invited++;
           } else {
             // Empty string, null, or any other value means not invited
@@ -236,20 +236,20 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     dayAfterEventEnd.setDate(dayAfterEventEnd.getDate() + 1);
 
     if (now < eventStart) {
-      return "upcoming";
+      return 'upcoming';
     } else if (now >= eventStart && now < dayAfterEventEnd) {
-      return "ongoing";
+      return 'ongoing';
     } else {
-      return "past";
+      return 'past';
     }
   };
 
   // Compute aggregated status once to avoid inline IIFE
   const aggregatedStatus = useMemo(() => {
     const statuses = new Set(eventCard.events.map((e) => getEventStatus(e)));
-    if (statuses.has("ongoing")) return "ongoing";
-    if (statuses.has("upcoming")) return "upcoming";
-    if (statuses.has("past")) return "past";
+    if (statuses.has('ongoing')) return 'ongoing';
+    if (statuses.has('upcoming')) return 'upcoming';
+    if (statuses.has('past')) return 'past';
     return null;
   }, [eventCard.events]);
 
@@ -274,15 +274,15 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1" data-oid="--y.h.3">
-            {aggregatedStatus === "ongoing" ? (
+            {aggregatedStatus === 'ongoing' ? (
               <Badge variant="scout-green" data-oid="ei1z:j_">
                 Ongoing
               </Badge>
-            ) : aggregatedStatus === "upcoming" ? (
+            ) : aggregatedStatus === 'upcoming' ? (
               <Badge variant="scout-blue" data-oid="v1xw_so">
                 Upcoming
               </Badge>
-            ) : aggregatedStatus === "past" ? (
+            ) : aggregatedStatus === 'past' ? (
               <Badge variant="light" data-oid="qex6lwv">
                 Past
               </Badge>

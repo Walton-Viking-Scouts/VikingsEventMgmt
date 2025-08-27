@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Button, Badge, Card } from "./ui";
-import { isMobileLayout } from "../utils/platform.js";
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, Badge, Card } from './ui';
+import { isMobileLayout } from '../utils/platform.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -16,28 +16,28 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "hidden"; // Prevent background scroll
+      document.addEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = 'hidden'; // Prevent background scroll
       // Clear any existing error notifications when modal opens
       setErrorNotification(null);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "unset";
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
 
   // Handle ESC key
   useEffect(() => {
     const handleEscKey = (event) => {
-      if (event.key === "Escape" && isOpen) {
+      if (event.key === 'Escape' && isOpen) {
         onClose();
       }
     };
 
-    document.addEventListener("keydown", handleEscKey);
-    return () => document.removeEventListener("keydown", handleEscKey);
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
   }, [isOpen, onClose]);
 
   if (!isOpen || !member) return null;
@@ -62,7 +62,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   const formatPhoneForCall = (phone) => {
     if (!phone) return null;
     // Remove all non-digit characters for tel: link
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone = phone.replace(/\D/g, '');
 
     // Validate phone number length and pattern
     if (!isValidPhoneNumber(cleanPhone)) {
@@ -74,7 +74,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
   // Helper function to validate phone number with proper NANP validation
   const isValidPhoneNumber = (phoneDigits) => {
-    if (!phoneDigits || typeof phoneDigits !== "string") {
+    if (!phoneDigits || typeof phoneDigits !== 'string') {
       return false;
     }
 
@@ -94,7 +94,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
       // Handle 11-digit numbers with country code 1
       if (phoneDigits.length === 11) {
-        if (!phoneDigits.startsWith("1")) {
+        if (!phoneDigits.startsWith('1')) {
           return false; // 11-digit numbers must start with 1 for NANP
         }
         number = phoneDigits.substring(1); // Remove country code for validation
@@ -122,7 +122,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     // International numbers: 7-15 digits (excluding NANP)
     if (phoneDigits.length >= 7 && phoneDigits.length <= 15) {
       // UK numbers can start with 0
-      if (phoneDigits.length === 11 && phoneDigits.startsWith("0")) {
+      if (phoneDigits.length === 11 && phoneDigits.startsWith('0')) {
         return true; // UK mobile or landline
       }
 
@@ -142,9 +142,9 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     if (cleanPhone) {
       window.location.href = `tel:${cleanPhone}`;
     } else {
-      console.warn("Invalid phone number format:", phone);
+      console.warn('Invalid phone number format:', phone);
       setErrorNotification(
-        "Invalid phone number format. Please check the number and try again.",
+        'Invalid phone number format. Please check the number and try again.',
       );
       // Auto-hide error after 5 seconds
       setTimeout(() => setErrorNotification(null), 5000);
@@ -157,8 +157,8 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
     // Process flattened contact fields
     Object.entries(member).forEach(([key, value]) => {
-      if (key.includes("__") && value) {
-        const [groupName, fieldName] = key.split("__");
+      if (key.includes('__') && value) {
+        const [groupName, fieldName] = key.split('__');
         if (!groups[groupName]) {
           groups[groupName] = {};
         }
@@ -184,18 +184,18 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   // Group labels for display
   // Note: Backend cleaning process converts "Doctor's Surgery" → "doctor_s_surgery"
   const groupLabels = {
-    primary_contact: "Primary Contact",
-    primary_contact_1: "Primary Contact 1",
-    primary_contact_2: "Primary Contact 2",
-    emergency_contact: "Emergency Contact",
-    emergency_contact_1: "Emergency Contact 1",
-    emergency_contact_2: "Emergency Contact 2",
-    doctor: "Doctor",
-    doctor_s_surgery: "Doctor's Surgery", // Maps from "Doctor's Surgery" after apostrophe → underscore conversion
-    member_contact: "Member Contact",
-    medical_information: "Medical Information",
-    gender: "Gender",
-    permissions: "Permissions",
+    primary_contact: 'Primary Contact',
+    primary_contact_1: 'Primary Contact 1',
+    primary_contact_2: 'Primary Contact 2',
+    emergency_contact: 'Emergency Contact',
+    emergency_contact_1: 'Emergency Contact 1',
+    emergency_contact_2: 'Emergency Contact 2',
+    doctor: 'Doctor',
+    doctor_s_surgery: 'Doctor\'s Surgery', // Maps from "Doctor's Surgery" after apostrophe → underscore conversion
+    member_contact: 'Member Contact',
+    medical_information: 'Medical Information',
+    gender: 'Gender',
+    permissions: 'Permissions',
   };
 
   return (
@@ -211,7 +211,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         aria-describedby={`member-modal-description-${member.member_id || member.scoutid}`}
         className={`
           bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden
-          ${isMobile ? "mx-2" : "mx-4"}
+          ${isMobile ? 'mx-2' : 'mx-4'}
         `}
         data-oid="-nqy1gk"
       >
@@ -373,7 +373,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                     <p className="text-sm text-gray-900" data-oid="w3:7qgm">
                       {member.date_of_birth
                         ? new Date(member.date_of_birth).toLocaleDateString()
-                        : "Not provided"}
+                        : 'Not provided'}
                     </p>
                   </div>
                   <div data-oid="jicupny">
@@ -419,16 +419,16 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                     </label>
                     <Badge
                       variant={
-                        member.person_type === "Leaders"
-                          ? "scout-purple"
-                          : member.person_type === "Young Leaders"
-                            ? "scout-blue"
-                            : "scout-green"
+                        member.person_type === 'Leaders'
+                          ? 'scout-purple'
+                          : member.person_type === 'Young Leaders'
+                            ? 'scout-blue'
+                            : 'scout-green'
                       }
                       size="sm"
                       data-oid="_snnuwg"
                     >
-                      {member.person_type || "Young People"}
+                      {member.person_type || 'Young People'}
                     </Badge>
                   </div>
                   {member.started && (
@@ -468,7 +468,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                   <Card.Title data-oid="3ilra-k">
                     {groupLabels[groupKey] ||
                       groupKey
-                        .replace(/_/g, " ")
+                        .replace(/_/g, ' ')
                         .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Card.Title>
                 </Card.Header>
@@ -484,15 +484,15 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                           data-oid="0-.-z__"
                         >
                           {fieldKey
-                            .replace(/_/g, " ")
+                            .replace(/_/g, ' ')
                             .replace(/\b\w/g, (l) => l.toUpperCase())}
                         </label>
-                        {fieldKey.includes("phone") ? (
+                        {fieldKey.includes('phone') ? (
                           <button
                             type="button"
                             onClick={() => handlePhoneCall(fieldValue)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
+                              if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 handlePhoneCall(fieldValue);
                               }
@@ -503,7 +503,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                           >
                             {fieldValue}
                           </button>
-                        ) : fieldKey.includes("email") ? (
+                        ) : fieldKey.includes('email') ? (
                           <a
                             href={`mailto:${fieldValue}`}
                             rel="noopener noreferrer"
@@ -531,57 +531,57 @@ function MemberDetailModal({ member, isOpen, onClose }) {
             {/* Legacy emergency contacts if available */}
             {member.emergency_contacts &&
               member.emergency_contacts.length > 0 && (
-                <Card data-oid="5j0ykq7">
-                  <Card.Header data-oid="50z4nlo">
-                    <Card.Title data-oid="9w1o:j5">
+              <Card data-oid="5j0ykq7">
+                <Card.Header data-oid="50z4nlo">
+                  <Card.Title data-oid="9w1o:j5">
                       Emergency Contacts (Legacy)
-                    </Card.Title>
-                  </Card.Header>
-                  <Card.Body className="space-y-3" data-oid="1n:bfai">
-                    {member.emergency_contacts.map((contact, idx) => (
+                  </Card.Title>
+                </Card.Header>
+                <Card.Body className="space-y-3" data-oid="1n:bfai">
+                  {member.emergency_contacts.map((contact, idx) => (
+                    <div
+                      key={idx}
+                      className="border-b border-gray-200 pb-3 last:border-b-0"
+                      data-oid="c074mao"
+                    >
                       <div
-                        key={idx}
-                        className="border-b border-gray-200 pb-3 last:border-b-0"
-                        data-oid="c074mao"
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                        data-oid="n14le-2"
                       >
-                        <div
-                          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                          data-oid="n14le-2"
-                        >
-                          {Object.entries(contact).map(([key, value]) => (
-                            <div key={key} data-oid="0.tysyp">
-                              <label
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                                data-oid="s.mc1r:"
+                        {Object.entries(contact).map(([key, value]) => (
+                          <div key={key} data-oid="0.tysyp">
+                            <label
+                              className="block text-sm font-medium text-gray-700 mb-1"
+                              data-oid="s.mc1r:"
+                            >
+                              {key
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, (l) => l.toUpperCase())}
+                            </label>
+                            {key.includes('phone') ? (
+                              <button
+                                onClick={() => handlePhoneCall(value)}
+                                className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
+                                data-oid="wf8xba-"
                               >
-                                {key
-                                  .replace(/_/g, " ")
-                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
-                              </label>
-                              {key.includes("phone") ? (
-                                <button
-                                  onClick={() => handlePhoneCall(value)}
-                                  className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
-                                  data-oid="wf8xba-"
-                                >
-                                  {value}
-                                </button>
-                              ) : (
-                                <p
-                                  className="text-sm text-gray-900"
-                                  data-oid="vviarjy"
-                                >
-                                  {value}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                                {value}
+                              </button>
+                            ) : (
+                              <p
+                                className="text-sm text-gray-900"
+                                data-oid="vviarjy"
+                              >
+                                {value}
+                              </p>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </Card.Body>
-                </Card>
-              )}
+                    </div>
+                  ))}
+                </Card.Body>
+              </Card>
+            )}
 
             {/* Medical Information (Legacy) */}
             {member.medical_notes && (

@@ -1,6 +1,6 @@
-import React from "react";
+import React from 'react';
 
-function LoadingScreen({ message = "Loading..." }) {
+function LoadingScreen({ message = 'Loading...' }) {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-screen p-4"

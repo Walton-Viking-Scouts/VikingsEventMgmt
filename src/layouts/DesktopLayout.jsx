@@ -1,6 +1,6 @@
-import React from "react";
-import DesktopHeader from "../components/desktop/DesktopHeader.jsx";
-import OfflineIndicator from "../components/OfflineIndicator.jsx";
+import React from 'react';
+import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
+import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
 function DesktopLayout({
   children,

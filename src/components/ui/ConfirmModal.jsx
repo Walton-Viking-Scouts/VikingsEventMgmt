@@ -1,6 +1,6 @@
-import React from "react";
-import Modal from "./Modal";
-import Button from "./Button";
+import React from 'react';
+import Modal from './Modal';
+import Button from './Button';
 
 /**
  * ConfirmModal - A reusable confirmation modal component
@@ -8,14 +8,14 @@ import Button from "./Button";
  */
 const ConfirmModal = ({
   isOpen = false,
-  title = "Confirm Action",
-  message = "Are you sure you want to proceed?",
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  title = 'Confirm Action',
+  message = 'Are you sure you want to proceed?',
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
   onConfirm,
   onCancel,
-  confirmVariant = "primary",
-  cancelVariant = "secondary",
+  confirmVariant = 'primary',
+  cancelVariant = 'secondary',
   ...props
 }) => {
   const handleConfirm = () => {

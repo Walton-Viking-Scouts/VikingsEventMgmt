@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { Button } from "../ui";
-import ConfirmModal from "../ui/ConfirmModal";
+import React, { useState } from 'react';
+import { Button } from '../ui';
+import ConfirmModal from '../ui/ConfirmModal';
 // Auth-related components
-import AuthButton from "../AuthButton.jsx";
-import DataFreshness from "../DataFreshness.jsx";
-import TokenCountdown from "../TokenCountdown.jsx";
+import AuthButton from '../AuthButton.jsx';
+import DataFreshness from '../DataFreshness.jsx';
+import TokenCountdown from '../TokenCountdown.jsx';
 
 function DesktopHeader({
   user,
@@ -12,7 +12,7 @@ function DesktopHeader({
   onLogin,
   onRefresh,
   isOfflineMode,
-  authState = "no_data",
+  authState = 'no_data',
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -83,7 +83,7 @@ function DesktopHeader({
                   type="button"
                   data-oid="fhg::su"
                 >
-                  {isOfflineMode ? "Clear Data" : "Logout"}
+                  {isOfflineMode ? 'Clear Data' : 'Logout'}
                 </Button>
               </div>
             </div>
@@ -94,13 +94,13 @@ function DesktopHeader({
       {/* Logout/Clear Data Confirmation Modal */}
       <ConfirmModal
         isOpen={showLogoutModal}
-        title={isOfflineMode ? "Clear Cached Data" : "Confirm Logout"}
+        title={isOfflineMode ? 'Clear Cached Data' : 'Confirm Logout'}
         message={
           isOfflineMode
-            ? "Are you sure you want to clear all cached data? This will remove all offline access to your events and member data."
-            : "Are you sure you want to logout?"
+            ? 'Are you sure you want to clear all cached data? This will remove all offline access to your events and member data.'
+            : 'Are you sure you want to logout?'
         }
-        confirmText={isOfflineMode ? "Clear Data" : "Logout"}
+        confirmText={isOfflineMode ? 'Clear Data' : 'Logout'}
         cancelText="Cancel"
         onConfirm={() => {
           setShowLogoutModal(false);

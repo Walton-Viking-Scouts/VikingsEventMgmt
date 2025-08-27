@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Card, Badge } from "./ui";
-import DraggableMember from "./DraggableMember.jsx";
-import { checkNetworkStatus } from "../utils/networkUtils.js";
-import { getToken } from "../services/auth.js";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Card, Badge } from './ui';
+import DraggableMember from './DraggableMember.jsx';
+import { checkNetworkStatus } from '../utils/networkUtils.js';
+import { getToken } from '../services/auth.js';
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
@@ -30,7 +30,7 @@ function CampGroupCard({
   draggingMemberId = null,
   dragDisabled = false,
   onOfflineError,
-  className = "",
+  className = '',
 }) {
   // Drop zone state
   const [isDragOver, setIsDragOver] = useState(false);
@@ -40,7 +40,7 @@ function CampGroupCard({
   const { name, leaders = [], youngPeople = [] } = group || {};
 
   const handleMemberClick = (member) => {
-    if (onMemberClick && typeof onMemberClick === "function") {
+    if (onMemberClick && typeof onMemberClick === 'function') {
       onMemberClick(member);
     }
   };
@@ -56,7 +56,7 @@ function CampGroupCard({
     if (!dragDisabled) {
       try {
         const dragData = JSON.parse(
-          e.dataTransfer.getData("application/json") || "{}",
+          e.dataTransfer.getData('application/json') || '{}',
         );
         // Don't allow dropping on the same group
         acceptable = String(dragData.fromGroupNumber) !== String(group.number);
@@ -66,7 +66,7 @@ function CampGroupCard({
       }
     }
     setCanDrop(acceptable);
-    e.dataTransfer.dropEffect = acceptable ? "move" : "none";
+    e.dataTransfer.dropEffect = acceptable ? 'move' : 'none';
   };
 
   const handleDragLeave = (e) => {
@@ -97,10 +97,10 @@ function CampGroupCard({
       let dragData;
       try {
         // Handle both desktop drag/drop and mobile touch drop
-        if (e.type === "mobile-drop") {
+        if (e.type === 'mobile-drop') {
           dragData = e.detail;
         } else {
-          dragData = JSON.parse(e.dataTransfer.getData("application/json"));
+          dragData = JSON.parse(e.dataTransfer.getData('application/json'));
         }
 
         // Don't allow dropping on the same group
@@ -129,7 +129,7 @@ function CampGroupCard({
             return;
           }
         } catch (networkError) {
-          console.error("Network status check failed:", networkError);
+          console.error('Network status check failed:', networkError);
           if (onOfflineError) {
             onOfflineError(dragData.memberName);
           } else {
@@ -151,7 +151,7 @@ function CampGroupCard({
           member = {
             scoutid: dragData.memberId,
             name: dragData.memberName,
-            person_type: "Young People",
+            person_type: 'Young People',
             sectionid: dragData.sectionid,
           };
 
@@ -191,10 +191,10 @@ function CampGroupCard({
       handleDrop(e);
     };
 
-    cardElement.addEventListener("mobile-drop", handleMobileDrop);
+    cardElement.addEventListener('mobile-drop', handleMobileDrop);
 
     return () => {
-      cardElement.removeEventListener("mobile-drop", handleMobileDrop);
+      cardElement.removeEventListener('mobile-drop', handleMobileDrop);
     };
   }, [handleDrop]);
 
@@ -209,12 +209,12 @@ function CampGroupCard({
         member.SignedOutWhen ||
         member.vikingEventData?.SignedOutBy ||
         member.vikingEventData?.SignedOutWhen
-          ? "text-gray-400"
-          : ""
+          ? 'text-gray-400'
+          : ''
       } ${
         onMemberClick
-          ? "cursor-pointer hover:text-scout-blue hover:underline"
-          : ""
+          ? 'cursor-pointer hover:text-scout-blue hover:underline'
+          : ''
       }`}
       onClick={() => handleMemberClick(member)}
       title={`${member.firstname} ${member.lastname}`}
@@ -229,9 +229,9 @@ function CampGroupCard({
       ref={cardRef}
       className={`
         camp-group-card transition-all duration-200 w-full
-        ${isDragInProgress ? "drop-zone-available" : ""}
-        ${isDragOver && canDrop ? "bg-scout-blue/10 border-scout-blue border-2 shadow-lg" : ""}
-        ${isDragOver && !canDrop ? "bg-red-50 border-red-300 border-2" : ""}
+        ${isDragInProgress ? 'drop-zone-available' : ''}
+        ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
+        ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
         ${className}
       `}
       onDragOver={handleDragOver}
@@ -249,7 +249,7 @@ function CampGroupCard({
               className="text-lg font-semibold text-gray-900 break-words whitespace-normal"
               data-oid="qpriidu"
             >
-              {name}{" "}
+              {name}{' '}
               <span
                 className="text-base font-medium text-gray-600"
                 data-oid="u:2k_qy"
@@ -297,15 +297,15 @@ function CampGroupCard({
                 >
                   <Badge
                     variant={
-                      leader.person_type === "Leaders"
-                        ? "scout-purple"
-                        : "scout-blue"
+                      leader.person_type === 'Leaders'
+                        ? 'scout-purple'
+                        : 'scout-blue'
                     }
                     size="sm"
                     className="flex-shrink-0"
                     data-oid="a95omwt"
                   >
-                    {leader.person_type === "Leaders" ? "L" : "YL"}
+                    {leader.person_type === 'Leaders' ? 'L' : 'YL'}
                   </Badge>
                   <div className="min-w-0 flex-1" data-oid="ytl7z8r">
                     <MemberName member={leader} data-oid="g22idp2" />
@@ -343,7 +343,7 @@ function CampGroupCard({
           <div
             className={`
             text-center py-4 text-gray-500 transition-all
-            ${isDragInProgress ? "py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg" : ""}
+            ${isDragInProgress ? 'py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg' : ''}
           `}
             data-oid="z4dursv"
           >
@@ -364,8 +364,8 @@ function CampGroupCard({
             </svg>
             <p className="text-sm" data-oid="hb-p4fe">
               {isDragInProgress
-                ? "Drop member here"
-                : "No young people assigned"}
+                ? 'Drop member here'
+                : 'No young people assigned'}
             </p>
           </div>
         )}

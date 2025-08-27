@@ -4,13 +4,13 @@ import React, {
   useMemo,
   useRef,
   useCallback,
-} from "react";
-import { getListOfMembers } from "../services/api.js";
-import { getToken } from "../services/auth.js";
-import { Button, Card, Input, Alert, Badge } from "./ui";
-import LoadingScreen from "./LoadingScreen.jsx";
-import MemberDetailModal from "./MemberDetailModal.jsx";
-import { isMobileLayout } from "../utils/platform.js";
+} from 'react';
+import { getListOfMembers } from '../services/api.js';
+import { getToken } from '../services/auth.js';
+import { Button, Card, Input, Alert, Badge } from './ui';
+import LoadingScreen from './LoadingScreen.jsx';
+import MemberDetailModal from './MemberDetailModal.jsx';
+import { isMobileLayout } from '../utils/platform.js';
 
 function MembersList({
   sections,
@@ -22,9 +22,9 @@ function MembersList({
   const [members, setMembers] = useState(propsMembers || []);
   const [loading, setLoading] = useState(!propsMembers);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("lastname");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('lastname');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
@@ -47,7 +47,7 @@ function MembersList({
     () => sections.map((s) => s.sectionid),
     [sections],
   );
-  const sectionIdsKey = sectionIds.join(",");
+  const sectionIdsKey = sectionIds.join(',');
 
   const loadMembers = useCallback(async () => {
     if (!mountedRef.current) return;
@@ -70,7 +70,7 @@ function MembersList({
     } catch (e) {
       // Only apply error state if component is mounted AND this is the latest request
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
-        setError(e?.message ?? "Unable to load members. Please try again.");
+        setError(e?.message ?? 'Unable to load members. Please try again.');
       }
     } finally {
       // Only turn off loading for the matching requestId so stale requests cannot override
@@ -102,7 +102,7 @@ function MembersList({
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return "";
+    if (!dateOfBirth) return '';
     try {
       const birthDate = new Date(dateOfBirth);
       const today = new Date();
@@ -116,7 +116,7 @@ function MembersList({
       }
       return age;
     } catch {
-      return "";
+      return '';
     }
   };
 
@@ -125,9 +125,9 @@ function MembersList({
     const filtered = members.filter((member) => {
       const searchLower = searchTerm.toLowerCase();
       const fullName =
-        `${member.firstname || ""} ${member.lastname || ""}`.toLowerCase();
-      const email = (member.email || "").toLowerCase();
-      const sectionsText = (member.sections || []).join(" ").toLowerCase();
+        `${member.firstname || ''} ${member.lastname || ''}`.toLowerCase();
+      const email = (member.email || '').toLowerCase();
+      const sectionsText = (member.sections || []).join(' ').toLowerCase();
 
       return (
         fullName.includes(searchLower) ||
@@ -137,27 +137,27 @@ function MembersList({
     });
 
     filtered.sort((a, b) => {
-      let aValue = a[sortField] || "";
-      let bValue = b[sortField] || "";
+      let aValue = a[sortField] || '';
+      let bValue = b[sortField] || '';
 
       // Special handling for specific fields
-      if (sortField === "name") {
-        aValue = `${a.lastname || ""} ${a.firstname || ""}`;
-        bValue = `${b.lastname || ""} ${b.firstname || ""}`;
-      } else if (sortField === "sections") {
-        aValue = (a.sections || []).join(", ");
-        bValue = (b.sections || []).join(", ");
-      } else if (sortField === "age") {
+      if (sortField === 'name') {
+        aValue = `${a.lastname || ''} ${a.firstname || ''}`;
+        bValue = `${b.lastname || ''} ${b.firstname || ''}`;
+      } else if (sortField === 'sections') {
+        aValue = (a.sections || []).join(', ');
+        bValue = (b.sections || []).join(', ');
+      } else if (sortField === 'age') {
         aValue = calculateAge(a.date_of_birth);
         bValue = calculateAge(b.date_of_birth);
       }
 
-      if (typeof aValue === "string") {
+      if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (sortDirection === "asc") {
+      if (sortDirection === 'asc') {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
@@ -169,85 +169,85 @@ function MembersList({
 
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection("asc");
+      setSortDirection('asc');
     }
   };
 
   const exportToCSV = () => {
     if (filteredAndSortedMembers.length === 0) {
-      alert("No members to export");
+      alert('No members to export');
       return;
     }
 
     // Define CSV headers based on available data
     const headers = [
-      "First Name",
-      "Last Name",
-      "Email",
-      "Phone",
-      "Sections",
-      "Patrol",
-      "Person Type",
-      "Age",
-      "Date of Birth",
-      "Address",
-      "Postcode",
-      "Emergency Contacts",
-      "Medical Notes",
-      "Dietary Requirements",
-      "Active",
-      "Started",
-      "Joined",
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Sections',
+      'Patrol',
+      'Person Type',
+      'Age',
+      'Date of Birth',
+      'Address',
+      'Postcode',
+      'Emergency Contacts',
+      'Medical Notes',
+      'Dietary Requirements',
+      'Active',
+      'Started',
+      'Joined',
     ];
 
     // Convert members to CSV rows using enhanced data
     const csvRows = [
-      headers.join(","),
+      headers.join(','),
       ...filteredAndSortedMembers.map((member) => {
         const emergencyContacts = (member.emergency_contacts || [])
           .map((contact) =>
             `${contact.name} (${contact.phone}) ${contact.email}`.trim(),
           )
-          .join("; ");
+          .join('; ');
 
         return [
-          `"${member.firstname || ""}"`,
-          `"${member.lastname || ""}"`,
-          `"${member.email || ""}"`,
-          `"${member.phone || ""}"`,
-          `"${(member.sections || []).join("; ")}"`,
-          `"${member.patrol || ""}"`,
-          `"${member.person_type || "Young People"}"`,
+          `"${member.firstname || ''}"`,
+          `"${member.lastname || ''}"`,
+          `"${member.email || ''}"`,
+          `"${member.phone || ''}"`,
+          `"${(member.sections || []).join('; ')}"`,
+          `"${member.patrol || ''}"`,
+          `"${member.person_type || 'Young People'}"`,
           `"${calculateAge(member.date_of_birth)}"`,
-          `"${member.date_of_birth || ""}"`,
-          `"${member.address || ""}"`,
-          `"${member.postcode || ""}"`,
+          `"${member.date_of_birth || ''}"`,
+          `"${member.address || ''}"`,
+          `"${member.postcode || ''}"`,
           `"${emergencyContacts}"`,
-          `"${member.medical_notes || ""}"`,
-          `"${member.dietary_requirements || ""}"`,
-          `"${member.active ? "Yes" : "No"}"`,
-          `"${member.started || ""}"`,
-          `"${member.joined || ""}"`,
-        ].join(",");
+          `"${member.medical_notes || ''}"`,
+          `"${member.dietary_requirements || ''}"`,
+          `"${member.active ? 'Yes' : 'No'}"`,
+          `"${member.started || ''}"`,
+          `"${member.joined || ''}"`,
+        ].join(',');
       }),
     ];
 
     // Create and download CSV file
-    const csvContent = csvRows.join("\n");
+    const csvContent = csvRows.join('\n');
     const blob = new globalThis.Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
+      type: 'text/csv;charset=utf-8;',
     });
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
+    link.setAttribute('href', url);
     link.setAttribute(
-      "download",
-      `members_${sectionIds.join("_")}_${new Date().toISOString().split("T")[0]}.csv`,
+      'download',
+      `members_${sectionIds.join('_')}_${new Date().toISOString().split('T')[0]}.csv`,
     );
-    link.style.visibility = "hidden";
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -263,14 +263,14 @@ function MembersList({
     }
     return (
       <span className="text-scout-blue" data-oid="cs_tdha">
-        {sortDirection === "asc" ? "↑" : "↓"}
+        {sortDirection === 'asc' ? '↑' : '↓'}
       </span>
     );
   };
 
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
-    console.log("✅ MembersList (WORKING) member structure:", {
+    console.log('✅ MembersList (WORKING) member structure:', {
       scoutid: member.scoutid,
       firstname: member.firstname,
       lastname: member.lastname,
@@ -324,7 +324,7 @@ function MembersList({
   }
 
   return (
-    <div className={embedded ? "" : "px-4 sm:px-6 lg:px-8"} data-oid="c_nrn7-">
+    <div className={embedded ? '' : 'px-4 sm:px-6 lg:px-8'} data-oid="c_nrn7-">
       {/* Header - only show if not embedded */}
       {showHeader && (
         <div className="sm:flex sm:items-center" data-oid="ed32._-">
@@ -336,8 +336,8 @@ function MembersList({
               Members ({filteredAndSortedMembers.length})
             </h1>
             <p className="mt-2 text-sm text-gray-700" data-oid="f:xb_ft">
-              Members from selected sections:{" "}
-              {sections.map((s) => s.sectionname).join(", ")}
+              Members from selected sections:{' '}
+              {sections.map((s) => s.sectionname).join(', ')}
             </p>
           </div>
           <div
@@ -400,7 +400,7 @@ function MembersList({
             {Object.entries(visibleColumns).map(([column, visible]) => (
               <Button
                 key={column}
-                variant={visible ? "scout-blue" : "outline"}
+                variant={visible ? 'scout-blue' : 'outline'}
                 size="sm"
                 onClick={() =>
                   setVisibleColumns((prev) => ({ ...prev, [column]: !visible }))
@@ -443,8 +443,8 @@ function MembersList({
               </h3>
               <p className="mt-1 text-sm text-gray-500" data-oid="-kox895">
                 {searchTerm
-                  ? "Try adjusting your search terms."
-                  : "No members available for the selected sections."}
+                  ? 'Try adjusting your search terms.'
+                  : 'No members available for the selected sections.'}
               </p>
             </Card.Body>
           </Card>
@@ -493,16 +493,16 @@ function MembersList({
                     )}
                     <Badge
                       variant={
-                        member.person_type === "Leaders"
-                          ? "scout-purple"
-                          : member.person_type === "Young Leaders"
-                            ? "scout-blue"
-                            : "scout-green"
+                        member.person_type === 'Leaders'
+                          ? 'scout-purple'
+                          : member.person_type === 'Young Leaders'
+                            ? 'scout-blue'
+                            : 'scout-green'
                       }
                       size="sm"
                       data-oid="b7aw3om"
                     >
-                      {member.person_type || "Young People"}
+                      {member.person_type || 'Young People'}
                     </Badge>
                   </div>
 
@@ -579,13 +579,13 @@ function MembersList({
                     {/* Emergency contacts */}
                     {member.emergency_contacts &&
                       member.emergency_contacts.length > 0 && (
-                        <div
-                          className="text-xs text-gray-500"
-                          data-oid="p735a89"
-                        >
+                      <div
+                        className="text-xs text-gray-500"
+                        data-oid="p735a89"
+                      >
                           Emergency contacts: {member.emergency_contacts.length}
-                        </div>
-                      )}
+                      </div>
+                    )}
                   </div>
                 </Card.Body>
               </Card>
@@ -604,7 +604,7 @@ function MembersList({
                     {visibleColumns.name && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("name")}
+                        onClick={() => handleSort('name')}
                         data-oid="sguitx6"
                       >
                         <div
@@ -619,7 +619,7 @@ function MembersList({
                     {visibleColumns.sections && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("sections")}
+                        onClick={() => handleSort('sections')}
                         data-oid="m:vb1l0"
                       >
                         <div
@@ -634,7 +634,7 @@ function MembersList({
                     {visibleColumns.email && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("email")}
+                        onClick={() => handleSort('email')}
                         data-oid="fzc38.g"
                       >
                         <div
@@ -649,7 +649,7 @@ function MembersList({
                     {visibleColumns.phone && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("phone")}
+                        onClick={() => handleSort('phone')}
                         data-oid=".q:3:6-"
                       >
                         <div
@@ -664,7 +664,7 @@ function MembersList({
                     {visibleColumns.patrol && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("patrol")}
+                        onClick={() => handleSort('patrol')}
                         data-oid="h0o-f5q"
                       >
                         <div
@@ -679,7 +679,7 @@ function MembersList({
                     {visibleColumns.person_type && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("person_type")}
+                        onClick={() => handleSort('person_type')}
                         data-oid="esk1o44"
                       >
                         <div
@@ -694,7 +694,7 @@ function MembersList({
                     {visibleColumns.address && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("address")}
+                        onClick={() => handleSort('address')}
                         data-oid="_osotr:"
                       >
                         <div
@@ -725,7 +725,7 @@ function MembersList({
                     {visibleColumns.age && (
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("age")}
+                        onClick={() => handleSort('age')}
                         data-oid="q6dmihe"
                       >
                         <div
@@ -816,16 +816,16 @@ function MembersList({
                         >
                           <Badge
                             variant={
-                              member.person_type === "Leaders"
-                                ? "scout-purple"
-                                : member.person_type === "Young Leaders"
-                                  ? "scout-blue"
-                                  : "scout-green"
+                              member.person_type === 'Leaders'
+                                ? 'scout-purple'
+                                : member.person_type === 'Young Leaders'
+                                  ? 'scout-blue'
+                                  : 'scout-green'
                             }
                             size="sm"
                             data-oid="bremz2:"
                           >
-                            {member.person_type || "Young People"}
+                            {member.person_type || 'Young People'}
                           </Badge>
                         </td>
                       )}
@@ -836,7 +836,7 @@ function MembersList({
                         >
                           <div
                             className="max-w-xs truncate"
-                            title={`${member.address || ""} ${member.postcode || ""}`}
+                            title={`${member.address || ''} ${member.postcode || ''}`}
                             data-oid="lfgqedu"
                           >
                             {member.address && (
@@ -891,25 +891,25 @@ function MembersList({
                         >
                           {member.emergency_contacts &&
                           member.emergency_contacts.length > 0 ? (
-                            <div className="text-xs" data-oid="_zq-4nw">
-                              <div className="font-medium" data-oid="7j9nou7">
-                                {member.emergency_contacts.length} contact
-                                {member.emergency_contacts.length > 1
-                                  ? "s"
-                                  : ""}
+                              <div className="text-xs" data-oid="_zq-4nw">
+                                <div className="font-medium" data-oid="7j9nou7">
+                                  {member.emergency_contacts.length} contact
+                                  {member.emergency_contacts.length > 1
+                                    ? 's'
+                                    : ''}
+                                </div>
+                                <div
+                                  className="text-gray-500 truncate max-w-xs"
+                                  data-oid="9x_t-a."
+                                >
+                                  {member.emergency_contacts[0].name}
+                                </div>
                               </div>
-                              <div
-                                className="text-gray-500 truncate max-w-xs"
-                                data-oid="9x_t-a."
-                              >
-                                {member.emergency_contacts[0].name}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400" data-oid="bb7z40g">
+                            ) : (
+                              <span className="text-gray-400" data-oid="bb7z40g">
                               -
-                            </span>
-                          )}
+                              </span>
+                            )}
                         </td>
                       )}
                       {visibleColumns.age && (

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 /**
  * Component that displays remaining time until token expires
@@ -8,23 +8,23 @@ import PropTypes from "prop-types";
  * - Yellow: 5-15 minutes
  * - Red: < 5 minutes
  */
-function TokenCountdown({ authState, className = "" }) {
+function TokenCountdown({ authState, className = '' }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
-  const [displayText, setDisplayText] = useState("");
+  const [displayText, setDisplayText] = useState('');
 
   useEffect(() => {
     // Only show countdown when authenticated
-    if (authState !== "authenticated") {
+    if (authState !== 'authenticated') {
       setTimeRemaining(null);
-      setDisplayText("");
+      setDisplayText('');
       return;
     }
 
     const updateCountdown = () => {
-      const expiresAt = sessionStorage.getItem("token_expires_at");
+      const expiresAt = sessionStorage.getItem('token_expires_at');
       if (!expiresAt) {
         setTimeRemaining(null);
-        setDisplayText("");
+        setDisplayText('');
         return;
       }
 
@@ -34,7 +34,7 @@ function TokenCountdown({ authState, className = "" }) {
 
       if (msRemaining <= 0) {
         setTimeRemaining(0);
-        setDisplayText("Expired");
+        setDisplayText('Expired');
         return;
       }
 
@@ -65,14 +65,14 @@ function TokenCountdown({ authState, className = "" }) {
   }, [authState]);
 
   // Don't render anything if not authenticated or no time data
-  if (authState !== "authenticated" || !timeRemaining) {
+  if (authState !== 'authenticated' || !timeRemaining) {
     return null;
   }
 
   return (
     <div className={`text-sm text-gray-600 ${className}`} data-oid="ni8li1n">
       <span className="hidden md:inline" data-oid="a-eblja">
-        Session:{" "}
+        Session:{' '}
       </span>
       <span data-oid="z2xm505">{displayText}</span>
     </div>
@@ -81,11 +81,11 @@ function TokenCountdown({ authState, className = "" }) {
 
 TokenCountdown.propTypes = {
   authState: PropTypes.oneOf([
-    "no_data",
-    "cached_only",
-    "authenticated",
-    "token_expired",
-    "syncing",
+    'no_data',
+    'cached_only',
+    'authenticated',
+    'token_expired',
+    'syncing',
   ]).isRequired,
   className: PropTypes.string,
 };

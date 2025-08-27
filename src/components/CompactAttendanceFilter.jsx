@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 function CompactAttendanceFilter({ filters, onFiltersChange }) {
   const handleFilterToggle = (status) => {
@@ -11,28 +11,28 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
 
   const statusConfig = [
     {
-      key: "yes",
-      label: "Yes",
-      activeStyles: "bg-green-500 text-white",
-      inactiveStyles: "bg-white text-green-500 border border-green-500",
+      key: 'yes',
+      label: 'Yes',
+      activeStyles: 'bg-green-500 text-white',
+      inactiveStyles: 'bg-white text-green-500 border border-green-500',
     },
     {
-      key: "no",
-      label: "No",
-      activeStyles: "bg-red-500 text-white",
-      inactiveStyles: "bg-white text-red-500 border border-red-500",
+      key: 'no',
+      label: 'No',
+      activeStyles: 'bg-red-500 text-white',
+      inactiveStyles: 'bg-white text-red-500 border border-red-500',
     },
     {
-      key: "invited",
-      label: "Invited",
-      activeStyles: "bg-scout-blue text-white",
-      inactiveStyles: "bg-white text-scout-blue border border-scout-blue",
+      key: 'invited',
+      label: 'Invited',
+      activeStyles: 'bg-scout-blue text-white',
+      inactiveStyles: 'bg-white text-scout-blue border border-scout-blue',
     },
     {
-      key: "notInvited",
-      label: "Not Invited",
-      activeStyles: "bg-gray-500 text-white",
-      inactiveStyles: "bg-white text-gray-500 border border-gray-500",
+      key: 'notInvited',
+      label: 'Not Invited',
+      activeStyles: 'bg-gray-500 text-white',
+      inactiveStyles: 'bg-white text-gray-500 border border-gray-500',
     },
   ];
 

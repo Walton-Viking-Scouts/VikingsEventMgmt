@@ -1,7 +1,7 @@
-import React from "react";
-import { isMobileLayout } from "../utils/platform.js";
-import MobileLayout from "../layouts/MobileLayout.jsx";
-import DesktopLayout from "../layouts/DesktopLayout.jsx";
+import React from 'react';
+import { isMobileLayout } from '../utils/platform.js';
+import MobileLayout from '../layouts/MobileLayout.jsx';
+import DesktopLayout from '../layouts/DesktopLayout.jsx';
 
 function ResponsiveLayout({
   children,
@@ -11,7 +11,7 @@ function ResponsiveLayout({
   onRefresh,
   currentView,
   isOfflineMode = false,
-  authState = "no_data",
+  authState = 'no_data',
   lastSyncTime = null,
 }) {
   const [isMobile, setIsMobile] = React.useState(isMobileLayout());
@@ -21,8 +21,8 @@ function ResponsiveLayout({
       setIsMobile(isMobileLayout());
     };
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const LayoutComponent = isMobile ? MobileLayout : DesktopLayout;

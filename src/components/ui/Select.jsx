@@ -1,5 +1,5 @@
-import React, { forwardRef, useId } from "react";
-import { cn } from "../../utils/cn";
+import React, { forwardRef, useId } from 'react';
+import { cn } from '../../utils/cn';
 
 // Memoized chevron icon to avoid recreating on every render
 const chevronIcon = (
@@ -26,41 +26,41 @@ const chevronIcon = (
 const Select = forwardRef(
   (
     {
-      size = "md",
-      variant = "default",
+      size = 'md',
+      variant = 'default',
       error = false,
       success = false,
       disabled = false,
-      className = "",
+      className = '',
       label,
       helperText,
       errorText,
-      placeholder = "Select an option...",
+      placeholder = 'Select an option...',
       children,
       ...props
     },
     ref,
   ) => {
     const baseClasses =
-      "w-full rounded-md border bg-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed appearance-none bg-no-repeat bg-right pr-10";
+      'w-full rounded-md border bg-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed appearance-none bg-no-repeat bg-right pr-10';
 
     const variants = {
       default:
-        "border-gray-300 text-gray-900 focus:border-scout-blue focus:ring-scout-blue/20",
+        'border-gray-300 text-gray-900 focus:border-scout-blue focus:ring-scout-blue/20',
       scout:
-        "border-scout-blue text-gray-900 focus:border-scout-blue-dark focus:ring-scout-blue/30",
+        'border-scout-blue text-gray-900 focus:border-scout-blue-dark focus:ring-scout-blue/30',
     };
 
     const sizes = {
-      sm: "px-3 py-1.5 text-sm",
-      md: "px-4 py-2 text-base",
-      lg: "px-4 py-3 text-lg",
+      sm: 'px-3 py-1.5 text-sm',
+      md: 'px-4 py-2 text-base',
+      lg: 'px-4 py-3 text-lg',
     };
 
     const states = {
-      error: "border-red-500 focus:border-red-500 focus:ring-red-500/20",
+      error: 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
       success:
-        "border-green-500 focus:border-green-500 focus:ring-green-500/20",
+        'border-green-500 focus:border-green-500 focus:ring-green-500/20',
     };
 
     // Determine state styling - error takes precedence over success
@@ -95,7 +95,7 @@ const Select = forwardRef(
           {...(placeholder &&
           props.value === null &&
           props.defaultValue === null
-            ? { defaultValue: "" }
+            ? { defaultValue: '' }
             : {})}
           {...props}
           data-oid="jvpzf_k"
@@ -125,8 +125,8 @@ const Select = forwardRef(
             <p
               id={error ? `${finalSelectId}-error` : `${finalSelectId}-help`}
               className={cn(
-                "mt-1 text-sm",
-                error ? "text-red-600" : "text-gray-600",
+                'mt-1 text-sm',
+                error ? 'text-red-600' : 'text-gray-600',
               )}
               data-oid="ksfeun2"
             >
@@ -152,8 +152,8 @@ const Select = forwardRef(
           <p
             id={error ? `${finalSelectId}-error` : `${finalSelectId}-help`}
             className={cn(
-              "mt-1 text-sm",
-              error ? "text-red-600" : "text-gray-600",
+              'mt-1 text-sm',
+              error ? 'text-red-600' : 'text-gray-600',
             )}
             data-oid="-m8bdsh"
           >
@@ -165,6 +165,6 @@ const Select = forwardRef(
   },
 );
 
-Select.displayName = "Select";
+Select.displayName = 'Select';
 
 export default Select;

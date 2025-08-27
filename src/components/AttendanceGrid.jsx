@@ -1,18 +1,18 @@
-import React from "react";
+import React from 'react';
 
 function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {
     switch (status) {
-      case "attending":
-        return "text-green-800";
-      case "notAttending":
-        return "text-red-800";
-      case "invited":
-        return "text-scout-blue";
-      case "notInvited":
-        return "text-gray-800";
-      default:
-        return "text-gray-800";
+    case 'attending':
+      return 'text-green-800';
+    case 'notAttending':
+      return 'text-red-800';
+    case 'invited':
+      return 'text-scout-blue';
+    case 'notInvited':
+      return 'text-gray-800';
+    default:
+      return 'text-gray-800';
     }
   };
 
@@ -125,25 +125,25 @@ function AttendanceGrid({ data }) {
               className="px-3 py-2 text-center text-sm text-green-800"
               data-oid="bf5k-5c"
             >
-              {getTotalByStatus("attending")}
+              {getTotalByStatus('attending')}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-red-800"
               data-oid="o1hy_fp"
             >
-              {getTotalByStatus("notAttending")}
+              {getTotalByStatus('notAttending')}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-yellow-800"
               data-oid="m1b8uey"
             >
-              {getTotalByStatus("invited")}
+              {getTotalByStatus('invited')}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-gray-800"
               data-oid=".66ttp."
             >
-              {getTotalByStatus("notInvited")}
+              {getTotalByStatus('notInvited')}
             </td>
           </tr>
         </tbody>

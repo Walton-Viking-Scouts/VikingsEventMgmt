@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "../../utils/cn";
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Modal component with Scout theming
@@ -9,11 +9,11 @@ import { cn } from "../../utils/cn";
 const Modal = ({
   isOpen = false,
   onClose,
-  size = "md",
+  size = 'md',
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
-  className = "",
+  className = '',
   children,
   ...props
 }) => {
@@ -24,25 +24,25 @@ const Modal = ({
     if (!closeOnEscape || !isOpen) return;
 
     const handleEscape = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose?.();
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, closeOnEscape, onClose]);
 
   // Handle body scroll lock
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     }
 
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
 
@@ -54,18 +54,18 @@ const Modal = ({
   }, [isOpen]);
 
   const sizes = {
-    xs: "max-w-xs",
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-xl",
-    "2xl": "max-w-2xl",
-    "3xl": "max-w-3xl",
-    "4xl": "max-w-4xl",
-    "5xl": "max-w-5xl",
-    "6xl": "max-w-6xl",
-    "7xl": "max-w-7xl",
-    full: "max-w-full",
+    xs: 'max-w-xs',
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
+    '7xl': 'max-w-7xl',
+    full: 'max-w-full',
   };
 
   const handleOverlayClick = (e) => {
@@ -94,7 +94,7 @@ const Modal = ({
           ref={modalRef}
           tabIndex={-1}
           className={cn(
-            "relative bg-white rounded-lg shadow-xl transform transition-all w-full",
+            'relative bg-white rounded-lg shadow-xl transform transition-all w-full',
             sizes[size],
             className,
           )}
@@ -136,10 +136,10 @@ const Modal = ({
   return createPortal(modalContent, document.body);
 };
 
-const ModalHeader = ({ children, className = "", ...props }) => {
+const ModalHeader = ({ children, className = '', ...props }) => {
   return (
     <div
-      className={cn("px-6 py-4 border-b border-gray-200", className)}
+      className={cn('px-6 py-4 border-b border-gray-200', className)}
       {...props}
       data-oid="u_gqh6x"
     >
@@ -150,13 +150,13 @@ const ModalHeader = ({ children, className = "", ...props }) => {
 
 const ModalTitle = ({
   children,
-  className = "",
-  as: Component = "h2",
+  className = '',
+  as: Component = 'h2',
   ...props
 }) => {
   return (
     <Component
-      className={cn("text-xl font-semibold text-gray-900 pr-8", className)}
+      className={cn('text-xl font-semibold text-gray-900 pr-8', className)}
       {...props}
       data-oid="fyw.-_:"
     >
@@ -165,9 +165,9 @@ const ModalTitle = ({
   );
 };
 
-const ModalBody = ({ children, className = "", ...props }) => {
+const ModalBody = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn("px-6 py-4", className)} {...props} data-oid="6je2995">
+    <div className={cn('px-6 py-4', className)} {...props} data-oid="6je2995">
       {children}
     </div>
   );
@@ -175,21 +175,21 @@ const ModalBody = ({ children, className = "", ...props }) => {
 
 const ModalFooter = ({
   children,
-  align = "right",
-  className = "",
+  align = 'right',
+  className = '',
   ...props
 }) => {
   const alignClasses = {
-    left: "justify-start",
-    center: "justify-center",
-    right: "justify-end",
-    between: "justify-between",
+    left: 'justify-start',
+    center: 'justify-center',
+    right: 'justify-end',
+    between: 'justify-between',
   };
 
   return (
     <div
       className={cn(
-        "px-6 py-4 border-t border-gray-200 flex gap-3",
+        'px-6 py-4 border-t border-gray-200 flex gap-3',
         alignClasses[align],
         className,
       )}

@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import { Header as TailwindHeader, Button } from "./ui";
-import ConfirmModal from "./ui/ConfirmModal";
-import AuthButton from "./AuthButton.jsx";
-import DataFreshness from "./DataFreshness.jsx";
-import TokenCountdown from "./TokenCountdown.jsx";
+import React, { useState } from 'react';
+import { Header as TailwindHeader, Button } from './ui';
+import ConfirmModal from './ui/ConfirmModal';
+import AuthButton from './AuthButton.jsx';
+import DataFreshness from './DataFreshness.jsx';
+import TokenCountdown from './TokenCountdown.jsx';
 
 function Header({
   user,
@@ -11,7 +11,7 @@ function Header({
   isOfflineMode,
   onLogin,
   onRefresh,
-  authState = "no_data",
+  authState = 'no_data',
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -83,7 +83,7 @@ function Header({
                   className="text-sm px-3 py-2"
                   data-oid="901gk8o"
                 >
-                  {isOfflineMode ? "Clear Data" : "Logout"}
+                  {isOfflineMode ? 'Clear Data' : 'Logout'}
                 </Button>
               </div>
             )}
@@ -152,7 +152,7 @@ function Header({
                   className="text-xs px-2 py-1 flex-shrink-0"
                   data-oid=":2diur6"
                 >
-                  {isOfflineMode ? "Clear" : "Logout"}
+                  {isOfflineMode ? 'Clear' : 'Logout'}
                 </Button>
               </div>
             )}
@@ -163,13 +163,13 @@ function Header({
       {/* Logout/Clear Data Confirmation Modal */}
       <ConfirmModal
         isOpen={showLogoutModal}
-        title={isOfflineMode ? "Clear Cached Data" : "Confirm Logout"}
+        title={isOfflineMode ? 'Clear Cached Data' : 'Confirm Logout'}
         message={
           isOfflineMode
-            ? "Are you sure you want to clear all cached data? This will remove all offline access to your events and member data."
-            : "Are you sure you want to logout?"
+            ? 'Are you sure you want to clear all cached data? This will remove all offline access to your events and member data.'
+            : 'Are you sure you want to logout?'
         }
-        confirmText={isOfflineMode ? "Clear Data" : "Logout"}
+        confirmText={isOfflineMode ? 'Clear Data' : 'Logout'}
         cancelText="Cancel"
         onConfirm={() => {
           setShowLogoutModal(false);

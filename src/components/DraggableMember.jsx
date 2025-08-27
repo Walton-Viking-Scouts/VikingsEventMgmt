@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from 'react';
 
 // Constants for draggable member types
-const DRAGGABLE_MEMBER_TYPES = ["Young People"];
+const DRAGGABLE_MEMBER_TYPES = ['Young People'];
 
 /**
  * DraggableMember - Wrapper component that makes members draggable between camp groups
@@ -24,7 +24,7 @@ function DraggableMember({
   onDragEnd,
   isDragging = false,
   disabled = false,
-  className = "",
+  className = '',
 }) {
   const [dragPreview, setDragPreview] = useState(false);
   const [mouseDown, setMouseDown] = useState(false);
@@ -42,8 +42,8 @@ function DraggableMember({
   const memberName =
     member.name ||
     member.displayName ||
-    `${member.firstname || member.first_name || ""} ${member.lastname || member.last_name || ""}`.trim() ||
-    "Unknown Member";
+    `${member.firstname || member.first_name || ''} ${member.lastname || member.last_name || ''}`.trim() ||
+    'Unknown Member';
 
   // Only specific member types can be dragged between groups
   const isDraggable =
@@ -82,8 +82,8 @@ function DraggableMember({
           const dragData = {
             memberId: member.scoutid,
             memberName: memberName,
-            fromGroupNumber: group?.number || "Unknown",
-            fromGroupName: group?.name || "Unknown Group",
+            fromGroupNumber: group?.number || 'Unknown',
+            fromGroupName: group?.name || 'Unknown Group',
             sectionid: member.sectionid || member.section_id,
           };
           onDragStart(dragData);
@@ -141,13 +141,13 @@ function DraggableMember({
             const dropEventData = {
               memberId: member.scoutid,
               memberName: memberName,
-              fromGroupNumber: group?.number || "Unknown",
-              fromGroupName: group?.name || "Unknown Group",
+              fromGroupNumber: group?.number || 'Unknown',
+              fromGroupName: group?.name || 'Unknown Group',
               sectionid: member.sectionid || member.section_id,
               targetGroupNumber: Number(dropZone.dataset.groupNumber),
             };
 
-            const dropEvent = new window.CustomEvent("mobile-drop", {
+            const dropEvent = new window.CustomEvent('mobile-drop', {
               detail: dropEventData,
               bubbles: true,
               cancelable: true,
@@ -184,19 +184,19 @@ function DraggableMember({
     };
 
     // Add non-passive listeners so we can preventDefault during drag
-    element.addEventListener("touchstart", handleTouchStart, { passive: true }); // Start is passive to allow scrolling initially
-    element.addEventListener("touchmove", handleTouchMove, { passive: false }); // Move needs to preventDefault during drag
-    element.addEventListener("touchend", handleTouchEnd, { passive: true });
-    element.addEventListener("touchcancel", handleTouchCancel, {
+    element.addEventListener('touchstart', handleTouchStart, { passive: true }); // Start is passive to allow scrolling initially
+    element.addEventListener('touchmove', handleTouchMove, { passive: false }); // Move needs to preventDefault during drag
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
+    element.addEventListener('touchcancel', handleTouchCancel, {
       passive: true,
     });
 
     return () => {
       clearPressHoldTimer();
-      element.removeEventListener("touchstart", handleTouchStart);
-      element.removeEventListener("touchmove", handleTouchMove);
-      element.removeEventListener("touchend", handleTouchEnd);
-      element.removeEventListener("touchcancel", handleTouchCancel);
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+      element.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [
     isDraggable,
@@ -228,14 +228,14 @@ function DraggableMember({
     const dragData = {
       memberId: member.scoutid,
       memberName: memberName,
-      fromGroupNumber: group?.number || "Unknown",
-      fromGroupName: group?.name || "Unknown Group",
+      fromGroupNumber: group?.number || 'Unknown',
+      fromGroupName: group?.name || 'Unknown Group',
       sectionid: member.sectionid || member.section_id,
     };
 
     // Debug logging for name issues
-    if (!memberName || memberName === "Unknown Member") {
-      console.warn("DraggableMember: Member name issue detected", {
+    if (!memberName || memberName === 'Unknown Member') {
+      console.warn('DraggableMember: Member name issue detected', {
         memberName,
         memberKeys: Object.keys(member),
         memberNameField: member.name,
@@ -248,8 +248,8 @@ function DraggableMember({
     }
 
     try {
-      e.dataTransfer.setData("application/json", JSON.stringify(dragData));
-      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+      e.dataTransfer.effectAllowed = 'move';
 
       // Visual feedback
       setDragPreview(true);
@@ -282,7 +282,7 @@ function DraggableMember({
     }
 
     // Ensure click only fires on the actual name span, not drag handle
-    if (onMemberClick && typeof onMemberClick === "function") {
+    if (onMemberClick && typeof onMemberClick === 'function') {
       onMemberClick(member);
     }
   };
@@ -293,14 +293,14 @@ function DraggableMember({
       className={`
         relative p-2 rounded-lg transition-all duration-200 select-none w-full max-w-full
         ${
-          isDraggable
-            ? "cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]"
-            : "cursor-default bg-gray-50 border-2 border-gray-200"
-        }
-        ${mouseDown ? "cursor-grabbing scale-[1.01] shadow-lg" : ""}
-        ${dragPreview ? "opacity-60 transform rotate-1 scale-95 shadow-xl" : ""}
-        ${touchDragActive ? "opacity-30" : ""}
-        ${isDragging ? "opacity-40" : ""}
+    isDraggable
+      ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
+      : 'cursor-default bg-gray-50 border-2 border-gray-200'
+    }
+        ${mouseDown ? 'cursor-grabbing scale-[1.01] shadow-lg' : ''}
+        ${dragPreview ? 'opacity-60 transform rotate-1 scale-95 shadow-xl' : ''}
+        ${touchDragActive ? 'opacity-30' : ''}
+        ${isDragging ? 'opacity-40' : ''}
         ${className}
       `}
       draggable={isDraggable}
@@ -309,12 +309,12 @@ function DraggableMember({
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       style={{
-        maxWidth: "100%",
-        touchAction: isPressHolding && touchDragActive ? "none" : "auto",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        msUserSelect: "none",
-        MozUserSelect: "none",
+        maxWidth: '100%',
+        touchAction: isPressHolding && touchDragActive ? 'none' : 'auto',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        msUserSelect: 'none',
+        MozUserSelect: 'none',
       }}
       title={isDraggable ? `Drag ${memberName} to another group` : memberName}
       data-draggable={isDraggable}
@@ -328,7 +328,7 @@ function DraggableMember({
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           style={{
-            touchAction: isPressHolding && touchDragActive ? "none" : "auto",
+            touchAction: isPressHolding && touchDragActive ? 'none' : 'auto',
           }}
           title="Drag to move"
           data-oid=":cvq5xq"
@@ -361,20 +361,20 @@ function DraggableMember({
               member.SignedOutWhen ||
               member.vikingEventData?.SignedOutBy ||
               member.vikingEventData?.SignedOutWhen
-                ? "text-gray-400"
+                ? 'text-gray-400'
                 : isDraggable
-                  ? "text-blue-700"
-                  : "text-gray-700"
+                  ? 'text-blue-700'
+                  : 'text-gray-700'
             } ${
               onMemberClick
-                ? "cursor-pointer hover:text-scout-blue hover:underline"
-                : ""
+                ? 'cursor-pointer hover:text-scout-blue hover:underline'
+                : ''
             }`}
             style={{
-              maxWidth: "100%",
-              wordWrap: "break-word",
-              overflowWrap: "break-word",
-              hyphens: "auto",
+              maxWidth: '100%',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              hyphens: 'auto',
             }}
             data-oid="9ygqp4:"
           >
@@ -390,7 +390,7 @@ function DraggableMember({
           style={{
             left: dragPosition.x,
             top: dragPosition.y,
-            maxWidth: "200px",
+            maxWidth: '200px',
           }}
           data-oid="98:y:aq"
         >

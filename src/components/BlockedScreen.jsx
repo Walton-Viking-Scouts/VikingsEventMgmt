@@ -1,5 +1,5 @@
-import React from "react";
-import { Alert, Button } from "./ui";
+import React from 'react';
+import { Alert, Button } from './ui';
 
 function BlockedScreen() {
   return (

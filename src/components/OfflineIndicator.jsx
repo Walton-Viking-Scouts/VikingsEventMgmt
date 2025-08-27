@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Capacitor } from "@capacitor/core";
-import { Network } from "@capacitor/network";
-import { Alert, Button, Modal } from "./ui";
-import syncService from "../services/sync.js";
-import { testBackendConnection } from "../services/api.js";
-import { isDemoMode } from "../config/demoMode.js";
+import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Network } from '@capacitor/network';
+import { Alert, Button, Modal } from './ui';
+import syncService from '../services/sync.js';
+import { testBackendConnection } from '../services/api.js';
+import { isDemoMode } from '../config/demoMode.js';
 
 function OfflineIndicator({ hideBanner = false }) {
   const [isOnline, setIsOnline] = useState(true);
@@ -26,7 +26,7 @@ function OfflineIndicator({ hideBanner = false }) {
       // This ensures all health checks go through the queue system
       const result = await testBackendConnection();
 
-      if (result && (result.status === "ok" || result.status === "healthy")) {
+      if (result && (result.status === 'ok' || result.status === 'healthy')) {
         // API is connected and responding correctly
         setApiConnected(true);
         return true;
@@ -42,10 +42,10 @@ function OfflineIndicator({ hideBanner = false }) {
     } catch (error) {
       // Handle rate limiting gracefully - don't mark as disconnected if it's just queued
       if (
-        error.message?.includes("Rate limited") ||
+        error.message?.includes('Rate limited') ||
         error.status === 429 ||
-        error.message?.includes("429") ||
-        error.message?.includes("Too Many Requests")
+        error.message?.includes('429') ||
+        error.message?.includes('Too Many Requests')
       ) {
         // Keep current connection status - don't mark as failed due to rate limiting
         // The queue will retry automatically with backoff
@@ -54,18 +54,18 @@ function OfflineIndicator({ hideBanner = false }) {
 
       // Handle SSL/TLS and network errors more gracefully in development
       if (
-        error.message?.includes("Failed to fetch") ||
-        error.message?.includes("SSL") ||
-        error.message?.includes("certificate") ||
-        error.message?.includes("net::ERR_") ||
-        error.name === "TypeError"
+        error.message?.includes('Failed to fetch') ||
+        error.message?.includes('SSL') ||
+        error.message?.includes('certificate') ||
+        error.message?.includes('net::ERR_') ||
+        error.name === 'TypeError'
       ) {
         setApiConnected(false);
         return false;
       }
 
       // Log API connectivity failures as warnings
-      console.warn("API connectivity test failed:", error.message);
+      console.warn('API connectivity test failed:', error.message);
       setApiConnected(false);
       return false;
     }
@@ -133,13 +133,13 @@ function OfflineIndicator({ hideBanner = false }) {
         setIsOnline(navigator.onLine);
       }
     } catch (error) {
-      console.error("Network status check failed:", error);
+      console.error('Network status check failed:', error);
     }
   };
 
   const setupNetworkListeners = () => {
     if (Capacitor.isNativePlatform()) {
-      Network.addListener("networkStatusChange", (status) => {
+      Network.addListener('networkStatusChange', (status) => {
         setIsOnline(status.connected);
         // Test API connectivity when network status changes
         if (status.connected) {
@@ -159,13 +159,13 @@ function OfflineIndicator({ hideBanner = false }) {
         setApiConnected(false);
       };
 
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
       // Return cleanup function
       return () => {
-        window.removeEventListener("online", handleOnline);
-        window.removeEventListener("offline", handleOffline);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
       };
     }
   };
@@ -175,7 +175,7 @@ function OfflineIndicator({ hideBanner = false }) {
       setSyncStatus(status);
 
       // Clear status after a delay if completed or error
-      if (status.status === "completed" || status.status === "error") {
+      if (status.status === 'completed' || status.status === 'error') {
         setTimeout(() => {
           setSyncStatus(null);
         }, 3000);
@@ -231,7 +231,7 @@ function OfflineIndicator({ hideBanner = false }) {
             <div data-oid="g1g0bs-">
               <p className="text-gray-900 font-medium" data-oid="uolmo.t">
                 {loginPromptData?.message ||
-                  "Authentication required to sync data."}
+                  'Authentication required to sync data.'}
               </p>
               <p className="text-gray-600 text-sm mt-1" data-oid="ra0v60v">
                 You will be redirected to Online Scout Manager to authenticate.
@@ -294,11 +294,11 @@ function OfflineIndicator({ hideBanner = false }) {
       {syncStatus && (
         <Alert
           variant={
-            syncStatus.status === "syncing"
-              ? "info"
-              : syncStatus.status === "completed"
-                ? "success"
-                : "error"
+            syncStatus.status === 'syncing'
+              ? 'info'
+              : syncStatus.status === 'completed'
+                ? 'success'
+                : 'error'
           }
           className="rounded-none border-x-0 border-t-0"
           data-oid="3u7r.ja"
@@ -307,7 +307,7 @@ function OfflineIndicator({ hideBanner = false }) {
             className="flex items-center justify-center gap-2"
             data-oid="vziim9t"
           >
-            {syncStatus.status === "syncing" && (
+            {syncStatus.status === 'syncing' && (
               <>
                 <span className="animate-spin" data-oid="p0oj2fh">
                   ⏳
@@ -315,13 +315,13 @@ function OfflineIndicator({ hideBanner = false }) {
                 <span data-oid="8vv:wkm">{syncStatus.message}</span>
               </>
             )}
-            {syncStatus.status === "completed" && (
+            {syncStatus.status === 'completed' && (
               <>
                 <span data-oid="c61bu6:">✅</span>
                 <span data-oid="73rvxvp">Sync completed</span>
               </>
             )}
-            {syncStatus.status === "error" && (
+            {syncStatus.status === 'error' && (
               <>
                 <span data-oid="eyl0t7d">⚠️</span>
                 <span data-oid="wsb5j1f">

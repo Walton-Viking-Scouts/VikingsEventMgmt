@@ -1,15 +1,15 @@
-import React from "react";
-import { cn } from "../../utils/cn";
+import React from 'react';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Card component to replace Bootstrap cards
  */
-const Card = React.forwardRef(({ children, className = "", ...props }, ref) => {
+const Card = React.forwardRef(({ children, className = '', ...props }, ref) => {
   return (
     <div
       ref={ref}
       className={cn(
-        "bg-white rounded-lg border border-gray-200 shadow-sm",
+        'bg-white rounded-lg border border-gray-200 shadow-sm',
         className,
       )}
       {...props}
@@ -19,13 +19,13 @@ const Card = React.forwardRef(({ children, className = "", ...props }, ref) => {
     </div>
   );
 });
-Card.displayName = "Card";
+Card.displayName = 'Card';
 
-const CardHeader = ({ children, className = "", ...props }) => {
+const CardHeader = ({ children, className = '', ...props }) => {
   return (
     <div
       className={cn(
-        "px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg",
+        'px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg',
         className,
       )}
       {...props}
@@ -38,13 +38,13 @@ const CardHeader = ({ children, className = "", ...props }) => {
 
 const CardTitle = ({
   children,
-  className = "",
-  as: Component = "h3",
+  className = '',
+  as: Component = 'h3',
   ...props
 }) => {
   return (
     <Component
-      className={cn("text-lg font-semibold text-gray-900 m-0", className)}
+      className={cn('text-lg font-semibold text-gray-900 m-0', className)}
       {...props}
       data-oid="o7irigd"
     >
@@ -53,19 +53,19 @@ const CardTitle = ({
   );
 };
 
-const CardBody = ({ children, className = "", ...props }) => {
+const CardBody = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn("p-4", className)} {...props} data-oid="7.mogkm">
+    <div className={cn('p-4', className)} {...props} data-oid="7.mogkm">
       {children}
     </div>
   );
 };
 
-const CardFooter = ({ children, className = "", ...props }) => {
+const CardFooter = ({ children, className = '', ...props }) => {
   return (
     <div
       className={cn(
-        "px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg",
+        'px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg',
         className,
       )}
       {...props}

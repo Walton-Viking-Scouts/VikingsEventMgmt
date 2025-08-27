@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Button, Input, Alert } from "./ui";
-import logger, { LOG_CATEGORIES } from "../services/logger.js";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Alert } from './ui';
+import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 /**
  * Modal for editing camp group names
@@ -32,7 +32,7 @@ function GroupNamesEditModal({
       const initialNames = {};
       Object.entries(groups).forEach(([groupName]) => {
         // Use group name without "Group " prefix for editing
-        const displayName = groupName.replace(/^Group /, "");
+        const displayName = groupName.replace(/^Group /, '');
         initialNames[groupName] = displayName;
       });
       setGroupNames(initialNames);
@@ -52,20 +52,20 @@ function GroupNamesEditModal({
 
       // Required field
       if (!trimmedName) {
-        newErrors[originalGroupName] = "Group name is required";
+        newErrors[originalGroupName] = 'Group name is required';
         return;
       }
 
       // Check for duplicates
       if (usedNames.has(lowerName)) {
-        newErrors[originalGroupName] = "Group name must be unique";
+        newErrors[originalGroupName] = 'Group name must be unique';
         return;
       }
 
       // Check for reserved names - only block "Unassigned" for non-unassigned groups
       if (
-        lowerName === "unassigned" &&
-        originalGroupName !== "Group Unassigned"
+        lowerName === 'unassigned' &&
+        originalGroupName !== 'Group Unassigned'
       ) {
         newErrors[originalGroupName] = '"Unassigned" is a reserved name';
         return;
@@ -74,14 +74,14 @@ function GroupNamesEditModal({
       // Character validation (basic)
       if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmedName)) {
         newErrors[originalGroupName] =
-          "Only letters, numbers, spaces, hyphens and underscores allowed";
+          'Only letters, numbers, spaces, hyphens and underscores allowed';
         return;
       }
 
       // Length validation
       if (trimmedName.length > 20) {
         newErrors[originalGroupName] =
-          "Group name too long (max 20 characters)";
+          'Group name too long (max 20 characters)';
         return;
       }
 
@@ -100,7 +100,7 @@ function GroupNamesEditModal({
         // Check if there are changes from original
         const hasActualChanges = Object.entries(updated).some(
           ([groupName, newName]) => {
-            const originalDisplayName = groupName.replace(/^Group /, "");
+            const originalDisplayName = groupName.replace(/^Group /, '');
             return newName.trim() !== originalDisplayName;
           },
         );
@@ -131,7 +131,7 @@ function GroupNamesEditModal({
     const renames = [];
     Object.entries(groupNames).forEach(([originalGroupName, newName]) => {
       const trimmedNewName = newName.trim();
-      const originalDisplayName = originalGroupName.replace(/^Group /, "");
+      const originalDisplayName = originalGroupName.replace(/^Group /, '');
 
       if (trimmedNewName !== originalDisplayName) {
         const group = groups[originalGroupName];
@@ -160,13 +160,13 @@ function GroupNamesEditModal({
     });
 
     if (renames.length === 0) {
-      logger.info("No group names to rename", {}, LOG_CATEGORIES.APP);
+      logger.info('No group names to rename', {}, LOG_CATEGORIES.APP);
       onClose();
       return;
     }
 
     logger.info(
-      "Processing group renames",
+      'Processing group renames',
       {
         renameCount: renames.length,
         totalGroups: Object.keys(groups).length,
@@ -180,7 +180,7 @@ function GroupNamesEditModal({
         await onRename(rename.oldName, rename.newName, rename.membersBySection);
       } catch (error) {
         logger.error(
-          "Failed to rename group",
+          'Failed to rename group',
           {
             oldName: rename.oldName,
             newName: rename.newName,
@@ -226,7 +226,7 @@ function GroupNamesEditModal({
 
       // Debug: Log exactly which members are being deleted
       logger.info(
-        "Group delete preparation",
+        'Group delete preparation',
         {
           groupName,
           memberCount,
@@ -245,7 +245,7 @@ function GroupNamesEditModal({
 
       if (memberCount === 0) {
         logger.info(
-          "No members to delete for empty group",
+          'No members to delete for empty group',
           { groupName },
           LOG_CATEGORIES.APP,
         );
@@ -254,7 +254,7 @@ function GroupNamesEditModal({
 
       // Confirm deletion
       const confirmed = window.confirm(
-        `Delete "${groupName}" and move ${memberCount} member${memberCount !== 1 ? "s" : ""} to Unassigned?`,
+        `Delete "${groupName}" and move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned?`,
       );
 
       if (!confirmed) return;
@@ -264,7 +264,7 @@ function GroupNamesEditModal({
         onClose();
       } catch (error) {
         logger.error(
-          "Failed to delete group",
+          'Failed to delete group',
           {
             groupName,
             error: error.message,
@@ -289,11 +289,11 @@ function GroupNamesEditModal({
     const [nameA] = a;
     const [nameB] = b;
 
-    if (nameA === "Group Unassigned") return 1;
-    if (nameB === "Group Unassigned") return -1;
+    if (nameA === 'Group Unassigned') return 1;
+    if (nameB === 'Group Unassigned') return -1;
 
-    const numA = parseInt(nameA.replace("Group ", "")) || 0;
-    const numB = parseInt(nameB.replace("Group ", "")) || 0;
+    const numA = parseInt(nameA.replace('Group ', '')) || 0;
+    const numB = parseInt(nameB.replace('Group ', '')) || 0;
     return numA - numB;
   });
 
@@ -337,7 +337,7 @@ function GroupNamesEditModal({
             {groupEntries.map(([originalGroupName, group]) => {
               const memberCount =
                 (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
-              const currentValue = groupNames[originalGroupName] || "";
+              const currentValue = groupNames[originalGroupName] || '';
               const hasError = errors[originalGroupName];
 
               return (
@@ -350,7 +350,7 @@ function GroupNamesEditModal({
                     className="flex-shrink-0 w-20 text-sm text-gray-600"
                     data-oid="nszj1qy"
                   >
-                    {memberCount} member{memberCount !== 1 ? "s" : ""}
+                    {memberCount} member{memberCount !== 1 ? 's' : ''}
                   </div>
 
                   <div className="flex-1" data-oid="-ed6jek">
@@ -362,7 +362,7 @@ function GroupNamesEditModal({
                       }
                       placeholder="Enter new group name"
                       className={
-                        hasError ? "border-red-500 focus:border-red-500" : ""
+                        hasError ? 'border-red-500 focus:border-red-500' : ''
                       }
                       disabled={loading}
                       data-oid="vy.2us4"
@@ -379,21 +379,21 @@ function GroupNamesEditModal({
                   </div>
 
                   {/* Delete button - don't show for Unassigned group */}
-                  {originalGroupName !== "Group Unassigned" &&
+                  {originalGroupName !== 'Group Unassigned' &&
                     memberCount > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteGroup(originalGroupName)}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                        type="button"
-                        title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? "s" : ""} to Unassigned)`}
-                        data-oid=":t.ilsz"
-                      >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteGroup(originalGroupName)}
+                      disabled={loading}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      type="button"
+                      title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned)`}
+                      data-oid=":t.ilsz"
+                    >
                         Delete
-                      </Button>
-                    )}
+                    </Button>
+                  )}
                 </div>
               );
             })}
@@ -427,7 +427,7 @@ function GroupNamesEditModal({
             type="button"
             data-oid="a9cq49p"
           >
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>

@@ -1,5 +1,5 @@
-import React from "react";
-import { cn } from "../../utils/cn";
+import React from 'react';
+import { cn } from '../../utils/cn';
 
 /**
  * Tailwind-based Alert component with Scout theming
@@ -7,40 +7,40 @@ import { cn } from "../../utils/cn";
  */
 const Alert = ({
   children,
-  variant = "info",
-  size = "md",
+  variant = 'info',
+  size = 'md',
   dismissible = false,
   onDismiss,
   icon = true,
-  className = "",
+  className = '',
   ...props
 }) => {
-  const baseClasses = "rounded-lg border";
+  const baseClasses = 'rounded-lg border';
 
   const variants = {
     // Standard variants
-    success: "bg-green-50 border-green-200 text-green-800",
-    warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
-    error: "bg-red-50 border-red-200 text-red-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800",
+    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
 
     // Scout variants
-    "scout-blue": "bg-scout-blue/10 border-scout-blue/20 text-scout-blue-dark",
-    "scout-green":
-      "bg-scout-green/10 border-scout-green/20 text-scout-green-dark",
-    "scout-red": "bg-scout-red/10 border-scout-red/20 text-scout-red-dark",
-    "scout-orange":
-      "bg-scout-orange/10 border-scout-orange/20 text-scout-orange-dark",
+    'scout-blue': 'bg-scout-blue/10 border-scout-blue/20 text-scout-blue-dark',
+    'scout-green':
+      'bg-scout-green/10 border-scout-green/20 text-scout-green-dark',
+    'scout-red': 'bg-scout-red/10 border-scout-red/20 text-scout-red-dark',
+    'scout-orange':
+      'bg-scout-orange/10 border-scout-orange/20 text-scout-orange-dark',
 
     // Special variants
-    neutral: "bg-gray-50 border-gray-200 text-gray-700",
-    dark: "bg-gray-800 border-gray-700 text-white",
+    neutral: 'bg-gray-50 border-gray-200 text-gray-700',
+    dark: 'bg-gray-800 border-gray-700 text-white',
   };
 
   const sizes = {
-    sm: "p-3 text-sm",
-    md: "p-4 text-base",
-    lg: "p-6 text-lg",
+    sm: 'p-3 text-sm',
+    md: 'p-4 text-base',
+    lg: 'p-6 text-lg',
   };
 
   const icons = {
@@ -108,7 +108,7 @@ const Alert = ({
       </svg>
     ),
 
-    "scout-blue": (
+    'scout-blue': (
       <svg
         className="w-5 h-5"
         fill="currentColor"
@@ -124,7 +124,7 @@ const Alert = ({
       </svg>
     ),
 
-    "scout-green": (
+    'scout-green': (
       <svg
         className="w-5 h-5"
         fill="currentColor"
@@ -140,7 +140,7 @@ const Alert = ({
       </svg>
     ),
 
-    "scout-red": (
+    'scout-red': (
       <svg
         className="w-5 h-5"
         fill="currentColor"
@@ -156,7 +156,7 @@ const Alert = ({
       </svg>
     ),
 
-    "scout-orange": (
+    'scout-orange': (
       <svg
         className="w-5 h-5"
         fill="currentColor"
@@ -219,13 +219,13 @@ const Alert = ({
           </div>
         )}
 
-        <div className={cn("flex-1", icon && "ml-3")} data-oid="t9y3ta5">
+        <div className={cn('flex-1', icon && 'ml-3')} data-oid="t9y3ta5">
           {children}
         </div>
 
         {dismissible && (
           <div
-            className={cn("ml-auto pl-3", !icon && "flex-shrink-0")}
+            className={cn('ml-auto pl-3', !icon && 'flex-shrink-0')}
             data-oid="eg91ewk"
           >
             <button
@@ -255,10 +255,10 @@ const Alert = ({
   );
 };
 
-const AlertTitle = ({ children, className = "", ...props }) => {
+const AlertTitle = ({ children, className = '', ...props }) => {
   return (
     <h3
-      className={cn("text-sm font-medium mb-1", className)}
+      className={cn('text-sm font-medium mb-1', className)}
       {...props}
       data-oid="i8vi:ws"
     >
@@ -267,18 +267,18 @@ const AlertTitle = ({ children, className = "", ...props }) => {
   );
 };
 
-const AlertDescription = ({ children, className = "", ...props }) => {
+const AlertDescription = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn("text-sm", className)} {...props} data-oid="ls1o2mn">
+    <div className={cn('text-sm', className)} {...props} data-oid="ls1o2mn">
       {children}
     </div>
   );
 };
 
-const AlertActions = ({ children, className = "", ...props }) => {
+const AlertActions = ({ children, className = '', ...props }) => {
   return (
     <div
-      className={cn("mt-4 flex gap-2", className)}
+      className={cn('mt-4 flex gap-2', className)}
       {...props}
       data-oid="9nj4b-2"
     >

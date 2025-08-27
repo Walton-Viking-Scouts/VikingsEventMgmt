@@ -1,17 +1,17 @@
-import React from "react";
-import * as Sentry from "@sentry/react";
-import { Button, Card } from "./ui";
+import React from 'react';
+import * as Sentry from '@sentry/react';
+import { Button, Card } from './ui';
 
 function LoginScreen({ onLogin }) {
   const handleLoginClick = () => {
     // Log login attempt for monitoring (without span to avoid OAuth interference)
     Sentry.addBreadcrumb({
-      category: "auth",
-      message: "User initiated OAuth login",
-      level: "info",
+      category: 'auth',
+      message: 'User initiated OAuth login',
+      level: 'info',
       data: {
-        component: "LoginScreen",
-        action: "login_button_clicked",
+        component: 'LoginScreen',
+        action: 'login_button_clicked',
         timestamp: new Date().toISOString(),
       },
     });

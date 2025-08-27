@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useAuth } from "./hooks/useAuth.js";
-import ResponsiveLayout from "./components/ResponsiveLayout.jsx";
-import BlockedScreen from "./components/BlockedScreen.jsx";
-import LoadingScreen from "./components/LoadingScreen.jsx";
-import EventDashboard from "./components/EventDashboard.jsx";
-import AttendanceView from "./components/AttendanceView.jsx";
-import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import databaseService from "./services/database.js";
-import logger, { LOG_CATEGORIES } from "./services/logger.js";
-import { Alert } from "./components/ui";
-import "./App.css";
-import { getUniqueSectionsFromEvents } from "./utils/sectionHelpers.js";
-import { logout as clearAllStorage } from "./services/auth.js";
+import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth.js';
+import ResponsiveLayout from './components/ResponsiveLayout.jsx';
+import BlockedScreen from './components/BlockedScreen.jsx';
+import LoadingScreen from './components/LoadingScreen.jsx';
+import EventDashboard from './components/EventDashboard.jsx';
+import AttendanceView from './components/AttendanceView.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import databaseService from './services/database.js';
+import logger, { LOG_CATEGORIES } from './services/logger.js';
+import { Alert } from './components/ui';
+import './App.css';
+import { getUniqueSectionsFromEvents } from './utils/sectionHelpers.js';
+import { logout as clearAllStorage } from './services/auth.js';
 
 function App() {
   const {
@@ -25,7 +25,7 @@ function App() {
     login,
     logout,
   } = useAuth();
-  const [currentView, setCurrentView] = useState("dashboard");
+  const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -66,7 +66,7 @@ function App() {
   const handleRefresh = async () => {
     // Short-circuit when offline for better UX
     if (isOfflineMode) {
-      addNotification("info", "Refresh is unavailable while offline.");
+      addNotification('info', 'Refresh is unavailable while offline.');
       return;
     }
     // Prevent concurrent refreshes
@@ -74,23 +74,23 @@ function App() {
     setIsRefreshing(true);
     try {
       // Import sync service dynamically to avoid circular dependencies
-      const { default: syncService } = await import("./services/sync.js");
+      const { default: syncService } = await import('./services/sync.js');
       // Trigger comprehensive data sync
       await syncService.syncAll();
       logger.info(
-        "Manual refresh completed successfully",
+        'Manual refresh completed successfully',
         {},
         LOG_CATEGORIES.APP,
       );
-      addNotification("success", "Data refreshed successfully");
+      addNotification('success', 'Data refreshed successfully');
     } catch (error) {
       logger.error(
-        "Manual refresh failed",
+        'Manual refresh failed',
         { error: error.message, stack: error.stack },
         LOG_CATEGORIES.ERROR,
       );
       // Avoid leaking raw error messages to end users
-      addNotification("error", "Refresh failed. Please try again.");
+      addNotification('error', 'Refresh failed. Please try again.');
     } finally {
       setIsRefreshing(false);
     }
@@ -99,15 +99,15 @@ function App() {
   // Show offline toast when loading completes and we're in offline mode
   useEffect(() => {
     if (!isLoading && isOfflineMode && user) {
-      const userName = user?.firstname ? `, ${user.firstname}` : "";
+      const userName = user?.firstname ? `, ${user.firstname}` : '';
 
       const offlineMessage =
-        authState === "token_expired" || authState === "cached_only"
-          ? "Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM."
-          : "You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.";
+        authState === 'token_expired' || authState === 'cached_only'
+          ? 'Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM.'
+          : 'You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.';
 
       addNotification(
-        "info",
+        'info',
         `Offline Mode${userName}: ${offlineMessage}`,
         8000, // Show for 8 seconds
       );
@@ -120,10 +120,10 @@ function App() {
 
     const setupSyncListener = async () => {
       try {
-        const { default: syncService } = await import("./services/sync.js");
+        const { default: syncService } = await import('./services/sync.js');
 
         const handleSyncStatus = (status) => {
-          setIsSyncing(status.status === "syncing");
+          setIsSyncing(status.status === 'syncing');
         };
 
         syncService.addSyncListener(handleSyncStatus);
@@ -133,7 +133,7 @@ function App() {
         };
       } catch (error) {
         logger.error(
-          "Failed to setup sync listener",
+          'Failed to setup sync listener',
           { error: error.message },
           LOG_CATEGORIES.ERROR,
         );
@@ -154,8 +154,8 @@ function App() {
     // If sync is in progress, show a helpful message and don't navigate
     if (isSyncing) {
       addNotification(
-        "info",
-        "Please wait for data sync to complete before viewing attendance details.",
+        'info',
+        'Please wait for data sync to complete before viewing attendance details.',
         4000,
       );
       return;
@@ -175,21 +175,21 @@ function App() {
         // If no cached members found, the sync might not have completed yet
         if (!membersData || membersData.length === 0) {
           addNotification(
-            "warning",
-            "Member data not yet available. Please wait for sync to complete or try refreshing.",
+            'warning',
+            'Member data not yet available. Please wait for sync to complete or try refreshing.',
             6000,
           );
           return;
         }
       } catch (error) {
         logger.error(
-          "Error loading cached members",
+          'Error loading cached members',
           { error: error.message, sectionsInvolved },
           LOG_CATEGORIES.ERROR,
         );
         addNotification(
-          "error",
-          "Unable to load member data for attendance view. Please try refreshing the page.",
+          'error',
+          'Unable to load member data for attendance view. Please try refreshing the page.',
         );
         return;
       }
@@ -197,11 +197,11 @@ function App() {
 
     // Set new navigation data (will replace any existing data)
     setNavigationData({ events, members: membersData });
-    setCurrentView("attendance");
+    setCurrentView('attendance');
   };
 
   const handleBackToDashboard = () => {
-    setCurrentView("dashboard");
+    setCurrentView('dashboard');
     setNavigationData({}); // Restore: Clear navigation data for proper state management
   };
 
@@ -230,12 +230,12 @@ function App() {
             onClick={() => {
               clearAllStorage();
               addNotification(
-                "success",
-                "All storage cleared successfully. Reloading...",
+                'success',
+                'All storage cleared successfully. Reloading...',
                 2000,
               );
               setTimeout(() => {
-                window.location.href = "/dashboard";
+                window.location.href = '/dashboard';
               }, 2000);
             }}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -244,7 +244,7 @@ function App() {
             Clear All Storage & Reload
           </button>
           <button
-            onClick={() => (window.location.href = "/dashboard")}
+            onClick={() => (window.location.href = '/dashboard')}
             className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
             data-oid=":fw25h:"
           >
@@ -274,28 +274,28 @@ function App() {
     // Helper to extract unique sections from events
 
     switch (currentView) {
-      case "attendance": {
-        const uniqueSections = getUniqueSectionsFromEvents(
-          navigationData.events,
-        );
+    case 'attendance': {
+      const uniqueSections = getUniqueSectionsFromEvents(
+        navigationData.events,
+      );
 
-        return (
-          <AttendanceView
-            sections={uniqueSections}
-            events={navigationData.events || []}
-            members={navigationData.members || []} // Loaded from cache
-            onBack={handleBackToDashboard}
-            data-oid="pnmv_kh"
-          />
-        );
-      }
-      default:
-        return (
-          <EventDashboard
-            onNavigateToAttendance={handleNavigateToAttendance}
-            data-oid="bs.j_-c"
-          />
-        );
+      return (
+        <AttendanceView
+          sections={uniqueSections}
+          events={navigationData.events || []}
+          members={navigationData.members || []} // Loaded from cache
+          onBack={handleBackToDashboard}
+          data-oid="pnmv_kh"
+        />
+      );
+    }
+    default:
+      return (
+        <EventDashboard
+          onNavigateToAttendance={handleNavigateToAttendance}
+          data-oid="bs.j_-c"
+        />
+      );
     }
   };
 
@@ -359,7 +359,7 @@ function App() {
         >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
-            style={{ maxWidth: "400px" }}
+            style={{ maxWidth: '400px' }}
             data-oid="_05cnqk"
           >
             {notifications.map((notification) => (
