@@ -28,7 +28,7 @@ function ResponsiveLayout({
   const LayoutComponent = isMobile ? MobileLayout : DesktopLayout;
 
   return (
-    <div data-testid="responsive-layout" className="h-full" data-oid="9quy.0u">
+    <div data-testid="responsive-layout" className="h-full" data-oid="z6:bgu7">
       <LayoutComponent
         user={user}
         onLogout={onLogout}
@@ -38,7 +38,7 @@ function ResponsiveLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="9v3ku7-"
+        data-oid="_1-l1h0"
       >
         {children}
       </LayoutComponent>

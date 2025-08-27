@@ -201,7 +201,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-      data-oid="ywuwb5c"
+      data-oid="4a:p5i2"
     >
       <div
         ref={modalRef}
@@ -213,51 +213,51 @@ function MemberDetailModal({ member, isOpen, onClose }) {
           bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden
           ${isMobile ? "mx-2" : "mx-4"}
         `}
-        data-oid="f4imcmr"
+        data-oid="-nqy1gk"
       >
         {/* Header */}
         <div
           className="bg-scout-blue text-white px-6 py-4 flex items-center justify-between"
-          data-oid="rxvgml3"
+          data-oid="0w81yxn"
         >
-          <div className="flex items-center space-x-4" data-oid="8moxtkd">
-            <div className="flex-shrink-0" data-oid="ym79v81">
+          <div className="flex items-center space-x-4" data-oid="s48hbia">
+            <div className="flex-shrink-0" data-oid="jhbdbsm">
               {member.photo_guid ? (
                 <img
                   src={`/api/photo/${member.photo_guid}`}
                   alt={`${member.firstname} ${member.lastname}`}
                   className="w-12 h-12 rounded-full object-cover"
-                  data-oid="q3wmkyw"
+                  data-oid="8w..8_t"
                 />
               ) : (
                 <div
                   className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold"
-                  data-oid=":gc9iu8"
+                  data-oid="ts8319g"
                 >
                   {member.firstname?.[0]}
                   {member.lastname?.[0]}
                 </div>
               )}
             </div>
-            <div data-oid="pvwi_.-">
+            <div data-oid="qo9qxuk">
               <h2
                 id={`member-modal-title-${member.member_id || member.scoutid}`}
                 className="text-xl font-semibold"
-                data-oid="94fw7.."
+                data-oid="ydxryqt"
               >
                 {member.firstname} {member.lastname}
               </h2>
               <div
                 id={`member-modal-description-${member.member_id || member.scoutid}`}
                 className="flex items-center space-x-2 text-scout-blue-light"
-                data-oid="we:3xbw"
+                data-oid="ssubb.5"
               >
-                {age && <span data-oid="vpyng:d">Age {age}</span>}
+                {age && <span data-oid="dlr.a_x">Age {age}</span>}
                 {member.patrol && (
-                  <span data-oid="tduel8k">• {member.patrol}</span>
+                  <span data-oid="cc.tx.o">• {member.patrol}</span>
                 )}
                 {!age && !member.patrol && (
-                  <span data-oid="-a79697">
+                  <span data-oid="v5wn5fm">
                     Member details and contact information
                   </span>
                 )}
@@ -267,21 +267,21 @@ function MemberDetailModal({ member, isOpen, onClose }) {
           <button
             onClick={onClose}
             className="text-white hover:text-scout-blue-light transition-colors"
-            data-oid="29l8yt6"
+            data-oid="oqfmm.o"
           >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              data-oid="b313s_o"
+              data-oid="tjvij6f"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M6 18L18 6M6 6l12 12"
-                data-oid="3a764pd"
+                data-oid="r1_8bsk"
               />
             </svg>
           </button>
@@ -291,44 +291,44 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         {errorNotification && (
           <div
             className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4 rounded"
-            data-oid="8nr6pnj"
+            data-oid="ws7wvy."
           >
-            <div className="flex items-center" data-oid="od98rj-">
+            <div className="flex items-center" data-oid="zx1e4ek">
               <svg
                 className="w-5 h-5 text-red-400 mr-3"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="t.ij:6e"
+                data-oid="xkzyiul"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
-                  data-oid="v71en_z"
+                  data-oid="ps.-nft"
                 />
               </svg>
-              <p className="text-sm text-red-700" data-oid="kdr61-g">
+              <p className="text-sm text-red-700" data-oid="oc5ok9u">
                 {errorNotification}
               </p>
               <button
                 onClick={() => setErrorNotification(null)}
                 className="ml-auto text-red-400 hover:text-red-600"
                 aria-label="Dismiss error"
-                data-oid="-f-xqfl"
+                data-oid="cq5cip4"
               >
                 <svg
                   className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  data-oid="w:g6t3e"
+                  data-oid="mfdgtl3"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M6 18L18 6M6 6l12 12"
-                    data-oid="4fi6nrh"
+                    data-oid="td1:l-j"
                   />
                 </svg>
               </button>
@@ -339,51 +339,51 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         {/* Content - Scrollable */}
         <div
           className="overflow-y-auto max-h-[calc(90vh-120px)]"
-          data-oid="-n:esyj"
+          data-oid="c6evg-j"
         >
-          <div className="p-6 space-y-6" data-oid="zsdzqqb">
+          <div className="p-6 space-y-6" data-oid="f:7u082">
             {/* Basic Information */}
-            <Card data-oid="01xj281">
-              <Card.Header data-oid="07n5jjn">
-                <Card.Title data-oid="8.yvvho">Basic Information</Card.Title>
+            <Card data-oid="pbzk4gk">
+              <Card.Header data-oid="adj.8h8">
+                <Card.Title data-oid="c56cxhk">Basic Information</Card.Title>
               </Card.Header>
-              <Card.Body className="space-y-3" data-oid="_3q93a3">
+              <Card.Body className="space-y-3" data-oid="c3959gi">
                 <div
                   className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                  data-oid="kdh.zyb"
+                  data-oid="5cmma5x"
                 >
-                  <div data-oid="y7rw3r.">
+                  <div data-oid=".0u8h_r">
                     <label
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      data-oid="nrqi5:0"
+                      data-oid="1_x6fxy"
                     >
                       Member ID
                     </label>
-                    <p className="text-sm text-gray-900" data-oid="laez2fy">
+                    <p className="text-sm text-gray-900" data-oid="oy4zgml">
                       {member.scoutid || member.member_id}
                     </p>
                   </div>
-                  <div data-oid="ef0:xbo">
+                  <div data-oid="ux8_pxo">
                     <label
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      data-oid="7v2y4ov"
+                      data-oid="qwx_7vd"
                     >
                       Date of Birth
                     </label>
-                    <p className="text-sm text-gray-900" data-oid="k09ubmn">
+                    <p className="text-sm text-gray-900" data-oid="w3:7qgm">
                       {member.date_of_birth
                         ? new Date(member.date_of_birth).toLocaleDateString()
                         : "Not provided"}
                     </p>
                   </div>
-                  <div data-oid="yp4.9i5">
+                  <div data-oid="jicupny">
                     <label
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      data-oid="crxxse1"
+                      data-oid="6f99mvw"
                     >
                       Section(s)
                     </label>
-                    <div className="flex flex-wrap gap-1" data-oid="g-.i28:">
+                    <div className="flex flex-wrap gap-1" data-oid="1fp8xb2">
                       {(() => {
                         const sections = (
                           member.sections || [member.sectionname]
@@ -394,7 +394,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                               key={idx}
                               variant="scout-blue"
                               size="sm"
-                              data-oid="ml:-dn0"
+                              data-oid="x9k1uyl"
                             >
                               {section}
                             </Badge>
@@ -402,7 +402,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                         ) : (
                           <span
                             className="text-sm text-gray-500"
-                            data-oid="yj:ob4n"
+                            data-oid=":mktyw7"
                           >
                             No sections assigned
                           </span>
@@ -410,10 +410,10 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                       })()}
                     </div>
                   </div>
-                  <div data-oid="3oy:3yh">
+                  <div data-oid="b17_do0">
                     <label
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      data-oid="an92-mi"
+                      data-oid="2:_mv-b"
                     >
                       Member Type
                     </label>
@@ -426,33 +426,33 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             : "scout-green"
                       }
                       size="sm"
-                      data-oid="c81807e"
+                      data-oid="_snnuwg"
                     >
                       {member.person_type || "Young People"}
                     </Badge>
                   </div>
                   {member.started && (
-                    <div data-oid="gei7w22">
+                    <div data-oid="b72e5m-">
                       <label
                         className="block text-sm font-medium text-gray-700 mb-1"
-                        data-oid="_0pz2:0"
+                        data-oid="du3fy4c"
                       >
                         Started
                       </label>
-                      <p className="text-sm text-gray-900" data-oid="ee:v6p:">
+                      <p className="text-sm text-gray-900" data-oid="705k0e2">
                         {new Date(member.started).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   {member.patrol_role_level_label && (
-                    <div data-oid="i6ifmvw">
+                    <div data-oid="jpbseuq">
                       <label
                         className="block text-sm font-medium text-gray-700 mb-1"
-                        data-oid="8151w3o"
+                        data-oid="1:x5cht"
                       >
                         Role
                       </label>
-                      <p className="text-sm text-gray-900" data-oid="qbu-b2u">
+                      <p className="text-sm text-gray-900" data-oid="uawxzfs">
                         {member.patrol_role_level_label}
                       </p>
                     </div>
@@ -463,25 +463,25 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
             {/* Contact Information */}
             {Object.entries(contactGroups).map(([groupKey, groupData]) => (
-              <Card key={groupKey} data-oid="hgjqjkh">
-                <Card.Header data-oid="4a30r.y">
-                  <Card.Title data-oid="8fgq8:j">
+              <Card key={groupKey} data-oid="_hcy7t3">
+                <Card.Header data-oid="ukfj_ep">
+                  <Card.Title data-oid="3ilra-k">
                     {groupLabels[groupKey] ||
                       groupKey
                         .replace(/_/g, " ")
                         .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Card.Title>
                 </Card.Header>
-                <Card.Body className="space-y-3" data-oid="aygme69">
+                <Card.Body className="space-y-3" data-oid="k1mgp:k">
                   <div
                     className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                    data-oid="y456o6c"
+                    data-oid="28l6-m6"
                   >
                     {Object.entries(groupData).map(([fieldKey, fieldValue]) => (
-                      <div key={fieldKey} data-oid="um:0p13">
+                      <div key={fieldKey} data-oid="vvzdn00">
                         <label
                           className="block text-sm font-medium text-gray-700 mb-1"
-                          data-oid="16_59cv"
+                          data-oid="0-.-z__"
                         >
                           {fieldKey
                             .replace(/_/g, " ")
@@ -499,7 +499,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             }}
                             aria-label={`Call ${fieldValue}`}
                             className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue focus:ring-offset-2 rounded"
-                            data-oid="306zxc6"
+                            data-oid="j21j0lb"
                           >
                             {fieldValue}
                           </button>
@@ -509,14 +509,14 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                             rel="noopener noreferrer"
                             aria-label={`Send email to ${fieldValue}`}
                             className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
-                            data-oid="yagu_db"
+                            data-oid="q4r:6l_"
                           >
                             {fieldValue}
                           </a>
                         ) : (
                           <p
                             className="text-sm text-gray-900 whitespace-pre-wrap"
-                            data-oid="l2z1kpf"
+                            data-oid="yj2ex-_"
                           >
                             {fieldValue}
                           </p>
@@ -531,28 +531,28 @@ function MemberDetailModal({ member, isOpen, onClose }) {
             {/* Legacy emergency contacts if available */}
             {member.emergency_contacts &&
               member.emergency_contacts.length > 0 && (
-                <Card data-oid="erbaup3">
-                  <Card.Header data-oid="6xehfy0">
-                    <Card.Title data-oid="fmpml34">
+                <Card data-oid="5j0ykq7">
+                  <Card.Header data-oid="50z4nlo">
+                    <Card.Title data-oid="9w1o:j5">
                       Emergency Contacts (Legacy)
                     </Card.Title>
                   </Card.Header>
-                  <Card.Body className="space-y-3" data-oid="2mwyb:b">
+                  <Card.Body className="space-y-3" data-oid="1n:bfai">
                     {member.emergency_contacts.map((contact, idx) => (
                       <div
                         key={idx}
                         className="border-b border-gray-200 pb-3 last:border-b-0"
-                        data-oid="jes78ij"
+                        data-oid="c074mao"
                       >
                         <div
                           className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                          data-oid="qqagav7"
+                          data-oid="n14le-2"
                         >
                           {Object.entries(contact).map(([key, value]) => (
-                            <div key={key} data-oid="w8p54sx">
+                            <div key={key} data-oid="0.tysyp">
                               <label
                                 className="block text-sm font-medium text-gray-700 mb-1"
-                                data-oid="of8cr-_"
+                                data-oid="s.mc1r:"
                               >
                                 {key
                                   .replace(/_/g, " ")
@@ -562,14 +562,14 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                                 <button
                                   onClick={() => handlePhoneCall(value)}
                                   className="text-sm text-scout-blue hover:text-scout-blue-dark underline cursor-pointer transition-colors"
-                                  data-oid="lzy._xg"
+                                  data-oid="wf8xba-"
                                 >
                                   {value}
                                 </button>
                               ) : (
                                 <p
                                   className="text-sm text-gray-900"
-                                  data-oid="c0rv:o-"
+                                  data-oid="vviarjy"
                                 >
                                   {value}
                                 </p>
@@ -585,34 +585,34 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
             {/* Medical Information (Legacy) */}
             {member.medical_notes && (
-              <Card data-oid="a6ly3q4">
-                <Card.Header data-oid="c.avpim">
-                  <Card.Title className="text-orange-600" data-oid="u-a3ewq">
+              <Card data-oid="eclf6u8">
+                <Card.Header data-oid="9bbs0g2">
+                  <Card.Title className="text-orange-600" data-oid=".-xz6ly">
                     Medical Information
                   </Card.Title>
                 </Card.Header>
-                <Card.Body data-oid="-xxy19r">
+                <Card.Body data-oid="nw510kb">
                   <div
                     className="bg-orange-50 border border-orange-200 rounded-md p-3"
-                    data-oid="4_kft_i"
+                    data-oid="f416b87"
                   >
-                    <div className="flex items-start" data-oid="7i5z0mj">
+                    <div className="flex items-start" data-oid="gctv:r0">
                       <svg
                         className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0"
                         fill="currentColor"
                         viewBox="0 0 20 20"
-                        data-oid="y2:o3zd"
+                        data-oid="oacqctv"
                       >
                         <path
                           fillRule="evenodd"
                           d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                           clipRule="evenodd"
-                          data-oid="02opa75"
+                          data-oid="al4klop"
                         />
                       </svg>
                       <p
                         className="text-sm text-orange-800 whitespace-pre-wrap"
-                        data-oid="5ydsm:f"
+                        data-oid="ng0s9d."
                       >
                         {member.medical_notes}
                       </p>
@@ -627,9 +627,9 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         {/* Footer */}
         <div
           className="bg-gray-50 px-6 py-4 flex justify-end"
-          data-oid="p9jm84c"
+          data-oid="kg_9nkz"
         >
-          <Button variant="outline" onClick={onClose} data-oid="a7u2zpz">
+          <Button variant="outline" onClick={onClose} data-oid="u6m635w">
             Close
           </Button>
         </div>

@@ -19,42 +19,42 @@ function AttendanceGrid({ data }) {
   const StatusCell = ({ count, status }) => (
     <td
       className={`px-3 py-2 text-center text-sm font-medium ${getStatusColor(status)}`}
-      data-oid="px3r:qe"
+      data-oid="r-rv-8e"
     >
       {count}
     </td>
   );
 
   const PersonTypeRow = ({ type, typeData }) => (
-    <tr className="border-b border-gray-200" data-oid="ofxqkc6">
+    <tr className="border-b border-gray-200" data-oid="wcrvaky">
       <td
         className="px-3 py-2 text-sm font-medium text-gray-900 bg-gray-50"
-        data-oid="hkw8cbx"
+        data-oid="ipjjxor"
       >
         {type}
       </td>
       <StatusCell
         count={typeData.attending}
         status="attending"
-        data-oid="v36-vog"
+        data-oid="bfb88h_"
       />
 
       <StatusCell
         count={typeData.notAttending}
         status="notAttending"
-        data-oid="5x9kkkn"
+        data-oid="k37_.00"
       />
 
       <StatusCell
         count={typeData.invited}
         status="invited"
-        data-oid="87-6533"
+        data-oid="apl7abw"
       />
 
       <StatusCell
         count={typeData.notInvited}
         status="notInvited"
-        data-oid="_7mkfby"
+        data-oid="64xxv1a"
       />
     </tr>
   );
@@ -69,79 +69,79 @@ function AttendanceGrid({ data }) {
   return (
     <div
       className="overflow-hidden rounded-lg border border-gray-200"
-      data-oid="vct_ys:"
+      data-oid="cvq.bwo"
     >
-      <table className="min-w-full divide-y divide-gray-200" data-oid="z594fk2">
-        <thead className="bg-gray-50" data-oid="2.:sae1">
-          <tr data-oid="xmspaq_">
+      <table className="min-w-full divide-y divide-gray-200" data-oid="epucw:u">
+        <thead className="bg-gray-50" data-oid="pd8zbk-">
+          <tr data-oid="_3hhftv">
             <th
               className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="ibi8k8g"
+              data-oid="7is:5yj"
             >
               Section
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="b5wq5c8"
+              data-oid="013_x-k"
             >
-              <span data-oid="x7c:fuw">Yes</span>
+              <span data-oid="19qz455">Yes</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="l0-u0th"
+              data-oid="-xiy5up"
             >
-              <span data-oid="suq9c1:">No</span>
+              <span data-oid="_5eyt2i">No</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="97ncb7p"
+              data-oid="zbtmyf3"
             >
-              <span data-oid="pbqi2o_">Invited</span>
+              <span data-oid=":kaigd-">Invited</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="-prgb_5"
+              data-oid="-_rgu-m"
             >
-              <span data-oid="t2735i-">Not Invited</span>
+              <span data-oid="wv3vvfh">Not Invited</span>
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200" data-oid="o_4c6td">
+        <tbody className="bg-white divide-y divide-gray-200" data-oid="g60igun">
           {Object.entries(data).map(([type, typeData]) => (
             <PersonTypeRow
               key={type}
               type={type}
               typeData={typeData}
-              data-oid="uz8zdr:"
+              data-oid="3hj1pvm"
             />
           ))}
 
           {/* Totals row */}
-          <tr className="bg-gray-50 font-medium" data-oid="0x5_ass">
-            <td className="px-3 py-2 text-sm text-gray-900" data-oid="jp3hnyy">
+          <tr className="bg-gray-50 font-medium" data-oid="l-hkkjw">
+            <td className="px-3 py-2 text-sm text-gray-900" data-oid="t:8zsrm">
               Total
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-green-800"
-              data-oid="7fm-ugv"
+              data-oid="bf5k-5c"
             >
               {getTotalByStatus("attending")}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-red-800"
-              data-oid="zxw6692"
+              data-oid="o1hy_fp"
             >
               {getTotalByStatus("notAttending")}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-yellow-800"
-              data-oid=":preo8_"
+              data-oid="m1b8uey"
             >
               {getTotalByStatus("invited")}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-gray-800"
-              data-oid="jbxntso"
+              data-oid=".66ttp."
             >
               {getTotalByStatus("notInvited")}
             </td>

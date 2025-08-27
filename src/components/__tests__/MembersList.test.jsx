@@ -79,7 +79,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid=".pk13uv"
+          data-oid="d0l:f5f"
         />,
       );
     });
@@ -93,7 +93,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="ys1rjb-"
+          data-oid="::a4:eu"
         />,
       );
     });
@@ -109,7 +109,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="31jiex0"
+          data-oid="8ktwnax"
         />,
       );
     });
@@ -127,7 +127,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="on14r-d"
+          data-oid="q51yk6u"
         />,
       );
     });
@@ -144,7 +144,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="2-x0o5y"
+          data-oid="e_rk:68"
         />,
       );
     });
@@ -161,7 +161,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="bt74hvx"
+          data-oid="mrlux_7"
         />,
       );
     });
@@ -181,7 +181,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="8ibu6:u"
+          data-oid="bmkj7:m"
         />,
       );
     });
@@ -207,7 +207,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="c:85heq"
+          data-oid="ifmkg_l"
         />,
       );
     });
@@ -223,7 +223,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="0:xknie"
+          data-oid="ep7opby"
         />,
       );
     });
@@ -244,7 +244,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="d.9-b8e"
+          data-oid="yb38gli"
         />,
       );
     });
@@ -266,7 +266,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="v.8880o"
+          data-oid="j6n6ed3"
         />,
       );
     });
@@ -287,7 +287,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="ly._41t"
+          data-oid="6zbx8z7"
         />,
       );
     });
@@ -308,7 +308,7 @@ describe("MembersList", () => {
         <MembersList
           sections={mockSections}
           onBack={mockOnBack}
-          data-oid="99cee0f"
+          data-oid="gdm6p_z"
         />,
       );
     });

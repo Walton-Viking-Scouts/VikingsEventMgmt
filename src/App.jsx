@@ -209,23 +209,23 @@ function App() {
   const ClearStorageView = () => (
     <div
       className="flex flex-col items-center justify-center min-h-screen p-8"
-      data-oid="zx0k-rc"
+      data-oid="-b_9821"
     >
       <div
         className="max-w-md w-full bg-white rounded-lg shadow-md p-6"
-        data-oid="di_tqak"
+        data-oid="i5e1z0-"
       >
         <h2
           className="text-2xl font-bold text-center mb-4 text-gray-800"
-          data-oid="ppc665o"
+          data-oid="utkzh9m"
         >
           Clear All Storage
         </h2>
-        <p className="text-gray-600 mb-6 text-center" data-oid="8iiizh3">
+        <p className="text-gray-600 mb-6 text-center" data-oid="g1uyclk">
           This will clear all cached data and reset the application to its
           initial state. You will need to log in again after clearing storage.
         </p>
-        <div className="space-y-3" data-oid="duo1t7a">
+        <div className="space-y-3" data-oid="arcuee-">
           <button
             onClick={() => {
               clearAllStorage();
@@ -239,14 +239,14 @@ function App() {
               }, 2000);
             }}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
-            data-oid="4qz1256"
+            data-oid="ivm.24n"
           >
             Clear All Storage & Reload
           </button>
           <button
             onClick={() => (window.location.href = "/dashboard")}
             className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
-            data-oid="n7ks_kt"
+            data-oid=":fw25h:"
           >
             Cancel
           </button>
@@ -259,12 +259,12 @@ function App() {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Checking authentication..." data-oid="hl6k:.3" />
+      <LoadingScreen message="Checking authentication..." data-oid="lhel7g:" />
     );
   }
 
   if (isBlocked) {
-    return <BlockedScreen data-oid="nlh2p9s" />;
+    return <BlockedScreen data-oid="pc2c_ng" />;
   }
 
   // Always show dashboard - authentication is now contextual via header
@@ -285,7 +285,7 @@ function App() {
             events={navigationData.events || []}
             members={navigationData.members || []} // Loaded from cache
             onBack={handleBackToDashboard}
-            data-oid="mec-uz:"
+            data-oid="pnmv_kh"
           />
         );
       }
@@ -293,21 +293,21 @@ function App() {
         return (
           <EventDashboard
             onNavigateToAttendance={handleNavigateToAttendance}
-            data-oid=":t7ibdg"
+            data-oid="bs.j_-c"
           />
         );
     }
   };
 
   return (
-    <ErrorBoundary name="App" logProps={false} data-oid="3jsscv2">
-      <div className="App" data-testid="app" data-oid="wuil5gn">
-        <ErrorBoundary name="Router" logProps={false} data-oid="yqgzusx">
-          <Router data-oid="yailn2.">
+    <ErrorBoundary name="App" logProps={false} data-oid=":wd210g">
+      <div className="App" data-testid="app" data-oid="j3qzdz4">
+        <ErrorBoundary name="Router" logProps={false} data-oid="w102jf7">
+          <Router data-oid="z2kr-jj">
             <ErrorBoundary
               name="ResponsiveLayout"
               logProps={false}
-              data-oid="89_q5h2"
+              data-oid="0nlh8i9"
             >
               <ResponsiveLayout
                 user={user}
@@ -319,30 +319,30 @@ function App() {
                 authState={authState}
                 lastSyncTime={lastSyncTime}
                 isRefreshing={isRefreshing}
-                data-oid="1r568ik"
+                data-oid="rag605e"
               >
                 <ErrorBoundary
                   name="Routes"
                   logProps={false}
-                  data-oid="v6-b-d5"
+                  data-oid="qj:9uog"
                 >
-                  <Routes data-oid="3krbtqe">
+                  <Routes data-oid="9yyh-se">
                     <Route
                       path="/"
                       element={renderCurrentView()}
-                      data-oid="6.z7z_b"
+                      data-oid=".q-63e3"
                     />
 
                     <Route
                       path="/dashboard"
                       element={renderCurrentView()}
-                      data-oid="excdc8s"
+                      data-oid="68j1bbx"
                     />
 
                     <Route
                       path="/clear"
-                      element={<ClearStorageView data-oid="kb1gdeu" />}
-                      data-oid="dej_u2z"
+                      element={<ClearStorageView data-oid="qv:-uqp" />}
+                      data-oid="bdxv:9k"
                     />
                   </Routes>
                 </ErrorBoundary>
@@ -355,12 +355,12 @@ function App() {
         <ErrorBoundary
           name="NotificationSystem"
           logProps={false}
-          data-oid="l4:87ib"
+          data-oid="4bf2r12"
         >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
             style={{ maxWidth: "400px" }}
-            data-oid="52yamet"
+            data-oid="_05cnqk"
           >
             {notifications.map((notification) => (
               <Alert
@@ -369,7 +369,7 @@ function App() {
                 dismissible={true}
                 onDismiss={() => removeNotification(notification.id)}
                 className="shadow-lg"
-                data-oid="xysfn1."
+                data-oid="j3q9sr_"
               >
                 {notification.message}
               </Alert>

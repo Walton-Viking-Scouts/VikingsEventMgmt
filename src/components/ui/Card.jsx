@@ -13,7 +13,7 @@ const Card = React.forwardRef(({ children, className = "", ...props }, ref) => {
         className,
       )}
       {...props}
-      data-oid="ng9zw96"
+      data-oid="j1ce1.b"
     >
       {children}
     </div>
@@ -29,7 +29,7 @@ const CardHeader = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
-      data-oid="pqirctl"
+      data-oid="gbbcmls"
     >
       {children}
     </div>
@@ -46,7 +46,7 @@ const CardTitle = ({
     <Component
       className={cn("text-lg font-semibold text-gray-900 m-0", className)}
       {...props}
-      data-oid="p9g7y6k"
+      data-oid="o7irigd"
     >
       {children}
     </Component>
@@ -55,7 +55,7 @@ const CardTitle = ({
 
 const CardBody = ({ children, className = "", ...props }) => {
   return (
-    <div className={cn("p-4", className)} {...props} data-oid="920-5kk">
+    <div className={cn("p-4", className)} {...props} data-oid="7.mogkm">
       {children}
     </div>
   );
@@ -69,7 +69,7 @@ const CardFooter = ({ children, className = "", ...props }) => {
         className,
       )}
       {...props}
-      data-oid="rxe0lta"
+      data-oid="xmi2wv0"
     >
       {children}
     </div>

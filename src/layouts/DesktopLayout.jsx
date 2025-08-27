@@ -16,9 +16,9 @@ function DesktopLayout({
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="desktop-layout"
-      data-oid="qeta6q0"
+      data-oid="ng59bc3"
     >
-      <OfflineIndicator hideBanner={true} data-oid="qb98ooh" />
+      <OfflineIndicator hideBanner={true} data-oid="vfr2pqb" />
 
       <DesktopHeader
         user={user}
@@ -28,18 +28,18 @@ function DesktopLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="wsqokoc"
+        data-oid="zesdbg9"
       />
 
-      <div className="flex-1" data-oid="2yar7se">
+      <div className="flex-1" data-oid="38t5gt4">
         <main
           className="h-full w-full"
           data-testid="desktop-main"
-          data-oid="2dpkgut"
+          data-oid="vw9-bd4"
         >
           <div
             className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-            data-oid="w6r_od0"
+            data-oid="e.t3iu6"
           >
             {children}
           </div>

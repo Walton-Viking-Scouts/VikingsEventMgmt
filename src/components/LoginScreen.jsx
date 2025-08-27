@@ -24,17 +24,17 @@ function LoginScreen({ onLogin }) {
     <div
       className="flex items-center justify-center min-h-screen p-4 bg-gray-50"
       data-testid="login-screen"
-      data-oid="ji9tvol"
+      data-oid="u.crj:h"
     >
-      <Card className="w-full max-w-md" data-oid="m-8ihaq">
-        <Card.Body className="p-8 text-center" data-oid="nusgu93">
+      <Card className="w-full max-w-md" data-oid="ynoyn.o">
+        <Card.Body className="p-8 text-center" data-oid="f7ooz3v">
           <h1
             className="text-2xl font-bold text-gray-900 mb-4"
-            data-oid="moh_lqs"
+            data-oid=".8yydaf"
           >
             Vikings Event Management
           </h1>
-          <p className="text-gray-600 mb-6" data-oid="552l2q.">
+          <p className="text-gray-600 mb-6" data-oid="a:4fdi0">
             Please log in with your Online Scout Manager account to continue.
           </p>
           <Button
@@ -43,7 +43,7 @@ function LoginScreen({ onLogin }) {
             onClick={handleLoginClick}
             className="w-full"
             data-testid="login-button"
-            data-oid="93e_8ak"
+            data-oid="zwhord4"
           >
             Login with Online Scout Manager (OSM)
           </Button>

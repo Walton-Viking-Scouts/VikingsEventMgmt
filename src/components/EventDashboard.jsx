@@ -824,20 +824,20 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading dashboard..." data-oid="b32-7l0" />;
+    return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4" data-oid="6lzkhvh">
-        <Alert.Title data-oid="e:qifhi">Error Loading Dashboard</Alert.Title>
-        <Alert.Description data-oid=".48l2dd">{error}</Alert.Description>
-        <Alert.Actions data-oid="bp3w0zt">
+      <Alert variant="danger" className="m-4" data-oid="3oq.x.h">
+        <Alert.Title data-oid="d:fjt2d">Error Loading Dashboard</Alert.Title>
+        <Alert.Description data-oid="4uunsvb">{error}</Alert.Description>
+        <Alert.Actions data-oid="bd0v.w-">
           <Button
             variant="scout-blue"
             onClick={loadInitialData}
             type="button"
-            data-oid="rpkhgsa"
+            data-oid="ahnj4wa"
           >
             Retry
           </Button>
@@ -847,22 +847,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" data-oid="5aebgyo">
+    <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
       {/* Header with sync info */}
       <div
         className="bg-white shadow-sm border-b border-gray-200 mb-6"
-        data-oid="8n311j1"
+        data-oid="pprvno2"
       >
         <div
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"
-          data-oid="_-7ef01"
+          data-oid="09tusng"
         >
-          <div className="flex justify-between items-center" data-oid="f07s8xn">
-            <div data-oid="w.b-ap9">
+          <div className="flex justify-between items-center" data-oid="3562u3z">
+            <div data-oid="dk-vy.7">
               {/* Clean tab-style navigation */}
               <div
                 className="flex bg-gray-100 rounded-lg p-1"
-                data-oid="kxt2v59"
+                data-oid="1dr4vod"
               >
                 <button
                   onClick={() => setCurrentView("events")}
@@ -871,7 +871,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
                   }`}
-                  data-oid="omxn_i4"
+                  data-oid="244:g6c"
                 >
                   📅 Events
                 </button>
@@ -882,7 +882,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
                   }`}
-                  data-oid="wu2muv0"
+                  data-oid="l7nly.4"
                 >
                   👥 Sections
                 </button>
@@ -890,8 +890,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
               {/* Show queue stats if active */}
               {(queueStats.processing || queueStats.queueLength > 0) && (
-                <div className="mt-2" data-oid="gv:qy_k">
-                  <p className="text-xs text-blue-600" data-oid="9fne_n2">
+                <div className="mt-2" data-oid="t::a22m">
+                  <p className="text-xs text-blue-600" data-oid="mvnlyr9">
                     API Queue: {queueStats.processing ? "Processing" : "Idle"} •
                     {queueStats.queueLength} pending •{" "}
                     {queueStats.totalRequests} total
@@ -905,39 +905,39 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-        data-oid="tn_j81j"
+        data-oid="zza2fzu"
       >
         {/* Sections Card */}
         {currentView === "sections" && (
-          <div className="mb-8" data-testid="sections-list" data-oid="_gzf4f5">
+          <div className="mb-8" data-testid="sections-list" data-oid="883.3lx">
             <SectionsList
               sections={sections}
               selectedSections={selectedSections}
               onSectionToggle={handleSectionToggleForCard}
               showContinueButton={false}
               loadingSection={loadingSection}
-              data-oid="otpjc_t"
+              data-oid="dmp670d"
             />
           </div>
         )}
 
         {/* Events Card */}
         {currentView === "events" && (
-          <Card data-oid="pn6xrsm">
-            <div className="border-b px-4 py-3" data-oid="u-m-xx:">
+          <Card data-oid="ve3fjt:">
+            <div className="border-b px-4 py-3" data-oid="gycj.jl">
               <h2
                 className="text-base font-semibold leading-6 text-gray-900"
-                data-oid="bwxq9dn"
+                data-oid="96:-cg1"
               >
                 Upcoming Events{" "}
                 {eventCards.length > 0 && `(${eventCards.length})`}
               </h2>
             </div>
-            <div className="p-4" data-oid=":m6n9xi">
+            <div className="p-4" data-oid="tw4z.r8">
               {eventCards.length > 0 ? (
                 <div
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                  data-oid="9jmk454"
+                  data-oid="0lg715h"
                 >
                   {eventCards.map((card) => (
                     <EventCard
@@ -945,36 +945,36 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       eventCard={card}
                       onViewAttendees={handleViewAttendees}
                       loading={loadingAttendees === card.id}
-                      data-oid="29qv_bw"
+                      data-oid="9uno.dz"
                     />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12" data-oid="pg-96ju">
-                  <div className="text-gray-500 mb-4" data-oid="q79o0tl">
+                <div className="text-center py-12" data-oid="h2.dcru">
+                  <div className="text-gray-500 mb-4" data-oid="04h4e3l">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
-                      data-oid="j66ua-8"
+                      data-oid="vbk6.13"
                     >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
                         d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
-                        data-oid="ucqqwto"
+                        data-oid="n_dlzww"
                       />
                     </svg>
                   </div>
                   <h3
                     className="text-lg font-semibold text-gray-900 mb-2"
-                    data-oid="8o-lare"
+                    data-oid="dvun05:"
                   >
                     No Upcoming Events
                   </h3>
-                  <p className="text-gray-600 mb-4" data-oid="a4nt7st">
+                  <p className="text-gray-600 mb-4" data-oid="p1iqx11">
                     {!lastSync
                       ? 'Click "Sign in to OSM" in the header to retrieve event data.'
                       : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
@@ -1001,7 +1001,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             setLoadingSection(null);
           })
         }
-        data-oid="vrau.yn"
+        data-oid="7pfgrfw"
       />
     </div>
   );

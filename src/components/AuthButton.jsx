@@ -99,7 +99,7 @@ function AuthButton({
       className={`auth-button ${className}`}
       data-testid="auth-button"
       {...rest}
-      data-oid="0gv2d19"
+      data-oid="14si21j"
     >
       {config.text}
     </Button>
