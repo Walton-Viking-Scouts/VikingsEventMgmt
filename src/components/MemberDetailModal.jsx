@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Badge, Card } from './ui';
 import { isMobileLayout } from '../utils/platform.js';
+import { groupContactInfo } from '../utils/contactGroups.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -151,32 +152,6 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     }
   };
 
-  // Helper function to group contact information
-  const groupContactInfo = (member) => {
-    const groups = {};
-
-    // Process flattened contact fields
-    Object.entries(member).forEach(([key, value]) => {
-      if (key.includes('__') && value) {
-        const [groupName, fieldName] = key.split('__');
-        if (!groups[groupName]) {
-          groups[groupName] = {};
-        }
-        groups[groupName][fieldName] = value;
-      }
-    });
-
-    // Add legacy fields to appropriate groups
-    if (member.email || member.phone) {
-      if (!groups.member_contact) {
-        groups.member_contact = {};
-      }
-      if (member.email) groups.member_contact.email = member.email;
-      if (member.phone) groups.member_contact.phone = member.phone;
-    }
-
-    return groups;
-  };
 
   const contactGroups = groupContactInfo(member);
   const age = calculateAge(member.date_of_birth);

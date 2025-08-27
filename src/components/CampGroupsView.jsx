@@ -5,17 +5,14 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { Alert, Button } from './ui';
+import { Alert, Button, Badge } from './ui';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import GroupNamesEditModal from './GroupNamesEditModal.jsx';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 // import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
-import {
-  fetchMostRecentTermId,
-  multiUpdateFlexiRecord,
-} from '../services/api.js';
+import { fetchMostRecentTermId, multiUpdateFlexiRecord } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import { isMobileLayout } from '../utils/platform.js';
@@ -25,10 +22,7 @@ import {
   validateMemberMove,
 } from '../services/campGroupAllocationService.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
-import {
-  findMemberSectionType,
-  findMemberSectionName,
-} from '../utils/sectionHelpers.js';
+import { findMemberSectionType, findMemberSectionName } from '../utils/sectionHelpers.js';
 import { isDemoMode } from '../config/demoMode.js';
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 
@@ -40,90 +34,83 @@ function organizeAttendeesSimple(attendees) {
   const groups = {};
   let totalMembers = 0;
   const seenMembers = new Set(); // Track duplicates
-
+  
   attendees.forEach((member) => {
     // Skip if no member data
     if (!member) return;
-
+    
     // Filter out Leaders, Young Leaders, and other special roles (patrol_id: -2, -3, -99)
-    if (
-      member.person_type === 'Leaders' ||
-      member.person_type === 'Young Leaders'
-    ) {
+    if (member.person_type === 'Leaders' || member.person_type === 'Young Leaders') {
       return;
     }
-
+    
     // Additional filter for special negative patrol IDs that might not have been converted to person_type
     const patrolId = Number(member.patrol_id ?? member.patrolid ?? 0);
     if (patrolId === -2 || patrolId === -3 || patrolId === -99) {
       return;
     }
-
+    
     // Check for duplicates - same member in multiple events
     const memberId = member.scoutid;
     if (seenMembers.has(memberId)) {
-      logger.warn(
-        'Duplicate member detected - skipping second occurrence',
-        {
-          name: member.name,
-          scoutid: memberId,
-        },
-        LOG_CATEGORIES.APP,
-      );
+      logger.warn('Duplicate member detected - skipping second occurrence', {
+        name: member.name,
+        scoutid: memberId,
+      }, LOG_CATEGORIES.APP);
       return;
     }
     seenMembers.add(memberId);
-
+    
     // Get camp group from Viking Event data
     const campGroup = member.vikingEventData?.CampGroup;
     const groupName = campGroup ? `Group ${campGroup}` : 'Group Unassigned';
-
+    
     // Initialize group if it doesn't exist
     if (!groups[groupName]) {
       groups[groupName] = {
         name: groupName,
         number: campGroup || 'Unassigned',
-        leaders: [],
+        leaders: [], 
         youngPeople: [],
         totalMembers: 0,
       };
     }
-
+    
     // Add member with name split for drag functionality
     const memberWithNames = {
       ...member,
       firstname: member.name?.split(' ')[0] || 'Unknown',
       lastname: member.name?.split(' ').slice(1).join(' ') || '',
     };
-
+    
     groups[groupName].youngPeople.push(memberWithNames);
     groups[groupName].totalMembers++;
     totalMembers++;
   });
-
+  
   // Sort groups by number (Unassigned goes last)
   const sortedGroupNames = Object.keys(groups).sort((a, b) => {
     if (a === 'Group Unassigned') return 1;
     if (b === 'Group Unassigned') return -1;
-
+    
     const aNum = parseInt(a.replace('Group ', '')) || 0;
     const bNum = parseInt(b.replace('Group ', '')) || 0;
     return aNum - bNum;
   });
-
+  
   // Create sorted groups object
   const sortedGroups = {};
-  sortedGroupNames.forEach((groupName) => {
+  sortedGroupNames.forEach(groupName => {
     const group = groups[groupName];
-
+    
     // Sort members within each group by name
     group.youngPeople.sort((a, b) => {
       return (a.name || '').localeCompare(b.name || '');
     });
-
+    
     sortedGroups[groupName] = group;
   });
-
+  
   return {
     groups: sortedGroups,
     summary: {
@@ -249,7 +236,7 @@ function CampGroupsView({
   const [draggingMemberId, setDraggingMemberId] = useState(null);
 
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
-
+  
   const [toastMessage, setToastMessage] = useState(null); // Success/error messages
 
   // Group names editing state
@@ -267,8 +254,10 @@ function CampGroupsView({
   // Cache parsed sections data to avoid JSON.parse on every drag operation
   const sectionsCache = useMemo(() => {
     try {
+      const demoMode = isDemoMode();
+      const cacheKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
       return JSON.parse(
-        localStorage.getItem('viking_sections_offline') || '[]',
+        localStorage.getItem(cacheKey) || '[]',
       );
     } catch (error) {
       logger.error(
@@ -376,9 +365,7 @@ function CampGroupsView({
         organized.campGroupData = primaryCampGroupData;
 
         // Update viking event data availability based on actual data presence
-        organized.summary.vikingEventDataAvailable = Boolean(
-          primaryCampGroupData && Object.keys(primaryCampGroupData).length,
-        );
+        organized.summary.vikingEventDataAvailable = Boolean(primaryCampGroupData && Object.keys(primaryCampGroupData).length);
 
         // Final check before setting state
         if (abortController.signal.aborted) return;
@@ -447,8 +434,10 @@ function CampGroupsView({
     // Find the full member data from the members prop (like Register tab does)
     // Convert scoutid to number for comparison (members array has numeric scoutids)
     const scoutidAsNumber = parseInt(member.scoutid, 10);
-    const cachedMember = members?.find((m) => m.scoutid === scoutidAsNumber);
-
+    const cachedMember = members?.find(
+      (m) => m.scoutid === scoutidAsNumber,
+    );
+    
     let enrichedMember;
     if (cachedMember) {
       // Use the same transformMemberForModal that Register uses
@@ -472,35 +461,20 @@ function CampGroupsView({
         sectionid: cachedMember.sectionid || cachedMember.section_id,
         person_type: member.person_type || cachedMember.person_type,
         has_photo: cachedMember.has_photo,
-        sections: [
-          findMemberSectionName(
-            cachedMember.sectionid || cachedMember.section_id,
-            sectionsCache,
-          ) ||
-            member.sectionname ||
-            'Unknown',
-        ],
-
-        sectionname:
-          findMemberSectionName(
-            cachedMember.sectionid || cachedMember.section_id,
-            sectionsCache,
-          ) || member.sectionname, // Also set sectionname for consistency
+        sections: [findMemberSectionName(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname || 'Unknown'],
+        sectionname: findMemberSectionName(cachedMember.sectionid || cachedMember.section_id, sectionsCache) || member.sectionname, // Also set sectionname for consistency
       };
     } else {
       // Fallback to the simplified member data if no cached member found
       // Try to resolve section for simplified member too
-      const memberSectionName = findMemberSectionName(
-        member.sectionid,
-        sectionsCache,
-      );
+      const memberSectionName = findMemberSectionName(member.sectionid, sectionsCache);
       enrichedMember = {
         ...member,
         sections: [memberSectionName || member.sectionname || 'Unknown'],
         sectionname: memberSectionName || member.sectionname,
       };
     }
-
+    
     setSelectedMember(enrichedMember);
     setShowMemberModal(true);
   };
@@ -512,28 +486,25 @@ function CampGroupsView({
   };
 
   // Drag and drop handlers
-  const handleDragStart = useCallback(
-    (dragData) => {
-      // Prevent overlapping drag operations
-      if (pendingMoves.size > 0) {
-        return;
-      }
+  const handleDragStart = useCallback((dragData) => {
+    // Prevent overlapping drag operations
+    if (pendingMoves.size > 0) {
+      return;
+    }
 
-      setIsDragInProgress(true);
-      setDraggingMemberId(dragData.memberId);
+    setIsDragInProgress(true);
+    setDraggingMemberId(dragData.memberId);
 
-      logger.debug(
-        'Drag operation started',
-        {
-          memberId: dragData.memberId,
-          memberName: dragData.memberName,
-          fromGroup: dragData.fromGroupName,
-        },
-        LOG_CATEGORIES.APP,
-      );
-    },
-    [pendingMoves.size],
-  );
+    logger.debug(
+      'Drag operation started',
+      {
+        memberId: dragData.memberId,
+        memberName: dragData.memberName,
+        fromGroup: dragData.fromGroupName,
+      },
+      LOG_CATEGORIES.APP,
+    );
+  }, [pendingMoves.size]);
 
   const handleDragEnd = useCallback(() => {
     // Only clear the drag-in-progress state, but keep draggingMemberId
@@ -545,11 +516,7 @@ function CampGroupsView({
     setTimeout(() => {
       setDraggingMemberId((currentId) => {
         if (currentId !== null) {
-          logger.debug(
-            'Drag state cleared by safety timeout - no move operation occurred',
-            {},
-            LOG_CATEGORIES.APP,
-          );
+          logger.debug('Drag state cleared by safety timeout - no move operation occurred', {}, LOG_CATEGORIES.APP);
           return null;
         }
         return currentId;
@@ -561,17 +528,13 @@ function CampGroupsView({
   const showToast = useCallback((type, message) => {
     // Log error toast messages for debugging
     if (type === 'error') {
-      logger.error(
-        'Toast Error Message',
-        {
-          message,
-          type,
-          timestamp: new Date().toISOString(),
-        },
-        LOG_CATEGORIES.COMPONENT,
-      );
+      logger.error('Toast Error Message', {
+        message,
+        type,
+        timestamp: new Date().toISOString(),
+      }, LOG_CATEGORIES.COMPONENT);
     }
-
+    
     // Clear any existing timeout
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
@@ -624,30 +587,18 @@ function CampGroupsView({
         // Check if member already exists in target group
         const targetGroup = groups[moveData.toGroupName];
         if (!targetGroup) {
-          logger.warn(
-            'Target group not found, skipping optimistic update',
-            {
-              toGroupName: moveData.toGroupName,
-            },
-            LOG_CATEGORIES.APP,
-          );
+          logger.warn('Target group not found, skipping optimistic update', {
+            toGroupName: moveData.toGroupName,
+          }, LOG_CATEGORIES.APP);
           return prevGroups;
         }
-
-        const targetYoungPeople = Array.isArray(targetGroup.youngPeople)
-          ? targetGroup.youngPeople
-          : [];
-        if (
-          targetYoungPeople.some((m) => m.scoutid === moveData.member.scoutid)
-        ) {
-          logger.warn(
-            'Member already in target group, skipping optimistic update',
-            {
-              memberId: moveData.member.scoutid,
-              targetGroup: moveData.toGroupName,
-            },
-            LOG_CATEGORIES.APP,
-          );
+        
+        const targetYoungPeople = Array.isArray(targetGroup.youngPeople) ? targetGroup.youngPeople : [];
+        if (targetYoungPeople.some(m => m.scoutid === moveData.member.scoutid)) {
+          logger.warn('Member already in target group, skipping optimistic update', {
+            memberId: moveData.member.scoutid,
+            targetGroup: moveData.toGroupName,
+          }, LOG_CATEGORIES.APP);
           return prevGroups;
         }
 
@@ -734,66 +685,48 @@ function CampGroupsView({
    * Update camp group assignment in demo mode cache
    * In demo mode, we standardize on f_1 for CampGroup field
    */
-  const updateDemoCampGroupAssignment = useCallback(
-    (member, newGroupNumber, memberSectionId) => {
-      // In demo mode, we use standardized flexi record ID and term
-      const flexirecordid = 'flexi_viking_event';
-      const termid = '12345';
-      const cacheKey = `viking_flexi_data_${flexirecordid}_${memberSectionId}_${termid}_offline`;
-
-      const cached = safeGetItem(cacheKey, { items: [] });
-
-      // Convert scoutid to match the type in cache (both to numbers for comparison)
-      const memberScoutId = Number(member.scoutid);
-      const memberIndex = cached.items.findIndex(
-        (m) => Number(m.scoutid) === memberScoutId,
-      );
-
-      if (memberIndex >= 0) {
-        // Update the CampGroup field (f_1 in demo mode)
-        cached.items[memberIndex].f_1 =
-          newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
-        // Also update the CampGroup field for consistency
-        cached.items[memberIndex].CampGroup =
-          newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
-        safeSetItem(cacheKey, cached);
-
-        logger.info(
-          'Demo mode: Updated camp group in cache',
-          {
-            memberId: member.scoutid,
-            memberName: member.name,
-            newGroup: newGroupNumber,
-            cacheKey,
-          },
-          LOG_CATEGORIES.APP,
-        );
-      } else {
-        logger.warn(
-          'Demo mode: Member not found in cache',
-          {
-            memberId: member.scoutid,
-            memberScoutId,
-            cacheKey,
-            cachedScoutIds: cached.items.map((m) => m.scoutid).slice(0, 5), // Show first 5 for debugging
-          },
-          LOG_CATEGORIES.APP,
-        );
-      }
-    },
-    [],
-  );
+  const updateDemoCampGroupAssignment = useCallback((member, newGroupNumber, memberSectionId) => {
+    // In demo mode, we use standardized flexi record ID and term
+    const flexirecordid = 'flexi_viking_event';
+    const termid = '12345';
+    const cacheKey = `viking_flexi_data_${flexirecordid}_${memberSectionId}_${termid}_offline`;
+    
+    const cached = safeGetItem(cacheKey, { items: [] });
+    
+    // Convert scoutid to match the type in cache (both to numbers for comparison)
+    const memberScoutId = Number(member.scoutid);
+    const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === memberScoutId);
+    
+    if (memberIndex >= 0) {
+      // Update the CampGroup field (f_1 in demo mode)
+      cached.items[memberIndex].f_1 = newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
+      // Also update the CampGroup field for consistency
+      cached.items[memberIndex].CampGroup = newGroupNumber === 'Unassigned' ? '' : newGroupNumber.toString();
+      safeSetItem(cacheKey, cached);
+      
+      logger.info('Demo mode: Updated camp group in cache', {
+        memberId: member.scoutid,
+        memberName: member.name,
+        newGroup: newGroupNumber,
+        cacheKey,
+      }, LOG_CATEGORIES.APP);
+    } else {
+      logger.warn('Demo mode: Member not found in cache', {
+        memberId: member.scoutid,
+        memberScoutId,
+        cacheKey,
+        cachedScoutIds: cached.items.map(m => m.scoutid).slice(0, 5), // Show first 5 for debugging
+      }, LOG_CATEGORIES.APP);
+    }
+  }, []);
 
   // Handle member move between groups
   const handleMemberMove = useCallback(
     async (moveData) => {
       // Check if we're in demo mode first
       if (isDemoMode()) {
-        const memberName =
-          moveData.member.name ||
-          `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() ||
-          'Unknown Member';
-
+        const memberName = moveData.member.name || `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() || 'Unknown Member';
+        
         // Validate the move
         const validation = validateMemberMove(
           moveData.member,
@@ -804,39 +737,31 @@ function CampGroupsView({
           showToast('error', validation.error);
           return;
         }
-
-        logger.info(
-          'Demo mode: Processing member move (cache-only)',
-          {
-            memberId: moveData.member.scoutid,
-            memberName,
-            fromGroup: moveData.fromGroupName,
-            toGroup: moveData.toGroupName,
-          },
-          LOG_CATEGORIES.APP,
-        );
-
+        
+        logger.info('Demo mode: Processing member move (cache-only)', {
+          memberId: moveData.member.scoutid,
+          memberName,
+          fromGroup: moveData.fromGroupName,
+          toGroup: moveData.toGroupName,
+        }, LOG_CATEGORIES.APP);
+        
         // 1. Optimistic UI update
         updateGroupsOptimistically(moveData);
-
+        
         // 2. Update cache in demo mode
         // In demo mode, use the first available section since all sections share the same event
         const memberSectionId = moveData.member.sectionid || 11107; // Default to Adults section
-        updateDemoCampGroupAssignment(
-          moveData.member,
-          moveData.toGroupNumber,
-          memberSectionId,
-        );
-
+        updateDemoCampGroupAssignment(moveData.member, moveData.toGroupNumber, memberSectionId);
+        
         // 3. Show success message
         showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
-
+        
         // The optimistic update already handles the UI update
         // The cache has been updated so next reload will show correct data
-
+        
         return; // Exit early for demo mode
       }
-
+      
       // Production mode - existing logic
       if (
         !flexiRecordContext &&
@@ -860,17 +785,11 @@ function CampGroupsView({
         return;
       }
 
-      const memberName =
-        moveData.member.name ||
-        `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() ||
-        'Unknown Member';
+      const memberName = moveData.member.name || `${moveData.member.firstname || ''} ${moveData.member.lastname || ''}`.trim() || 'Unknown Member';
 
       // Get the correct section type for THIS specific member
       const memberSectionId = moveData.member.sectionid;
-      const memberSectionType = findMemberSectionType(
-        memberSectionId,
-        sectionsCache,
-      );
+      const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
 
       if (!memberSectionType) {
         showToast(
@@ -958,25 +877,22 @@ function CampGroupsView({
           // This prevents stuck drag states when component remounts
           setDraggingMemberId(null);
           setIsDragInProgress(false);
-
+          
           // Remove from pending moves (CRITICAL: This re-enables drag functionality)
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
             newMap.delete(moveId);
             return newMap;
           });
-
+          
           // Show success toast
-          showToast(
-            'success',
-            `${memberName} moved to ${moveData.toGroupName}`,
-          );
-
+          showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+          
           // Only do heavy cache updates if component is still mounted
           if (!isMountedRef.current) {
             return;
           }
-
+          
           // 4. Update local FlexiRecord cache after successful OSM sync
           const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
           let cachedData = {};
@@ -1044,9 +960,7 @@ function CampGroupsView({
             LOG_CATEGORIES.APP,
           );
         } else {
-          throw new Error(
-            result?.error || result?.message || 'API call failed',
-          );
+          throw new Error(result?.error || result?.message || 'API call failed');
         }
       } catch (error) {
         // Error syncing to OSM - revert UI change and show error
@@ -1065,7 +979,7 @@ function CampGroupsView({
           // Clear ALL drag states and pending moves on error
           setIsDragInProgress(false);
           setDraggingMemberId(null);
-
+          
           // Remove from pending moves (CRITICAL: This re-enables drag functionality)
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
@@ -1091,498 +1005,384 @@ function CampGroupsView({
   );
 
   // Handle group rename operations
-  const handleGroupRename = useCallback(
-    async (oldGroupName, newGroupName, membersBySection) => {
-      if (!flexiRecordContext) {
-        showToast(
-          'error',
-          'Cannot rename groups: FlexiRecord data not available',
-        );
-        return;
+  const handleGroupRename = useCallback(async (oldGroupName, newGroupName, membersBySection) => {
+    if (!flexiRecordContext) {
+      showToast('error', 'Cannot rename groups: FlexiRecord data not available');
+      return;
+    }
+
+    setGroupRenameLoading(true);
+
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
       }
 
-      setGroupRenameLoading(true);
+      logger.info('Starting group rename operation', {
+        oldGroupName,
+        newGroupName,
+        sectionsCount: Object.keys(membersBySection).length,
+        totalMembers: Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0),
+      }, LOG_CATEGORIES.APP);
 
-      try {
-        const token = getToken();
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
+      let successfulUpdates = 0;
+      let failedUpdates = 0;
+      const errors = [];
 
-        logger.info(
-          'Starting group rename operation',
-          {
-            oldGroupName,
-            newGroupName,
-            sectionsCount: Object.keys(membersBySection).length,
-            totalMembers: Object.values(membersBySection).reduce(
-              (sum, members) => sum + members.length,
-              0,
-            ),
-          },
-          LOG_CATEGORIES.APP,
-        );
+      // Process each section separately
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
 
-        let successfulUpdates = 0;
-        let failedUpdates = 0;
-        const errors = [];
-
-        // Process each section separately
-        for (const [sectionId, members] of Object.entries(membersBySection)) {
-          if (members.length === 0) continue;
-
-          try {
-            const scoutIds = Array.from(
-              new Set(members.map((member) => String(member.scoutid))),
-            );
-            if (!/^f_\d+$/.test(String(flexiRecordContext.columnid))) {
-              throw new Error(
-                `Invalid FlexiRecord field ID '${flexiRecordContext.columnid}'`,
-              );
-            }
-
-            logger.debug(
-              'Updating group name for section',
-              {
-                sectionId,
-                memberCount: scoutIds.length,
-                oldGroupName,
-                newGroupName,
-                columnId: flexiRecordContext.columnid,
-                flexirecordid: flexiRecordContext.flexirecordid,
-              },
-              LOG_CATEGORIES.APP,
-            );
-
-            // For unassigned members, we're setting their first group name
-            // For existing groups, we're renaming them
-            const result = await multiUpdateFlexiRecord(
-              sectionId,
-              scoutIds,
-              newGroupName,
-              flexiRecordContext.columnid,
-              flexiRecordContext.flexirecordid,
-              token,
-            );
-
-            // Check for success - handle multiple response formats:
-            // Expected: { status: true, data: { success: true, updated_count: X } }
-            // Actual: { error: false, _rateLimitInfo: {...} }
-            const isSuccess =
-              result?.status === true ||
-              result?.data?.success === true ||
-              (result?.error === false && result?._rateLimitInfo);
-
-            if (isSuccess) {
-              successfulUpdates++;
-              logger.info(
-                'Group rename successful for section',
-                {
-                  sectionId,
-                  updatedCount: result.data?.updated_count || 'unknown',
-                  newGroupName,
-                  apiResponse: result,
-                },
-                LOG_CATEGORIES.APP,
-              );
-            } else {
-              throw new Error(
-                result?.data?.message ||
-                  result?.message ||
-                  'API call returned unsuccessful status',
-              );
-            }
-          } catch (sectionError) {
-            failedUpdates++;
-            const errorMsg = `Section ${sectionId}: ${sectionError.message}`;
-            errors.push(errorMsg);
-
-            logger.error(
-              'Group rename failed for section',
-              {
-                sectionId,
-                oldGroupName,
-                newGroupName,
-                error: sectionError.message,
-                memberCount: members.length,
-              },
-              LOG_CATEGORIES.ERROR,
-            );
+        try {
+          const scoutIds = Array.from(new Set(members.map(member => String(member.scoutid))));
+          if (!/^f_\d+$/.test(String(flexiRecordContext.columnid))) {
+            throw new Error(`Invalid FlexiRecord field ID '${flexiRecordContext.columnid}'`);
           }
-        }
-
-        // Show results
-        if (successfulUpdates > 0 && failedUpdates === 0) {
-          showToast(
-            'success',
-            `Successfully renamed "${oldGroupName}" to "${newGroupName}"`,
-          );
-
-          // Optimistically update the UI immediately
-          setOrganizedGroups((prevGroups) => {
-            const newGroups = { ...prevGroups };
-            const groups = { ...newGroups.groups };
-
-            // Rename the group key and update the group object
-            if (groups[oldGroupName]) {
-              const updatedGroup = {
-                ...groups[oldGroupName],
-                name: `Group ${newGroupName}`,
-                number: newGroupName,
-              };
-
-              groups[`Group ${newGroupName}`] = updatedGroup;
-              delete groups[oldGroupName];
-
-              // If we renamed "Group Unassigned", create a new empty unassigned group
-              if (oldGroupName === 'Group Unassigned') {
-                groups['Group Unassigned'] = {
-                  name: 'Group Unassigned',
-                  number: 'Unassigned',
-                  leaders: [],
-                  youngPeople: [],
-                  totalMembers: 0,
-                };
-              }
-            }
-
-            newGroups.groups = groups;
-            return newGroups;
-          });
-
-          // Force refresh of FlexiRecord data in the background
-          // This will ensure subsequent operations have the latest data
-          setTimeout(() => {
-            if (events.length > 0) {
-              getVikingEventDataForEvents(events, token, true).catch((err) => {
-                logger.warn(
-                  'Background FlexiRecord refresh failed',
-                  {
-                    error: err.message,
-                  },
-                  LOG_CATEGORIES.APP,
-                );
-              });
-            }
-          }, 1000);
-        } else if (successfulUpdates > 0 && failedUpdates > 0) {
-          showToast(
-            'error',
-            `Partial success: ${successfulUpdates} sections updated, ${failedUpdates} failed. ${errors.join(', ')}`,
-          );
-        } else {
-          showToast('error', `Failed to rename group: ${errors.join(', ')}`);
-        }
-      } catch (error) {
-        logger.error(
-          'Group rename operation failed',
-          {
+          
+          logger.debug('Updating group name for section', {
+            sectionId,
+            memberCount: scoutIds.length,
             oldGroupName,
             newGroupName,
-            error: error.message,
-          },
-          LOG_CATEGORIES.ERROR,
-        );
+            columnId: flexiRecordContext.columnid,
+            flexirecordid: flexiRecordContext.flexirecordid,
+          }, LOG_CATEGORIES.APP);
 
-        showToast('error', `Failed to rename group: ${error.message}`);
-      } finally {
-        setGroupRenameLoading(false);
+          // For unassigned members, we're setting their first group name
+          // For existing groups, we're renaming them
+          const result = await multiUpdateFlexiRecord(
+            sectionId,
+            scoutIds,
+            newGroupName,
+            flexiRecordContext.columnid,
+            flexiRecordContext.flexirecordid,
+            token,
+          );
+
+          // Check for success - handle multiple response formats:
+          // Expected: { status: true, data: { success: true, updated_count: X } }
+          // Actual: { error: false, _rateLimitInfo: {...} }
+          const isSuccess = result?.status === true || 
+                           result?.data?.success === true || 
+                           (result?.error === false && result?._rateLimitInfo);
+          
+          if (isSuccess) {
+            successfulUpdates++;
+            logger.info('Group rename successful for section', {
+              sectionId,
+              updatedCount: result.data?.updated_count || 'unknown',
+              newGroupName,
+              apiResponse: result,
+            }, LOG_CATEGORIES.APP);
+          } else {
+            throw new Error(result?.data?.message || result?.message || 'API call returned unsuccessful status');
+          }
+
+        } catch (sectionError) {
+          failedUpdates++;
+          const errorMsg = `Section ${sectionId}: ${sectionError.message}`;
+          errors.push(errorMsg);
+          
+          logger.error('Group rename failed for section', {
+            sectionId,
+            oldGroupName,
+            newGroupName,
+            error: sectionError.message,
+            memberCount: members.length,
+          }, LOG_CATEGORIES.ERROR);
+        }
       }
-    },
-    [flexiRecordContext, showToast, events, setOrganizedGroups],
-  );
+
+      // Show results
+      if (successfulUpdates > 0 && failedUpdates === 0) {
+        showToast('success', `Successfully renamed "${oldGroupName}" to "${newGroupName}"`);
+        
+        // Optimistically update the UI immediately
+        setOrganizedGroups(prevGroups => {
+          const newGroups = { ...prevGroups };
+          const groups = { ...newGroups.groups };
+          
+          // Rename the group key and update the group object
+          if (groups[oldGroupName]) {
+            const updatedGroup = {
+              ...groups[oldGroupName],
+              name: `Group ${newGroupName}`,
+              number: newGroupName,
+            };
+            
+            groups[`Group ${newGroupName}`] = updatedGroup;
+            delete groups[oldGroupName];
+
+            // If we renamed "Group Unassigned", create a new empty unassigned group
+            if (oldGroupName === 'Group Unassigned') {
+              groups['Group Unassigned'] = {
+                name: 'Group Unassigned',
+                number: 'Unassigned',
+                leaders: [],
+                youngPeople: [],
+                totalMembers: 0,
+              };
+            }
+          }
+          
+          newGroups.groups = groups;
+          return newGroups;
+        });
+
+        // Force refresh of FlexiRecord data in the background
+        // This will ensure subsequent operations have the latest data
+        setTimeout(() => {
+          if (events.length > 0) {
+            getVikingEventDataForEvents(events, token, true).catch(err => {
+              logger.warn('Background FlexiRecord refresh failed', {
+                error: err.message,
+              }, LOG_CATEGORIES.APP);
+            });
+          }
+        }, 1000);
+
+      } else if (successfulUpdates > 0 && failedUpdates > 0) {
+        showToast('error', `Partial success: ${successfulUpdates} sections updated, ${failedUpdates} failed. ${errors.join(', ')}`);
+      } else {
+        showToast('error', `Failed to rename group: ${errors.join(', ')}`);
+      }
+
+    } catch (error) {
+      logger.error('Group rename operation failed', {
+        oldGroupName,
+        newGroupName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      
+      showToast('error', `Failed to rename group: ${error.message}`);
+    } finally {
+      setGroupRenameLoading(false);
+    }
+  }, [
+    flexiRecordContext,
+    showToast,
+    events,
+    setOrganizedGroups,
+  ]);
 
   // Handle group delete operations (move members to unassigned)
-  const handleGroupDelete = useCallback(
-    async (groupName, membersBySection) => {
-      if (!flexiRecordContext) {
-        showToast(
-          'error',
-          'Cannot delete groups: FlexiRecord data not available',
-        );
-        return;
+  const handleGroupDelete = useCallback(async (groupName, membersBySection) => {
+    if (!flexiRecordContext) {
+      showToast('error', 'Cannot delete groups: FlexiRecord data not available');
+      return;
+    }
+
+    setGroupRenameLoading(true);
+
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
       }
 
-      setGroupRenameLoading(true);
+      logger.info('Starting group delete operation', {
+        groupName,
+        sectionsCount: Object.keys(membersBySection).length,
+        totalMembers: Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0),
+        membersBySection: Object.fromEntries(
+          Object.entries(membersBySection).map(([sectionId, members]) => [
+            sectionId, 
+            members.map(m => ({ scoutid: m.scoutid, name: m.name || `${m.firstname} ${m.lastname}` })),
+          ]),
+        ),
+      }, LOG_CATEGORIES.APP);
 
-      try {
-        const token = getToken();
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
+      let successfulUpdates = 0;
+      let failedUpdates = 0;
+      const errors = [];
 
-        logger.info(
-          'Starting group delete operation',
-          {
+      // Process each section separately - set camp group to empty/null
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
+
+        try {
+          logger.debug('Deleting group for section (setting to unassigned)', {
+            sectionId,
+            memberCount: members.length,
             groupName,
-            sectionsCount: Object.keys(membersBySection).length,
-            totalMembers: Object.values(membersBySection).reduce(
-              (sum, members) => sum + members.length,
-              0,
-            ),
-            membersBySection: Object.fromEntries(
-              Object.entries(membersBySection).map(([sectionId, members]) => [
-                sectionId,
-                members.map((m) => ({
-                  scoutid: m.scoutid,
-                  name: m.name || `${m.firstname} ${m.lastname}`,
-                })),
-              ]),
-            ),
-          },
-          LOG_CATEGORIES.APP,
-        );
+            columnId: flexiRecordContext.columnid,
+            flexirecordid: flexiRecordContext.flexirecordid,
+          }, LOG_CATEGORIES.APP);
 
-        let successfulUpdates = 0;
-        let failedUpdates = 0;
-        const errors = [];
+          // Use individual updates since multiUpdate doesn't accept null/empty values
+          // Process each member individually to set their camp group to unassigned
+          let sectionSuccessCount = 0;
+          let sectionFailureCount = 0;
 
-        // Process each section separately - set camp group to empty/null
-        for (const [sectionId, members] of Object.entries(membersBySection)) {
-          if (members.length === 0) continue;
+          for (const member of members) {
+            try {
+              // Create move data for assigning to "Unassigned" group
+              const moveData = {
+                member: member,
+                fromGroupNumber: groupName.replace('Group ', ''),
+                fromGroupName: groupName,
+                toGroupNumber: 'Unassigned',
+                toGroupName: 'Group Unassigned',
+              };
 
-          try {
-            logger.debug(
-              'Deleting group for section (setting to unassigned)',
-              {
-                sectionId,
-                memberCount: members.length,
-                groupName,
-                columnId: flexiRecordContext.columnid,
-                flexirecordid: flexiRecordContext.flexirecordid,
-              },
-              LOG_CATEGORIES.APP,
-            );
+              // Get the correct section type for THIS specific member (same as drag-and-drop)
+              const memberSectionId = member.sectionid;
+              const memberSectionType = findMemberSectionType(memberSectionId, sectionsCache);
 
-            // Use individual updates since multiUpdate doesn't accept null/empty values
-            // Process each member individually to set their camp group to unassigned
-            let sectionSuccessCount = 0;
-            let sectionFailureCount = 0;
-
-            for (const member of members) {
-              try {
-                // Create move data for assigning to "Unassigned" group
-                const moveData = {
-                  member: member,
-                  fromGroupNumber: groupName.replace('Group ', ''),
-                  fromGroupName: groupName,
-                  toGroupNumber: 'Unassigned',
-                  toGroupName: 'Group Unassigned',
-                };
-
-                // Get the correct section type for THIS specific member (same as drag-and-drop)
-                const memberSectionId = member.sectionid;
-                const memberSectionType = findMemberSectionType(
-                  memberSectionId,
-                  sectionsCache,
-                );
-
-                if (!memberSectionType) {
-                  throw new Error(
-                    `Cannot find section type for member ${member.scoutid} in section ${memberSectionId}`,
-                  );
-                }
-
-                // Extract FlexiRecord context for this section (same approach as drag-and-drop)
-                const sectionContext = {
-                  ...flexiRecordContext,
-                  section: memberSectionType, // Use the member's section type, not generic name
-                  sectionid: memberSectionId, // Use the member's section ID
-                };
-
-                // Use the camp group allocation service for individual updates
-                const result = await assignMemberToCampGroup(
-                  moveData,
-                  sectionContext,
-                  token,
-                );
-
-                if (result.success) {
-                  sectionSuccessCount++;
-                  logger.debug(
-                    'Successfully moved member to unassigned',
-                    {
-                      memberId: member.scoutid,
-                      memberName:
-                        member.name || `${member.firstname} ${member.lastname}`,
-                      groupName,
-                    },
-                    LOG_CATEGORIES.APP,
-                  );
-                } else {
-                  sectionFailureCount++;
-                  logger.warn(
-                    'Failed to move member to unassigned',
-                    {
-                      memberId: member.scoutid,
-                      memberName:
-                        member.name || `${member.firstname} ${member.lastname}`,
-                      error: result.error,
-                      groupName,
-                    },
-                    LOG_CATEGORIES.APP,
-                  );
-                }
-
-                // Small delay between API calls for rate limiting
-                await new Promise((resolve) => setTimeout(resolve, 100));
-              } catch (memberError) {
-                sectionFailureCount++;
-                logger.error(
-                  'Error moving individual member to unassigned',
-                  {
-                    memberId: member.scoutid,
-                    memberName:
-                      member.name || `${member.firstname} ${member.lastname}`,
-                    error: memberError.message,
-                    groupName,
-                  },
-                  LOG_CATEGORIES.ERROR,
-                );
+              if (!memberSectionType) {
+                throw new Error(`Cannot find section type for member ${member.scoutid} in section ${memberSectionId}`);
               }
-            }
 
-            // Check section-level success
-            if (sectionSuccessCount === members.length) {
-              successfulUpdates++;
-              logger.info(
-                'Group delete successful for section',
-                {
-                  sectionId,
-                  updatedCount: sectionSuccessCount,
+              // Extract FlexiRecord context for this section (same approach as drag-and-drop)
+              const sectionContext = {
+                ...flexiRecordContext,
+                section: memberSectionType, // Use the member's section type, not generic name
+                sectionid: memberSectionId, // Use the member's section ID
+              };
+
+              // Use the camp group allocation service for individual updates
+              const result = await assignMemberToCampGroup(moveData, sectionContext, token);
+
+              if (result.success) {
+                sectionSuccessCount++;
+                logger.debug('Successfully moved member to unassigned', {
+                  memberId: member.scoutid,
+                  memberName: member.name || `${member.firstname} ${member.lastname}`,
                   groupName,
-                  method: 'individual_updates',
-                },
-                LOG_CATEGORIES.APP,
-              );
-            } else if (sectionSuccessCount > 0) {
-              // Partial success - treat as failure for simplicity
-              throw new Error(
-                `Partial success: ${sectionSuccessCount}/${members.length} members moved to unassigned`,
-              );
-            } else {
-              throw new Error(
-                `No members successfully moved to unassigned (${sectionFailureCount} failures)`,
-              );
-            }
-          } catch (sectionError) {
-            failedUpdates++;
-            const errorMsg = `Section ${sectionId}: ${sectionError.message}`;
-            errors.push(errorMsg);
-
-            logger.error(
-              'Group delete failed for section',
-              {
-                sectionId,
-                groupName,
-                error: sectionError.message,
-                memberCount: members.length,
-              },
-              LOG_CATEGORIES.ERROR,
-            );
-          }
-        }
-
-        // Show results
-        if (successfulUpdates > 0 && failedUpdates === 0) {
-          showToast(
-            'success',
-            `Successfully deleted "${groupName}" - members moved to Unassigned`,
-          );
-
-          // Optimistically update the UI immediately
-          setOrganizedGroups((prevGroups) => {
-            const newGroups = { ...prevGroups };
-            const groups = { ...newGroups.groups };
-
-            // Move members from deleted group to Unassigned
-            const deletedGroup = groups[groupName];
-            if (deletedGroup) {
-              // Ensure Unassigned group exists
-              if (!groups['Group Unassigned']) {
-                groups['Group Unassigned'] = {
-                  name: 'Group Unassigned',
-                  number: 'Unassigned',
-                  leaders: [],
-                  youngPeople: [],
-                  totalMembers: 0,
-                };
+                }, LOG_CATEGORIES.APP);
+              } else {
+                sectionFailureCount++;
+                logger.warn('Failed to move member to unassigned', {
+                  memberId: member.scoutid,
+                  memberName: member.name || `${member.firstname} ${member.lastname}`,
+                  error: result.error,
+                  groupName,
+                }, LOG_CATEGORIES.APP);
               }
 
-              // Move all members to Unassigned (avoid duplicates)
-              const allMembers = [
-                ...(deletedGroup.leaders || []),
-                ...(deletedGroup.youngPeople || []),
-              ];
+              // Small delay between API calls for rate limiting
+              await new Promise(resolve => setTimeout(resolve, 100));
 
-              const existingUnassignedIds = new Set(
-                (groups['Group Unassigned'].youngPeople || []).map(
-                  (m) => m.scoutid,
-                ),
-              );
-
-              // Only add members that aren't already in Unassigned
-              const newMembers = allMembers.filter(
-                (member) => !existingUnassignedIds.has(member.scoutid),
-              );
-              groups['Group Unassigned'].youngPeople.push(...newMembers);
-              groups['Group Unassigned'].totalMembers += newMembers.length;
-
-              // Remove the deleted group
-              delete groups[groupName];
+            } catch (memberError) {
+              sectionFailureCount++;
+              logger.error('Error moving individual member to unassigned', {
+                memberId: member.scoutid,
+                memberName: member.name || `${member.firstname} ${member.lastname}`,
+                error: memberError.message,
+                groupName,
+              }, LOG_CATEGORIES.ERROR);
             }
+          }
 
-            newGroups.groups = groups;
-            newGroups.summary = recalculateSummary(groups);
-            return newGroups;
-          });
+          // Check section-level success
+          if (sectionSuccessCount === members.length) {
+            successfulUpdates++;
+            logger.info('Group delete successful for section', {
+              sectionId,
+              updatedCount: sectionSuccessCount,
+              groupName,
+              method: 'individual_updates',
+            }, LOG_CATEGORIES.APP);
+          } else if (sectionSuccessCount > 0) {
+            // Partial success - treat as failure for simplicity
+            throw new Error(`Partial success: ${sectionSuccessCount}/${members.length} members moved to unassigned`);
+          } else {
+            throw new Error(`No members successfully moved to unassigned (${sectionFailureCount} failures)`);
+          }
 
-          // Force refresh of FlexiRecord data in the background
-          setTimeout(() => {
-            if (events.length > 0) {
-              getVikingEventDataForEvents(events, token, true).catch((err) => {
-                logger.warn(
-                  'Background FlexiRecord refresh failed after delete',
-                  {
-                    error: err.message,
-                  },
-                  LOG_CATEGORIES.APP,
-                );
-              });
-            }
-          }, 1000);
-        } else if (successfulUpdates > 0 && failedUpdates > 0) {
-          showToast(
-            'error',
-            `Partial success: ${successfulUpdates} sections updated, ${failedUpdates} failed. ${errors.join(', ')}`,
-          );
-        } else {
-          showToast('error', `Failed to delete group: ${errors.join(', ')}`);
-        }
-      } catch (error) {
-        logger.error(
-          'Group delete operation failed',
-          {
+        } catch (sectionError) {
+          failedUpdates++;
+          const errorMsg = `Section ${sectionId}: ${sectionError.message}`;
+          errors.push(errorMsg);
+          
+          logger.error('Group delete failed for section', {
+            sectionId,
             groupName,
-            error: error.message,
-          },
-          LOG_CATEGORIES.ERROR,
-        );
-
-        showToast('error', `Failed to delete group: ${error.message}`);
-      } finally {
-        setGroupRenameLoading(false);
+            error: sectionError.message,
+            memberCount: members.length,
+          }, LOG_CATEGORIES.ERROR);
+        }
       }
-    },
-    [
-      flexiRecordContext,
-      showToast,
-      events,
-      setOrganizedGroups,
-      recalculateSummary,
-      sectionsCache,
-    ],
-  );
+
+      // Show results
+      if (successfulUpdates > 0 && failedUpdates === 0) {
+        showToast('success', `Successfully deleted "${groupName}" - members moved to Unassigned`);
+        
+        // Optimistically update the UI immediately
+        setOrganizedGroups(prevGroups => {
+          const newGroups = { ...prevGroups };
+          const groups = { ...newGroups.groups };
+          
+          // Move members from deleted group to Unassigned
+          const deletedGroup = groups[groupName];
+          if (deletedGroup) {
+            // Ensure Unassigned group exists
+            if (!groups['Group Unassigned']) {
+              groups['Group Unassigned'] = {
+                name: 'Group Unassigned',
+                number: 'Unassigned',
+                leaders: [],
+                youngPeople: [],
+                totalMembers: 0,
+              };
+            }
+
+            // Move all members to Unassigned (avoid duplicates)
+            const allMembers = [...(deletedGroup.leaders || []), ...(deletedGroup.youngPeople || [])];
+            const existingUnassignedIds = new Set(
+              (groups['Group Unassigned'].youngPeople || []).map(m => m.scoutid),
+            );
+            
+            // Only add members that aren't already in Unassigned
+            const newMembers = allMembers.filter(member => !existingUnassignedIds.has(member.scoutid));
+            groups['Group Unassigned'].youngPeople.push(...newMembers);
+            groups['Group Unassigned'].totalMembers += newMembers.length;
+
+            // Remove the deleted group
+            delete groups[groupName];
+          }
+          
+          newGroups.groups = groups;
+          newGroups.summary = recalculateSummary(groups);
+          return newGroups;
+        });
+
+        // Force refresh of FlexiRecord data in the background
+        setTimeout(() => {
+          if (events.length > 0) {
+            getVikingEventDataForEvents(events, token, true).catch(err => {
+              logger.warn('Background FlexiRecord refresh failed after delete', {
+                error: err.message,
+              }, LOG_CATEGORIES.APP);
+            });
+          }
+        }, 1000);
+
+      } else if (successfulUpdates > 0 && failedUpdates > 0) {
+        showToast('error', `Partial success: ${successfulUpdates} sections updated, ${failedUpdates} failed. ${errors.join(', ')}`);
+      } else {
+        showToast('error', `Failed to delete group: ${errors.join(', ')}`);
+      }
+
+    } catch (error) {
+      logger.error('Group delete operation failed', {
+        groupName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      
+      showToast('error', `Failed to delete group: ${error.message}`);
+    } finally {
+      setGroupRenameLoading(false);
+    }
+  }, [
+    flexiRecordContext,
+    showToast,
+    events,
+    setOrganizedGroups,
+    recalculateSummary,
+    sectionsCache,
+  ]);
 
   // Sort groups by group number (no search or sort filtering)
   const filteredAndSortedGroups = useMemo(() => {
@@ -1603,22 +1403,19 @@ function CampGroupsView({
   }, [organizedGroups.groups]);
 
   if (loading) {
-    return (
-      <LoadingScreen message="Loading camp groups..." data-oid="5wd7fot" />
-    );
+    return <LoadingScreen message="Loading camp groups..." />;
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4" data-oid="djv5mij">
-        <Alert.Title data-oid="6-ax1e.">Error Loading Camp Groups</Alert.Title>
-        <Alert.Description data-oid="nmhyge0">{error}</Alert.Description>
-        <Alert.Actions data-oid="7uq3.-1">
+      <Alert variant="danger" className="m-4">
+        <Alert.Title>Error Loading Camp Groups</Alert.Title>
+        <Alert.Description>{error}</Alert.Description>
+        <Alert.Actions>
           <Button
             variant="scout-blue"
             onClick={() => window.location.reload()}
             type="button"
-            data-oid="_8kqb-r"
           >
             Retry
           </Button>
@@ -1630,51 +1427,48 @@ function CampGroupsView({
   const { summary } = organizedGroups;
 
   return (
-    <div className="camp-groups-view" data-oid="a:lt8f5">
+    <div className="camp-groups-view">
       {/* Header with summary stats */}
-      <div className="mb-6" data-oid="j4anw61">
-        <div
-          className="flex flex-wrap gap-4 mb-4 items-center justify-between"
-          data-oid="4.od-uc"
-        >
-          <div className="flex gap-2 text-sm text-gray-600" data-oid="fgdtcd9">
-            <span>{summary.totalGroups || 0} groups</span>
-            <span>•</span>
-            <span>{summary.totalMembers || 0} members</span>
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-4 mb-4 items-center justify-between">
+          <div className="flex flex-wrap gap-4">
+            <Badge variant="scout-blue" size="md">
+              {summary.totalGroups || 0} Groups
+            </Badge>
+            <Badge variant="scout-green" size="md">
+              {summary.totalMembers || 0} Members
+            </Badge>
           </div>
-
+          
           {/* Edit Group Names Button */}
           <Button
             variant="scout-green"
             size="sm"
             onClick={() => setShowGroupNamesModal(true)}
             disabled={
-              !summary.vikingEventDataAvailable ||
-              !flexiRecordContext ||
+              !summary.vikingEventDataAvailable || 
+              !flexiRecordContext || 
               Object.keys(organizedGroups.groups || {}).length === 0 ||
               groupRenameLoading
             }
             type="button"
-            data-oid="..p_3pr"
           >
             {groupRenameLoading ? 'Saving...' : 'Edit Names'}
           </Button>
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <Alert variant="warning" className="mb-4" data-oid=":nayp_j">
-            <Alert.Title data-oid="m79cow_">
-              No Viking Event Management Data
-            </Alert.Title>
-            <Alert.Description data-oid="9g1m1r7">
+          <Alert variant="warning" className="mb-4">
+            <Alert.Title>No Viking Event Management Data</Alert.Title>
+            <Alert.Description>
               No &quot;Viking Event Mgmt&quot; flexirecord found for the
               sections involved in these events. All members will be shown in
               the &quot;Unassigned&quot; group.
               {!flexiRecordContext && (
                 <>
-                  <br data-oid="w80coaq" />
-                  <strong data-oid="z.daz14">Note:</strong> Drag and drop
-                  functionality is not available without FlexiRecord data.
+                  <br />
+                  <strong>Note:</strong> Drag and drop functionality is not
+                  available without FlexiRecord data.
                 </>
               )}
             </Alert.Description>
@@ -1682,57 +1476,53 @@ function CampGroupsView({
         )}
       </div>
 
+
       {/* Groups grid */}
       {filteredAndSortedGroups.length === 0 ? (
-        <div className="text-center py-12" data-oid="x6b9lp:">
+        <div className="text-center py-12">
           <svg
             className="mx-auto h-12 w-12 text-gray-400 mb-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            data-oid="h-kfg3g"
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"
-              data-oid="5h28sxl"
             />
           </svg>
-          <h3
-            className="text-lg font-medium text-gray-900 mb-2"
-            data-oid="oa:c024"
-          >
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
             No Groups Found
           </h3>
-          <p className="text-gray-600" data-oid="v90bpgk">
+          <p className="text-gray-600">
             No camp groups available for these events.
           </p>
         </div>
       ) : (
         <div
-          className={`grid gap-4 ${isMobile ? 'gap-2' : ''}`}
+          className={`grid gap-4 ${
+            isMobile
+              ? 'gap-2'
+              : ''
+          }`}
           style={{
             gridTemplateColumns: (() => {
               const groupCount = filteredAndSortedGroups.length;
               if (groupCount === 0) return '1fr';
-
+              
               // Calculate optimal minimum width based on group count for even distribution
               let minWidth;
               if (groupCount <= 2) minWidth = isMobile ? '280px' : '400px';
-              else if (groupCount <= 4)
-                minWidth = isMobile ? '250px' : '350px'; // 2 cols
-              else if (groupCount <= 6)
-                minWidth = isMobile ? '200px' : '280px'; // 3 cols
-              else if (groupCount <= 8)
-                minWidth = isMobile ? '180px' : '240px'; // 4 cols
+              else if (groupCount <= 4) minWidth = isMobile ? '250px' : '350px'; // 2 cols
+              else if (groupCount <= 6) minWidth = isMobile ? '200px' : '280px'; // 3 cols  
+              else if (groupCount <= 8) minWidth = isMobile ? '180px' : '240px'; // 4 cols
               else minWidth = isMobile ? '160px' : '200px'; // 5+ cols
-
+              
               return `repeat(auto-fit, minmax(${minWidth}, 1fr))`;
             })(),
           }}
-          data-oid="57p.g1m"
         >
           {filteredAndSortedGroups.map((group) => (
             <CampGroupCard
@@ -1745,30 +1535,24 @@ function CampGroupsView({
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
               dragDisabled={
-                !summary.vikingEventDataAvailable ||
-                !flexiRecordContext ||
-                pendingMoves.size > 0
+                !summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0
               }
               onOfflineError={async (memberName) => {
                 try {
                   const isOnline = await checkNetworkStatus();
-                  const errorMessage = !isOnline
+                  const errorMessage = !isOnline 
                     ? `Cannot move ${memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
                     : `Cannot move ${memberName}: Authentication expired. Please sign in to OSM to move members.`;
                   showToast('error', errorMessage);
                 } catch (networkError) {
-                  console.error(
-                    'Network status check failed in onOfflineError:',
-                    networkError,
-                  );
-                  showToast(
-                    'error',
-                    `Cannot move ${memberName}: Unable to verify network status.`,
-                  );
+                  logger.error('Network status check failed in onOfflineError', { 
+                    error: networkError?.message,
+                    memberName, 
+                  }, LOG_CATEGORIES.COMPONENT);
+                  showToast('error', `Cannot move ${memberName}: Unable to verify network status.`);
                 }
               }}
               className="h-fit"
-              data-oid="u7lr5vo"
             />
           ))}
         </div>
@@ -1782,21 +1566,18 @@ function CampGroupsView({
           ${toastMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
           ${toastMessage.type === 'error' ? 'border-l-4 border-red-700' : 'border-l-4 border-green-700'}
         `}
-          data-oid="y3kl7e1"
         >
-          <div className="flex items-center" data-oid="ocourci">
+          <div className="flex items-center">
             {toastMessage.type === 'success' ? (
               <svg
                 className="w-5 h-5 mr-2"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="uzo45cb"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                   clipRule="evenodd"
-                  data-oid="v10pj70"
                 />
               </svg>
             ) : (
@@ -1804,35 +1585,27 @@ function CampGroupsView({
                 className="w-5 h-5 mr-2"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="x05mlzy"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd"
-                  data-oid="w0zw7lf"
                 />
               </svg>
             )}
-            <span className="text-sm font-medium" data-oid="_1.22iv">
-              {toastMessage.message}
-            </span>
+            <span className="text-sm font-medium">{toastMessage.message}</span>
           </div>
         </div>
       )}
 
       {/* Pending Operations Indicator */}
       {pendingMoves.size > 0 && (
-        <div
-          className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg"
-          data-oid="m0cjx2h"
-        >
-          <div className="flex items-center" data-oid="2b-xe:o">
+        <div className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg">
+          <div className="flex items-center">
             <svg
               className="animate-spin w-4 h-4 mr-2"
               fill="none"
               viewBox="0 0 24 24"
-              data-oid="oawo6zk"
             >
               <circle
                 className="opacity-25"
@@ -1841,17 +1614,15 @@ function CampGroupsView({
                 r="10"
                 stroke="currentColor"
                 strokeWidth="4"
-                data-oid="y02-uuh"
               />
 
               <path
                 className="opacity-75"
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                data-oid="v7.022f"
               />
             </svg>
-            <span className="text-sm font-medium" data-oid="05:y_g9">
+            <span className="text-sm font-medium">
               Syncing {pendingMoves.size} member{' '}
               {pendingMoves.size === 1 ? 'move' : 'moves'} to OSM...
             </span>
@@ -1864,7 +1635,6 @@ function CampGroupsView({
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}
-        data-oid="fyryytd"
       />
 
       {/* Group Names Edit Modal */}
@@ -1875,7 +1645,6 @@ function CampGroupsView({
         onRename={handleGroupRename}
         onDelete={handleGroupDelete}
         loading={groupRenameLoading}
-        data-oid="19401e0"
       />
     </div>
   );

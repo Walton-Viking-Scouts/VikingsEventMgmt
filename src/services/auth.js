@@ -336,9 +336,14 @@ export async function validateToken() {
 function checkForCachedData() {
   try {
     // Check localStorage for all cached data types (comprehensive check)
-    const cachedSections = localStorage.getItem('viking_sections_offline');
-    const cachedStartupData = localStorage.getItem('viking_startup_data_offline');
-    const cachedTerms = localStorage.getItem('viking_terms_offline');
+    const demoMode = isDemoMode();
+    const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
+    const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+    const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+    
+    const cachedSections = localStorage.getItem(sectionsKey);
+    const cachedStartupData = localStorage.getItem(startupKey);
+    const cachedTerms = localStorage.getItem(termsKey);
     
     // Check static cache keys
     if (cachedSections && JSON.parse(cachedSections).length > 0) {
@@ -353,11 +358,14 @@ function checkForCachedData() {
       return true;
     }
     
-    // Check for dynamic keys (events, attendance, members)
+    // Check for dynamic keys (events, attendance, members) - include demo keys
     const hasEventData = Object.keys(localStorage).some(key => 
       key.startsWith('viking_events_') || 
       key.startsWith('viking_attendance_') || 
-      key.startsWith('viking_members_'),
+      key.startsWith('viking_members_') ||
+      key.startsWith('demo_viking_events_') || 
+      key.startsWith('demo_viking_attendance_') || 
+      key.startsWith('demo_viking_members_'),
     );
     
     if (hasEventData) {
@@ -410,17 +418,29 @@ export function logout() {
   clearToken();
   
   // Clear all offline cached data
-  localStorage.removeItem('viking_sections_offline');
-  localStorage.removeItem('viking_terms_offline');
-  localStorage.removeItem('viking_startup_data_offline');
+  const demoMode = isDemoMode();
+  const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
+  const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+  const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
   
-  // Clear all event-related and FlexiRecord cached data
+  localStorage.removeItem(sectionsKey);
+  localStorage.removeItem(termsKey);
+  localStorage.removeItem(startupKey);
+  
+  // Clear all offline caches (demo & production): events, attendance, members, Flexi, metadata, shared attendance
+  const prefixes = ['viking_', 'demo_viking_'];
+  const patterns = [
+    'events_',
+    'attendance_',
+    'members_',
+    'flexi_lists_',
+    'flexi_structure_',
+    'flexi_data_',
+    'shared_metadata_',
+    'shared_attendance_',
+  ];
   Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('viking_events_') || 
-        key.startsWith('viking_attendance_') || 
-        key.startsWith('viking_members_') ||
-        key.startsWith('viking_flexi_') ||
-        key.startsWith('viking_shared_metadata_')) {  // Clear ALL FlexiRecord and shared metadata caches
+    if (prefixes.some(p => patterns.some(pt => key.startsWith(p + pt)))) {
       localStorage.removeItem(key);
     }
   });

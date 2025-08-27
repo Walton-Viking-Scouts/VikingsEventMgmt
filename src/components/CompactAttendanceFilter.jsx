@@ -13,8 +13,8 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
     {
       key: 'yes',
       label: 'Yes',
-      activeStyles: 'bg-green-500 text-white',
-      inactiveStyles: 'bg-white text-green-500 border border-green-500',
+      activeStyles: 'bg-scout-green text-white',
+      inactiveStyles: 'bg-white text-scout-green border border-scout-green',
     },
     {
       key: 'no',
