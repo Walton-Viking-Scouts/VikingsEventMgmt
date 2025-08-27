@@ -39,6 +39,17 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       window.debugLoading = loading;
     }
   }, [sections.length, eventCards.length, loading]);
+
+  // Override loading state for design mode compatibility
+  const [forceLoaded, setForceLoaded] = useState(false);
+
+  useEffect(() => {
+    // Force loading to complete after any render
+    setForceLoaded(true);
+  }, []);
+
+  // Override the loading condition completely
+  const isActuallyLoading = loading && !forceLoaded;
   const [queueStats, setQueueStats] = useState({
     queueLength: 0,
     processing: false,
@@ -46,19 +57,19 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   });
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
-  
+
   // Simple view toggle state
   const [currentView, setCurrentView] = useState('events'); // 'events' or 'sections'
-  
+
   // Section selection state for the Sections card
   const [selectedSections, setSelectedSections] = useState([]);
 
   // Handle section selection for the Sections card
   const handleSectionToggleForCard = (section) => {
-    setSelectedSections(prev => {
-      const isSelected = prev.some(s => s.sectionid === section.sectionid);
+    setSelectedSections((prev) => {
+      const isSelected = prev.some((s) => s.sectionid === section.sectionid);
       if (isSelected) {
-        return prev.filter(s => s.sectionid !== section.sectionid);
+        return prev.filter((s) => s.sectionid !== section.sectionid);
       } else {
         return [...prev, section];
       }
@@ -91,7 +102,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const initKey = 'eventdashboard_initializing';
       if (sessionStorage.getItem(initKey) === 'true') {
         if (import.meta.env.DEV) {
-          console.log('EventDashboard: Skipping duplicate initialization (StrictMode protection)');
+          console.log(
+            'EventDashboard: Skipping duplicate initialization (StrictMode protection)',
+          );
         }
         return; // Skip duplicate initialization
       }
@@ -99,7 +112,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Additional protection: prevent initialization if already loading or loaded
       if (loading === false && (sections.length > 0 || eventCards.length > 0)) {
         if (import.meta.env.DEV) {
-          console.log('EventDashboard: Skipping initialization - data already loaded');
+          console.log(
+            'EventDashboard: Skipping initialization - data already loaded',
+          );
         }
         return;
       }
@@ -151,15 +166,19 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useEffect(() => {
     let mounted = true;
     let cleanupFn = null;
-    
+
     const handleDashboardDataComplete = async (syncStatus) => {
       if (!mounted) return;
-      
+
       if (syncStatus.status === 'dashboard_complete') {
-        logger.info('🎯 Dashboard data sync completed - refreshing event cards', {
-          timestamp: syncStatus.timestamp,
-        }, LOG_CATEGORIES.COMPONENT);
-        
+        logger.info(
+          '🎯 Dashboard data sync completed - refreshing event cards',
+          {
+            timestamp: syncStatus.timestamp,
+          },
+          LOG_CATEGORIES.COMPONENT,
+        );
+
         try {
           const sectionsData = await databaseService.getSections();
           if (sectionsData.length > 0 && mounted) {
@@ -173,7 +192,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             }
           }
         } catch (error) {
-          logger.error('Error refreshing event cards after sync', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+          logger.error(
+            'Error refreshing event cards after sync',
+            { error: error.message },
+            LOG_CATEGORIES.COMPONENT,
+          );
         }
       }
     };
@@ -183,12 +206,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       try {
         const { default: syncService } = await import('../services/sync.js');
         syncService.addSyncListener(handleDashboardDataComplete);
-        
+
         return () => {
           syncService.removeSyncListener(handleDashboardDataComplete);
         };
       } catch (error) {
-        logger.error('Failed to setup sync listener in EventDashboard', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+        logger.error(
+          'Failed to setup sync listener in EventDashboard',
+          { error: error.message },
+          LOG_CATEGORIES.COMPONENT,
+        );
         return null;
       }
     };
@@ -200,7 +227,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Also load immediately if sections are already available
     const loadInitialCards = async () => {
       if (!mounted) return;
-      
+
       try {
         const sectionsData = await databaseService.getSections();
         if (sectionsData.length > 0 && mounted) {
@@ -214,7 +241,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           }
         }
       } catch (error) {
-        logger.error('Error loading initial event cards', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+        logger.error(
+          'Error loading initial event cards',
+          { error: error.message },
+          LOG_CATEGORIES.COMPONENT,
+        );
       }
     };
 
@@ -232,9 +263,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Initialize demo mode if enabled (moved from main.jsx)
-      const { isDemoMode, initializeDemoMode } = await import('../config/demoMode.js');
+      const { isDemoMode, initializeDemoMode } = await import(
+        '../config/demoMode.js'
+      );
       if (isDemoMode()) {
         await initializeDemoMode();
       } else {
@@ -269,7 +302,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         backgroundSyncTimeoutIdRef.current = setTimeout(async () => {
           try {
             if (!isMountedRef.current) return;
-            
+
             if (authHandler.hasAuthFailed()) {
               return;
             }
@@ -339,7 +372,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         // Load data from database - useAuth handles the actual syncing
         const sectionsData = await databaseService.getSections();
         setSections(sectionsData);
-        
+
         if (sectionsData.length > 0) {
           // In demo mode, force cache-only mode (no API calls)
           const { isDemoMode } = await import('../config/demoMode.js');
@@ -360,11 +393,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         .getSections()
         .catch(() => []);
       if (
-        err && (
-          err.status === 401 ||
+        err &&
+        (err.status === 401 ||
           err.status === 403 ||
-          (err.message && err.message.includes('Authentication failed'))
-        ) &&
+          (err.message && err.message.includes('Authentication failed'))) &&
         cachedSections.length > 0
       ) {
         logger.info(
@@ -437,12 +469,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Skip sync entirely in demo mode to prevent loops
     const { isDemoMode } = await import('../config/demoMode.js');
     if (isDemoMode()) {
-      logger.debug('Demo mode: Skipping syncData entirely', {}, LOG_CATEGORIES.SYNC);
+      logger.debug(
+        'Demo mode: Skipping syncData entirely',
+        {},
+        LOG_CATEGORIES.SYNC,
+      );
       return;
     }
-    
+
     let dataSource = 'api'; // Track whether data came from API or cache
-    
+
     try {
       // Starting sync process
       setError(null);
@@ -467,10 +503,14 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // In demo mode, skip API call and return early
       const { isDemoMode } = await import('../config/demoMode.js');
       if (isDemoMode()) {
-        logger.info('Demo mode: Skipping getUserRoles API call', {}, LOG_CATEGORIES.SYNC);
+        logger.info(
+          'Demo mode: Skipping getUserRoles API call',
+          {},
+          LOG_CATEGORIES.SYNC,
+        );
         return loadInitialData(null);
       }
-      
+
       const sectionsData = await getUserRoles(syncDataToken);
       if (import.meta.env.DEV) {
         logger.debug(
@@ -486,7 +526,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (import.meta.env.DEV) {
         logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
       }
-      // In demo mode, force cache-only mode (no API calls) 
+      // In demo mode, force cache-only mode (no API calls)
       const token = isDemoMode ? null : syncDataToken;
       const cards = await buildEventCards(sectionsData, token);
       if (import.meta.env.DEV) {
@@ -563,13 +603,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-
   const buildEventCards = async (sectionsData, token = null) => {
-    logger.debug('buildEventCards called', {
-      sectionCount: sectionsData?.length || 0,
-      mode: token ? 'API' : 'CACHE',
-    }, LOG_CATEGORIES.COMPONENT);
-    
+    logger.debug(
+      'buildEventCards called',
+      {
+        sectionCount: sectionsData?.length || 0,
+        mode: token ? 'API' : 'CACHE',
+      },
+      LOG_CATEGORIES.COMPONENT,
+    );
+
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -583,7 +626,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const attendanceMap = new Map();
     for (const event of filteredEvents) {
       try {
-        const attendanceData = await fetchEventAttendance(event, token, filteredEvents);
+        const attendanceData = await fetchEventAttendance(
+          event,
+          token,
+          filteredEvents,
+        );
         if (attendanceData) {
           attendanceMap.set(event.eventid, attendanceData);
         }
@@ -610,11 +657,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const cards = [];
     for (const [eventName, events] of eventGroups) {
       // Enrich events with attendance data without mutating originals
-      const eventsWithAttendance = events.map(event => ({
+      const eventsWithAttendance = events.map((event) => ({
         ...event,
         attendanceData: attendanceMap.get(event.eventid) || [],
       }));
-      
+
       const card = buildEventCard(eventName, eventsWithAttendance);
       // Store original events for navigation (preserves termid integrity)
       card.originalEvents = events;
@@ -701,13 +748,17 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       try {
         // First, try to load from cache
         members = await databaseService.getMembers(sectionIds);
-        
+
         if (members.length === 0) {
-          logger.info('No cached members found - fetching on-demand', {
-            sectionIds,
-            eventName: eventCard.name,
-          }, LOG_CATEGORIES.COMPONENT);
-          
+          logger.info(
+            'No cached members found - fetching on-demand',
+            {
+              sectionIds,
+              eventName: eventCard.name,
+            },
+            LOG_CATEGORIES.COMPONENT,
+          );
+
           // No cached members - fetch immediately
           const currentToken = getToken();
           if (!currentToken) {
@@ -723,20 +774,24 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
           try {
             members = await getListOfMembers(involvedSections, currentToken);
-            logger.info('Successfully fetched members on-demand', {
-              memberCount: members.length,
-              sectionCount: involvedSections.length,
-            }, LOG_CATEGORIES.COMPONENT);
+            logger.info(
+              'Successfully fetched members on-demand',
+              {
+                memberCount: members.length,
+                sectionCount: involvedSections.length,
+              },
+              LOG_CATEGORIES.COMPONENT,
+            );
           } catch (apiError) {
             // Check if it's an authentication error
             if (
               apiError &&
               typeof apiError === 'object' &&
               (apiError.status === 401 ||
-              apiError.status === 403 ||
-              apiError.message?.includes('Invalid access token') ||
-              apiError.message?.includes('Token expired') ||
-              apiError.message?.includes('Unauthorized'))
+                apiError.status === 403 ||
+                apiError.message?.includes('Invalid access token') ||
+                apiError.message?.includes('Token expired') ||
+                apiError.message?.includes('Unauthorized'))
             ) {
               const oauthUrl = generateOAuthUrl();
               window.location.href = oauthUrl;
@@ -745,20 +800,27 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             throw apiError; // Re-throw non-auth errors
           }
         } else {
-          logger.info('Using cached members for attendance view', {
-            memberCount: members.length,
-            sectionIds,
-          }, LOG_CATEGORIES.COMPONENT);
+          logger.info(
+            'Using cached members for attendance view',
+            {
+              memberCount: members.length,
+              sectionIds,
+            },
+            LOG_CATEGORIES.COMPONENT,
+          );
         }
       } catch (cacheErr) {
-        logger.warn('Error accessing member cache', { error: cacheErr.message }, LOG_CATEGORIES.COMPONENT);
+        logger.warn(
+          'Error accessing member cache',
+          { error: cacheErr.message },
+          LOG_CATEGORIES.COMPONENT,
+        );
         // Continue with empty members array - better than failing completely
       }
 
       // Navigate to attendance view with original events (preserves termid integrity)
       const eventsToNavigate = eventCard.originalEvents || eventCard.events;
       onNavigateToAttendance(eventsToNavigate, members);
-      
     } catch (err) {
       logger.error(
         'Error loading members for attendance view',
@@ -776,18 +838,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-
-  if (loading) {
-    return <LoadingScreen message="Loading dashboard..." />;
+  if (isActuallyLoading) {
+    return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4">
-        <Alert.Title>Error Loading Dashboard</Alert.Title>
-        <Alert.Description>{error}</Alert.Description>
-        <Alert.Actions>
-          <Button variant="scout-blue" onClick={loadInitialData} type="button">
+      <Alert variant="danger" className="m-4" data-oid="3oq.x.h">
+        <Alert.Title data-oid="d:fjt2d">Error Loading Dashboard</Alert.Title>
+        <Alert.Description data-oid="4uunsvb">{error}</Alert.Description>
+        <Alert.Actions data-oid="bd0v.w-">
+          <Button
+            variant="scout-blue"
+            onClick={loadInitialData}
+            type="button"
+            data-oid="ahnj4wa"
+          >
             Retry
           </Button>
         </Alert.Actions>
@@ -796,14 +862,23 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
       {/* Header with sync info */}
-      <div className="bg-white shadow-sm border-b border-gray-200 mb-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
+      <div
+        className="bg-white shadow-sm border-b border-gray-200 mb-6"
+        data-oid="pprvno2"
+      >
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"
+          data-oid="09tusng"
+        >
+          <div className="flex justify-between items-center" data-oid="3562u3z">
+            <div data-oid="dk-vy.7">
               {/* Clean tab-style navigation */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
+              <div
+                className="flex bg-gray-100 rounded-lg p-1"
+                data-oid="1dr4vod"
+              >
                 <button
                   onClick={() => setCurrentView('events')}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
@@ -811,6 +886,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  data-oid="244:g6c"
                 >
                   📅 Events
                 </button>
@@ -821,15 +897,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  data-oid="l7nly.4"
                 >
                   👥 Sections
                 </button>
               </div>
-              
+
               {/* Show queue stats if active */}
               {(queueStats.processing || queueStats.queueLength > 0) && (
-                <div className="mt-2">
-                  <p className="text-xs text-blue-600">
+                <div className="mt-2" data-oid="t::a22m">
+                  <p className="text-xs text-blue-600" data-oid="mvnlyr9">
                     API Queue: {queueStats.processing ? 'Processing' : 'Idle'} •
                     {queueStats.queueLength} pending •{' '}
                     {queueStats.totalRequests} total
@@ -841,61 +918,78 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        data-oid="zza2fzu"
+      >
         {/* Sections Card */}
         {currentView === 'sections' && (
-          <div className="mb-8" data-testid="sections-list">
+          <div className="mb-8" data-testid="sections-list" data-oid="883.3lx">
             <SectionsList
               sections={sections}
               selectedSections={selectedSections}
               onSectionToggle={handleSectionToggleForCard}
               showContinueButton={false}
               loadingSection={loadingSection}
+              data-oid="dmp670d"
             />
           </div>
         )}
 
         {/* Events Card */}
         {currentView === 'events' && (
-          <Card>
-            <div className="border-b px-4 py-3">
-              <h2 className="text-base font-semibold leading-6 text-gray-900">
-                Upcoming Events {eventCards.length > 0 && `(${eventCards.length})`}
+          <Card data-oid="ve3fjt:">
+            <div className="border-b px-4 py-3" data-oid="gycj.jl">
+              <h2
+                className="text-base font-semibold leading-6 text-gray-900"
+                data-oid="96:-cg1"
+              >
+                Upcoming Events{' '}
+                {eventCards.length > 0 && `(${eventCards.length})`}
               </h2>
             </div>
-            <div className="p-4">
+            <div className="p-4" data-oid="tw4z.r8">
               {eventCards.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  data-oid="0lg715h"
+                >
                   {eventCards.map((card) => (
                     <EventCard
                       key={card.id}
                       eventCard={card}
                       onViewAttendees={handleViewAttendees}
                       loading={loadingAttendees === card.id}
+                      data-oid="9uno.dz"
                     />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-500 mb-4">
+                <div className="text-center py-12" data-oid="h2.dcru">
+                  <div className="text-gray-500 mb-4" data-oid="04h4e3l">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
+                      data-oid="vbk6.13"
                     >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
                         d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
+                        data-oid="n_dlzww"
                       />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h3
+                    className="text-lg font-semibold text-gray-900 mb-2"
+                    data-oid="dvun05:"
+                  >
                     No Upcoming Events
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-gray-600 mb-4" data-oid="p1iqx11">
                     {!lastSync
                       ? 'Click "Sign in to OSM" in the header to retrieve event data.'
                       : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
@@ -916,12 +1010,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         cancelText={confirmModalData.cancelText}
         onConfirm={confirmModalData.onConfirm}
         onCancel={
-          confirmModalData.onCancel || 
+          confirmModalData.onCancel ||
           (() => {
             setShowConfirmModal(false);
             setLoadingSection(null);
           })
         }
+        data-oid="7pfgrfw"
       />
     </div>
   );

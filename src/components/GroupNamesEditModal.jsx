@@ -5,7 +5,7 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
 /**
  * Modal for editing camp group names
  * Allows bulk renaming of groups with validation and multi-section support
- * 
+ *
  * @param {Object} props - Component props
  * @param {boolean} props.isOpen - Whether modal is open
  * @param {Function} props.onClose - Close modal callback
@@ -14,13 +14,13 @@ import logger, { LOG_CATEGORIES } from '../services/logger.js';
  * @param {Function} props.onDelete - Delete callback with (groupName, membersBySection)
  * @param {boolean} props.loading - Whether rename operation is in progress
  */
-function GroupNamesEditModal({ 
-  isOpen, 
-  onClose, 
-  groups = {}, 
-  onRename, 
+function GroupNamesEditModal({
+  isOpen,
+  onClose,
+  groups = {},
+  onRename,
   onDelete,
-  loading = false, 
+  loading = false,
 }) {
   const [groupNames, setGroupNames] = useState({});
   const [errors, setErrors] = useState({});
@@ -63,20 +63,25 @@ function GroupNamesEditModal({
       }
 
       // Check for reserved names - only block "Unassigned" for non-unassigned groups
-      if (lowerName === 'unassigned' && originalGroupName !== 'Group Unassigned') {
+      if (
+        lowerName === 'unassigned' &&
+        originalGroupName !== 'Group Unassigned'
+      ) {
         newErrors[originalGroupName] = '"Unassigned" is a reserved name';
         return;
       }
 
       // Character validation (basic)
       if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmedName)) {
-        newErrors[originalGroupName] = 'Only letters, numbers, spaces, hyphens and underscores allowed';
+        newErrors[originalGroupName] =
+          'Only letters, numbers, spaces, hyphens and underscores allowed';
         return;
       }
 
       // Length validation
       if (trimmedName.length > 20) {
-        newErrors[originalGroupName] = 'Group name too long (max 20 characters)';
+        newErrors[originalGroupName] =
+          'Group name too long (max 20 characters)';
         return;
       }
 
@@ -87,25 +92,30 @@ function GroupNamesEditModal({
   }, []);
 
   // Handle name change
-  const handleNameChange = useCallback((originalGroupName, newValue) => {
-    setGroupNames(prev => {
-      const updated = { ...prev, [originalGroupName]: newValue };
-      
-      // Check if there are changes from original
-      const hasActualChanges = Object.entries(updated).some(([groupName, newName]) => {
-        const originalDisplayName = groupName.replace(/^Group /, '');
-        return newName.trim() !== originalDisplayName;
+  const handleNameChange = useCallback(
+    (originalGroupName, newValue) => {
+      setGroupNames((prev) => {
+        const updated = { ...prev, [originalGroupName]: newValue };
+
+        // Check if there are changes from original
+        const hasActualChanges = Object.entries(updated).some(
+          ([groupName, newName]) => {
+            const originalDisplayName = groupName.replace(/^Group /, '');
+            return newName.trim() !== originalDisplayName;
+          },
+        );
+
+        setHasChanges(hasActualChanges);
+
+        // Validate on each change
+        const validationErrors = validateNames(updated);
+        setErrors(validationErrors);
+
+        return updated;
       });
-      
-      setHasChanges(hasActualChanges);
-      
-      // Validate on each change
-      const validationErrors = validateNames(updated);
-      setErrors(validationErrors);
-      
-      return updated;
-    });
-  }, [validateNames]);
+    },
+    [validateNames],
+  );
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -122,20 +132,22 @@ function GroupNamesEditModal({
     Object.entries(groupNames).forEach(([originalGroupName, newName]) => {
       const trimmedNewName = newName.trim();
       const originalDisplayName = originalGroupName.replace(/^Group /, '');
-      
+
       if (trimmedNewName !== originalDisplayName) {
         const group = groups[originalGroupName];
         if (group) {
           // Organize members by section for multi-section API calls
           const membersBySection = {};
-          
-          [...(group.youngPeople || []), ...(group.leaders || [])].forEach(member => {
-            const sectionId = member.sectionid;
-            if (!membersBySection[sectionId]) {
-              membersBySection[sectionId] = [];
-            }
-            membersBySection[sectionId].push(member);
-          });
+
+          [...(group.youngPeople || []), ...(group.leaders || [])].forEach(
+            (member) => {
+              const sectionId = member.sectionid;
+              if (!membersBySection[sectionId]) {
+                membersBySection[sectionId] = [];
+              }
+              membersBySection[sectionId].push(member);
+            },
+          );
 
           renames.push({
             oldName: originalGroupName,
@@ -153,22 +165,30 @@ function GroupNamesEditModal({
       return;
     }
 
-    logger.info('Processing group renames', {
-      renameCount: renames.length,
-      totalGroups: Object.keys(groups).length,
-    }, LOG_CATEGORIES.APP);
+    logger.info(
+      'Processing group renames',
+      {
+        renameCount: renames.length,
+        totalGroups: Object.keys(groups).length,
+      },
+      LOG_CATEGORIES.APP,
+    );
 
     // Execute renames through callback
     for (const rename of renames) {
       try {
         await onRename(rename.oldName, rename.newName, rename.membersBySection);
       } catch (error) {
-        logger.error('Failed to rename group', {
-          oldName: rename.oldName,
-          newName: rename.newName,
-          error: error.message,
-        }, LOG_CATEGORIES.ERROR);
-        
+        logger.error(
+          'Failed to rename group',
+          {
+            oldName: rename.oldName,
+            newName: rename.newName,
+            error: error.message,
+          },
+          LOG_CATEGORIES.ERROR,
+        );
+
         // Continue with other renames even if one fails
         continue;
       }
@@ -179,59 +199,82 @@ function GroupNamesEditModal({
   }, [groupNames, groups, onRename, onClose, loading, validateNames]);
 
   // Handle delete group
-  const handleDeleteGroup = useCallback(async (groupName) => {
-    if (loading || !onDelete) return;
+  const handleDeleteGroup = useCallback(
+    async (groupName) => {
+      if (loading || !onDelete) return;
 
-    const group = groups[groupName];
-    if (!group) return;
+      const group = groups[groupName];
+      if (!group) return;
 
-    // Organize members by section for multi-section API calls
-    const membersBySection = {};
-    
-    [...(group.youngPeople || []), ...(group.leaders || [])].forEach(member => {
-      const sectionId = member.sectionid;
-      if (!membersBySection[sectionId]) {
-        membersBySection[sectionId] = [];
+      // Organize members by section for multi-section API calls
+      const membersBySection = {};
+
+      [...(group.youngPeople || []), ...(group.leaders || [])].forEach(
+        (member) => {
+          const sectionId = member.sectionid;
+          if (!membersBySection[sectionId]) {
+            membersBySection[sectionId] = [];
+          }
+          membersBySection[sectionId].push(member);
+        },
+      );
+
+      const memberCount = Object.values(membersBySection).reduce(
+        (sum, members) => sum + members.length,
+        0,
+      );
+
+      // Debug: Log exactly which members are being deleted
+      logger.info(
+        'Group delete preparation',
+        {
+          groupName,
+          memberCount,
+          membersToDelete: Object.fromEntries(
+            Object.entries(membersBySection).map(([sectionId, members]) => [
+              sectionId,
+              members.map((m) => ({
+                scoutid: m.scoutid,
+                name: m.name || `${m.firstname} ${m.lastname}`,
+              })),
+            ]),
+          ),
+        },
+        LOG_CATEGORIES.APP,
+      );
+
+      if (memberCount === 0) {
+        logger.info(
+          'No members to delete for empty group',
+          { groupName },
+          LOG_CATEGORIES.APP,
+        );
+        return;
       }
-      membersBySection[sectionId].push(member);
-    });
 
-    const memberCount = Object.values(membersBySection).reduce((sum, members) => sum + members.length, 0);
-    
-    // Debug: Log exactly which members are being deleted
-    logger.info('Group delete preparation', {
-      groupName,
-      memberCount,
-      membersToDelete: Object.fromEntries(
-        Object.entries(membersBySection).map(([sectionId, members]) => [
-          sectionId, 
-          members.map(m => ({ scoutid: m.scoutid, name: m.name || `${m.firstname} ${m.lastname}` })),
-        ]),
-      ),
-    }, LOG_CATEGORIES.APP);
-    
-    if (memberCount === 0) {
-      logger.info('No members to delete for empty group', { groupName }, LOG_CATEGORIES.APP);
-      return;
-    }
+      // Confirm deletion
+      const confirmed = window.confirm(
+        `Delete "${groupName}" and move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned?`,
+      );
 
-    // Confirm deletion
-    const confirmed = window.confirm(
-      `Delete "${groupName}" and move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned?`,
-    );
-    
-    if (!confirmed) return;
+      if (!confirmed) return;
 
-    try {
-      await onDelete(groupName, membersBySection);
-      onClose();
-    } catch (error) {
-      logger.error('Failed to delete group', {
-        groupName,
-        error: error.message,
-      }, LOG_CATEGORIES.ERROR);
-    }
-  }, [groups, onDelete, loading, onClose]);
+      try {
+        await onDelete(groupName, membersBySection);
+        onClose();
+      } catch (error) {
+        logger.error(
+          'Failed to delete group',
+          {
+            groupName,
+            error: error.message,
+          },
+          LOG_CATEGORIES.ERROR,
+        );
+      }
+    },
+    [groups, onDelete, loading, onClose],
+  );
 
   // Handle cancel
   const handleCancel = useCallback(() => {
@@ -245,67 +288,99 @@ function GroupNamesEditModal({
     // Sort: numbered groups first, then unassigned last
     const [nameA] = a;
     const [nameB] = b;
-    
+
     if (nameA === 'Group Unassigned') return 1;
     if (nameB === 'Group Unassigned') return -1;
-    
+
     const numA = parseInt(nameA.replace('Group ', '')) || 0;
     const numB = parseInt(nameB.replace('Group ', '')) || 0;
     return numA - numB;
   });
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      data-oid="ksa0d1_"
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+        data-oid="_xzti1v"
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="px-6 py-4 border-b border-gray-200" data-oid="w:j50.b">
+          <h2
+            className="text-xl font-semibold text-gray-900"
+            data-oid="b0x9x7h"
+          >
             Edit Group Names
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 mt-1" data-oid="18iiy_7">
             Rename camp groups - all members in each group will be updated
           </p>
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+        <div
+          className="px-6 py-4 overflow-y-auto max-h-[60vh]"
+          data-oid="fbpcw7a"
+        >
           {Object.keys(errors).length > 0 && (
-            <Alert variant="danger" className="mb-4">
-              <Alert.Title>Validation Errors</Alert.Title>
-              <Alert.Description>
+            <Alert variant="danger" className="mb-4" data-oid="9i3l0tz">
+              <Alert.Title data-oid="4qhsz54">Validation Errors</Alert.Title>
+              <Alert.Description data-oid="e4spk6t">
                 Please fix the errors below before saving.
               </Alert.Description>
             </Alert>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-4" data-oid="stc4uf5">
             {groupEntries.map(([originalGroupName, group]) => {
-              const memberCount = (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
+              const memberCount =
+                (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
               const currentValue = groupNames[originalGroupName] || '';
               const hasError = errors[originalGroupName];
-              
+
               return (
-                <div key={originalGroupName} className="flex items-center space-x-4 p-4 border rounded-lg">
-                  <div className="flex-shrink-0 w-20 text-sm text-gray-600">
+                <div
+                  key={originalGroupName}
+                  className="flex items-center space-x-4 p-4 border rounded-lg"
+                  data-oid="ilsgv4g"
+                >
+                  <div
+                    className="flex-shrink-0 w-20 text-sm text-gray-600"
+                    data-oid="nszj1qy"
+                  >
                     {memberCount} member{memberCount !== 1 ? 's' : ''}
                   </div>
-                  
-                  <div className="flex-1">
+
+                  <div className="flex-1" data-oid="-ed6jek">
                     <Input
                       id={`group-${originalGroupName}`}
                       value={currentValue}
-                      onChange={(e) => handleNameChange(originalGroupName, e.target.value)}
+                      onChange={(e) =>
+                        handleNameChange(originalGroupName, e.target.value)
+                      }
                       placeholder="Enter new group name"
-                      className={hasError ? 'border-red-500 focus:border-red-500' : ''}
+                      className={
+                        hasError ? 'border-red-500 focus:border-red-500' : ''
+                      }
                       disabled={loading}
+                      data-oid="vy.2us4"
                     />
+
                     {hasError && (
-                      <p className="text-red-500 text-xs mt-1">{hasError}</p>
+                      <p
+                        className="text-red-500 text-xs mt-1"
+                        data-oid="zmfjdao"
+                      >
+                        {hasError}
+                      </p>
                     )}
                   </div>
 
                   {/* Delete button - don't show for Unassigned group */}
-                  {originalGroupName !== 'Group Unassigned' && memberCount > 0 && (
+                  {originalGroupName !== 'Group Unassigned' &&
+                    memberCount > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -314,8 +389,9 @@ function GroupNamesEditModal({
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                       type="button"
                       title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned)`}
+                      data-oid=":t.ilsz"
                     >
-                      Delete
+                        Delete
                     </Button>
                   )}
                 </div>
@@ -324,19 +400,23 @@ function GroupNamesEditModal({
           </div>
 
           {groupEntries.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500" data-oid="wrs_muw">
               No groups available to rename
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <div
+          className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3"
+          data-oid="5st6.ue"
+        >
           <Button
             variant="outline"
             onClick={handleCancel}
             disabled={loading}
             type="button"
+            data-oid="qsz0ya4"
           >
             Cancel
           </Button>
@@ -345,6 +425,7 @@ function GroupNamesEditModal({
             onClick={handleSave}
             disabled={loading || Object.keys(errors).length > 0 || !hasChanges}
             type="button"
+            data-oid="a9cq49p"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </Button>

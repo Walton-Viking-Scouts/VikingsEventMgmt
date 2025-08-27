@@ -7,7 +7,7 @@ import { cn } from '../../utils/cn';
 
 const Menu = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn('relative', className)} {...props}>
+    <div className={cn('relative', className)} {...props} data-oid="r2blk4e">
       {children}
     </div>
   );
@@ -35,6 +35,7 @@ const MenuButton = ({
         className,
       )}
       {...props}
+      data-oid=":1m45me"
     >
       {children}
     </button>
@@ -65,8 +66,11 @@ const MenuItems = ({
         className,
       )}
       {...props}
+      data-oid="t4s08_8"
     >
-      <div className="py-1">{children}</div>
+      <div className="py-1" data-oid="w3yr70z">
+        {children}
+      </div>
     </div>
   );
 };
@@ -95,6 +99,7 @@ const MenuItem = ({
         className,
       )}
       {...props}
+      data-oid="mwdul3w"
     >
       {children}
     </button>
@@ -106,6 +111,7 @@ const MenuDivider = ({ className = '', ...props }) => {
     <div
       className={cn('border-t border-gray-100 my-1', className)}
       {...props}
+      data-oid="c27c-m."
     />
   );
 };
@@ -162,9 +168,11 @@ const Dropdown = ({
   };
 
   return (
-    <Menu ref={dropdownRef} className={className} {...props}>
-      <div onClick={handleToggle}>{trigger}</div>
-      <MenuItems isOpen={isOpen} position={position}>
+    <Menu ref={dropdownRef} className={className} {...props} data-oid="a.alm74">
+      <div onClick={handleToggle} data-oid="wdq37ap">
+        {trigger}
+      </div>
+      <MenuItems isOpen={isOpen} position={position} data-oid="16v95eo">
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child) && child.type === MenuItem) {
             return React.cloneElement(child, {
@@ -191,7 +199,11 @@ const Nav = ({
   };
 
   return (
-    <nav className={cn(variants[variant], className)} {...props}>
+    <nav
+      className={cn(variants[variant], className)}
+      {...props}
+      data-oid="r.yp3zo"
+    >
       {children}
     </nav>
   );
@@ -225,6 +237,7 @@ const NavItem = ({
         className,
       )}
       {...props}
+      data-oid="gcomv.y"
     >
       {children}
     </Component>

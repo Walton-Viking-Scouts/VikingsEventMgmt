@@ -20,9 +20,8 @@ function OfflineIndicator({ hideBanner = false }) {
       setApiConnected(true);
       return true;
     }
-    
-    try {
 
+    try {
       // Use the rate-limited testBackendConnection function from API service
       // This ensures all health checks go through the queue system
       const result = await testBackendConnection();
@@ -207,49 +206,68 @@ function OfflineIndicator({ hideBanner = false }) {
 
   // Helper function for rendering the Login Prompt Modal (reused in multiple places)
   const renderLoginPromptModal = () => (
-    <Modal isOpen={showLoginPrompt} onClose={handleLoginCancel} size="md">
-      <Modal.Header>
-        <Modal.Title>Authentication Required</Modal.Title>
+    <Modal
+      isOpen={showLoginPrompt}
+      onClose={handleLoginCancel}
+      size="md"
+      data-oid="llea55a"
+    >
+      <Modal.Header data-oid="xi.a::5">
+        <Modal.Title data-oid="ppnyx7x">Authentication Required</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                <span className="text-amber-600 text-xl">🔐</span>
+      <Modal.Body data-oid="6.tm2h.">
+        <div className="space-y-4" data-oid="q7v7wf6">
+          <div className="flex items-center gap-3" data-oid="xnhrzof">
+            <div className="flex-shrink-0" data-oid="t-kb0::">
+              <div
+                className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center"
+                data-oid="-3pj-tt"
+              >
+                <span className="text-amber-600 text-xl" data-oid="97ziwig">
+                  🔐
+                </span>
               </div>
             </div>
-            <div>
-              <p className="text-gray-900 font-medium">
+            <div data-oid="g1g0bs-">
+              <p className="text-gray-900 font-medium" data-oid="uolmo.t">
                 {loginPromptData?.message ||
                   'Authentication required to sync data.'}
               </p>
-              <p className="text-gray-600 text-sm mt-1">
-                You will be redirected to Online Scout Manager to
-                authenticate.
+              <p className="text-gray-600 text-sm mt-1" data-oid="ra0v60v">
+                You will be redirected to Online Scout Manager to authenticate.
               </p>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-blue-800 text-sm">
-              <strong>Note:</strong> You can continue using the app with
-              offline data if you prefer not to sync at this time.
+          <div
+            className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+            data-oid="710mq64"
+          >
+            <p className="text-blue-800 text-sm" data-oid="__on-9b">
+              <strong data-oid="k9-8knt">Note:</strong> You can continue using
+              the app with offline data if you prefer not to sync at this time.
             </p>
           </div>
         </div>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline" onClick={handleLoginCancel}>
+      <Modal.Footer data-oid="rqyupwb">
+        <Button
+          variant="outline"
+          onClick={handleLoginCancel}
+          data-oid="2ns1-p4"
+        >
           Stay Offline
         </Button>
-        <Button variant="scout-blue" onClick={handleLoginConfirm}>
+        <Button
+          variant="scout-blue"
+          onClick={handleLoginConfirm}
+          data-oid="j:2h5r."
+        >
           Login & Sync
         </Button>
       </Modal.Footer>
     </Modal>
   );
-
 
   // Don't show anything if both network and API are connected and no sync status
   if (isOnline && apiConnected && !syncStatus) {
@@ -260,7 +278,6 @@ function OfflineIndicator({ hideBanner = false }) {
       </>
     );
   }
-
 
   // If hideBanner is true, only return modals, no banner
   if (hideBanner) {
@@ -273,8 +290,7 @@ function OfflineIndicator({ hideBanner = false }) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
-
+    <div className="fixed top-0 left-0 right-0 z-50" data-oid="av1w:m9">
       {syncStatus && (
         <Alert
           variant={
@@ -285,30 +301,37 @@ function OfflineIndicator({ hideBanner = false }) {
                 : 'error'
           }
           className="rounded-none border-x-0 border-t-0"
+          data-oid="3u7r.ja"
         >
-          <div className="flex items-center justify-center gap-2">
+          <div
+            className="flex items-center justify-center gap-2"
+            data-oid="vziim9t"
+          >
             {syncStatus.status === 'syncing' && (
               <>
-                <span className="animate-spin">⏳</span>
-                <span>{syncStatus.message}</span>
+                <span className="animate-spin" data-oid="p0oj2fh">
+                  ⏳
+                </span>
+                <span data-oid="8vv:wkm">{syncStatus.message}</span>
               </>
             )}
             {syncStatus.status === 'completed' && (
               <>
-                <span>✅</span>
-                <span>Sync completed</span>
+                <span data-oid="c61bu6:">✅</span>
+                <span data-oid="73rvxvp">Sync completed</span>
               </>
             )}
             {syncStatus.status === 'error' && (
               <>
-                <span>⚠️</span>
-                <span>Sync failed: {syncStatus.message}</span>
+                <span data-oid="eyl0t7d">⚠️</span>
+                <span data-oid="wsb5j1f">
+                  Sync failed: {syncStatus.message}
+                </span>
               </>
             )}
           </div>
         </Alert>
       )}
-
     </div>
   );
 }

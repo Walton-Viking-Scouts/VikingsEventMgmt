@@ -28,7 +28,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
   const getDataAge = (timestamp) => {
     const syncTimeMs = parseTimestamp(timestamp);
     if (!syncTimeMs) return null;
-    
+
     const diffMs = Math.max(0, Date.now() - syncTimeMs);
 
     const minutes = Math.floor(diffMs / (1000 * 60));
@@ -46,7 +46,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
   const getStalenessLevel = (timestamp) => {
     const syncTimeMs = parseTimestamp(timestamp);
     if (!syncTimeMs) return 'unknown';
-    
+
     const diffMs = Math.max(0, Date.now() - syncTimeMs);
 
     // Different staleness thresholds based on our design
@@ -55,7 +55,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
     const WEEK = 7 * DAY;
 
     if (diffMs < HOUR) return 'fresh'; // < 1 hour
-    if (diffMs < 4 * HOUR) return 'moderate'; // < 4 hours  
+    if (diffMs < 4 * HOUR) return 'moderate'; // < 4 hours
     if (diffMs < DAY) return 'stale'; // < 1 day
     if (diffMs < WEEK) return 'very-stale'; // < 1 week
     return 'ancient'; // > 1 week
@@ -64,7 +64,6 @@ function DataFreshness({ lastSync, authState, className = '' }) {
   const getDisplayInfo = () => {
     const age = getDataAge(lastSync);
     const staleness = getStalenessLevel(lastSync);
-    
 
     switch (authState) {
     case AUTH_STATES.NO_DATA:
@@ -87,10 +86,11 @@ function DataFreshness({ lastSync, authState, className = '' }) {
 
     case AUTH_STATES.CACHED_ONLY:
     case AUTH_STATES.TOKEN_EXPIRED: {
-      const urgencyClass = {
-        ...STALENESS_COLOURS,
-        ancient: 'text-red-900',
-      }[staleness] || 'text-gray-600';
+      const urgencyClass =
+          {
+            ...STALENESS_COLOURS,
+            ancient: 'text-red-900',
+          }[staleness] || 'text-gray-600';
 
       return {
         text: age ? `Cached data from ${age}` : 'Using cached data',
@@ -114,8 +114,13 @@ function DataFreshness({ lastSync, authState, className = '' }) {
   return (
     <div
       className={`data-freshness text-sm ${info.className} ${className}`}
+      data-oid="q3i0cxc"
     >
-      <span className="data-freshness-text" title={info.text}>
+      <span
+        className="data-freshness-text"
+        title={info.text}
+        data-oid="p7xyb7w"
+      >
         {info.text}
       </span>
     </div>

@@ -70,3 +70,6 @@ cypress.env.json
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Builder configuration
+builder.config.json

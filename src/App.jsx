@@ -45,7 +45,7 @@ function App() {
       const timeoutId = setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }, duration);
-      
+
       // Store timeout ID for potential cleanup
       notification.timeoutId = timeoutId;
     }
@@ -77,10 +77,18 @@ function App() {
       const { default: syncService } = await import('./services/sync.js');
       // Trigger comprehensive data sync
       await syncService.syncAll();
-      logger.info('Manual refresh completed successfully', {}, LOG_CATEGORIES.APP);
+      logger.info(
+        'Manual refresh completed successfully',
+        {},
+        LOG_CATEGORIES.APP,
+      );
       addNotification('success', 'Data refreshed successfully');
     } catch (error) {
-      logger.error('Manual refresh failed', { error: error.message, stack: error.stack }, LOG_CATEGORIES.ERROR);
+      logger.error(
+        'Manual refresh failed',
+        { error: error.message, stack: error.stack },
+        LOG_CATEGORIES.ERROR,
+      );
       // Avoid leaking raw error messages to end users
       addNotification('error', 'Refresh failed. Please try again.');
     } finally {
@@ -92,14 +100,14 @@ function App() {
   useEffect(() => {
     if (!isLoading && isOfflineMode && user) {
       const userName = user?.firstname ? `, ${user.firstname}` : '';
-      
-      const offlineMessage = 
+
+      const offlineMessage =
         authState === 'token_expired' || authState === 'cached_only'
           ? 'Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM.'
           : 'You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.';
-      
+
       addNotification(
-        'info', 
+        'info',
         `Offline Mode${userName}: ${offlineMessage}`,
         8000, // Show for 8 seconds
       );
@@ -113,18 +121,22 @@ function App() {
     const setupSyncListener = async () => {
       try {
         const { default: syncService } = await import('./services/sync.js');
-        
+
         const handleSyncStatus = (status) => {
           setIsSyncing(status.status === 'syncing');
         };
-        
+
         syncService.addSyncListener(handleSyncStatus);
-        
+
         cleanup = () => {
           syncService.removeSyncListener(handleSyncStatus);
         };
       } catch (error) {
-        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.ERROR);
+        logger.error(
+          'Failed to setup sync listener',
+          { error: error.message },
+          LOG_CATEGORIES.ERROR,
+        );
       }
     };
 
@@ -154,10 +166,12 @@ function App() {
     let membersData = members;
 
     if (!membersData) {
-      const sectionsInvolved = Array.from(new Set(events.map((e) => e.sectionid)));
+      const sectionsInvolved = Array.from(
+        new Set(events.map((e) => e.sectionid)),
+      );
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
-        
+
         // If no cached members found, the sync might not have completed yet
         if (!membersData || membersData.length === 0) {
           addNotification(
@@ -193,29 +207,46 @@ function App() {
 
   // Clear Storage View component for troubleshooting
   const ClearStorageView = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">Clear All Storage</h2>
-        <p className="text-gray-600 mb-6 text-center">
-          This will clear all cached data and reset the application to its initial state. 
-          You will need to log in again after clearing storage.
+    <div
+      className="flex flex-col items-center justify-center min-h-screen p-8"
+      data-oid="-b_9821"
+    >
+      <div
+        className="max-w-md w-full bg-white rounded-lg shadow-md p-6"
+        data-oid="i5e1z0-"
+      >
+        <h2
+          className="text-2xl font-bold text-center mb-4 text-gray-800"
+          data-oid="utkzh9m"
+        >
+          Clear All Storage
+        </h2>
+        <p className="text-gray-600 mb-6 text-center" data-oid="g1uyclk">
+          This will clear all cached data and reset the application to its
+          initial state. You will need to log in again after clearing storage.
         </p>
-        <div className="space-y-3">
+        <div className="space-y-3" data-oid="arcuee-">
           <button
             onClick={() => {
               clearAllStorage();
-              addNotification('success', 'All storage cleared successfully. Reloading...', 2000);
+              addNotification(
+                'success',
+                'All storage cleared successfully. Reloading...',
+                2000,
+              );
               setTimeout(() => {
                 window.location.href = '/dashboard';
               }, 2000);
             }}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+            data-oid="ivm.24n"
           >
             Clear All Storage & Reload
           </button>
           <button
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => (window.location.href = '/dashboard')}
             className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            data-oid=":fw25h:"
           >
             Cancel
           </button>
@@ -228,12 +259,12 @@ function App() {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Checking authentication..." data-oid="82rsimx" />
+      <LoadingScreen message="Checking authentication..." data-oid="lhel7g:" />
     );
   }
 
   if (isBlocked) {
-    return <BlockedScreen data-oid="8np6w_z" />;
+    return <BlockedScreen data-oid="pc2c_ng" />;
   }
 
   // Always show dashboard - authentication is now contextual via header
@@ -244,15 +275,17 @@ function App() {
 
     switch (currentView) {
     case 'attendance': {
-      const uniqueSections = getUniqueSectionsFromEvents(navigationData.events);
-      
+      const uniqueSections = getUniqueSectionsFromEvents(
+        navigationData.events,
+      );
+
       return (
         <AttendanceView
           sections={uniqueSections}
           events={navigationData.events || []}
           members={navigationData.members || []} // Loaded from cache
           onBack={handleBackToDashboard}
-          data-oid="zrtob7_"
+          data-oid="pnmv_kh"
         />
       );
     }
@@ -260,21 +293,21 @@ function App() {
       return (
         <EventDashboard
           onNavigateToAttendance={handleNavigateToAttendance}
-          data-oid="zfo-c6t"
+          data-oid="bs.j_-c"
         />
       );
     }
   };
 
   return (
-    <ErrorBoundary name="App" logProps={false} data-oid="b3kc7nt">
-      <div className="App" data-testid="app" data-oid="bmzu2xc">
-        <ErrorBoundary name="Router" logProps={false} data-oid="bx5pemu">
-          <Router data-oid="ztwbw:3">
+    <ErrorBoundary name="App" logProps={false} data-oid=":wd210g">
+      <div className="App" data-testid="app" data-oid="j3qzdz4">
+        <ErrorBoundary name="Router" logProps={false} data-oid="w102jf7">
+          <Router data-oid="z2kr-jj">
             <ErrorBoundary
               name="ResponsiveLayout"
               logProps={false}
-              data-oid="1y4:f9s"
+              data-oid="0nlh8i9"
             >
               <ResponsiveLayout
                 user={user}
@@ -286,30 +319,30 @@ function App() {
                 authState={authState}
                 lastSyncTime={lastSyncTime}
                 isRefreshing={isRefreshing}
-                data-oid="2c61drc"
+                data-oid="rag605e"
               >
                 <ErrorBoundary
                   name="Routes"
                   logProps={false}
-                  data-oid=":m15jt7"
+                  data-oid="qj:9uog"
                 >
-                  <Routes data-oid="c3k12d.">
+                  <Routes data-oid="9yyh-se">
                     <Route
                       path="/"
                       element={renderCurrentView()}
-                      data-oid="ibytcl:"
+                      data-oid=".q-63e3"
                     />
 
                     <Route
                       path="/dashboard"
                       element={renderCurrentView()}
-                      data-oid="z8vjxij"
+                      data-oid="68j1bbx"
                     />
 
                     <Route
                       path="/clear"
-                      element={<ClearStorageView />}
-                      data-oid="clear-storage"
+                      element={<ClearStorageView data-oid="qv:-uqp" />}
+                      data-oid="bdxv:9k"
                     />
                   </Routes>
                 </ErrorBoundary>
@@ -322,12 +355,12 @@ function App() {
         <ErrorBoundary
           name="NotificationSystem"
           logProps={false}
-          data-oid="sqerlt5"
+          data-oid="4bf2r12"
         >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
             style={{ maxWidth: '400px' }}
-            data-oid="qcv7.ct"
+            data-oid="_05cnqk"
           >
             {notifications.map((notification) => (
               <Alert
@@ -336,7 +369,7 @@ function App() {
                 dismissible={true}
                 onDismiss={() => removeNotification(notification.id)}
                 className="shadow-lg"
-                data-oid="tzwwc4s"
+                data-oid="j3q9sr_"
               >
                 {notification.message}
               </Alert>

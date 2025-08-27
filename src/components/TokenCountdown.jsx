@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
  * Component that displays remaining time until token expires
  * Shows different colors based on remaining time:
  * - Green: > 15 minutes
- * - Yellow: 5-15 minutes  
+ * - Yellow: 5-15 minutes
  * - Red: < 5 minutes
  */
 function TokenCountdown({ authState, className = '' }) {
@@ -70,9 +70,11 @@ function TokenCountdown({ authState, className = '' }) {
   }
 
   return (
-    <div className={`text-sm text-gray-600 ${className}`}>
-      <span className="hidden md:inline">Session: </span>
-      <span>{displayText}</span>
+    <div className={`text-sm text-gray-600 ${className}`} data-oid="ni8li1n">
+      <span className="hidden md:inline" data-oid="a-eblja">
+        Session:{' '}
+      </span>
+      <span data-oid="z2xm505">{displayText}</span>
     </div>
   );
 }
@@ -80,7 +82,7 @@ function TokenCountdown({ authState, className = '' }) {
 TokenCountdown.propTypes = {
   authState: PropTypes.oneOf([
     'no_data',
-    'cached_only', 
+    'cached_only',
     'authenticated',
     'token_expired',
     'syncing',

@@ -4,57 +4,57 @@ function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {
     switch (status) {
     case 'attending':
-      return 'bg-green-100 text-green-800';
+      return 'text-green-800';
     case 'notAttending':
-      return 'bg-red-100 text-red-800';
+      return 'text-red-800';
     case 'invited':
-      return 'bg-blue-100 text-blue-800';
+      return 'text-scout-blue';
     case 'notInvited':
-      return 'bg-gray-100 text-gray-800';
+      return 'text-gray-800';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'text-gray-800';
     }
   };
 
   const StatusCell = ({ count, status }) => (
     <td
       className={`px-3 py-2 text-center text-sm font-medium ${getStatusColor(status)}`}
-      data-oid="1x39o_:"
+      data-oid="r-rv-8e"
     >
       {count}
     </td>
   );
 
   const PersonTypeRow = ({ type, typeData }) => (
-    <tr className="border-b border-gray-200" data-oid="18wo769">
+    <tr className="border-b border-gray-200" data-oid="wcrvaky">
       <td
         className="px-3 py-2 text-sm font-medium text-gray-900 bg-gray-50"
-        data-oid="hhatv8d"
+        data-oid="ipjjxor"
       >
         {type}
       </td>
       <StatusCell
         count={typeData.attending}
         status="attending"
-        data-oid="o5jph_h"
+        data-oid="bfb88h_"
       />
 
       <StatusCell
         count={typeData.notAttending}
         status="notAttending"
-        data-oid="vw8h3b1"
+        data-oid="k37_.00"
       />
 
       <StatusCell
         count={typeData.invited}
         status="invited"
-        data-oid="3vq6rxo"
+        data-oid="apl7abw"
       />
 
       <StatusCell
         count={typeData.notInvited}
         status="notInvited"
-        data-oid="n9rykkn"
+        data-oid="64xxv1a"
       />
     </tr>
   );
@@ -68,104 +68,80 @@ function AttendanceGrid({ data }) {
 
   return (
     <div
-      className="overflow-hidden rounded-lg border border-gray-200"
-      data-oid="l6b74ft"
+      className="overflow-hidden"
+      data-oid="cvq.bwo"
     >
-      <table className="min-w-full divide-y divide-gray-200" data-oid="hw.88ya">
-        <thead className="bg-gray-50" data-oid="zvws7m9">
-          <tr data-oid="5e4p.co">
+      <table className="min-w-full divide-y divide-gray-200" data-oid="epucw:u">
+        <thead className="bg-gray-50" data-oid="pd8zbk-">
+          <tr data-oid="_3hhftv">
             <th
               className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="0gdxo1c"
+              data-oid="7is:5yj"
             >
-              Type
+              Section
             </th>
             <th
-              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="2edtkr5"
+              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              data-oid="013_x-k"
             >
-              <div className="flex flex-col items-center" data-oid="mymvun:">
-                <div
-                  className="w-3 h-3 bg-green-500 rounded-full mb-1"
-                  data-oid="n9gbu_k"
-                ></div>
-                <span data-oid="upruvnn">Yes</span>
-              </div>
+              <span data-oid="19qz455">Yes</span>
             </th>
             <th
-              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="d5tra5f"
+              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              data-oid="-xiy5up"
             >
-              <div className="flex flex-col items-center" data-oid="1v-984k">
-                <div
-                  className="w-3 h-3 bg-red-500 rounded-full mb-1"
-                  data-oid="nswruvp"
-                ></div>
-                <span data-oid="ox1obxx">No</span>
-              </div>
+              <span data-oid="_5eyt2i">No</span>
             </th>
             <th
-              className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="jus_mnu"
+              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              data-oid="zbtmyf3"
             >
-              <div className="flex flex-col items-center" data-oid="9d:s:ih">
-                <div
-                  className="w-3 h-3 bg-blue-500 rounded-full mb-1"
-                  data-oid="n9585cz"
-                ></div>
-                <span data-oid="h8qw-i5">Invited</span>
-              </div>
+              <span data-oid=":kaigd-">Invited</span>
             </th>
             <th
-              className="px-0 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-              data-oid="ox-.q6h"
+              className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+              data-oid="-_rgu-m"
             >
-              <div className="flex flex-col items-center" data-oid="o4lada:">
-                <div
-                  className="w-3 h-3 bg-gray-500 rounded-full mb-1"
-                  data-oid="6kfhxbz"
-                ></div>
-                <span data-oid="zayc0y_">Not Invited</span>
-              </div>
+              <span data-oid="wv3vvfh">Not Invited</span>
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200" data-oid="td.3-l-">
+        <tbody className="bg-white divide-y divide-gray-200" data-oid="g60igun">
           {Object.entries(data).map(([type, typeData]) => (
             <PersonTypeRow
               key={type}
               type={type}
               typeData={typeData}
-              data-oid="ejms00q"
+              data-oid="3hj1pvm"
             />
           ))}
 
           {/* Totals row */}
-          <tr className="bg-gray-50 font-medium" data-oid="h0rkj09">
-            <td className="px-3 py-2 text-sm text-gray-900" data-oid="2lfj7e6">
+          <tr className="bg-gray-50 font-medium" data-oid="l-hkkjw">
+            <td className="px-3 py-2 text-sm text-gray-900" data-oid="t:8zsrm">
               Total
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-green-800"
-              data-oid="2rs:.w_"
+              data-oid="bf5k-5c"
             >
               {getTotalByStatus('attending')}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-red-800"
-              data-oid="i2:a3nv"
+              data-oid="o1hy_fp"
             >
               {getTotalByStatus('notAttending')}
             </td>
             <td
-              className="px-3 py-2 text-center text-sm text-blue-800"
-              data-oid="jq3n59y"
+              className="px-3 py-2 text-center text-sm text-yellow-800"
+              data-oid="m1b8uey"
             >
               {getTotalByStatus('invited')}
             </td>
             <td
               className="px-3 py-2 text-center text-sm text-gray-800"
-              data-oid="wy5f0yb"
+              data-oid=".66ttp."
             >
               {getTotalByStatus('notInvited')}
             </td>

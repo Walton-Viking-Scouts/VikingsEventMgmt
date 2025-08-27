@@ -12,9 +12,9 @@ import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 
-function MembersList({ 
-  sections, 
-  members: propsMembers, 
+function MembersList({
+  sections,
+  members: propsMembers,
   onBack,
   embedded = false,
   showHeader = true,
@@ -37,33 +37,28 @@ function MembersList({
   const loadMembers = useCallback(async () => {
     if (!mountedRef.current) return;
 
-    // Clear error state immediately so Retry hides error UI
     setError(null);
     setLoading(true);
-
-    // Increment requestId to guard against race conditions
     const currentRequestId = ++requestIdRef.current;
 
     try {
       const token = getToken();
       const members = await getListOfMembers(sections, token);
 
-      // Only apply state updates if component is mounted AND this is the latest request
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
         setMembers(members);
       }
-    } catch (e) {
-      // Only apply error state if component is mounted AND this is the latest request
+    } catch (err) {
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
-        setError(e?.message ?? 'Unable to load members. Please try again.');
+        console.error('Error loading members:', err);
+        setError(`Failed to load members: ${err.message || 'Unknown error'}`);
       }
     } finally {
-      // Only turn off loading for the matching requestId so stale requests cannot override
       if (mountedRef.current && requestIdRef.current === currentRequestId) {
         setLoading(false);
       }
     }
-  }, [sections]); // sections changes are captured directly
+  }, [sections]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -74,29 +69,25 @@ function MembersList({
 
   useEffect(() => {
     if (propsMembers) {
-      // Cancel any in-flight async load and use provided data
       requestIdRef.current++;
       setMembers(propsMembers);
       setLoading(false);
       setError(null);
     } else {
-      // Load members if not provided
       loadMembers();
     }
   }, [sectionIdsKey, propsMembers, loadMembers]);
 
-  // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return '';
+
     try {
-      const birthDate = new Date(dateOfBirth);
+      const birth = new Date(dateOfBirth);
       const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
         age--;
       }
       return age;
@@ -104,7 +95,6 @@ function MembersList({
       return '';
     }
   };
-
 
   // Filter members (sorting is handled by ComprehensiveMemberTable)
   const filteredMembers = useMemo(() => {
@@ -123,7 +113,6 @@ function MembersList({
     });
   }, [members, searchTerm]);
 
-
   const exportToCSV = () => {
     if (filteredMembers.length === 0) {
       alert('No members to export');
@@ -138,7 +127,7 @@ function MembersList({
       'Phone',
       'Sections',
       'Patrol',
-      'Person Type',
+      'Type',
       'Age',
       'Date of Birth',
       'Address',
@@ -209,7 +198,6 @@ function MembersList({
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-
   // Handle member click to show detail modal
   const handleMemberClick = (member) => {
     if (import.meta.env?.DEV) {
@@ -242,9 +230,11 @@ function MembersList({
           <Button variant="scout-blue" onClick={loadMembers} type="button">
             Retry
           </Button>
-          <Button variant="outline" onClick={onBack} type="button">
-            Back to Dashboard
-          </Button>
+          {onBack && (
+            <Button variant="outline" onClick={onBack} type="button">
+              Back to Dashboard
+            </Button>
+          )}
         </Alert.Actions>
       </Alert>
     );
@@ -322,7 +312,7 @@ function MembersList({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"
                 />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">

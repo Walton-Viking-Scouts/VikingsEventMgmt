@@ -11,14 +11,16 @@ function MobileLayout({
   isOfflineMode,
   authState,
   lastSyncTime,
+  ...props
 }) {
   return (
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
       style={{ touchAction: 'pan-y' }}
+      {...props}
     >
-      <OfflineIndicator />
+      <OfflineIndicator data-oid=":nycp0v" />
       <Header
         user={user}
         onLogout={onLogout}
@@ -27,11 +29,18 @@ function MobileLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
+        data-oid="t0_96sh"
       />
 
-
-      <main className="flex-1 overflow-y-auto" data-testid="mobile-main" style={{ touchAction: 'pan-y' }}>
-        <div className="h-full">{children}</div>
+      <main
+        className="flex-1 overflow-y-auto"
+        data-testid="mobile-main"
+        style={{ touchAction: 'pan-y' }}
+        data-oid="fo.f5v6"
+      >
+        <div className="h-full" data-oid="o.r7g:m">
+          {children}
+        </div>
       </main>
     </div>
   );

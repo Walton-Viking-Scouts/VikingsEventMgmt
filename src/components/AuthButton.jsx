@@ -9,7 +9,7 @@ import { Button } from './ui';
  * - Has cached data: "Refresh data"
  * - Token expired: "Sign in to refresh"
  * - Syncing: "Syncing..." (disabled)
- * 
+ *
  * @param {Object} props - Component props
  * @param {string} props.authState - Current authentication state
  * @param {Function} props.onLogin - Login handler function
@@ -99,6 +99,7 @@ function AuthButton({
       className={`auth-button ${className}`}
       data-testid="auth-button"
       {...rest}
+      data-oid="14si21j"
     >
       {config.text}
     </Button>

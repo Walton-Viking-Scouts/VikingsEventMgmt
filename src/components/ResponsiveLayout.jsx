@@ -13,6 +13,7 @@ function ResponsiveLayout({
   isOfflineMode = false,
   authState = 'no_data',
   lastSyncTime = null,
+  ...props
 }) {
   const [isMobile, setIsMobile] = React.useState(isMobileLayout());
 
@@ -25,11 +26,10 @@ function ResponsiveLayout({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-
   const LayoutComponent = isMobile ? MobileLayout : DesktopLayout;
 
   return (
-    <div data-testid="responsive-layout" className="h-full">
+    <div data-testid="responsive-layout" className="h-full" data-oid="z6:bgu7">
       <LayoutComponent
         user={user}
         onLogout={onLogout}
@@ -39,6 +39,7 @@ function ResponsiveLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
+        {...props}
       >
         {children}
       </LayoutComponent>
