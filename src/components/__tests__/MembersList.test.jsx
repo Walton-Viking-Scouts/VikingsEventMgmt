@@ -67,7 +67,7 @@ describe('MembersList', () => {
 
     // Import and mock the API function
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockResolvedValue(mockMembers);
+    vi.mocked(getListOfMembers).mockResolvedValue({ data: mockMembers });
   });
 
   it('renders loading screen initially', async () => {
@@ -75,7 +75,7 @@ describe('MembersList', () => {
     const { getListOfMembers } = await import('../../services/api.js');
     vi.mocked(getListOfMembers).mockImplementation(
       () =>
-        new Promise((resolve) => setTimeout(() => resolve(mockMembers), 100)),
+        new Promise((resolve) => setTimeout(() => resolve({ data: mockMembers }), 100)),
     );
 
     await act(async () => {
@@ -281,7 +281,7 @@ describe('MembersList', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Error Loading Members')).toBeInTheDocument();
-      expect(screen.getByText('Failed to load members')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load members: Failed to load members')).toBeInTheDocument();
     });
   });
 
@@ -309,7 +309,7 @@ describe('MembersList', () => {
   it('displays empty state when no members found', async () => {
     // Mock API to return empty array
     const { getListOfMembers } = await import('../../services/api.js');
-    vi.mocked(getListOfMembers).mockResolvedValue([]);
+    vi.mocked(getListOfMembers).mockResolvedValue({ data: [] });
 
     await act(async () => {
       render(
