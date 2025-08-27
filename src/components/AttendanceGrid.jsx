@@ -84,49 +84,25 @@ function AttendanceGrid({ data }) {
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="b5wq5c8"
             >
-              <div className="flex flex-col items-center" data-oid="azs8cdh">
-                <div
-                  className="bg-green-500 rounded-full mb-1 h-[93px] w-[69px]"
-                  data-oid="-fsvyy2"
-                ></div>
-                <span data-oid="x7c:fuw">Yes</span>
-              </div>
+              <span data-oid="x7c:fuw">Yes</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="l0-u0th"
             >
-              <div className="flex flex-col items-center" data-oid="2d_:n3e">
-                <div
-                  className="bg-red-500 rounded-full mb-1 w-[42px] h-[39px]"
-                  data-oid="9vz22zh"
-                ></div>
-                <span data-oid="suq9c1:">No</span>
-              </div>
+              <span data-oid="suq9c1:">No</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="97ncb7p"
             >
-              <div className="flex flex-col items-center" data-oid="dn:fdk4">
-                <div
-                  className="w-3 h-3 bg-yellow-500 rounded-full mb-1"
-                  data-oid="b0s0qgl"
-                ></div>
-                <span data-oid="pbqi2o_">Invited</span>
-              </div>
+              <span data-oid="pbqi2o_">Invited</span>
             </th>
             <th
               className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
               data-oid="-prgb_5"
             >
-              <div className="flex flex-col items-center" data-oid="jnvyiix">
-                <div
-                  className="w-3 h-3 bg-gray-500 rounded-full mb-1"
-                  data-oid="kt4cqx:"
-                ></div>
-                <span data-oid="t2735i-">Not Invited</span>
-              </div>
+              <span data-oid="t2735i-">Not Invited</span>
             </th>
           </tr>
         </thead>
