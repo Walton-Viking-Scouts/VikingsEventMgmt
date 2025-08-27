@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Badge } from './ui';
-import DraggableMember from './DraggableMember.jsx';
-import { checkNetworkStatus } from '../utils/networkUtils.js';
-import { getToken } from '../services/auth.js';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Card, Badge } from "./ui";
+import DraggableMember from "./DraggableMember.jsx";
+import { checkNetworkStatus } from "../utils/networkUtils.js";
+import { getToken } from "../services/auth.js";
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
@@ -30,7 +30,7 @@ function CampGroupCard({
   draggingMemberId = null,
   dragDisabled = false,
   onOfflineError,
-  className = '',
+  className = "",
 }) {
   // Drop zone state
   const [isDragOver, setIsDragOver] = useState(false);
@@ -40,7 +40,7 @@ function CampGroupCard({
   const { name, leaders = [], youngPeople = [] } = group || {};
 
   const handleMemberClick = (member) => {
-    if (onMemberClick && typeof onMemberClick === 'function') {
+    if (onMemberClick && typeof onMemberClick === "function") {
       onMemberClick(member);
     }
   };
@@ -56,7 +56,7 @@ function CampGroupCard({
     if (!dragDisabled) {
       try {
         const dragData = JSON.parse(
-          e.dataTransfer.getData('application/json') || '{}',
+          e.dataTransfer.getData("application/json") || "{}",
         );
         // Don't allow dropping on the same group
         acceptable = String(dragData.fromGroupNumber) !== String(group.number);
@@ -66,7 +66,7 @@ function CampGroupCard({
       }
     }
     setCanDrop(acceptable);
-    e.dataTransfer.dropEffect = acceptable ? 'move' : 'none';
+    e.dataTransfer.dropEffect = acceptable ? "move" : "none";
   };
 
   const handleDragLeave = (e) => {
@@ -81,103 +81,106 @@ function CampGroupCard({
     }
   };
 
-  const handleDrop = useCallback(async (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    setCanDrop(false);
-    // Don't process drops if dragging is disabled
-    if (dragDisabled) {
-      return;
-    }
-    if (!onMemberMove) {
-      return;
-    }
-    
-    let dragData;
-    try {
-      // Handle both desktop drag/drop and mobile touch drop
-      if (e.type === 'mobile-drop') {
-        dragData = e.detail;
-      } else {
-        dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+  const handleDrop = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      setCanDrop(false);
+      // Don't process drops if dragging is disabled
+      if (dragDisabled) {
+        return;
       }
-
-
-      // Don't allow dropping on the same group
-      if (String(dragData.fromGroupNumber) === String(group.number)) {
+      if (!onMemberMove) {
         return;
       }
 
-      // Check if we can perform the move (network + auth validation)
+      let dragData;
       try {
-        const isOnline = await checkNetworkStatus();
-        const token = getToken();
-        
-        if (!isOnline || !token) {
-          const errorMessage = !isOnline 
-            ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
-            : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
-          
-          // Call the error handler if provided, otherwise log to console
+        // Handle both desktop drag/drop and mobile touch drop
+        if (e.type === "mobile-drop") {
+          dragData = e.detail;
+        } else {
+          dragData = JSON.parse(e.dataTransfer.getData("application/json"));
+        }
+
+        // Don't allow dropping on the same group
+        if (String(dragData.fromGroupNumber) === String(group.number)) {
+          return;
+        }
+
+        // Check if we can perform the move (network + auth validation)
+        try {
+          const isOnline = await checkNetworkStatus();
+          const token = getToken();
+
+          if (!isOnline || !token) {
+            const errorMessage = !isOnline
+              ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
+              : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
+
+            // Call the error handler if provided, otherwise log to console
+            if (onOfflineError) {
+              onOfflineError(dragData.memberName);
+            } else {
+              console.warn(errorMessage);
+            }
+
+            // Don't call onMemberMove - this prevents the optimistic update
+            return;
+          }
+        } catch (networkError) {
+          console.error("Network status check failed:", networkError);
           if (onOfflineError) {
             onOfflineError(dragData.memberName);
           } else {
-            console.warn(errorMessage);
+            console.warn(
+              `Cannot move ${dragData.memberName}: Unable to verify network status.`,
+            );
           }
-          
-          // Don't call onMemberMove - this prevents the optimistic update
           return;
         }
-      } catch (networkError) {
-        console.error('Network status check failed:', networkError);
-        if (onOfflineError) {
-          onOfflineError(dragData.memberName);
+        // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
+        // we can safely create a member object with person_type: 'Young People'
+        // Prefer dragData.member when available (complete object from drag source)
+        let member;
+        if (dragData.member) {
+          // Use complete member object from drag data
+          member = dragData.member;
         } else {
-          console.warn(`Cannot move ${dragData.memberName}: Unable to verify network status.`);
-        }
-        return;
-      }
-      // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
-      // we can safely create a member object with person_type: 'Young People'
-      // Prefer dragData.member when available (complete object from drag source)
-      let member;
-      if (dragData.member) {
-        // Use complete member object from drag data
-        member = dragData.member;
-      } else {
-        // Fall back to constructing minimal object from dragData fields
-        member = {
-          scoutid: dragData.memberId,
-          name: dragData.memberName,
-          person_type: 'Young People',
-          sectionid: dragData.sectionid,
-        };
-        
-        // Last resort: lookup in drop target group for missing fields (may not find anything)
-        const originalMember = [...(group.youngPeople || [])].find(m => 
-          String(m.scoutid) === String(dragData.memberId),
-        );
-        if (originalMember) {
-          member = { ...member, ...originalMember };
-        }
-      }
-      
-      // TODO: Ensure DraggableMember emits a full member object on mobile drags 
-      // so dragData.member is provided to the drop handler
+          // Fall back to constructing minimal object from dragData fields
+          member = {
+            scoutid: dragData.memberId,
+            name: dragData.memberName,
+            person_type: "Young People",
+            sectionid: dragData.sectionid,
+          };
 
+          // Last resort: lookup in drop target group for missing fields (may not find anything)
+          const originalMember = [...(group.youngPeople || [])].find(
+            (m) => String(m.scoutid) === String(dragData.memberId),
+          );
+          if (originalMember) {
+            member = { ...member, ...originalMember };
+          }
+        }
 
-      // Call the move handler
-      onMemberMove({
-        member: member,
-        fromGroupNumber: dragData.fromGroupNumber,
-        fromGroupName: dragData.fromGroupName,
-        toGroupNumber: group.number,
-        toGroupName: group.name,
-      });
-    } catch (error) {
-      // Silently ignore malformed drag data - validation happens during drop
-    }
-  }, [dragDisabled, onMemberMove, onOfflineError, group]);
+        // TODO: Ensure DraggableMember emits a full member object on mobile drags
+        // so dragData.member is provided to the drop handler
+
+        // Call the move handler
+        onMemberMove({
+          member: member,
+          fromGroupNumber: dragData.fromGroupNumber,
+          fromGroupName: dragData.fromGroupName,
+          toGroupNumber: group.number,
+          toGroupName: group.name,
+        });
+      } catch (error) {
+        // Silently ignore malformed drag data - validation happens during drop
+      }
+    },
+    [dragDisabled, onMemberMove, onOfflineError, group],
+  );
 
   // Add mobile drop event listener
   useEffect(() => {
@@ -188,10 +191,10 @@ function CampGroupCard({
       handleDrop(e);
     };
 
-    cardElement.addEventListener('mobile-drop', handleMobileDrop);
-    
+    cardElement.addEventListener("mobile-drop", handleMobileDrop);
+
     return () => {
-      cardElement.removeEventListener('mobile-drop', handleMobileDrop);
+      cardElement.removeEventListener("mobile-drop", handleMobileDrop);
     };
   }, [handleDrop]);
 
@@ -202,24 +205,33 @@ function CampGroupCard({
   const MemberName = ({ member }) => (
     <span
       className={`text-sm break-words ${
-        member.SignedOutBy || member.SignedOutWhen || member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? 'text-gray-400' : ''
-      } ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
+        member.SignedOutBy ||
+        member.SignedOutWhen ||
+        member.vikingEventData?.SignedOutBy ||
+        member.vikingEventData?.SignedOutWhen
+          ? "text-gray-400"
+          : ""
+      } ${
+        onMemberClick
+          ? "cursor-pointer hover:text-scout-blue hover:underline"
+          : ""
+      }`}
       onClick={() => handleMemberClick(member)}
       title={`${member.firstname} ${member.lastname}`}
+      data-oid="9lvkrhf"
     >
       {member.firstname} {member.lastname}
     </span>
   );
-
 
   return (
     <Card
       ref={cardRef}
       className={`
         camp-group-card transition-all duration-200 w-full
-        ${isDragInProgress ? 'drop-zone-available' : ''}
-        ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
-        ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
+        ${isDragInProgress ? "drop-zone-available" : ""}
+        ${isDragOver && canDrop ? "bg-scout-blue/10 border-scout-blue border-2 shadow-lg" : ""}
+        ${isDragOver && !canDrop ? "bg-red-50 border-red-300 border-2" : ""}
         ${className}
       `}
       onDragOver={handleDragOver}
@@ -227,53 +239,76 @@ function CampGroupCard({
       onDrop={handleDrop}
       data-drop-zone="true"
       data-group-number={group.number}
+      data-oid="9aa.c-b"
     >
       {/* Header with group name and leaders */}
-      <Card.Header className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 break-words whitespace-normal">
-              {name} <span className="text-base font-medium text-gray-600">({youngPeople.length})</span>
+      <Card.Header className="pb-2" data-oid="ux3_quu">
+        <div className="flex items-center justify-between" data-oid="rvab1ta">
+          <div className="min-w-0 flex-1" data-oid="77ow2op">
+            <h3
+              className="text-lg font-semibold text-gray-900 break-words whitespace-normal"
+              data-oid="8fjyr8j"
+            >
+              {name}{" "}
+              <span
+                className="text-base font-medium text-gray-600"
+                data-oid="03wfn3f"
+              >
+                ({youngPeople.length})
+              </span>
             </h3>
           </div>
         </div>
 
         {/* Leaders section */}
         {leaders.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-1 mb-1">
+          <div
+            className="mt-2 pt-2 border-t border-gray-100"
+            data-oid="6u9_zwh"
+          >
+            <div className="flex items-center gap-1 mb-1" data-oid="weerpyb">
               <svg
                 className="w-3 h-3 text-scout-purple"
                 fill="currentColor"
                 viewBox="0 0 20 20"
+                data-oid="9wn2ef0"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
                   clipRule="evenodd"
+                  data-oid="jjx:ku:"
                 />
               </svg>
-              <span className="text-xs font-medium text-gray-700">
+              <span
+                className="text-xs font-medium text-gray-700"
+                data-oid="60.8b8r"
+              >
                 Leaders ({leaders.length})
               </span>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1" data-oid="tu9nxce">
               {leaders.map((leader) => (
-                <div key={leader.scoutid} className="flex items-center gap-1">
+                <div
+                  key={leader.scoutid}
+                  className="flex items-center gap-1"
+                  data-oid="94:if8c"
+                >
                   <Badge
                     variant={
-                      leader.person_type === 'Leaders'
-                        ? 'scout-purple'
-                        : 'scout-blue'
+                      leader.person_type === "Leaders"
+                        ? "scout-purple"
+                        : "scout-blue"
                     }
                     size="sm"
                     className="flex-shrink-0"
+                    data-oid="v896o-e"
                   >
-                    {leader.person_type === 'Leaders' ? 'L' : 'YL'}
+                    {leader.person_type === "Leaders" ? "L" : "YL"}
                   </Badge>
-                  <div className="min-w-0 flex-1">
-                    <MemberName member={leader} />
+                  <div className="min-w-0 flex-1" data-oid="4pbs_q.">
+                    <MemberName member={leader} data-oid="m9dkuz5" />
                   </div>
                 </div>
               ))}
@@ -283,27 +318,32 @@ function CampGroupCard({
       </Card.Header>
 
       {/* Body with young people */}
-      <Card.Body className="pt-0">
+      <Card.Body className="pt-0" data-oid="5v.8628">
         {youngPeople.length > 0 ? (
-          <div>
-            <div className="flex items-center gap-1 mb-2">
+          <div data-oid=":fhu._f">
+            <div className="flex items-center gap-1 mb-2" data-oid="v9s_2e8">
               <svg
                 className="w-3 h-3 text-scout-green"
                 fill="currentColor"
                 viewBox="0 0 20 20"
+                data-oid="_pgeuwt"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
                   clipRule="evenodd"
+                  data-oid="udrw23k"
                 />
               </svg>
-              <span className="text-xs font-medium text-gray-700">
+              <span
+                className="text-xs font-medium text-gray-700"
+                data-oid="4ar0nx0"
+              >
                 Young People ({youngPeople.length})
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" data-oid="ns7obtw">
               {youngPeople.map((youngPerson) => (
                 <DraggableMember
                   key={youngPerson.scoutid}
@@ -316,6 +356,7 @@ function CampGroupCard({
                     String(draggingMemberId) === String(youngPerson.scoutid)
                   }
                   disabled={dragDisabled}
+                  data-oid="eezkwbn"
                 />
               ))}
             </div>
@@ -324,26 +365,29 @@ function CampGroupCard({
           <div
             className={`
             text-center py-4 text-gray-500 transition-all
-            ${isDragInProgress ? 'py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg' : ''}
+            ${isDragInProgress ? "py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg" : ""}
           `}
+            data-oid="a0zvk3i"
           >
             <svg
               className="mx-auto h-8 w-8 text-gray-400 mb-2"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              data-oid="ymu4ap3"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"
+                data-oid="dusizky"
               />
             </svg>
-            <p className="text-sm">
+            <p className="text-sm" data-oid="7tsq56a">
               {isDragInProgress
-                ? 'Drop member here'
-                : 'No young people assigned'}
+                ? "Drop member here"
+                : "No young people assigned"}
             </p>
           </div>
         )}
@@ -351,7 +395,10 @@ function CampGroupCard({
 
       {/* Footer with additional info if needed */}
       {leaders.length === 0 && youngPeople.length === 0 && (
-        <Card.Footer className="text-center text-gray-500 text-sm">
+        <Card.Footer
+          className="text-center text-gray-500 text-sm"
+          data-oid="k5m4s4g"
+        >
           No members assigned to this group
         </Card.Footer>
       )}

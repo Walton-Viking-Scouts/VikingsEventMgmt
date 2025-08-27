@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 /**
  * SectionFilter - Reusable pill-based filter for sections
@@ -14,7 +14,7 @@ function SectionFilter({
   sectionFilters,
   onFiltersChange,
   sections,
-  className = '',
+  className = "",
 }) {
   if (!sections || sections.length === 0) {
     return null;
@@ -34,24 +34,24 @@ function SectionFilter({
     const sectionType = (
       section.section ||
       section.sectionname ||
-      ''
+      ""
     ).toLowerCase();
 
-    if (sectionType.includes('earlyyears'))
-      return 'bg-scout-red text-white border-scout-red';
-    if (sectionType.includes('beavers'))
-      return 'bg-scout-blue text-white border-scout-blue';
-    if (sectionType.includes('cubs'))
-      return 'bg-scout-forest-green text-white border-scout-forest-green';
-    if (sectionType.includes('scouts'))
-      return 'bg-scout-navy text-white border-scout-navy';
-    if (sectionType.includes('adults'))
-      return 'bg-scout-purple text-white border-scout-purple';
-    if (sectionType.includes('waitinglist'))
-      return 'bg-scout-teal text-white border-scout-teal';
+    if (sectionType.includes("earlyyears"))
+      return "bg-scout-red text-white border-scout-red";
+    if (sectionType.includes("beavers"))
+      return "bg-scout-blue text-white border-scout-blue";
+    if (sectionType.includes("cubs"))
+      return "bg-scout-forest-green text-white border-scout-forest-green";
+    if (sectionType.includes("scouts"))
+      return "bg-scout-navy text-white border-scout-navy";
+    if (sectionType.includes("adults"))
+      return "bg-scout-purple text-white border-scout-purple";
+    if (sectionType.includes("waitinglist"))
+      return "bg-scout-teal text-white border-scout-teal";
 
     // Default fallback to purple for unknown sections
-    return 'bg-scout-purple text-white border-scout-purple';
+    return "bg-scout-purple text-white border-scout-purple";
   };
 
   return (
@@ -59,13 +59,14 @@ function SectionFilter({
       className={`flex gap-2 flex-wrap items-center ${className}`}
       role="group"
       aria-label="Section filters"
+      data-oid="naxc24q"
     >
       {/* Individual section filters */}
       {sections.map((section) => {
         const isActive = sectionFilters[section.sectionid];
         const activeStyles = getSectionColor(section);
         const inactiveStyles =
-          'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50';
+          "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50";
 
         return (
           <button
@@ -78,6 +79,7 @@ function SectionFilter({
             aria-pressed={isActive}
             aria-label={`Filter by ${section.sectionname} section`}
             title={section.sectionname}
+            data-oid="kyo45i_"
           >
             {section.sectionname}
           </button>

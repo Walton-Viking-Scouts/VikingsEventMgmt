@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth.js';
-import ResponsiveLayout from './components/ResponsiveLayout.jsx';
-import BlockedScreen from './components/BlockedScreen.jsx';
-import LoadingScreen from './components/LoadingScreen.jsx';
-import EventDashboard from './components/EventDashboard.jsx';
-import AttendanceView from './components/AttendanceView.jsx';
-import ErrorBoundary from './components/ErrorBoundary.jsx';
-import databaseService from './services/database.js';
-import logger, { LOG_CATEGORIES } from './services/logger.js';
-import { Alert } from './components/ui';
-import './App.css';
-import { getUniqueSectionsFromEvents } from './utils/sectionHelpers.js';
-import { logout as clearAllStorage } from './services/auth.js';
+import React, { useState, useEffect, useCallback } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useAuth } from "./hooks/useAuth.js";
+import ResponsiveLayout from "./components/ResponsiveLayout.jsx";
+import BlockedScreen from "./components/BlockedScreen.jsx";
+import LoadingScreen from "./components/LoadingScreen.jsx";
+import EventDashboard from "./components/EventDashboard.jsx";
+import AttendanceView from "./components/AttendanceView.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import databaseService from "./services/database.js";
+import logger, { LOG_CATEGORIES } from "./services/logger.js";
+import { Alert } from "./components/ui";
+import "./App.css";
+import { getUniqueSectionsFromEvents } from "./utils/sectionHelpers.js";
+import { logout as clearAllStorage } from "./services/auth.js";
 
 function App() {
   const {
@@ -25,7 +25,7 @@ function App() {
     login,
     logout,
   } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState("dashboard");
   const [navigationData, setNavigationData] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -45,7 +45,7 @@ function App() {
       const timeoutId = setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
       }, duration);
-      
+
       // Store timeout ID for potential cleanup
       notification.timeoutId = timeoutId;
     }
@@ -66,7 +66,7 @@ function App() {
   const handleRefresh = async () => {
     // Short-circuit when offline for better UX
     if (isOfflineMode) {
-      addNotification('info', 'Refresh is unavailable while offline.');
+      addNotification("info", "Refresh is unavailable while offline.");
       return;
     }
     // Prevent concurrent refreshes
@@ -74,15 +74,23 @@ function App() {
     setIsRefreshing(true);
     try {
       // Import sync service dynamically to avoid circular dependencies
-      const { default: syncService } = await import('./services/sync.js');
+      const { default: syncService } = await import("./services/sync.js");
       // Trigger comprehensive data sync
       await syncService.syncAll();
-      logger.info('Manual refresh completed successfully', {}, LOG_CATEGORIES.APP);
-      addNotification('success', 'Data refreshed successfully');
+      logger.info(
+        "Manual refresh completed successfully",
+        {},
+        LOG_CATEGORIES.APP,
+      );
+      addNotification("success", "Data refreshed successfully");
     } catch (error) {
-      logger.error('Manual refresh failed', { error: error.message, stack: error.stack }, LOG_CATEGORIES.ERROR);
+      logger.error(
+        "Manual refresh failed",
+        { error: error.message, stack: error.stack },
+        LOG_CATEGORIES.ERROR,
+      );
       // Avoid leaking raw error messages to end users
-      addNotification('error', 'Refresh failed. Please try again.');
+      addNotification("error", "Refresh failed. Please try again.");
     } finally {
       setIsRefreshing(false);
     }
@@ -91,15 +99,15 @@ function App() {
   // Show offline toast when loading completes and we're in offline mode
   useEffect(() => {
     if (!isLoading && isOfflineMode && user) {
-      const userName = user?.firstname ? `, ${user.firstname}` : '';
-      
-      const offlineMessage = 
-        authState === 'token_expired' || authState === 'cached_only'
-          ? 'Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM.'
-          : 'You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.';
-      
+      const userName = user?.firstname ? `, ${user.firstname}` : "";
+
+      const offlineMessage =
+        authState === "token_expired" || authState === "cached_only"
+          ? "Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM."
+          : "You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.";
+
       addNotification(
-        'info', 
+        "info",
         `Offline Mode${userName}: ${offlineMessage}`,
         8000, // Show for 8 seconds
       );
@@ -112,19 +120,23 @@ function App() {
 
     const setupSyncListener = async () => {
       try {
-        const { default: syncService } = await import('./services/sync.js');
-        
+        const { default: syncService } = await import("./services/sync.js");
+
         const handleSyncStatus = (status) => {
-          setIsSyncing(status.status === 'syncing');
+          setIsSyncing(status.status === "syncing");
         };
-        
+
         syncService.addSyncListener(handleSyncStatus);
-        
+
         cleanup = () => {
           syncService.removeSyncListener(handleSyncStatus);
         };
       } catch (error) {
-        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.ERROR);
+        logger.error(
+          "Failed to setup sync listener",
+          { error: error.message },
+          LOG_CATEGORIES.ERROR,
+        );
       }
     };
 
@@ -142,8 +154,8 @@ function App() {
     // If sync is in progress, show a helpful message and don't navigate
     if (isSyncing) {
       addNotification(
-        'info',
-        'Please wait for data sync to complete before viewing attendance details.',
+        "info",
+        "Please wait for data sync to complete before viewing attendance details.",
         4000,
       );
       return;
@@ -154,28 +166,30 @@ function App() {
     let membersData = members;
 
     if (!membersData) {
-      const sectionsInvolved = Array.from(new Set(events.map((e) => e.sectionid)));
+      const sectionsInvolved = Array.from(
+        new Set(events.map((e) => e.sectionid)),
+      );
       try {
         membersData = await databaseService.getMembers(sectionsInvolved);
-        
+
         // If no cached members found, the sync might not have completed yet
         if (!membersData || membersData.length === 0) {
           addNotification(
-            'warning',
-            'Member data not yet available. Please wait for sync to complete or try refreshing.',
+            "warning",
+            "Member data not yet available. Please wait for sync to complete or try refreshing.",
             6000,
           );
           return;
         }
       } catch (error) {
         logger.error(
-          'Error loading cached members',
+          "Error loading cached members",
           { error: error.message, sectionsInvolved },
           LOG_CATEGORIES.ERROR,
         );
         addNotification(
-          'error',
-          'Unable to load member data for attendance view. Please try refreshing the page.',
+          "error",
+          "Unable to load member data for attendance view. Please try refreshing the page.",
         );
         return;
       }
@@ -183,39 +197,56 @@ function App() {
 
     // Set new navigation data (will replace any existing data)
     setNavigationData({ events, members: membersData });
-    setCurrentView('attendance');
+    setCurrentView("attendance");
   };
 
   const handleBackToDashboard = () => {
-    setCurrentView('dashboard');
+    setCurrentView("dashboard");
     setNavigationData({}); // Restore: Clear navigation data for proper state management
   };
 
   // Clear Storage View component for troubleshooting
   const ClearStorageView = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">Clear All Storage</h2>
-        <p className="text-gray-600 mb-6 text-center">
-          This will clear all cached data and reset the application to its initial state. 
-          You will need to log in again after clearing storage.
+    <div
+      className="flex flex-col items-center justify-center min-h-screen p-8"
+      data-oid="jrjssx6"
+    >
+      <div
+        className="max-w-md w-full bg-white rounded-lg shadow-md p-6"
+        data-oid="p2rpwsf"
+      >
+        <h2
+          className="text-2xl font-bold text-center mb-4 text-gray-800"
+          data-oid="dj9kbb8"
+        >
+          Clear All Storage
+        </h2>
+        <p className="text-gray-600 mb-6 text-center" data-oid="mt.a7jf">
+          This will clear all cached data and reset the application to its
+          initial state. You will need to log in again after clearing storage.
         </p>
-        <div className="space-y-3">
+        <div className="space-y-3" data-oid="htfu5_3">
           <button
             onClick={() => {
               clearAllStorage();
-              addNotification('success', 'All storage cleared successfully. Reloading...', 2000);
+              addNotification(
+                "success",
+                "All storage cleared successfully. Reloading...",
+                2000,
+              );
               setTimeout(() => {
-                window.location.href = '/dashboard';
+                window.location.href = "/dashboard";
               }, 2000);
             }}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+            data-oid="vw:upk5"
           >
             Clear All Storage & Reload
           </button>
           <button
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => (window.location.href = "/dashboard")}
             className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-gray-400"
+            data-oid="exsuj:x"
           >
             Cancel
           </button>
@@ -228,12 +259,12 @@ function App() {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Checking authentication..." data-oid="82rsimx" />
+      <LoadingScreen message="Checking authentication..." data-oid="m5j_vnh" />
     );
   }
 
   if (isBlocked) {
-    return <BlockedScreen data-oid="8np6w_z" />;
+    return <BlockedScreen data-oid=":3i9i.8" />;
   }
 
   // Always show dashboard - authentication is now contextual via header
@@ -243,38 +274,40 @@ function App() {
     // Helper to extract unique sections from events
 
     switch (currentView) {
-    case 'attendance': {
-      const uniqueSections = getUniqueSectionsFromEvents(navigationData.events);
-      
-      return (
-        <AttendanceView
-          sections={uniqueSections}
-          events={navigationData.events || []}
-          members={navigationData.members || []} // Loaded from cache
-          onBack={handleBackToDashboard}
-          data-oid="zrtob7_"
-        />
-      );
-    }
-    default:
-      return (
-        <EventDashboard
-          onNavigateToAttendance={handleNavigateToAttendance}
-          data-oid="zfo-c6t"
-        />
-      );
+      case "attendance": {
+        const uniqueSections = getUniqueSectionsFromEvents(
+          navigationData.events,
+        );
+
+        return (
+          <AttendanceView
+            sections={uniqueSections}
+            events={navigationData.events || []}
+            members={navigationData.members || []} // Loaded from cache
+            onBack={handleBackToDashboard}
+            data-oid="v_rneyh"
+          />
+        );
+      }
+      default:
+        return (
+          <EventDashboard
+            onNavigateToAttendance={handleNavigateToAttendance}
+            data-oid="6:avp5-"
+          />
+        );
     }
   };
 
   return (
-    <ErrorBoundary name="App" logProps={false} data-oid="b3kc7nt">
-      <div className="App" data-testid="app" data-oid="bmzu2xc">
-        <ErrorBoundary name="Router" logProps={false} data-oid="bx5pemu">
-          <Router data-oid="ztwbw:3">
+    <ErrorBoundary name="App" logProps={false} data-oid="6y-d.ri">
+      <div className="App" data-testid="app" data-oid="11zuze4">
+        <ErrorBoundary name="Router" logProps={false} data-oid="7qqt_o0">
+          <Router data-oid="j81o_hp">
             <ErrorBoundary
               name="ResponsiveLayout"
               logProps={false}
-              data-oid="1y4:f9s"
+              data-oid="ivkf9cr"
             >
               <ResponsiveLayout
                 user={user}
@@ -286,30 +319,30 @@ function App() {
                 authState={authState}
                 lastSyncTime={lastSyncTime}
                 isRefreshing={isRefreshing}
-                data-oid="2c61drc"
+                data-oid=".gi9a18"
               >
                 <ErrorBoundary
                   name="Routes"
                   logProps={false}
-                  data-oid=":m15jt7"
+                  data-oid="joi8yxg"
                 >
-                  <Routes data-oid="c3k12d.">
+                  <Routes data-oid="ve_wc-4">
                     <Route
                       path="/"
                       element={renderCurrentView()}
-                      data-oid="ibytcl:"
+                      data-oid="84lpgte"
                     />
 
                     <Route
                       path="/dashboard"
                       element={renderCurrentView()}
-                      data-oid="z8vjxij"
+                      data-oid="vsn6jou"
                     />
 
                     <Route
                       path="/clear"
-                      element={<ClearStorageView />}
-                      data-oid="clear-storage"
+                      element={<ClearStorageView data-oid="8a:9ysy" />}
+                      data-oid="3kr0xw6"
                     />
                   </Routes>
                 </ErrorBoundary>
@@ -322,12 +355,12 @@ function App() {
         <ErrorBoundary
           name="NotificationSystem"
           logProps={false}
-          data-oid="sqerlt5"
+          data-oid="nk8moob"
         >
           <div
             className="fixed top-4 right-4 z-50 space-y-2"
-            style={{ maxWidth: '400px' }}
-            data-oid="qcv7.ct"
+            style={{ maxWidth: "400px" }}
+            data-oid="1xr71bj"
           >
             {notifications.map((notification) => (
               <Alert
@@ -336,7 +369,7 @@ function App() {
                 dismissible={true}
                 onDismiss={() => removeNotification(notification.id)}
                 className="shadow-lg"
-                data-oid="tzwwc4s"
+                data-oid="1xc48tc"
               >
                 {notification.message}
               </Alert>

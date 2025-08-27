@@ -1,6 +1,6 @@
-import React from 'react';
-import Header from '../components/Header.jsx';
-import OfflineIndicator from '../components/OfflineIndicator.jsx';
+import React from "react";
+import Header from "../components/Header.jsx";
+import OfflineIndicator from "../components/OfflineIndicator.jsx";
 
 function MobileLayout({
   children,
@@ -16,9 +16,10 @@ function MobileLayout({
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
-      style={{ touchAction: 'pan-y' }}
+      style={{ touchAction: "pan-y" }}
+      data-oid="_qcr_e:"
     >
-      <OfflineIndicator />
+      <OfflineIndicator data-oid="9xedjt0" />
       <Header
         user={user}
         onLogout={onLogout}
@@ -27,11 +28,18 @@ function MobileLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
+        data-oid="h9znxbf"
       />
 
-
-      <main className="flex-1 overflow-y-auto" data-testid="mobile-main" style={{ touchAction: 'pan-y' }}>
-        <div className="h-full">{children}</div>
+      <main
+        className="flex-1 overflow-y-auto"
+        data-testid="mobile-main"
+        style={{ touchAction: "pan-y" }}
+        data-oid=".nm03bj"
+      >
+        <div className="h-full" data-oid="139j9wh">
+          {children}
+        </div>
       </main>
     </div>
   );

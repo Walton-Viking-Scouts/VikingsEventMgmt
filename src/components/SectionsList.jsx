@@ -1,6 +1,6 @@
-import React from 'react';
-import { Card } from './ui';
-import MembersList from './MembersList.jsx';
+import React from "react";
+import { Card } from "./ui";
+import MembersList from "./MembersList.jsx";
 
 function SectionsList({
   sections,
@@ -10,12 +10,15 @@ function SectionsList({
 }) {
   if (!sections || sections.length === 0) {
     return (
-      <Card>
-        <Card.Body className="text-center p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <Card data-oid=".3:py0t">
+        <Card.Body className="text-center p-8" data-oid="r5ltf8.">
+          <h2
+            className="text-xl font-semibold text-gray-900 mb-2"
+            data-oid="osl7o3e"
+          >
             No Sections Available
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600" data-oid="swzrz5q">
             No sections found for your account. Please check your OSM
             permissions.
           </p>
@@ -30,24 +33,24 @@ function SectionsList({
 
   const getSectionOrder = (sectionType) => {
     const type = sectionType.toLowerCase();
-    if (type.includes('earlyyears')) return 1;
-    if (type.includes('beavers')) return 2;
-    if (type.includes('cubs')) return 3;
-    if (type.includes('scouts')) return 4;
-    if (type.includes('adults')) return 5;
-    if (type.includes('waitinglist')) return 6;
+    if (type.includes("earlyyears")) return 1;
+    if (type.includes("beavers")) return 2;
+    if (type.includes("cubs")) return 3;
+    if (type.includes("scouts")) return 4;
+    if (type.includes("adults")) return 5;
+    if (type.includes("waitinglist")) return 6;
     return 7; // Unknown sections at the end
   };
 
   const getDayOrder = (sectionName) => {
     const name = sectionName.toLowerCase();
-    if (name.includes('monday')) return 1;
-    if (name.includes('tuesday')) return 2;
-    if (name.includes('wednesday')) return 3;
-    if (name.includes('thursday')) return 4;
-    if (name.includes('friday')) return 5;
-    if (name.includes('saturday')) return 6;
-    if (name.includes('sunday')) return 7;
+    if (name.includes("monday")) return 1;
+    if (name.includes("tuesday")) return 2;
+    if (name.includes("wednesday")) return 3;
+    if (name.includes("thursday")) return 4;
+    if (name.includes("friday")) return 5;
+    if (name.includes("saturday")) return 6;
+    if (name.includes("sunday")) return 7;
     return 8; // No day mentioned - put at end
   };
 
@@ -65,13 +68,17 @@ function SectionsList({
   });
 
   return (
-    <Card>
-      <Card.Header>
-        <Card.Title>Select Sections</Card.Title>
+    <Card data-oid="swnvk5.">
+      <Card.Header data-oid="d__b6vw">
+        <Card.Title data-oid="78yz:mv">Select Sections</Card.Title>
       </Card.Header>
 
-      <Card.Body>
-        <div className="flex flex-wrap justify-center" style={{ gap: '30px' }}>
+      <Card.Body data-oid="4id9703">
+        <div
+          className="flex flex-wrap justify-center"
+          style={{ gap: "30px" }}
+          data-oid="0.vjbre"
+        >
           {sortedSections.map((section) => {
             const isSelected = isSectionSelected(section.sectionid);
             const isLoading = loadingSection === section.sectionid;
@@ -79,27 +86,27 @@ function SectionsList({
 
             // Determine background color based on section type
             let bgColor, hoverBgColor;
-            if (sectionType.includes('earlyyears')) {
-              bgColor = 'var(--scout-red)';
-              hoverBgColor = 'var(--scout-red-dark)';
-            } else if (sectionType.includes('beavers')) {
-              bgColor = 'var(--scout-blue)';
-              hoverBgColor = 'var(--scout-blue-dark)';
-            } else if (sectionType.includes('cubs')) {
-              bgColor = 'var(--scout-forest-green)';
-              hoverBgColor = 'var(--scout-forest-green-dark)';
-            } else if (sectionType.includes('scouts')) {
-              bgColor = 'var(--scout-navy)';
-              hoverBgColor = 'var(--scout-navy-dark)';
-            } else if (sectionType.includes('adults')) {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
-            } else if (sectionType.includes('waitinglist')) {
-              bgColor = 'var(--scout-teal)';
-              hoverBgColor = 'var(--scout-teal-dark)';
+            if (sectionType.includes("earlyyears")) {
+              bgColor = "var(--scout-red)";
+              hoverBgColor = "var(--scout-red-dark)";
+            } else if (sectionType.includes("beavers")) {
+              bgColor = "var(--scout-blue)";
+              hoverBgColor = "var(--scout-blue-dark)";
+            } else if (sectionType.includes("cubs")) {
+              bgColor = "var(--scout-forest-green)";
+              hoverBgColor = "var(--scout-forest-green-dark)";
+            } else if (sectionType.includes("scouts")) {
+              bgColor = "var(--scout-navy)";
+              hoverBgColor = "var(--scout-navy-dark)";
+            } else if (sectionType.includes("adults")) {
+              bgColor = "var(--scout-purple)";
+              hoverBgColor = "var(--scout-purple-dark)";
+            } else if (sectionType.includes("waitinglist")) {
+              bgColor = "var(--scout-teal)";
+              hoverBgColor = "var(--scout-teal-dark)";
             } else {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
+              bgColor = "var(--scout-purple)";
+              hoverBgColor = "var(--scout-purple-dark)";
             }
 
             return (
@@ -108,23 +115,23 @@ function SectionsList({
                 onClick={() => onSectionToggle(section)}
                 disabled={isLoading}
                 style={{
-                  padding: '10px',
+                  padding: "10px",
                   backgroundColor: isSelected ? hoverBgColor : bgColor,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  minWidth: '120px',
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  minWidth: "120px",
                   opacity: isLoading ? 0.6 : isSelected ? 1 : 0.8,
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
+                  transform: isSelected ? "scale(1.05)" : "scale(1)",
+                  boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading) {
@@ -140,12 +147,14 @@ function SectionsList({
                     e.target.style.opacity = isSelected ? 1 : 0.8;
                   }
                 }}
+                data-oid="2-4cp1_"
               >
                 {isLoading && (
                   <svg
                     className="animate-spin h-3 w-3"
                     fill="none"
                     viewBox="0 0 24 24"
+                    data-oid="vu9:whv"
                   >
                     <circle
                       className="opacity-25"
@@ -154,15 +163,17 @@ function SectionsList({
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
+                      data-oid="tq8axu1"
                     ></circle>
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      data-oid="p42xvzb"
                     ></path>
                   </svg>
                 )}
-                {isLoading ? 'Loading...' : section.sectionname}
+                {isLoading ? "Loading..." : section.sectionname}
               </button>
             );
           })}
@@ -171,22 +182,33 @@ function SectionsList({
 
       {/* Members Area - Show when sections are selected */}
       {selectedSections && selectedSections.length > 0 && (
-        <Card.Body className="border-t border-gray-200 bg-gray-50">
-          <div className="mb-4">
-            <h4 className="text-lg font-semibold text-gray-900">
-              Members from {selectedSections.length} section{selectedSections.length === 1 ? '' : 's'}
+        <Card.Body
+          className="border-t border-gray-200 bg-gray-50"
+          data-oid="pzoo6gy"
+        >
+          <div className="mb-4" data-oid="euqvnnu">
+            <h4
+              className="text-lg font-semibold text-gray-900"
+              data-oid="41a2-1j"
+            >
+              Members from {selectedSections.length} section
+              {selectedSections.length === 1 ? "" : "s"}
             </h4>
-            <p className="text-sm text-gray-600">
-              {selectedSections.map(s => s.sectionname).join(', ')}
+            <p className="text-sm text-gray-600" data-oid="bvqwh-1">
+              {selectedSections.map((s) => s.sectionname).join(", ")}
             </p>
           </div>
-          
+
           {/* Embedded Members List */}
-          <div className="bg-white rounded-lg border border-gray-200">
+          <div
+            className="bg-white rounded-lg border border-gray-200"
+            data-oid="4uufj4u"
+          >
             <MembersList
               embedded={true}
               showHeader={false}
               sections={selectedSections}
+              data-oid=":j2w3sv"
             />
           </div>
         </Card.Body>
