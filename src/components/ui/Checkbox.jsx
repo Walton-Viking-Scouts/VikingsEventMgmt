@@ -50,7 +50,7 @@ const Checkbox = forwardRef(
         disabled={disabled}
         className={checkboxClasses}
         {...props}
-        data-oid="97z4um_"
+        data-oid="7o-ksrs"
       />
     );
 
@@ -61,19 +61,19 @@ const Checkbox = forwardRef(
 
     // Return checkbox with label
     return (
-      <div data-oid="p18yeob">
-        <div className="flex items-start" data-oid="xz1_ou9">
-          <div className="flex items-center h-5" data-oid=".jdvd.k">
+      <div data-oid="hoiumub">
+        <div className="flex items-start" data-oid="tldv305">
+          <div className="flex items-center h-5" data-oid="ge1n_gn">
             {CheckboxElement}
           </div>
-          <div className="ml-3" data-oid="uy6_hdf">
+          <div className="ml-3" data-oid="l0vr0qg">
             <label
               className={cn(
                 "text-sm font-medium",
                 error ? "text-red-700" : "text-gray-700",
                 disabled ? "text-gray-400" : "cursor-pointer",
               )}
-              data-oid=".22ib3y"
+              data-oid="qsiomus"
             >
               {label}
             </label>
@@ -83,7 +83,7 @@ const Checkbox = forwardRef(
                   "text-sm",
                   error ? "text-red-600" : "text-gray-500",
                 )}
-                data-oid="w4-5:1m"
+                data-oid="6a:wgf9"
               >
                 {description}
               </p>
@@ -91,7 +91,7 @@ const Checkbox = forwardRef(
           </div>
         </div>
         {error && errorText && (
-          <p className="mt-1 text-sm text-red-600" data-oid="1ybo3.8">
+          <p className="mt-1 text-sm text-red-600" data-oid="b-vhmcx">
             {errorText}
           </p>
         )}

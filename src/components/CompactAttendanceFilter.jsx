@@ -41,7 +41,7 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
       className="flex gap-2"
       role="group"
       aria-label="Attendance status filters"
-      data-oid="w90-tnw"
+      data-oid="bk2jvxv"
     >
       {statusConfig.map(({ key, label, activeStyles, inactiveStyles }) => (
         <button
@@ -51,7 +51,7 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
           type="button"
           aria-pressed={filters[key]}
           aria-label={`Filter by ${label} attendance status`}
-          data-oid="4y1k7w:"
+          data-oid="zzjhzz5"
         >
           {label}
         </button>

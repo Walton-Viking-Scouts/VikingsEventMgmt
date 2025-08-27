@@ -218,7 +218,7 @@ function CampGroupCard({
       }`}
       onClick={() => handleMemberClick(member)}
       title={`${member.firstname} ${member.lastname}`}
-      data-oid="9lvkrhf"
+      data-oid="orbkow."
     >
       {member.firstname} {member.lastname}
     </span>
@@ -239,20 +239,20 @@ function CampGroupCard({
       onDrop={handleDrop}
       data-drop-zone="true"
       data-group-number={group.number}
-      data-oid="9aa.c-b"
+      data-oid="snxi6rq"
     >
       {/* Header with group name and leaders */}
-      <Card.Header className="pb-2" data-oid="ux3_quu">
-        <div className="flex items-center justify-between" data-oid="rvab1ta">
-          <div className="min-w-0 flex-1" data-oid="77ow2op">
+      <Card.Header className="pb-2" data-oid="5d--z-9">
+        <div className="flex items-center justify-between" data-oid="zd4cxq2">
+          <div className="min-w-0 flex-1" data-oid="om.mi1j">
             <h3
               className="text-lg font-semibold text-gray-900 break-words whitespace-normal"
-              data-oid="8fjyr8j"
+              data-oid="iuc_qzt"
             >
               {name}{" "}
               <span
                 className="text-base font-medium text-gray-600"
-                data-oid="03wfn3f"
+                data-oid="fwhq6jt"
               >
                 ({youngPeople.length})
               </span>
@@ -264,36 +264,36 @@ function CampGroupCard({
         {leaders.length > 0 && (
           <div
             className="mt-2 pt-2 border-t border-gray-100"
-            data-oid="6u9_zwh"
+            data-oid="9c48132"
           >
-            <div className="flex items-center gap-1 mb-1" data-oid="weerpyb">
+            <div className="flex items-center gap-1 mb-1" data-oid="g9:jn8b">
               <svg
                 className="w-3 h-3 text-scout-purple"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="9wn2ef0"
+                data-oid="0ek0un6"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
                   clipRule="evenodd"
-                  data-oid="jjx:ku:"
+                  data-oid="ufyrz.o"
                 />
               </svg>
               <span
                 className="text-xs font-medium text-gray-700"
-                data-oid="60.8b8r"
+                data-oid="aiq2p.a"
               >
                 Leaders ({leaders.length})
               </span>
             </div>
 
-            <div className="space-y-1" data-oid="tu9nxce">
+            <div className="space-y-1" data-oid="2ljtq-q">
               {leaders.map((leader) => (
                 <div
                   key={leader.scoutid}
                   className="flex items-center gap-1"
-                  data-oid="94:if8c"
+                  data-oid="px5ed1:"
                 >
                   <Badge
                     variant={
@@ -303,12 +303,12 @@ function CampGroupCard({
                     }
                     size="sm"
                     className="flex-shrink-0"
-                    data-oid="v896o-e"
+                    data-oid="uixy1cw"
                   >
                     {leader.person_type === "Leaders" ? "L" : "YL"}
                   </Badge>
-                  <div className="min-w-0 flex-1" data-oid="4pbs_q.">
-                    <MemberName member={leader} data-oid="m9dkuz5" />
+                  <div className="min-w-0 flex-1" data-oid="_:n6v2d">
+                    <MemberName member={leader} data-oid="4vhi.bt" />
                   </div>
                 </div>
               ))}
@@ -318,32 +318,32 @@ function CampGroupCard({
       </Card.Header>
 
       {/* Body with young people */}
-      <Card.Body className="pt-0" data-oid="5v.8628">
+      <Card.Body className="pt-0" data-oid="htp83bw">
         {youngPeople.length > 0 ? (
-          <div data-oid=":fhu._f">
-            <div className="flex items-center gap-1 mb-2" data-oid="v9s_2e8">
+          <div data-oid="fo3.fa7">
+            <div className="flex items-center gap-1 mb-2" data-oid="u19860n">
               <svg
                 className="w-3 h-3 text-scout-green"
                 fill="currentColor"
                 viewBox="0 0 20 20"
-                data-oid="_pgeuwt"
+                data-oid="5cei-3-"
               >
                 <path
                   fillRule="evenodd"
                   d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
                   clipRule="evenodd"
-                  data-oid="udrw23k"
+                  data-oid="xhkpsh9"
                 />
               </svg>
               <span
                 className="text-xs font-medium text-gray-700"
-                data-oid="4ar0nx0"
+                data-oid=":9n-5d-"
               >
                 Young People ({youngPeople.length})
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2" data-oid="ns7obtw">
+            <div className="grid grid-cols-2 gap-2" data-oid="bz_1wl-">
               {youngPeople.map((youngPerson) => (
                 <DraggableMember
                   key={youngPerson.scoutid}
@@ -356,7 +356,7 @@ function CampGroupCard({
                     String(draggingMemberId) === String(youngPerson.scoutid)
                   }
                   disabled={dragDisabled}
-                  data-oid="eezkwbn"
+                  data-oid="z:9osje"
                 />
               ))}
             </div>
@@ -367,24 +367,24 @@ function CampGroupCard({
             text-center py-4 text-gray-500 transition-all
             ${isDragInProgress ? "py-8 border-2 border-dashed border-gray-300 bg-gray-50/50 rounded-lg" : ""}
           `}
-            data-oid="a0zvk3i"
+            data-oid="3sc.l5o"
           >
             <svg
               className="mx-auto h-8 w-8 text-gray-400 mb-2"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              data-oid="ymu4ap3"
+              data-oid="l.62zk5"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-1a5 5 0 11-5 5 5 5 0 015-5z"
-                data-oid="dusizky"
+                data-oid="8ybsm0j"
               />
             </svg>
-            <p className="text-sm" data-oid="7tsq56a">
+            <p className="text-sm" data-oid="1mze8l9">
               {isDragInProgress
                 ? "Drop member here"
                 : "No young people assigned"}
@@ -397,7 +397,7 @@ function CampGroupCard({
       {leaders.length === 0 && youngPeople.length === 0 && (
         <Card.Footer
           className="text-center text-gray-500 text-sm"
-          data-oid="k5m4s4g"
+          data-oid="tg3lt2:"
         >
           No members assigned to this group
         </Card.Footer>

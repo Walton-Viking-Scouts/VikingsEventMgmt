@@ -259,31 +259,31 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
   );
 
   return (
-    <Card className="h-full flex flex-col" data-oid="nek:5m4">
-      <Card.Header className="pb-3" data-oid="wrfbeoz">
-        <div className="flex justify-between items-start" data-oid="agflmx_">
-          <div className="flex-1" data-oid="v6.3vl2">
+    <Card className="h-full flex flex-col" data-oid="6.:jz.4">
+      <Card.Header className="pb-3" data-oid="iasl567">
+        <div className="flex justify-between items-start" data-oid="y2q5w72">
+          <div className="flex-1" data-oid="up2.6c2">
             <Card.Title
               className="text-lg font-semibold text-gray-900 mb-1"
-              data-oid="tlty0i."
+              data-oid="76l35ux"
             >
               {eventCard.name}
             </Card.Title>
-            <p className="text-sm text-gray-600 mb-2" data-oid="fhljeof">
+            <p className="text-sm text-gray-600 mb-2" data-oid="c5i7pb9">
               {formatDateRange(eventCard.events)}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1" data-oid="5vtyn18">
+          <div className="flex flex-col items-end gap-1" data-oid="m70464h">
             {aggregatedStatus === "ongoing" ? (
-              <Badge variant="scout-green" data-oid="q1o44u0">
+              <Badge variant="scout-green" data-oid="a79tfhz">
                 Ongoing
               </Badge>
             ) : aggregatedStatus === "upcoming" ? (
-              <Badge variant="scout-blue" data-oid="0.s85e4">
+              <Badge variant="scout-blue" data-oid="-bt84vy">
                 Upcoming
               </Badge>
             ) : aggregatedStatus === "past" ? (
-              <Badge variant="light" data-oid="aq3372f">
+              <Badge variant="light" data-oid="gu8.g6_">
                 Past
               </Badge>
             ) : null}
@@ -291,51 +291,51 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         </div>
       </Card.Header>
 
-      <Card.Body className="flex-1 pt-0" data-oid="nf40hp4">
+      <Card.Body className="flex-1 pt-0" data-oid="9ynp4ba">
         {hasAttendanceData ? (
           <>
             <h4
               className="text-sm font-medium text-gray-900 mb-3"
-              data-oid="1v6563m"
+              data-oid="wiruk-9"
             >
               Attendance Summary
             </h4>
-            <AttendanceGrid data={attendanceGrid} data-oid="1gei394" />
+            <AttendanceGrid data={attendanceGrid} data-oid="_sods1g" />
           </>
         ) : (
-          <div className="text-center py-4" data-oid="6pv4kw9">
-            <div className="text-gray-400 mb-2" data-oid="nz380y6">
+          <div className="text-center py-4" data-oid="i9.rn2n">
+            <div className="text-gray-400 mb-2" data-oid="uuur_k4">
               <svg
                 className="mx-auto h-8 w-8"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="f_03y63"
+                data-oid="45kmg2t"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  data-oid=".nh:25h"
+                  data-oid="r1m.d7k"
                 />
               </svg>
             </div>
-            <p className="text-sm text-gray-500" data-oid="47hic1p">
+            <p className="text-sm text-gray-500" data-oid="zwx8v.s">
               No attendance data available
             </p>
           </div>
         )}
       </Card.Body>
 
-      <Card.Footer className="pt-3" data-oid="gtx2wme">
+      <Card.Footer className="pt-3" data-oid="w4gpyez">
         <Button
           variant="scout-blue"
           onClick={() => onViewAttendees(eventCard)}
           className="w-full flex items-center justify-center gap-2"
           type="button"
           disabled={loading}
-          data-oid="18v_znw"
+          data-oid="qdwqdr8"
         >
           {loading ? (
             <>
@@ -343,7 +343,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 className="animate-spin h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
-                data-oid="4f_c62u"
+                data-oid="p0s2v69"
               >
                 <circle
                   className="opacity-25"
@@ -352,13 +352,13 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   r="10"
                   stroke="currentColor"
                   strokeWidth="4"
-                  data-oid="c.lx5ic"
+                  data-oid="6.dizs2"
                 ></circle>
                 <path
                   className="opacity-75"
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  data-oid="twdg720"
+                  data-oid="hxlwojc"
                 ></path>
               </svg>
               Loading Members...
@@ -370,14 +370,14 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="93wsl-u"
+                data-oid="nyd996q"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  data-oid="9z6jr7:"
+                  data-oid="cnadxzp"
                 />
               </svg>
               View Attendees

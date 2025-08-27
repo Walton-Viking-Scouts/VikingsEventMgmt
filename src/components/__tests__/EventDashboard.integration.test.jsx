@@ -170,7 +170,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="4s3q1g-"
+            data-oid="eys7rwp"
           />,
         );
       });
@@ -236,7 +236,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="9t5xny5"
+            data-oid="796.7m3"
           />,
         );
       });
@@ -269,7 +269,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="qxq_iq0"
+            data-oid="h27s4am"
           />,
         );
       });
@@ -305,7 +305,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="l2t9:5w"
+            data-oid="e:31-iz"
           />,
         );
       });
@@ -354,7 +354,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="1ql5vun"
+            data-oid="bii-qv9"
           />,
         );
       });
@@ -387,7 +387,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="hhr.w_4"
+            data-oid="c4_ofte"
           />,
         );
       });
@@ -423,7 +423,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="m3hwdz3"
+            data-oid="-5wp6fr"
           />,
         );
       });
@@ -474,7 +474,7 @@ describe("EventDashboard Integration Tests", () => {
           <EventDashboard
             onNavigateToMembers={vi.fn()}
             onNavigateToAttendance={vi.fn()}
-            data-oid="_xfro0r"
+            data-oid="m1.f.hn"
           />,
         );
       });
