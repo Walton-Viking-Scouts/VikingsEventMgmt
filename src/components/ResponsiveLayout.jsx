@@ -13,6 +13,7 @@ function ResponsiveLayout({
   isOfflineMode = false,
   authState = 'no_data',
   lastSyncTime = null,
+  ...props
 }) {
   const [isMobile, setIsMobile] = React.useState(isMobileLayout());
 
@@ -38,7 +39,7 @@ function ResponsiveLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="_1-l1h0"
+        {...props}
       >
         {children}
       </LayoutComponent>

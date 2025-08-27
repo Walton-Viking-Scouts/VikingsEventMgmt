@@ -11,12 +11,13 @@ function DesktopLayout({
   isOfflineMode,
   authState,
   lastSyncTime,
+  ...props
 }) {
   return (
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="desktop-layout"
-      data-oid="ng59bc3"
+      {...props}
     >
       <OfflineIndicator hideBanner={true} data-oid="vfr2pqb" />
 

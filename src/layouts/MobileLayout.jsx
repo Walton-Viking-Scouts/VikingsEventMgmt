@@ -11,13 +11,14 @@ function MobileLayout({
   isOfflineMode,
   authState,
   lastSyncTime,
+  ...props
 }) {
   return (
     <div
       className="min-h-screen bg-gray-50 flex flex-col"
       data-testid="mobile-layout"
       style={{ touchAction: 'pan-y' }}
-      data-oid="gmj6rv0"
+      {...props}
     >
       <OfflineIndicator data-oid=":nycp0v" />
       <Header
