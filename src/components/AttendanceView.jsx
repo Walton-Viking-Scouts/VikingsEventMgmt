@@ -8,6 +8,7 @@ import SignInOutButton from './SignInOutButton.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 import { Card, Button, Badge, Alert } from './ui';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
+import { groupContactInfo } from '../utils/contactGroups.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
@@ -15,8 +16,10 @@ import { getToken } from '../services/auth.js';
 import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
-  // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
-  window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  // VISIBLE TEST (dev only): Add timestamp to DOM to prove component is mounting
+  if (import.meta.env?.DEV) {
+    window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  }
   
   // Debug what members data we're receiving (only log once)
   const [hasLoggedMembers, setHasLoggedMembers] = useState(false);
@@ -529,61 +532,6 @@ function AttendanceView({ events, members, onBack }) {
     );
   };
 
-  // Helper function to group contact information (reused from MemberDetailModal)
-  const groupContactInfo = (member) => {
-    const groups = {};
-
-    // Process flattened contact fields
-    Object.entries(member).forEach(([key, value]) => {
-      if (
-        key.includes('__') &&
-        value !== undefined &&
-        value !== null &&
-        !(typeof value === 'string' && value.trim() === '') &&
-        value !== false &&
-        value !== 0
-      ) {
-        const [groupName, fieldName] = key.split('__');
-        if (!groups[groupName]) {
-          groups[groupName] = {};
-        }
-        groups[groupName][fieldName] = value;
-      }
-    });
-
-    // Add legacy fields to appropriate groups
-    const hasEmail = member.email !== undefined && member.email !== null && String(member.email).trim() !== '';
-    const hasPhone = member.phone !== undefined && member.phone !== null && String(member.phone).trim() !== '';
-    if (hasEmail || hasPhone) {
-      if (!groups.member_contact) {
-        groups.member_contact = {};
-      }
-      if (hasEmail) groups.member_contact.email = member.email;
-      if (hasPhone) groups.member_contact.phone = member.phone;
-    }
-
-    // Also process nested contact_groups data if available
-    if (member.contact_groups) {
-      Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
-        if (groupData && typeof groupData === 'object') {
-          const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          if (!groups[normalizedGroupName]) {
-            groups[normalizedGroupName] = {};
-          }
-          // Merge nested data with flattened data (nested takes precedence)
-          Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-            const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim() === '';
-            if (fieldValue !== undefined && fieldValue !== null && !isEmptyString && fieldValue !== false && fieldValue !== 0) {
-              groups[normalizedGroupName][normalizedFieldName] = fieldValue;
-            }
-          });
-        }
-      });
-    }
-
-    return groups;
-  };
 
   // Transform attendance records to full member objects for the detailed view
   const transformAttendanceToMembers = (attendanceRecords) => {
@@ -698,7 +646,7 @@ function AttendanceView({ events, members, onBack }) {
       age: cachedMember.date_of_birth ? Math.floor((Date.now() - new Date(cachedMember.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
       
       // Primary Contact 1 (check both flattened and nested)
-      pc1_name: combineFields(['primary_contact_1'], ['first_name', 'last_name']) || 
+      pc1_name: combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || 
                 [cachedMember.primary_contact_1__first_name, cachedMember.primary_contact_1__last_name].filter(Boolean).join(' ') || '',
       pc1_phone: combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || 
                  [cachedMember.primary_contact_1__phone_1, cachedMember.primary_contact_1__phone_2].filter(Boolean).join(', ') || '',
@@ -706,7 +654,7 @@ function AttendanceView({ events, members, onBack }) {
                  [cachedMember.primary_contact_1__email_1, cachedMember.primary_contact_1__email_2].filter(Boolean).join(', ') || '',
       
       // Emergency Contact (check both flattened and nested)
-      ec_name: combineFields(['emergency_contact'], ['first_name', 'last_name']) || 
+      ec_name: combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || 
                [cachedMember.emergency_contact__first_name, cachedMember.emergency_contact__last_name].filter(Boolean).join(' ') || '',
       ec_phone: combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || 
                 [cachedMember.emergency_contact__phone_1, cachedMember.emergency_contact__phone_2].filter(Boolean).join(', ') || '',
@@ -1451,7 +1399,7 @@ function AttendanceView({ events, members, onBack }) {
                       statusText = 'Invited';
                       break;
                     case 'notInvited':
-                      badgeVariant = 'secondary';
+                      badgeVariant = 'light';
                       statusText = 'Not Invited';
                       break;
                     default:

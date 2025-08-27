@@ -41,7 +41,11 @@ export function useSignInOut(events, onDataRefresh) {
     const demoMode = isDemoMode();
     const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
     const startupData = safeGetItem(cacheKey, {});
-    return startupData.user || { firstname: 'Unknown', lastname: 'User' };
+    // Prefer globals (where user info is actually stored) before falling back
+    const fromGlobals = startupData?.globals
+      ? { firstname: startupData.globals.firstname, lastname: startupData.globals.lastname }
+      : null;
+    return fromGlobals || { firstname: 'Unknown', lastname: 'User' };
   };
 
   // Helper to get field ID from field mapping
@@ -101,7 +105,11 @@ export function useSignInOut(events, onDataRefresh) {
       }
       
       // Get section type from cached section config
-      const cachedSections = safeGetItem('vikings_sections_offline', []);
+      const demoMode = isDemoMode();
+      const sectionsKey = demoMode
+        ? 'demo_viking_sections_offline'
+        : 'viking_sections_offline';
+      const cachedSections = safeGetItem(sectionsKey, []);
       const sectionConfig = cachedSections.find(section => section.sectionid === member.sectionid);
       const sectionType = sectionConfig?.sectiontype || 'beavers';
       

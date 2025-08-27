@@ -427,13 +427,20 @@ export function logout() {
   localStorage.removeItem(termsKey);
   localStorage.removeItem(startupKey);
   
-  // Clear all event-related and FlexiRecord cached data
+  // Clear all offline caches (demo & production): events, attendance, members, Flexi, metadata, shared attendance
+  const prefixes = ['viking_', 'demo_viking_'];
+  const patterns = [
+    'events_',
+    'attendance_',
+    'members_',
+    'flexi_lists_',
+    'flexi_structure_',
+    'flexi_data_',
+    'shared_metadata_',
+    'shared_attendance_',
+  ];
   Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('viking_events_') || 
-        key.startsWith('viking_attendance_') || 
-        key.startsWith('viking_members_') ||
-        key.startsWith('viking_flexi_') ||
-        key.startsWith('viking_shared_metadata_')) {  // Clear ALL FlexiRecord and shared metadata caches
+    if (prefixes.some(p => patterns.some(pt => key.startsWith(p + pt)))) {
       localStorage.removeItem(key);
     }
   });

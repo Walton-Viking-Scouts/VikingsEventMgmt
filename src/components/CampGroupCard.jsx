@@ -123,7 +123,7 @@ function CampGroupCard({
           if (onOfflineError) {
             onOfflineError(dragData.memberName);
           } else {
-            console.warn(errorMessage);
+            logger.warn(errorMessage, { memberName: dragData.memberName }, LOG_CATEGORIES.COMPONENT);
           }
           
           // Don't call onMemberMove - this prevents the optimistic update
@@ -131,7 +131,8 @@ function CampGroupCard({
         }
       } catch (networkError) {
         logger.error('Network status check failed in CampGroupCard drag operation', { 
-          error: networkError?.message,
+          error: networkError,             // include full error object
+          errorMessage: networkError?.message,
           memberName: dragData.memberName, 
         }, LOG_CATEGORIES.COMPONENT);
         if (onOfflineError) {
