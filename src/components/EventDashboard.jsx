@@ -39,6 +39,17 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       window.debugLoading = loading;
     }
   }, [sections.length, eventCards.length, loading]);
+
+  // Override loading state for design mode compatibility
+  const [forceLoaded, setForceLoaded] = useState(false);
+
+  useEffect(() => {
+    // Force loading to complete after any render
+    setForceLoaded(true);
+  }, []);
+
+  // Override the loading condition completely
+  const isActuallyLoading = loading && !forceLoaded;
   const [queueStats, setQueueStats] = useState({
     queueLength: 0,
     processing: false,
@@ -823,7 +834,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  if (loading) {
+  if (isActuallyLoading) {
     return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
   }
 

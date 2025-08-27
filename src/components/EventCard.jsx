@@ -293,15 +293,9 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
 
       <Card.Body className="flex-1 pt-0" data-oid="6ll9qi7">
         {hasAttendanceData ? (
-          <>
-            <h4
-              className="text-sm font-medium text-gray-900 mb-3"
-              data-oid="aq.g250"
-            >
-              Attendance Summary
-            </h4>
+          <div className="mt-3 -mx-4">
             <AttendanceGrid data={attendanceGrid} data-oid="g_kymnd" />
-          </>
+          </div>
         ) : (
           <div className="text-center py-4" data-oid="_t7fg-:">
             <div className="text-gray-400 mb-2" data-oid="64422ln">

@@ -321,28 +321,6 @@ function CampGroupCard({
       <Card.Body className="pt-0" data-oid="6g-81vi">
         {youngPeople.length > 0 ? (
           <div data-oid="ce7zi2x">
-            <div className="flex items-center gap-1 mb-2" data-oid="9qg3ouf">
-              <svg
-                className="w-3 h-3 text-scout-green"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                data-oid="mas9x.v"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clipRule="evenodd"
-                  data-oid="tqdwso1"
-                />
-              </svg>
-              <span
-                className="text-xs font-medium text-gray-700"
-                data-oid="gq0zb0_"
-              >
-                Young People ({youngPeople.length})
-              </span>
-            </div>
-
             <div className="grid grid-cols-2 gap-2" data-oid="__94661">
               {youngPeople.map((youngPerson) => (
                 <DraggableMember

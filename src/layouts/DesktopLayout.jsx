@@ -38,7 +38,7 @@ function DesktopLayout({
           data-oid="vw9-bd4"
         >
           <div
-            className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+            className="h-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8"
             data-oid="e.t3iu6"
           >
             {children}

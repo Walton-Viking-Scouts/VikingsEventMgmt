@@ -25,8 +25,8 @@ function CompactAttendanceFilter({ filters, onFiltersChange }) {
     {
       key: "invited",
       label: "Invited",
-      activeStyles: "bg-yellow-500 text-white",
-      inactiveStyles: "bg-white text-yellow-600 border border-yellow-500",
+      activeStyles: "bg-scout-blue text-white",
+      inactiveStyles: "bg-white text-scout-blue border border-scout-blue",
     },
     {
       key: "notInvited",

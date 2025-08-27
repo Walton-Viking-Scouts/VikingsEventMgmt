@@ -4,15 +4,15 @@ function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {
     switch (status) {
       case "attending":
-        return "bg-green-100 text-green-800";
+        return "text-green-800";
       case "notAttending":
-        return "bg-red-100 text-red-800";
+        return "text-red-800";
       case "invited":
-        return "bg-yellow-100 text-yellow-800";
+        return "text-scout-blue";
       case "notInvited":
-        return "bg-gray-100 text-gray-800";
+        return "text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "text-gray-800";
     }
   };
 
@@ -68,7 +68,7 @@ function AttendanceGrid({ data }) {
 
   return (
     <div
-      className="overflow-hidden rounded-lg border border-gray-200"
+      className="overflow-hidden"
       data-oid="cvq.bwo"
     >
       <table className="min-w-full divide-y divide-gray-200" data-oid="epucw:u">

@@ -765,8 +765,8 @@ function AttendanceView({ events, members, onBack }) {
     <div data-oid="v.vx4k3">
       {/* Attendance Data Card */}
       <Card className="m-4" data-oid="d4qs42k">
-        <Card.Header data-oid="z7y_o.h">
-          <Card.Title data-oid="7b203a0">
+        <Card.Header className="flex items-start justify-between" data-oid="z7y_o.h">
+          <Card.Title className="flex-1" data-oid="7b203a0">
             Attendance Data -{" "}
             {events.length === 1
               ? events[0].name
@@ -790,37 +790,52 @@ function AttendanceView({ events, members, onBack }) {
               );
             })()}
           </Card.Title>
-          <div className="flex gap-2 items-center flex-wrap" data-oid="tvyve0b">
-            <Button
-              variant="outline-scout-blue"
-              onClick={onBack}
-              type="button"
-              data-oid="k5k22qo"
-            >
-              Back to Dashboard
-            </Button>
-            {attendanceData.length > 0 && (
-              <div className="flex flex-col gap-3" data-oid="cqun3c:">
-                <CompactAttendanceFilter
-                  filters={attendanceFilters}
-                  onFiltersChange={setAttendanceFilters}
-                  data-oid="-te0kw7"
-                />
 
-                {uniqueSections.length > 1 && (
-                  <SectionFilter
-                    sectionFilters={sectionFilters}
-                    onFiltersChange={setSectionFilters}
-                    sections={uniqueSections}
-                    data-oid="d8vur.l"
-                  />
-                )}
-              </div>
-            )}
-          </div>
+          <Button
+            variant="outline-scout-blue"
+            onClick={onBack}
+            type="button"
+            className="ml-4"
+            data-oid="k5k22qo"
+          >
+            Back to Dashboard
+          </Button>
+
         </Card.Header>
 
         <Card.Body data-oid="d5wiqsj">
+          {/* Filters Section */}
+          {attendanceData.length > 0 && (
+            <div className="space-y-3 mb-6 p-3 bg-gray-50 rounded-lg" data-oid="cqun3c:">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Attendance Status:
+                  </label>
+                  <CompactAttendanceFilter
+                    filters={attendanceFilters}
+                    onFiltersChange={setAttendanceFilters}
+                    data-oid="-te0kw7"
+                  />
+                </div>
+
+                {uniqueSections.length > 1 && (
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Sections:
+                    </label>
+                    <SectionFilter
+                      sectionFilters={sectionFilters}
+                      onFiltersChange={setSectionFilters}
+                      sections={uniqueSections}
+                      data-oid="d8vur.l"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* View toggle */}
           <div className="border-b border-gray-200 mb-6" data-oid="a-.v.39">
             <nav className="-mb-px flex space-x-8" data-oid=".r.4i39">
@@ -892,11 +907,6 @@ function AttendanceView({ events, members, onBack }) {
           {/* Overview Tab - Attendance Summary */}
           {viewMode === "overview" && members && members.length > 0 && (
             <div className="overflow-x-auto" data-oid="oiod0mn">
-              <div className="flex gap-2 items-center mb-4" data-oid="9np-cja">
-                <Badge variant="scout-green" data-oid="dglt99e">
-                  {simplifiedSummaryStats.totals.total.total} total responses
-                </Badge>
-              </div>
               <table
                 className="min-w-full divide-y divide-gray-200"
                 data-oid="ielnbct"
@@ -910,7 +920,7 @@ function AttendanceView({ events, members, onBack }) {
                       Section
                     </th>
                     <th
-                      className="px-2 py-2 text-center table-header-text text-green-600 uppercase tracking-wider"
+                      className="px-2 py-2 text-center table-header-text text-green-700 uppercase tracking-wider"
                       data-oid="b_5bs-7"
                     >
                       <div data-oid="ekj3985">Yes</div>
@@ -933,7 +943,7 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </th>
                     <th
-                      className="px-2 py-2 text-center table-header-text text-red-600 uppercase tracking-wider"
+                      className="px-2 py-2 text-center table-header-text text-red-700 uppercase tracking-wider"
                       data-oid="gjxjkl1"
                     >
                       <div data-oid="qguy-0:">No</div>
@@ -956,7 +966,7 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </th>
                     <th
-                      className="px-2 py-2 text-center table-header-text text-yellow-600 uppercase tracking-wider"
+                      className="px-2 py-2 text-center table-header-text text-scout-blue uppercase tracking-wider"
                       data-oid="c5kwm25"
                     >
                       <div data-oid="gj1n.32">Invited</div>
@@ -1043,7 +1053,7 @@ function AttendanceView({ events, members, onBack }) {
                         {section.name}
                       </td>
                       <td
-                        className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold"
+                        className="px-2 py-3 whitespace-nowrap text-center text-green-700 font-semibold"
                         data-oid="kq.5u4i"
                       >
                         <div className="flex justify-center" data-oid="-.vk28s">
@@ -1062,7 +1072,7 @@ function AttendanceView({ events, members, onBack }) {
                         </div>
                       </td>
                       <td
-                        className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-semibold"
+                        className="px-2 py-3 whitespace-nowrap text-center text-red-700 font-semibold"
                         data-oid="dfkucp2"
                       >
                         <div className="flex justify-center" data-oid="_n:.p1d">
@@ -1081,7 +1091,7 @@ function AttendanceView({ events, members, onBack }) {
                         </div>
                       </td>
                       <td
-                        className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold"
+                        className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold"
                         data-oid=":hl9aw_"
                       >
                         <div className="flex justify-center" data-oid="okguymu">
@@ -1147,7 +1157,7 @@ function AttendanceView({ events, members, onBack }) {
                       Total
                     </td>
                     <td
-                      className="px-2 py-3 whitespace-nowrap text-center text-green-600 font-semibold"
+                      className="px-2 py-3 whitespace-nowrap text-center text-green-700 font-semibold"
                       data-oid="d-fivts"
                     >
                       <div className="flex justify-center" data-oid="xu7kgtq">
@@ -1166,7 +1176,7 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </td>
                     <td
-                      className="px-2 py-3 whitespace-nowrap text-center text-red-600 font-semibold"
+                      className="px-2 py-3 whitespace-nowrap text-center text-red-700 font-semibold"
                       data-oid="damvax1"
                     >
                       <div className="flex justify-center" data-oid="1xdc8ce">
@@ -1185,7 +1195,7 @@ function AttendanceView({ events, members, onBack }) {
                       </div>
                     </td>
                     <td
-                      className="px-2 py-3 whitespace-nowrap text-center text-yellow-600 font-semibold"
+                      className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold"
                       data-oid="t11g11h"
                     >
                       <div className="flex justify-center" data-oid="ya5z_6i">
@@ -1761,121 +1771,71 @@ function AttendanceView({ events, members, onBack }) {
                     return (
                       <>
                         {/* Overall summary */}
-                        <div
-                          className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
-                          data-oid="v4fnjyf"
-                        >
-                          <h3
-                            className="text-lg font-semibold text-gray-900 mb-2"
-                            data-oid="m1r6z5c"
-                          >
-                            Combined Attendance Summary
-                          </h3>
-                          <div
-                            className="flex flex-wrap gap-3"
-                            data-oid="7tqb8wm"
-                          >
-                            <Badge
-                              variant="scout-blue"
-                              size="md"
-                              data-oid="cvmbch1"
-                            >
-                              {totalMembers} Total
-                            </Badge>
-                            <Badge
-                              variant="scout-green"
-                              size="md"
-                              data-oid="ltet.kc"
-                            >
-                              {totalYoungPeople} Young People
-                            </Badge>
-                            <Badge
-                              variant="scout-purple"
-                              size="md"
-                              data-oid="zbl-48u"
-                            >
-                              {totalAdults} Adults
-                            </Badge>
-                            <Badge variant="light" size="md" data-oid="yz3lyza">
-                              {sections.length} Sections
-                            </Badge>
+                        <div className="mb-6" data-oid="v4fnjyf">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900" data-oid="m1r6z5c">
+                              All Sections ({sections.length})
+                            </h3>
+                            <div className="flex gap-2 text-sm text-gray-600" data-oid="7tqb8wm">
+                              <span>{totalMembers} total</span>
+                              <span>•</span>
+                              <span>{totalYoungPeople} YP</span>
+                              <span>•</span>
+                              <span>{totalAdults} adults</span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Group members by section */}
-                        {sections.map((section) => (
-                          <div
-                            key={section.sectionid}
-                            className="mb-6"
-                            data-oid="sldbwzp"
-                          >
-                            <div
-                              className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-                              data-oid="jep_ain"
-                            >
-                              <div
-                                className="bg-gray-50 px-4 py-3 border-b border-gray-200"
-                                data-oid="001n_ob"
-                              >
-                                <h4
-                                  className="font-medium text-gray-900 flex items-center gap-2"
-                                  data-oid="0hdunml"
-                                >
-                                  {section.sectionname}
-                                  <div
-                                    className="flex gap-1"
-                                    data-oid="b6pzyjx"
-                                  >
-                                    <Badge
-                                      variant="scout-green"
-                                      size="sm"
-                                      data-oid="96.pie-"
-                                    >
-                                      {section.youngPeopleCount} YP
-                                    </Badge>
-                                    <Badge
-                                      variant="scout-purple"
-                                      size="sm"
-                                      data-oid=".t7rzlk"
-                                    >
-                                      {section.adultsCount} Adults
-                                    </Badge>
+                        {/* Individual section cards - responsive column layout */}
+                        <div className="columns-1 md:columns-2 lg:columns-3 gap-4" data-oid="section-cards">
+                          {sections.map((section) => (
+                            <div key={section.sectionid} className="bg-white border border-gray-200 rounded-lg overflow-hidden break-inside-avoid mb-4">
+                              {/* Section header */}
+                              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-lg font-semibold text-gray-900">
+                                    {section.sectionname}
+                                  </h4>
+                                  <div className="flex gap-3 text-sm text-gray-600">
+                                    <span>{section.members.length} total</span>
+                                    <span>•</span>
+                                    <span>{section.youngPeopleCount} YP</span>
+                                    <span>•</span>
+                                    <span>{section.adultsCount} adults</span>
                                   </div>
-                                </h4>
-                              </div>
-
-                              <div className="p-4" data-oid="cwsb.y7">
-                                <div
-                                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
-                                  data-oid="7.1ly6m"
-                                >
-                                  {section.members.map(
-                                    (member, memberIndex) => (
-                                      <div
-                                        key={member.scoutid || memberIndex}
-                                        className="p-3 bg-gray-50 rounded-lg flex justify-between items-center"
-                                        data-oid="eqjcms-"
-                                      >
-                                        <div
-                                          className="text-sm font-medium text-gray-900 min-w-0 flex-1 mr-2"
-                                          data-oid=":i9fdw9"
-                                        >
-                                          {member.firstname} {member.lastname}
-                                        </div>
-                                        <div
-                                          className="text-xs text-gray-500 font-mono flex-shrink-0"
-                                          data-oid="0i.jhq5"
-                                        >
-                                          {member.age || "N/A"}
-                                        </div>
-                                      </div>
-                                    ),
-                                  )}
                                 </div>
                               </div>
+
+                              {/* Section members */}
+                              <div className="divide-y divide-gray-200">
+                                {section.members.map((member, memberIndex) => (
+                                  <div
+                                    key={`${section.sectionid}-${member.scoutid || memberIndex}`}
+                                    className="px-5 py-3 hover:bg-gray-50 flex items-center justify-between"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {member.firstname} {member.lastname}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        member.person_type === 'Young People'
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-purple-100 text-purple-800'
+                                      }`}>
+                                        {member.person_type === 'Young People' ? 'YP' : 'Adult'}
+                                      </span>
+                                      <div className="text-sm text-gray-500 w-16 text-right">
+                                        {member.age || "N/A"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </>
                     );
                   })()}

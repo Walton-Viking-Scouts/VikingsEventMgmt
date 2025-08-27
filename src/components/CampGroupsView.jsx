@@ -1637,13 +1637,10 @@ function CampGroupsView({
           className="flex flex-wrap gap-4 mb-4 items-center justify-between"
           data-oid="4.od-uc"
         >
-          <div className="flex flex-wrap gap-4" data-oid="fgdtcd9">
-            <Badge variant="scout-blue" size="md" data-oid="-7q5i8c">
-              {summary.totalGroups || 0} Groups
-            </Badge>
-            <Badge variant="scout-green" size="md" data-oid="42:ctic">
-              {summary.totalMembers || 0} Members
-            </Badge>
+          <div className="flex gap-2 text-sm text-gray-600" data-oid="fgdtcd9">
+            <span>{summary.totalGroups || 0} groups</span>
+            <span>•</span>
+            <span>{summary.totalMembers || 0} members</span>
           </div>
 
           {/* Edit Group Names Button */}
