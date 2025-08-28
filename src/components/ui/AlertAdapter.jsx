@@ -183,19 +183,19 @@ const getScoutStyling = (variant, className) => {
 };
 
 // Simple implementations of the compound components for the adapter
-const AlertTitle = ({ children: _children, className: _className = '', ...props: _props }) => {
+const AlertTitle = ({ children: _children, className: _className = '', ..._props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;
 };
 
-const AlertDescription = ({ children: _children, className: _className = '', ...props: _props }) => {
+const AlertDescription = ({ children: _children, className: _className = '', ..._props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;
 };
 
-const AlertActions = ({ children: _children, className: _className = '', ...props: _props }) => {
+const AlertActions = ({ children: _children, className: _className = '', ..._props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;
