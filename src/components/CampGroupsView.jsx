@@ -5,7 +5,9 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { Alert, Button, Badge } from './ui';
+import { Button, Badge } from './ui';
+import { AlertAdapter } from '../adapters';
+import { useNotification } from '../contexts/notifications/NotificationContext';
 import LoadingScreen from './LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
@@ -237,14 +239,12 @@ function CampGroupsView({
 
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
   
-  const [toastMessage, setToastMessage] = useState(null); // Success/error messages
+  // Notification system
+  const { notifySuccess, notifyError } = useNotification();
 
   // Group names editing state
   const [showGroupNamesModal, setShowGroupNamesModal] = useState(false);
   const [groupRenameLoading, setGroupRenameLoading] = useState(false);
-
-  // Ref to track toast timeout for cleanup
-  const toastTimeoutRef = useRef(null);
 
   // Ref to track component mount status for async operations
   const isMountedRef = useRef(true);
@@ -419,13 +419,10 @@ function CampGroupsView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
 
-  // Cleanup toast timeout and mark component as unmounted
+  // Mark component as unmounted for async operations
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -524,7 +521,7 @@ function CampGroupsView({
     }, 3000); // Increased to 3 seconds to allow for slower API responses
   }, []);
 
-  // Show toast message temporarily
+  // Show toast message using NotificationContext
   const showToast = useCallback((type, message) => {
     // Log error toast messages for debugging
     if (type === 'error') {
@@ -535,14 +532,13 @@ function CampGroupsView({
       }, LOG_CATEGORIES.COMPONENT);
     }
     
-    // Clear any existing timeout
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
+    // Use NotificationContext instead of custom toast
+    if (type === 'success') {
+      notifySuccess(message);
+    } else if (type === 'error') {
+      notifyError(message);
     }
-
-    setToastMessage({ type, message, id: Date.now() });
-    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 4000);
-  }, []);
+  }, [notifySuccess, notifyError]);
 
   // Helper function to calculate total member count
   const calculateTotalMembers = useCallback((group) => {
@@ -885,11 +881,11 @@ function CampGroupsView({
             return newMap;
           });
           
-          // Show success toast
-          showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
           
           // Only do heavy cache updates if component is still mounted
           if (!isMountedRef.current) {
+            // Component is unmounting, show notification immediately before we lose context
+            showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
             return;
           }
           
@@ -959,6 +955,9 @@ function CampGroupsView({
             },
             LOG_CATEGORIES.APP,
           );
+
+          // Show success notification immediately
+          showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
         } else {
           throw new Error(result?.error || result?.message || 'API call failed');
         }
@@ -988,6 +987,8 @@ function CampGroupsView({
           });
 
           revertOptimisticUpdate(moveData);
+          
+          // Show error notification immediately
           showToast('error', `Failed to move ${memberName}: ${error.message}`);
         }
       }
@@ -1307,8 +1308,6 @@ function CampGroupsView({
 
       // Show results
       if (successfulUpdates > 0 && failedUpdates === 0) {
-        showToast('success', `Successfully deleted "${groupName}" - members moved to Unassigned`);
-        
         // Optimistically update the UI immediately
         setOrganizedGroups(prevGroups => {
           const newGroups = { ...prevGroups };
@@ -1347,6 +1346,9 @@ function CampGroupsView({
           newGroups.summary = recalculateSummary(groups);
           return newGroups;
         });
+
+        // Show success message immediately
+        showToast('success', `Successfully deleted "${groupName}" - members moved to Unassigned`);
 
         // Force refresh of FlexiRecord data in the background
         setTimeout(() => {
@@ -1408,10 +1410,10 @@ function CampGroupsView({
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4">
-        <Alert.Title>Error Loading Camp Groups</Alert.Title>
-        <Alert.Description>{error}</Alert.Description>
-        <Alert.Actions>
+      <AlertAdapter variant="error" className="m-4">
+        <AlertAdapter.Title>Error Loading Camp Groups</AlertAdapter.Title>
+        <AlertAdapter.Description>{error}</AlertAdapter.Description>
+        <AlertAdapter.Actions>
           <Button
             variant="scout-blue"
             onClick={() => window.location.reload()}
@@ -1419,8 +1421,8 @@ function CampGroupsView({
           >
             Retry
           </Button>
-        </Alert.Actions>
-      </Alert>
+        </AlertAdapter.Actions>
+      </AlertAdapter>
     );
   }
 
@@ -1458,9 +1460,9 @@ function CampGroupsView({
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <Alert variant="warning" className="mb-4">
-            <Alert.Title>No Viking Event Management Data</Alert.Title>
-            <Alert.Description>
+          <AlertAdapter variant="warning" className="mb-4">
+            <AlertAdapter.Title>No Viking Event Management Data</AlertAdapter.Title>
+            <AlertAdapter.Description>
               No &quot;Viking Event Mgmt&quot; flexirecord found for the
               sections involved in these events. All members will be shown in
               the &quot;Unassigned&quot; group.
@@ -1471,8 +1473,8 @@ function CampGroupsView({
                   available without FlexiRecord data.
                 </>
               )}
-            </Alert.Description>
-          </Alert>
+            </AlertAdapter.Description>
+          </AlertAdapter>
         )}
       </div>
 
@@ -1558,77 +1560,7 @@ function CampGroupsView({
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div
-          className={`
-          fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300
-          ${toastMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
-          ${toastMessage.type === 'error' ? 'border-l-4 border-red-700' : 'border-l-4 border-green-700'}
-        `}
-        >
-          <div className="flex items-center">
-            {toastMessage.type === 'success' ? (
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-            <span className="text-sm font-medium">{toastMessage.message}</span>
-          </div>
-        </div>
-      )}
 
-      {/* Pending Operations Indicator */}
-      {pendingMoves.size > 0 && (
-        <div className="fixed bottom-4 right-4 z-50 p-3 bg-blue-500 text-white rounded-lg shadow-lg">
-          <div className="flex items-center">
-            <svg
-              className="animate-spin w-4 h-4 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <span className="text-sm font-medium">
-              Syncing {pendingMoves.size} member{' '}
-              {pendingMoves.size === 1 ? 'move' : 'moves'} to OSM...
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Member Detail Modal */}
       <MemberDetailModal
