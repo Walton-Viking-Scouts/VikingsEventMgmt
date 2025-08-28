@@ -59,7 +59,7 @@ const useAlertAdapter = () => {
       icon = true,
       duration,
       persistent,
-      useToast = false,
+      useToast: _useToast = false,
     } = options;
 
     // Build the notification message from parts

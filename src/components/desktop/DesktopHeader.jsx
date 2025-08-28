@@ -5,6 +5,8 @@ import ConfirmModal from '../ui/ConfirmModal';
 import AuthButton from '../AuthButton.jsx';
 import DataFreshness from '../DataFreshness.jsx';
 import TokenCountdown from '../TokenCountdown.jsx';
+import NotificationBellButton from '../NotificationBellButton.jsx';
+import NotificationCenter from '../notifications/NotificationCenter';
 
 function DesktopHeader({
   user,
@@ -16,6 +18,7 @@ function DesktopHeader({
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -50,6 +53,13 @@ function DesktopHeader({
             authState={authState}
             className="mr-2"
             data-oid="2:-9h_g"
+          />
+
+          {/* Notification bell button */}
+          <NotificationBellButton
+            onClick={() => setNotificationCenterOpen(!notificationCenterOpen)}
+            className="mr-2"
+            size="md"
           />
 
           {/* Authentication button - always visible */}
@@ -109,6 +119,12 @@ function DesktopHeader({
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
         data-oid="hx.8rc_"
+      />
+
+      {/* Notification Center Panel */}
+      <NotificationCenter 
+        isOpen={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
       />
     </header>
   );

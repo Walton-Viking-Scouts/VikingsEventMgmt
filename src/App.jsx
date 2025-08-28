@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ResponsiveLayout from './components/ResponsiveLayout.jsx';
@@ -9,7 +9,7 @@ import AttendanceView from './components/AttendanceView.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
-import { AlertAdapter, NotificationProvider } from './adapters';
+import { NotificationProvider } from './adapters';
 import { useNotification } from './contexts/notifications/NotificationContext';
 import ToastContainer from './components/notifications/ToastContainer';
 import './App.css';
@@ -36,7 +36,7 @@ function AppContent() {
     notifySuccess, 
     notifyError, 
     notifyWarning,
-    remove 
+    remove, 
   } = useNotification();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
@@ -92,7 +92,7 @@ function AppContent() {
 
       notifyInfo(
         `Offline Mode${userName}: ${offlineMessage}`,
-        { duration: 8000 } // Show for 8 seconds
+        { duration: 8000 }, // Show for 8 seconds
       );
       
       // Mark as shown to prevent duplicate notifications
@@ -141,7 +141,7 @@ function AppContent() {
     if (isSyncing) {
       notifyInfo(
         'Please wait for data sync to complete before viewing attendance details.',
-        { duration: 4000 }
+        { duration: 4000 },
       );
       return;
     }
@@ -161,7 +161,7 @@ function AppContent() {
         if (!membersData || membersData.length === 0) {
           notifyWarning(
             'Member data not yet available. Please wait for sync to complete or try refreshing.',
-            { duration: 6000 }
+            { duration: 6000 },
           );
           return;
         }
@@ -172,7 +172,7 @@ function AppContent() {
           LOG_CATEGORIES.ERROR,
         );
         notifyError(
-          'Unable to load member data for attendance view. Please try refreshing the page.'
+          'Unable to load member data for attendance view. Please try refreshing the page.',
         );
         return;
       }
@@ -214,7 +214,7 @@ function AppContent() {
               clearAllStorage();
               notifySuccess(
                 'All storage cleared successfully. Reloading...',
-                { duration: 2000 }
+                { duration: 2000 },
               );
               setTimeout(() => {
                 window.location.href = '/dashboard';
@@ -283,59 +283,59 @@ function AppContent() {
 
   return (
     <ErrorBoundary name="App" logProps={false} data-oid=":wd210g">
-        <div className="App" data-testid="app" data-oid="j3qzdz4">
-          <ToastContainer toasts={notifications} onDismiss={remove} />
-          <ErrorBoundary name="Router" logProps={false} data-oid="w102jf7">
-            <Router data-oid="z2kr-jj">
-              <ErrorBoundary
-                name="ResponsiveLayout"
-                logProps={false}
-                data-oid="0nlh8i9"
+      <div className="App" data-testid="app" data-oid="j3qzdz4">
+        <ToastContainer toasts={notifications} onDismiss={remove} />
+        <ErrorBoundary name="Router" logProps={false} data-oid="w102jf7">
+          <Router data-oid="z2kr-jj">
+            <ErrorBoundary
+              name="ResponsiveLayout"
+              logProps={false}
+              data-oid="0nlh8i9"
+            >
+              <ResponsiveLayout
+                user={user}
+                onLogout={logout}
+                onLogin={login}
+                onRefresh={handleRefresh}
+                currentView={currentView}
+                isOfflineMode={isOfflineMode}
+                authState={authState}
+                lastSyncTime={lastSyncTime}
+                isRefreshing={isRefreshing}
+                data-oid="rag605e"
               >
-                <ResponsiveLayout
-                  user={user}
-                  onLogout={logout}
-                  onLogin={login}
-                  onRefresh={handleRefresh}
-                  currentView={currentView}
-                  isOfflineMode={isOfflineMode}
-                  authState={authState}
-                  lastSyncTime={lastSyncTime}
-                  isRefreshing={isRefreshing}
-                  data-oid="rag605e"
+                <ErrorBoundary
+                  name="Routes"
+                  logProps={false}
+                  data-oid="qj:9uog"
                 >
-                  <ErrorBoundary
-                    name="Routes"
-                    logProps={false}
-                    data-oid="qj:9uog"
-                  >
-                    <Routes data-oid="9yyh-se">
-                      <Route
-                        path="/"
-                        element={renderCurrentView()}
-                        data-oid=".q-63e3"
-                      />
+                  <Routes data-oid="9yyh-se">
+                    <Route
+                      path="/"
+                      element={renderCurrentView()}
+                      data-oid=".q-63e3"
+                    />
 
-                      <Route
-                        path="/dashboard"
-                        element={renderCurrentView()}
-                        data-oid="68j1bbx"
-                      />
+                    <Route
+                      path="/dashboard"
+                      element={renderCurrentView()}
+                      data-oid="68j1bbx"
+                    />
 
-                      <Route
-                        path="/clear"
-                        element={<ClearStorageView data-oid="qv:-uqp" />}
-                        data-oid="bdxv:9k"
-                      />
-                    </Routes>
-                  </ErrorBoundary>
-                </ResponsiveLayout>
-              </ErrorBoundary>
-            </Router>
-          </ErrorBoundary>
+                    <Route
+                      path="/clear"
+                      element={<ClearStorageView data-oid="qv:-uqp" />}
+                      data-oid="bdxv:9k"
+                    />
+                  </Routes>
+                </ErrorBoundary>
+              </ResponsiveLayout>
+            </ErrorBoundary>
+          </Router>
+        </ErrorBoundary>
 
-        </div>
-      </ErrorBoundary>
+      </div>
+    </ErrorBoundary>
   );
 }
 

@@ -73,3 +73,13 @@ cypress.env.json
 
 # Builder configuration
 builder.config.json
+
+dev-debug.log
+# Dependency directories
+# Environment variables
+.vscode
+# OS specific
+
+# Task files
+tasks.json
+tasks/ 

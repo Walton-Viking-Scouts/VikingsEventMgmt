@@ -1,0 +1,488 @@
+<context>
+# Overview
+Complete the migration from legacy Alert components to a unified notification system with persistent history center. The core notification system has been built and AlertAdapter provides backward compatibility, but key integration points remain incomplete. This migration enables centralized notification management, persistent history, role-based importance filtering, and enhanced user experience.
+
+# Core Features
+## 1. NotificationCenter Integration
+**What it does:** Adds a notification bell icon to the app header with slide-out panel access to notification history
+**Why it's important:** Provides users centralized access to all notification history with search/filter capabilities
+**How it works:** Bell icon shows unread count badge, clicking opens NotificationCenter panel with full history
+
+## 2. Progressive AlertAdapter Migration
+**What it does:** Migrates dynamic notifications from AlertAdapter to direct useNotification hook usage while keeping static UI alerts
+**Why it's important:** Enables full feature access (history tracking, priority, context) while maintaining backward compatibility where appropriate
+**How it works:** Component-level analysis to identify migration candidates vs. components that should remain using AlertAdapter
+
+## 3. User Preferences & Role-Based Configuration  
+**What it does:** Allows users to configure notification preferences, importance levels, and sound/vibration settings
+**Why it's important:** Different user roles (scout-leader, parent, admin) need different notification priorities and behaviors
+**How it works:** Persistent user preferences with role-based defaults for importance configuration
+
+## 4. Analytics & Monitoring
+**What it does:** Tracks notification engagement, error rates, and user interaction metrics
+**Why it's important:** Enables data-driven optimization of notification strategy and identification of issues
+**How it works:** Event tracking for notification creation, dismissal, action clicks, and user engagement patterns
+
+# User Experience
+## User Personas
+**Scout Leaders:** Need high-priority alerts for urgent events, member safety issues, and system errors. Require quick access to notification history for reference during events.
+
+**Parents/Guardians:** Want informational updates about their scout's attendance and achievements. Prefer less frequent, consolidated notifications.
+
+**System Administrators:** Need all error notifications and system status updates. Require detailed context and diagnostic information.
+
+## Key User Flows
+### Notification Bell Interaction
+1. User sees notification bell icon in header with unread count badge
+2. Clicks bell to open NotificationCenter slide-out panel
+3. Views notifications with filtering options (All, Unread, Errors, Today)
+4. Can search notifications by message content or source
+5. Clicks notifications to mark as read, uses bulk actions for management
+
+### Alert vs Notification Decision Tree
+- **Static UI Alerts:** Form validation errors, component error boundaries, blocked screens → Keep as AlertAdapter
+- **Dynamic Notifications:** Success confirmations, sync status, user-triggered events → Migrate to useNotification hooks
+
+## UI/UX Considerations
+- **Notification Bell:** Positioned in app header, shows unread count badge, accessible via keyboard navigation
+- **Slide-out Panel:** Full-height panel from right side, responsive design, proper focus management
+- **History Persistence:** 50 item limit with 30-day retention, localStorage-based with error handling
+- **Accessibility:** Screen reader support, keyboard navigation, proper ARIA attributes
+</context>
+<PRD>
+# Technical Architecture
+
+## System Components
+### Existing (Already Built)
+- ✅ **NotificationContext:** React context with full feature set including history management
+- ✅ **Toast Component:** Temporary overlay notifications with animations and auto-dismissal
+- ✅ **Banner Component:** Persistent inline notifications with full feature support
+- ✅ **AlertAdapter:** Backward compatibility bridge that converts legacy Alert API to new system
+- ✅ **NotificationCenter:** Complete history panel with search, filtering, and management features
+- ✅ **NotificationStyles:** Scout-themed variants and accessibility utilities
+
+### Integration Needed
+- ⏳ **Header Integration:** Add notification bell icon to ResponsiveLayout component
+- ⏳ **State Management:** Connect NotificationCenter to global notification state
+- ⏳ **Migration Strategy:** Component-by-component analysis and selective migration
+
+## Data Models
+### Current Implementation
+```typescript
+interface Notification {
+  id: string;
+  type: 'error' | 'warning' | 'info' | 'success' | 'custom';
+  message: string;
+  icon?: React.ReactNode;
+  duration?: number;
+  actions?: Array<{ label: string, onClick: () => void }>;
+  persistent?: boolean;
+  timestamp: number;
+}
+
+interface HistoryNotification extends Notification {
+  wasRead: boolean;
+  source?: string; // 'notification-system', 'sync-service', etc.
+  priority: 'critical' | 'high' | 'normal' | 'low';
+  context?: {
+    component?: string;
+    action?: string; 
+    page?: string;
+    isUserAction?: boolean;
+    affectsWorkflow?: boolean;
+  };
+}
+```
+
+## APIs and Integrations
+### NotificationContext API
+```typescript
+// Direct usage (new system)
+const { 
+  notify, notifyError, notifySuccess, notifyWarning, notifyInfo,
+  remove, removeAll,
+  history, unreadCount, markAsRead, markAllAsRead, clearHistory 
+} = useNotification();
+
+// Backward compatibility (AlertAdapter)
+<AlertAdapter variant="success" dismissible>Message</AlertAdapter>
+```
+
+### Integration Points
+- **ResponsiveLayout.jsx:** Add notification bell icon and state management
+- **App.jsx:** Migrate from AlertAdapter to useNotification for dynamic notifications
+- **OfflineIndicator.jsx:** Consider migration for sync status notifications
+
+## Infrastructure Requirements
+- **LocalStorage:** Already implemented for history persistence with error handling
+- **Event Tracking:** Integration points for analytics (notification creation, interaction, dismissal)
+- **Performance Monitoring:** Bundle size impact assessment and optimization
+
+# Development Roadmap
+
+## Phase 1: NotificationCenter Integration (MVP)
+**Scope:** Essential features needed for basic notification history access
+
+### Tasks:
+1. **Add Notification Bell to Header**
+   - Integrate bell icon into ResponsiveLayout header component
+   - Implement unread count badge display
+   - Add click handler to open/close NotificationCenter panel
+   - Ensure responsive design and accessibility
+
+2. **Wire NotificationCenter State Management**
+   - Connect NotificationCenter to existing NotificationContext
+   - Implement slide-out panel animations and focus management
+   - Test history persistence and real-time updates
+
+3. **Basic History Tracking**
+   - Ensure important notifications are automatically added to history
+   - Verify role-based importance configuration works correctly
+   - Test search and filtering functionality
+
+**Success Criteria:** Users can access notification history from header bell icon
+
+## Phase 2: Strategic AlertAdapter Migration
+**Scope:** Migrate high-impact components while preserving working static alerts
+
+### Tasks:
+1. **Migrate App.jsx Notification System**
+   - Replace AlertAdapter usage with direct useNotification hook
+   - Maintain existing notification behavior (auto-dismiss, styling)
+   - Add history tracking for app-level notifications
+   - Test notification stacking and management
+
+2. **Evaluate OfflineIndicator Migration**
+   - Assess if sync status should use notification system vs. permanent banner
+   - If migrated: implement persistent banner with history tracking
+   - If not migrated: document reasoning and keep AlertAdapter
+
+3. **Document Static Alert Strategy**
+   - Create clear guidelines for when to keep AlertAdapter vs. migrate
+   - Update component documentation with migration status
+   - Ensure team understanding of architectural decisions
+
+**Success Criteria:** Dynamic notifications use full notification system features while static alerts remain functional
+
+## Phase 3: User Preferences & Personalization
+**Scope:** Allow users to customize notification behavior and importance levels
+
+### Tasks:
+1. **Build Notification Preferences UI**
+   - Settings page section for notification preferences
+   - Role-based default configurations
+   - Sound/vibration toggle settings
+   - Importance level customization per notification type
+
+2. **Implement Persistence Layer**
+   - User preference storage and retrieval
+   - Migration strategy for existing users
+   - Preference sync across browser instances
+
+3. **Role-Based Configuration**
+   - Define importance rules for scout-leader, parent, admin roles
+   - Test automatic notification filtering based on user role
+   - Ensure backwards compatibility with current notification behavior
+
+**Success Criteria:** Users can customize notification behavior according to their role and preferences
+
+## Phase 4: Analytics & Monitoring (Future Enhancement)
+**Scope:** Data collection and analysis for notification effectiveness
+
+### Tasks:
+1. **Event Tracking Integration**
+   - Track notification creation events with context
+   - Monitor user engagement (click-through rates, dismissal patterns)
+   - Collect performance metrics (render times, memory usage)
+
+2. **Error Monitoring**
+   - Track notification system errors and failures
+   - Monitor localStorage quota issues and fallback behavior
+   - Alert on high notification volumes or system degradation
+
+3. **User Behavior Analysis**
+   - Analyze notification effectiveness by type and context
+   - Identify optimization opportunities
+   - Generate reports for stakeholder review
+
+**Success Criteria:** Comprehensive visibility into notification system performance and user engagement
+
+## Phase 5: Advanced Features (Future Enhancement)
+**Scope:** Enhanced functionality for power users and complex workflows
+
+### Tasks:
+1. **Notification Grouping**
+   - Group related notifications by source or context
+   - Expandable notification clusters
+   - Bulk operations on notification groups
+
+2. **Custom Notification Rules**
+   - User-defined notification routing rules
+   - Conditional notification behavior based on context
+   - Advanced filtering and automation options
+
+3. **Mobile Integration**
+   - Push notification support for mobile apps
+   - Notification synchronization across devices
+   - Mobile-specific notification patterns
+
+**Success Criteria:** Advanced users can create sophisticated notification workflows
+
+# Logical Dependency Chain
+
+## Foundation → Visibility → Optimization
+1. **Essential Integration (Phase 1)** - Must complete first
+   - NotificationCenter in header - enables user access to history
+   - State management connection - makes the system functional
+   - Basic history tracking - provides core value proposition
+
+2. **Strategic Migration (Phase 2)** - Build on Phase 1 foundation
+   - App.jsx migration - highest impact, enables full feature testing
+   - Component evaluation - informed decisions based on Phase 1 learnings
+   - Documentation strategy - prevents technical debt accumulation
+
+3. **User-Centric Features (Phase 3)** - Requires stable foundation from Phases 1-2
+   - User preferences - depends on stable notification patterns from Phase 2
+   - Role-based configuration - builds on migration learnings
+   - Personalization features - enhances proven notification workflows
+
+4. **Data-Driven Optimization (Phase 4)** - Requires user adoption from Phase 3
+   - Analytics integration - needs established user patterns to measure
+   - Performance monitoring - validates architecture decisions from earlier phases
+   - Behavior analysis - informs future development priorities
+
+5. **Advanced Functionality (Phase 5)** - Builds on all previous phases
+   - Complex features require stable foundation and user feedback
+   - Power user features justify investment after core adoption
+   - Mobile integration expands proven desktop patterns
+
+## Quick Wins Strategy
+**Phase 1 delivers immediate user value** - notification history access
+**Phase 2 unlocks full system potential** - complete feature set available
+**Phase 3 drives user adoption** - personalized experience increases engagement
+
+# Risks and Mitigations
+
+## Technical Challenges
+### Risk: Breaking Existing Functionality During Migration
+**Impact:** High - User-facing errors, loss of important notifications
+**Likelihood:** Medium - Complex state management and timing dependencies
+**Mitigation:** 
+- AlertAdapter provides full backward compatibility during transition
+- Incremental component-by-component migration with testing at each step
+- Feature flags for new functionality to enable safe rollback
+
+### Risk: Performance Impact with Large Notification History
+**Impact:** Medium - Slow UI, memory usage, poor user experience
+**Likelihood:** Low - Built-in limits and cleanup mechanisms exist
+**Mitigation:**
+- 50 notification limit with automatic cleanup after 30 days
+- localStorage optimization with compression and error handling
+- Performance monitoring and alerting in Phase 4
+
+### Risk: LocalStorage Quota Exceeded
+**Impact:** Medium - History persistence fails, degraded user experience
+**Likelihood:** Low - Notification data is relatively small
+**Mitigation:**
+- Graceful fallback to in-memory storage when quota exceeded
+- Automatic cleanup of old notifications
+- User notification when storage limits approached
+
+## User Adoption
+### Risk: Users Don't Discover NotificationCenter
+**Impact:** Medium - Investment in feature doesn't provide user value
+**Likelihood:** Medium - New UI patterns require user education
+**Mitigation:**
+- Prominent bell icon placement in header
+- Unread count badge for visual attention
+- Progressive disclosure with helpful empty states
+- User onboarding tooltips for first-time usage
+
+### Risk: Notification Overload
+**Impact:** High - Users ignore important notifications due to volume
+**Likelihood:** High - Scout management applications generate many events
+**Mitigation:**
+- Role-based importance filtering enabled by default
+- User preferences for notification types and frequency
+- Smart grouping and consolidation of related notifications
+
+## Resource Constraints
+### Risk: Development Timeline Extends Due to Complexity
+**Impact:** Medium - Delayed user benefits, technical debt accumulation
+**Likelihood:** Medium - Notification systems have many integration points
+**Mitigation:**
+- Phased approach allows incremental value delivery
+- Clear success criteria for each phase prevent scope creep
+- Documentation of architectural decisions for knowledge transfer
+
+### Risk: Team Knowledge Gaps
+**Impact:** Medium - Implementation inconsistencies, maintenance difficulties
+**Likelihood:** Low - Comprehensive documentation and examples exist
+**Mitigation:**
+- Detailed migration guide with code examples
+- Component-by-component analysis with clear recommendations
+- Code review process emphasizes notification system patterns
+
+# Appendix
+
+## Current Migration Status Summary
+
+### ✅ Completed Infrastructure (Tasks 1-8 from tasks.json)
+- NotificationContext with full feature set including history management
+- Toast component with animations, auto-dismissal, and accessibility
+- Banner component for persistent notifications
+- NotificationStyles with scout-themed variants
+- AlertAdapter providing complete backward compatibility
+- useAlertAdapter hook for programmatic notifications
+- NotificationCenter with search, filtering, and management features
+- Comprehensive test coverage and documentation
+
+### ✅ Component Migration Status (9 components using AlertAdapter)
+
+#### HIGH Priority - Needs Migration:
+1. **App.jsx** - Currently uses AlertAdapter for notifications, should use useNotification directly for history tracking
+
+#### MEDIUM Priority - Evaluate for Migration:
+2. **OfflineIndicator.jsx** - Sync status notifications could benefit from history tracking
+
+#### LOW Priority - Keep as AlertAdapter (Static UI Elements):
+3. **EventDashboard.jsx** - Static error display for loading failures
+4. **AttendanceView.jsx** - Static error display for data loading issues
+5. **MembersList.jsx** - Static error display for member loading failures
+6. **CampGroupsView.jsx** - Static error/warning displays for data issues
+7. **ErrorBoundary.jsx** - Static error display for component failures
+8. **BlockedScreen.jsx** - Static error display for blocked access
+9. **GroupNamesEditModal.jsx** - Inline form validation messages
+
+### 📋 Implementation Checklist for GitHub Issue
+
+```markdown
+## 📋 Notification System Migration Tracker
+
+### Phase 1: NotificationCenter Integration
+- [ ] Add notification bell icon to ResponsiveLayout header component
+- [ ] Implement unread count badge display
+- [ ] Wire NotificationCenter slide-out panel with state management
+- [ ] Test notification history persistence and real-time updates
+- [ ] Verify accessibility (keyboard navigation, screen readers)
+- [ ] Test responsive design on mobile/tablet
+
+### Phase 2: Strategic Migration  
+- [ ] Migrate App.jsx from AlertAdapter to useNotification hook
+- [ ] Add history tracking for app-level notifications
+- [ ] Evaluate OfflineIndicator.jsx migration vs. keeping AlertAdapter
+- [ ] Document migration decisions and rationale
+- [ ] Update component documentation with current status
+- [ ] Test notification stacking and management
+
+### Phase 3: User Preferences
+- [ ] Design notification preferences UI mockups
+- [ ] Implement settings page integration
+- [ ] Build role-based default configurations
+- [ ] Add sound/vibration preference toggles
+- [ ] Implement user preference persistence
+- [ ] Test preference migration for existing users
+
+### Phase 4: Analytics & Monitoring
+- [ ] Implement notification creation event tracking
+- [ ] Add user engagement metrics (clicks, dismissals)
+- [ ] Set up error monitoring and alerting
+- [ ] Create notification effectiveness dashboard
+- [ ] Monitor performance impact and optimize
+
+### Phase 5: Advanced Features
+- [ ] Design notification grouping UX
+- [ ] Implement bulk operations on notification groups  
+- [ ] Build custom notification rules engine
+- [ ] Add mobile push notification support
+- [ ] Cross-device notification synchronization
+
+### Quality Assurance
+- [ ] Comprehensive testing of all notification scenarios
+- [ ] Performance testing with large notification volumes
+- [ ] Accessibility audit and compliance verification
+- [ ] Cross-browser compatibility testing
+- [ ] Mobile responsiveness validation
+
+### Documentation & Training
+- [ ] Update migration guide with new patterns
+- [ ] Create developer onboarding documentation
+- [ ] Record demo videos for user training
+- [ ] Update API documentation
+- [ ] Create troubleshooting guide
+
+### Success Metrics
+- [ ] Notification history accessible from header (Phase 1)
+- [ ] Dynamic notifications use full feature set (Phase 2) 
+- [ ] Users can customize notification behavior (Phase 3)
+- [ ] System performance meets requirements (Phase 4)
+- [ ] Advanced features provide value to power users (Phase 5)
+```
+
+## Research Findings
+
+### Backward Compatibility Analysis
+**AlertAdapter vs Direct Usage Trade-offs:**
+
+| Factor | AlertAdapter (Current) | Direct useNotification |
+|--------|----------------------|----------------------|
+| Code Changes Required | Zero | Rewrite notification code |
+| History Tracking | No automatic history | Full history with persistence |
+| Scout Theme Support | Automatic variant mapping | Manual icon/style configuration |
+| Performance | Extra parsing overhead | Direct notification creation |
+| Feature Access | Limited to compatibility layer | Full access to all features |
+| Future Maintenance | Compatibility layer complexity | Direct system usage |
+
+**Recommendation:** Use AlertAdapter for static UI elements that benefit from compound component structure. Migrate to direct usage for dynamic notifications that need history tracking and advanced features.
+
+### Component Analysis Summary
+**Keep as AlertAdapter (7 components):** Static error displays, form validation, permanent UI elements
+**Migrate to Direct Usage (2 components):** App.jsx (high priority), OfflineIndicator.jsx (medium priority)
+
+This represents a strategic rather than wholesale migration, focusing effort where it provides the most user value.
+
+## Technical Specifications
+
+### NotificationCenter Integration Specifications
+```typescript
+// ResponsiveLayout.jsx additions
+interface NotificationBellProps {
+  unreadCount: number;
+  onClick: () => void;
+}
+
+// Required state management
+const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+const { unreadCount } = useNotification();
+```
+
+### App.jsx Migration Specifications  
+```typescript
+// Before (AlertAdapter)
+{notifications.map((notification) => (
+  <AlertAdapter 
+    key={notification.id}
+    variant={notification.type}
+    dismissible={true}
+    onDismiss={() => removeNotification(notification.id)}
+  >
+    {notification.message}
+  </AlertAdapter>
+))}
+
+// After (Direct useNotification)
+const { notify } = useNotification();
+
+// In event handlers
+addNotification('success', 'Data refreshed successfully');
+// becomes
+notify({
+  type: 'success', 
+  message: 'Data refreshed successfully',
+  duration: 5000,
+  // Automatic history tracking included
+});
+```
+
+This PRD serves as both a comprehensive planning document for TaskMaster task generation and a ready-to-use GitHub issue template for tracking the migration project.
+</PRD>

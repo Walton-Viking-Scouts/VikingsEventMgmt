@@ -11,7 +11,9 @@ import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import SectionFilter from './SectionFilter.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
 import SignInOutButton from './SignInOutButton.jsx';
-import { Card, Button, Badge, Alert } from './ui';
+import { Card, Button, Badge } from './ui';
+import { AlertAdapter } from '../adapters';
+import { useNotification } from '../contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
@@ -33,9 +35,13 @@ function AttendanceView({ events, members, onBack }) {
     getVikingEventDataForMember,
   } = useAttendanceData(events);
 
+  // Get notification handlers for the sign-in/out hook
+  const { notifyError, notifyWarning } = useNotification();
+
   const { buttonLoading, handleSignInOut } = useSignInOut(
     events,
     loadVikingEventData,
+    { notifyError, notifyWarning },
   );
 
   // Local state for UI
@@ -802,10 +808,10 @@ function AttendanceView({ events, members, onBack }) {
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4" data-oid="5nk7oc1">
-        <Alert.Title data-oid="gdmkjf4">Error Loading Attendance</Alert.Title>
-        <Alert.Description data-oid="wocpjmy">{error}</Alert.Description>
-        <Alert.Actions data-oid="gzzqd80">
+      <AlertAdapter variant="error" className="m-4" data-oid="5nk7oc1">
+        <AlertAdapter.Title data-oid="gdmkjf4">Error Loading Attendance</AlertAdapter.Title>
+        <AlertAdapter.Description data-oid="wocpjmy">{error}</AlertAdapter.Description>
+        <AlertAdapter.Actions data-oid="gzzqd80">
           <Button
             variant="scout-blue"
             onClick={() => window.location.reload()}
@@ -814,8 +820,8 @@ function AttendanceView({ events, members, onBack }) {
           >
             Retry
           </Button>
-        </Alert.Actions>
-      </Alert>
+        </AlertAdapter.Actions>
+      </AlertAdapter>
     );
   }
 
@@ -1931,14 +1937,14 @@ function AttendanceView({ events, members, onBack }) {
                   </p>
                 </div>
               ) : sharedAttendanceData?.error ? (
-                <Alert variant="danger" data-oid="ugipkjs">
-                  <Alert.Title data-oid="f4axccr">
+                <AlertAdapter variant="error" data-oid="ugipkjs">
+                  <AlertAdapter.Title data-oid="f4axccr">
                     Error Loading Shared Attendance
-                  </Alert.Title>
-                  <Alert.Description data-oid="epeqvmg">
+                  </AlertAdapter.Title>
+                  <AlertAdapter.Description data-oid="epeqvmg">
                     {sharedAttendanceData.error}
-                  </Alert.Description>
-                  <Alert.Actions data-oid="xkspa._">
+                  </AlertAdapter.Description>
+                  <AlertAdapter.Actions data-oid="xkspa._">
                     <Button
                       variant="scout-blue"
                       onClick={loadSharedAttendanceData}
@@ -1947,8 +1953,8 @@ function AttendanceView({ events, members, onBack }) {
                     >
                       Retry
                     </Button>
-                  </Alert.Actions>
-                </Alert>
+                  </AlertAdapter.Actions>
+                </AlertAdapter>
               ) : sharedAttendanceData?.items ? (
                 <div data-oid="2y6ra21">
                   {(() => {

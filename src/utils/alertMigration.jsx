@@ -194,10 +194,10 @@ export const migrationHelpers = {
       variant = 'info',
       dismissible = false,
       icon = true,
-      size,
-      className,
+      size: _size,
+      className: _className,
       children,
-      onDismiss,
+      onDismiss: _onDismiss,
       ...otherProps
     } = alertProps;
 

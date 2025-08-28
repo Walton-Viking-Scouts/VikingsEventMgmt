@@ -11,6 +11,8 @@ function DesktopLayout({
   isOfflineMode,
   authState,
   lastSyncTime,
+  currentView: _currentView,
+  isRefreshing: _isRefreshing,
   ...props
 }) {
   return (

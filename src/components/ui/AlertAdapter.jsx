@@ -6,15 +6,15 @@ import Toast from '../notifications/Toast';
 const AlertAdapter = ({
   children,
   variant = 'info',
-  size = 'md',
+  size: _size = 'md',
   dismissible = false,
   onDismiss,
   icon = true,
   className = '',
   useToast = false,
-  ...props
+  ..._props
 }) => {
-  const { notify, remove } = useNotification();
+  const { notify: _notify, remove: _remove } = useNotification();
 
   // Map Alert variants to notification types
   const variantMapping = {
@@ -183,19 +183,19 @@ const getScoutStyling = (variant, className) => {
 };
 
 // Simple implementations of the compound components for the adapter
-const AlertTitle = ({ children, className = '', ...props }) => {
+const AlertTitle = ({ children: _children, className: _className = '', ...props: _props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;
 };
 
-const AlertDescription = ({ children, className = '', ...props }) => {
+const AlertDescription = ({ children: _children, className: _className = '', ...props: _props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;
 };
 
-const AlertActions = ({ children, className = '', ...props }) => {
+const AlertActions = ({ children: _children, className: _className = '', ...props: _props }) => {
   // This component is used for type checking in the adapter logic
   // The actual rendering is handled by the notification components
   return null;

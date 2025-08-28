@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
-import { Alert, Button, Modal } from './ui';
+import { AlertAdapter } from '../adapters';
+import { Button, Modal } from './ui';
 import syncService from '../services/sync.js';
 import { testBackendConnection } from '../services/api.js';
 import { isDemoMode } from '../config/demoMode.js';
@@ -292,7 +293,7 @@ function OfflineIndicator({ hideBanner = false }) {
   return (
     <div className="fixed top-0 left-0 right-0 z-50" data-oid="av1w:m9">
       {syncStatus && (
-        <Alert
+        <AlertAdapter
           variant={
             syncStatus.status === 'syncing'
               ? 'info'
@@ -301,6 +302,7 @@ function OfflineIndicator({ hideBanner = false }) {
                 : 'error'
           }
           className="rounded-none border-x-0 border-t-0"
+          persistent
           data-oid="3u7r.ja"
         >
           <div
@@ -330,7 +332,7 @@ function OfflineIndicator({ hideBanner = false }) {
               </>
             )}
           </div>
-        </Alert>
+        </AlertAdapter>
       )}
     </div>
   );

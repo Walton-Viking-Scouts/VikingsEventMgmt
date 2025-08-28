@@ -7,7 +7,9 @@ import React, {
 } from 'react';
 import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
-import { Button, Card, Input, Alert } from './ui';
+import { Button, Card, Input } from './ui';
+import { AlertAdapter } from '../adapters';
+import { useNotification } from '../contexts/notifications/NotificationContext';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
@@ -25,6 +27,8 @@ function MembersList({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+
+  const { notifyWarning } = useNotification();
 
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -115,7 +119,7 @@ function MembersList({
 
   const exportToCSV = () => {
     if (filteredMembers.length === 0) {
-      alert('No members to export');
+      notifyWarning('No members to export');
       return;
     }
 
@@ -223,10 +227,10 @@ function MembersList({
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4">
-        <Alert.Title>Error Loading Members</Alert.Title>
-        <Alert.Description>{error}</Alert.Description>
-        <Alert.Actions>
+      <AlertAdapter variant="error" className="m-4">
+        <AlertAdapter.Title>Error Loading Members</AlertAdapter.Title>
+        <AlertAdapter.Description>{error}</AlertAdapter.Description>
+        <AlertAdapter.Actions>
           <Button variant="scout-blue" onClick={loadMembers} type="button">
             Retry
           </Button>
@@ -235,8 +239,8 @@ function MembersList({
               Back to Dashboard
             </Button>
           )}
-        </Alert.Actions>
-      </Alert>
+        </AlertAdapter.Actions>
+      </AlertAdapter>
     );
   }
 
