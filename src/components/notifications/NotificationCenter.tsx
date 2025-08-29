@@ -50,6 +50,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
 
   // Enhanced focus trap and keyboard navigation
   useEffect(() => {
+    let focusTimer: number | undefined;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isOpen) return;
 
@@ -89,13 +91,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
       document.addEventListener('keydown', handleKeyDown);
       
       // Focus on close button when panel opens
-      setTimeout(() => {
+      focusTimer = window.setTimeout(() => {
         firstFocusableRef.current?.focus();
       }, 100);
     }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      if (focusTimer) window.clearTimeout(focusTimer);
     };
   }, [isOpen, onClose]);
 

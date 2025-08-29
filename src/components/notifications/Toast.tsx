@@ -147,12 +147,11 @@ const Toast: React.FC<ToastProps> = ({
   }, [persistent, timeoutDuration]);
 
   // Handle animation end
+  const hasDismissedRef = useRef(false);
   const handleAnimationEnd = () => {
-    if (isExiting) {
-      // Return focus before dismissing for critical notifications
-      if (isCritical) {
-        returnFocus();
-      }
+    if (isExiting && !hasDismissedRef.current) {
+      hasDismissedRef.current = true;
+      if (isCritical) returnFocus();
       onDismiss();
     }
   };
@@ -182,7 +181,13 @@ const Toast: React.FC<ToastProps> = ({
       {/* Content */}
       <div className="flex-1">
         <ScreenReaderText>{screenReaderText}</ScreenReaderText>
-        <p className="text-sm font-medium" aria-hidden="true">{message}</p>
+        <p
+          id={`toast-${notification.id}-message`}
+          className="text-sm font-medium"
+          aria-live="off"
+        >
+          {message}
+        </p>
         
         {/* Action buttons */}
         {actions && actions.length > 0 && (
@@ -193,7 +198,7 @@ const Toast: React.FC<ToastProps> = ({
                 onClick={action.onClick}
                 className="text-xs font-medium px-2 py-1 rounded border border-current hover:bg-current hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-current transition-colors"
                 type="button"
-                aria-describedby={`toast-${notification.id}`}
+                aria-describedby={`toast-${notification.id}-message`}
               >
                 {action.label}
               </button>

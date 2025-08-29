@@ -1,5 +1,7 @@
 import type { Preview } from '@storybook/react';
 import '../src/index.css'; // Import Tailwind and app styles
+import React from 'react';
+import { NotificationProvider } from '../src/contexts/notifications/NotificationContext';
 
 const preview: Preview = {
   parameters: {
@@ -63,7 +65,13 @@ const preview: Preview = {
       },
     },
   },
-  tags: ['autodocs'],
+  decorators: [
+    (Story) => React.createElement(
+      NotificationProvider,
+      null,
+      React.createElement(Story)
+    ),
+  ],
 };
 
 export default preview;

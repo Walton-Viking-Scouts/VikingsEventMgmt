@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import Toast from '../Toast';
@@ -274,30 +274,23 @@ describe('Notification Accessibility', () => {
       input.id = 'test-input';
       document.body.appendChild(input);
       input.focus();
-      
-      return () => {
-        document.body.removeChild(input);
-      };
     });
 
-    it('should focus critical toast notifications on mount', () => {
-      const { container } = render(<Toast notification={mockNotifications.error} onDismiss={() => {}} />);
-      
-      // Wait for focus to be applied
-      setTimeout(() => {
-        const toastElement = container.querySelector('[role="alert"]');
-        expect(toastElement).toHaveAttribute('tabindex', '-1');
-      }, 150);
+    afterEach(() => {
+      const input = document.getElementById('test-input');
+      if (input) document.body.removeChild(input);
     });
 
-    it('should focus critical banner notifications on mount', () => {
-      const { container } = render(<Banner notification={mockNotifications.error} onDismiss={() => {}} />);
-      
-      // Wait for focus to be applied
-      setTimeout(() => {
-        const bannerElement = container.querySelector('[role="alert"]');
-        expect(bannerElement).toHaveAttribute('tabindex', '-1');
-      }, 150);
+    it('should focus critical toast notifications on mount', async () => {
+      render(<Toast notification={mockNotifications.error} onDismiss={() => {}} />);
+      const toastElement = await screen.findByRole('alert');
+      await waitFor(() => expect(toastElement).toHaveAttribute('tabindex', '-1'));
+    });
+
+    it('should focus critical banner notifications on mount', async () => {
+      render(<Banner notification={mockNotifications.error} onDismiss={() => {}} />);
+      const bannerElement = await screen.findByRole('alert');
+      await waitFor(() => expect(bannerElement).toHaveAttribute('tabindex', '-1'));
     });
 
     it('should not focus non-critical notifications', () => {

@@ -310,10 +310,24 @@ export function getAccessibilityAttributes(type: NotificationType, message: stri
     dark: 'polite'             // Standard
   };
   
+  const labelTypeMap = {
+    error: 'error',
+    warning: 'warning',
+    info: 'information',
+    success: 'success',
+    custom: 'information',
+    'scout-blue': 'information',
+    'scout-green': 'success',
+    'scout-red': 'error',
+    'scout-orange': 'warning',
+    neutral: 'information',
+    dark: 'information',
+  };
+
   return {
     role: roleMap[type] || roleMap.info,
     'aria-live': ariaLiveMap[type] || ariaLiveMap.info,
     'aria-atomic': true,
-    'aria-label': `${type} notification: ${message}`
+    'aria-label': `${labelTypeMap[type] || 'information'} notification: ${message}`
   };
 }

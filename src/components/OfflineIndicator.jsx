@@ -96,7 +96,7 @@ function OfflineIndicator({ hideBanner = false }) {
       connectivityTimeoutId = setTimeout(() => {
         testApiConnectivity()
           .then((status) => {
-            if (status === true && isOnline) {
+            if (status === true) {
               // Connected, reset backoff
               backoffDelay = 30000;
             } else if (status === false) {
@@ -123,7 +123,7 @@ function OfflineIndicator({ hideBanner = false }) {
       if (networkCleanup) networkCleanup();
       if (syncCleanup) syncCleanup();
     };
-  }, [apiConnected, isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // mount-only
 
   const checkInitialStatus = async () => {
     try {
@@ -140,7 +140,7 @@ function OfflineIndicator({ hideBanner = false }) {
 
   const setupNetworkListeners = () => {
     if (Capacitor.isNativePlatform()) {
-      Network.addListener('networkStatusChange', (status) => {
+      const sub = Network.addListener('networkStatusChange', (status) => {
         setIsOnline(status.connected);
         // Test API connectivity when network status changes
         if (status.connected) {
@@ -149,6 +149,15 @@ function OfflineIndicator({ hideBanner = false }) {
           setApiConnected(false);
         }
       });
+      // Return cleanup for native
+      return () => {
+        // Capacitor may return a handle or a promise of a handle
+        if (typeof sub?.remove === 'function') {
+          sub.remove();
+        } else if (typeof sub?.then === 'function') {
+          sub.then((h) => h?.remove?.()).catch(() => {});
+        }
+      };
     } else {
       const handleOnline = () => {
         setIsOnline(true);

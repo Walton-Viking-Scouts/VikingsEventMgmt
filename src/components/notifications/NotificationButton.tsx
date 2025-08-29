@@ -56,8 +56,10 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
             {/* Badge Background Circle */}
             <span 
               className={`absolute ${
-                position.includes('right') ? '-top-1 -right-1' : '-top-1 -left-1'
-              } inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full min-w-[1.25rem] h-5`}
+                position.includes('bottom') ? '-bottom-1' : '-top-1'
+              } ${position.includes('right') ? '-right-1' : '-left-1'} inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 ${
+                position.includes('bottom') ? 'translate-y-1/2' : '-translate-y-1/2'
+              } bg-red-500 rounded-full min-w-[1.25rem] h-5`}
               aria-hidden="true"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -74,8 +76,8 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
         {unreadCount > 0 && (
           <span 
             className={`absolute ${
-              position.includes('right') ? 'top-0 right-0' : 'top-0 left-0'
-            } block h-3 w-3 rounded-full bg-red-400 animate-pulse`}
+              position.includes('bottom') ? 'bottom-0' : 'top-0'
+            } ${position.includes('right') ? 'right-0' : 'left-0'} block h-3 w-3 rounded-full bg-red-400 animate-pulse`}
             aria-hidden="true"
           />
         )}

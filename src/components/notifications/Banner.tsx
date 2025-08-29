@@ -105,6 +105,8 @@ const Banner: React.FC<BannerProps> = ({ notification, onDismiss, className = ''
   const handleDismiss = () => {
     setIsVisible(false);
     onDismiss();
+    // Ensure focus is returned to the previously focused element
+    returnFocus();
   };
 
   // Accessibility hooks
@@ -143,7 +145,13 @@ const Banner: React.FC<BannerProps> = ({ notification, onDismiss, className = ''
 
         {/* Content */}
         <div className="flex-1">
-          <ScreenReaderText>{screenReaderText}</ScreenReaderText>
+          {/*
+            Expose message for screen readers and give it a stable id
+            so action buttons can reference it via aria-describedby.
+          */}
+          <ScreenReaderText id={`banner-${notification.id}-sr`}>
+            {screenReaderText}
+          </ScreenReaderText>
           <p className="text-sm font-medium" aria-hidden="true">{message}</p>
           
           {/* Action buttons */}
@@ -155,7 +163,7 @@ const Banner: React.FC<BannerProps> = ({ notification, onDismiss, className = ''
                   onClick={action.onClick}
                   className="text-sm font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-current transition-all"
                   type="button"
-                  aria-describedby={`banner-${notification.id}`}
+                  aria-describedby={`banner-${notification.id}-sr`}
                 >
                   {action.label}
                 </button>

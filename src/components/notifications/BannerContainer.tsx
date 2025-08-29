@@ -15,10 +15,6 @@ const BannerContainer: React.FC<BannerContainerProps> = ({
   position = 'top',
   className = ''
 }) => {
-  if (banners.length === 0) {
-    return null;
-  }
-
   return (
     <div 
       className={`w-full z-40 ${position === 'top' ? 'mb-4' : 'mt-4'} ${className}`}

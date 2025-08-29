@@ -19,9 +19,13 @@ const NotificationPreferences = ({ isOpen, onClose }) => {
     }));
   };
 
-  const handleSave = () => {
-    updatePreferences(localPreferences);
-    onClose();
+  const handleSave = async () => {
+    try {
+      await Promise.resolve(updatePreferences(localPreferences));
+      onClose();
+    } catch (e) {
+      // Optional: surface an error toast here
+    }
   };
 
   const handleReset = () => {
@@ -81,7 +85,7 @@ const NotificationPreferences = ({ isOpen, onClose }) => {
                 <Checkbox
                   checked={localPreferences.types?.success !== false}
                   onChange={(e) => handlePreferenceChange('types', {
-                    ...localPreferences.types,
+                    ...(localPreferences.types ?? {}),
                     success: e.target.checked,
                   })}
                   disabled={!localPreferences.enabled}
@@ -92,7 +96,7 @@ const NotificationPreferences = ({ isOpen, onClose }) => {
                 <Checkbox
                   checked={localPreferences.types?.error !== false}
                   onChange={(e) => handlePreferenceChange('types', {
-                    ...localPreferences.types,
+                    ...(localPreferences.types ?? {}),
                     error: e.target.checked,
                   })}
                   disabled={!localPreferences.enabled}
@@ -103,7 +107,7 @@ const NotificationPreferences = ({ isOpen, onClose }) => {
                 <Checkbox
                   checked={localPreferences.types?.warning !== false}
                   onChange={(e) => handlePreferenceChange('types', {
-                    ...localPreferences.types,
+                    ...(localPreferences.types ?? {}),
                     warning: e.target.checked,
                   })}
                   disabled={!localPreferences.enabled}
@@ -114,7 +118,7 @@ const NotificationPreferences = ({ isOpen, onClose }) => {
                 <Checkbox
                   checked={localPreferences.types?.info !== false}
                   onChange={(e) => handlePreferenceChange('types', {
-                    ...localPreferences.types,
+                    ...(localPreferences.types ?? {}),
                     info: e.target.checked,
                   })}
                   disabled={!localPreferences.enabled}

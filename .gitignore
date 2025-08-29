@@ -77,7 +77,6 @@ builder.config.json
 dev-debug.log
 # Dependency directories
 # Environment variables
-.vscode
 # OS specific
 
 # Task files

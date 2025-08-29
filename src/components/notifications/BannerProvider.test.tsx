@@ -225,10 +225,10 @@ describe('BannerProvider', () => {
     expect(screen.getByTestId('banner-count')).toHaveTextContent('2');
     
     // Should have the last two banners (Warning and Info)
-    expect(screen.queryByText('Success banner')).not.toBeInTheDocument();
-    expect(screen.queryByText('Error banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Warning banner')).toBeInTheDocument();
-    expect(screen.getByText('Info banner')).toBeInTheDocument();
+    expect(screen.queryAllByText('Success banner')).toHaveLength(0);
+    expect(screen.queryAllByText('Error banner')).toHaveLength(0);
+    expect(screen.getAllByText('Warning banner')).toHaveLength(2); // container + test component
+    expect(screen.getAllByText('Info banner')).toHaveLength(2);
   });
 
   test('renders BannerContainer with banners at top by default', () => {
@@ -286,7 +286,9 @@ describe('BannerProvider', () => {
     expect(screen.getByTestId('banner-count')).toHaveTextContent('3');
 
     // All should have unique IDs
-    const bannerElements = screen.getAllByTestId(/^banner-/);
+    const bannerElements = screen.getAllByTestId(/^banner-/).filter(el =>
+      el.parentElement?.getAttribute('data-testid') === 'banners'
+    );
     const bannerIds = bannerElements.map(el => 
       el.getAttribute('data-testid')?.replace('banner-', '')
     );

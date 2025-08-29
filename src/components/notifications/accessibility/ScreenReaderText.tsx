@@ -4,23 +4,22 @@ import React from 'react';
  * Component for text that is only visible to screen readers
  * Uses Tailwind's sr-only class to hide content visually while keeping it accessible
  */
-interface ScreenReaderTextProps {
+interface ScreenReaderTextProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
   as?: keyof JSX.IntrinsicElements;
   className?: string;
 }
 
-export const ScreenReaderText: React.FC<ScreenReaderTextProps> = ({ 
-  children, 
+export const ScreenReaderText: React.FC<ScreenReaderTextProps> = ({
+  children,
   as: Component = 'span',
-  className = ''
-}) => {
-  return (
-    <Component className={`sr-only ${className}`}>
-      {children}
-    </Component>
-  );
-};
+  className = '',
+  ...rest
+}) => (
+  <Component className={`sr-only ${className}`} {...rest}>
+    {children}
+  </Component>
+);
 
 /**
  * Hook to generate accessibility attributes for notifications
