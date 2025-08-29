@@ -2,6 +2,7 @@ import React, { useMemo, useCallback } from 'react';
 import { useNotification } from '../../contexts/notifications/NotificationContext';
 import Banner from '../notifications/Banner';
 import Toast from '../notifications/Toast';
+import Button from './Button';
 
 const AlertAdapter = ({
   children,
@@ -54,7 +55,8 @@ const AlertAdapter = ({
         } else if (child.type === AlertActions || child.type?.name === 'AlertActions') {
           // Convert button children to action objects
           React.Children.forEach(child.props.children, (actionChild) => {
-            if (React.isValidElement(actionChild) && actionChild.type === 'button') {
+            if (React.isValidElement(actionChild) && 
+                (actionChild.type === 'button' || actionChild.type === Button)) {
               extractedActions.push({
                 label: typeof actionChild.props.children === 'string' 
                   ? actionChild.props.children 
