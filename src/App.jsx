@@ -7,6 +7,7 @@ import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import TokenExpiredDialog from './components/TokenExpiredDialog.jsx';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
 import { NotificationProvider } from './adapters';
@@ -25,6 +26,10 @@ function AppContent() {
     isOfflineMode,
     authState,
     lastSyncTime,
+    showTokenExpiredDialog,
+    hasCachedData,
+    handleReLogin,
+    handleStayOffline,
     login,
     logout,
   } = useAuth();
@@ -333,6 +338,14 @@ function AppContent() {
             </ErrorBoundary>
           </Router>
         </ErrorBoundary>
+        
+        {/* Token expiration user choice dialog */}
+        <TokenExpiredDialog
+          isOpen={showTokenExpiredDialog}
+          onReLogin={handleReLogin}
+          onStayOffline={handleStayOffline}
+          hasCachedData={hasCachedData}
+        />
 
       </div>
     </ErrorBoundary>

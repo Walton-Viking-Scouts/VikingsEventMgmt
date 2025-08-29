@@ -1,7 +1,7 @@
 // useAuth hook for managing authentication state in React
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import authService from '../services/auth.js';
+import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import databaseService from '../services/database.js';
 
@@ -25,6 +25,10 @@ export function useAuth() {
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [authState, setAuthState] = useState('no_data'); // New: enhanced auth state
   const [lastSyncTime, setLastSyncTime] = useState(null); // New: track last sync
+  
+  // Token expiration dialog state
+  const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
+  const [hasCachedData, setHasCachedData] = useState(false);
 
   // Helper function to check if token has expired based on stored expiration time
   const isTokenExpired = useCallback(() => {
@@ -222,6 +226,20 @@ export function useAuth() {
               tokenStored: true,
               urlCleaned: true,
             }, LOG_CATEGORIES.AUTH);
+            
+            // Check if we should restore user to their previous page
+            const returnPath = getAndClearReturnPath();
+            if (returnPath && returnPath !== '/' && returnPath !== window.location.pathname + window.location.search + window.location.hash) {
+              logger.info('Restoring user to previous page after OAuth', { 
+                returnPath,
+                currentPath: window.location.pathname + window.location.search + window.location.hash, 
+              }, LOG_CATEGORIES.AUTH);
+              
+              // Use a small delay to ensure token processing is complete
+              setTimeout(() => {
+                window.history.replaceState({}, '', returnPath);
+              }, 100);
+            }
           } catch (urlCleanError) {
             // URL cleaning failed but token is stored - continue
             logger.warn('Failed to clean URL after OAuth callback, but token stored', { 
@@ -476,28 +494,29 @@ export function useAuth() {
       const currentAuthState = authState;
       
       // If token expired and we're not already in token_expired state
-      if (tokenExpired && currentAuthState === 'authenticated') {
-        logger.info('Token expired - updating auth state', {}, LOG_CATEGORIES.AUTH);
+      if (tokenExpired && currentAuthState === 'authenticated' && !showTokenExpiredDialog) {
+        logger.info('Token expired - showing user choice dialog', {}, LOG_CATEGORIES.AUTH);
         
-        // Determine new auth state
-        // Treat stored token presence as evidence we had a token (even if expired)
-        const hadToken = !!sessionStorage.getItem('access_token');
-        const newAuthState = await determineAuthState(hadToken);
-        setAuthState(newAuthState);
-        setIsOfflineMode(true);
-        
-        // Check if we have cached data for user feedback
+        // Check if we have cached data for user choice
         try {
           const cachedSections = await databaseService.getSections();
-          const hasCachedData = cachedSections && cachedSections.length > 0;
+          const hasCached = cachedSections && cachedSections.length > 0;
+          setHasCachedData(hasCached);
           
-          if (hasCachedData) {
-            logger.info('Token expired but cached data available - offline mode enabled', {}, LOG_CATEGORIES.AUTH);
-          } else {
-            logger.warn('Token expired with no cached data - user needs to re-authenticate', {}, LOG_CATEGORIES.AUTH);
-          }
+          // Show the user choice dialog instead of automatically switching to offline
+          setShowTokenExpiredDialog(true);
+          
+          logger.info('Token expired - awaiting user choice', { 
+            hasCachedData: hasCached, 
+          }, LOG_CATEGORIES.AUTH);
         } catch (error) {
-          logger.warn('Could not check cached data after token expiration', { error: error.message }, LOG_CATEGORIES.ERROR);
+          logger.warn('Could not check cached data after token expiration', { 
+            error: error.message, 
+          }, LOG_CATEGORIES.ERROR);
+          
+          // If we can't check cached data, assume no data and show dialog anyway
+          setHasCachedData(false);
+          setShowTokenExpiredDialog(true);
         }
       }
     }, TOKEN_CONFIG.CHECK_INTERVAL_MS);
@@ -505,8 +524,52 @@ export function useAuth() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [isTokenExpired, authState, determineAuthState]);
+  }, [isTokenExpired, authState, determineAuthState, showTokenExpiredDialog]);
 
+  // Handler for when user chooses to re-login after token expiration
+  const handleReLogin = useCallback(async () => {
+    logger.info('User chose to re-login after token expiration', {}, LOG_CATEGORIES.AUTH);
+    setShowTokenExpiredDialog(false);
+    
+    try {
+      // Generate OAuth URL with return path storage
+      const oauthUrl = generateOAuthUrl(true);
+      
+      logger.info('Redirecting to OAuth for re-authentication', { 
+        storedReturnPath: true, 
+      }, LOG_CATEGORIES.AUTH);
+      
+      // Redirect to OAuth
+      window.location.href = oauthUrl;
+    } catch (error) {
+      logger.error('Error redirecting to OAuth after token expiration', { 
+        error: error.message, 
+      }, LOG_CATEGORIES.ERROR);
+    }
+  }, []);
+
+  // Handler for when user chooses to stay offline after token expiration
+  const handleStayOffline = useCallback(async () => {
+    logger.info('User chose to stay offline after token expiration', {}, LOG_CATEGORIES.AUTH);
+    setShowTokenExpiredDialog(false);
+    
+    try {
+      // Update auth state to reflect token expiration and offline mode
+      const hadToken = !!sessionStorage.getItem('access_token');
+      const newAuthState = await determineAuthState(hadToken);
+      setAuthState(newAuthState);
+      setIsOfflineMode(true);
+      
+      logger.info('Switched to offline mode per user choice', { 
+        newAuthState,
+        hasCachedData: hasCachedData, 
+      }, LOG_CATEGORIES.AUTH);
+    } catch (error) {
+      logger.error('Error switching to offline mode', { 
+        error: error.message, 
+      }, LOG_CATEGORIES.ERROR);
+    }
+  }, [determineAuthState, hasCachedData]);
 
   return {
     isAuthenticated,
@@ -516,6 +579,13 @@ export function useAuth() {
     isOfflineMode,
     authState,        // New: enhanced auth state
     lastSyncTime,     // New: last sync timestamp
+    
+    // Token expiration dialog
+    showTokenExpiredDialog,
+    hasCachedData,
+    handleReLogin,
+    handleStayOffline,
+    
     login,
     logout,
     setToken,
