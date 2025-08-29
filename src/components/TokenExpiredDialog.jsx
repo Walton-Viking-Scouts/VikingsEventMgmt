@@ -7,7 +7,13 @@ import Button from './ui/Button';
  */
 function TokenExpiredDialog({ isOpen, onReLogin, onStayOffline, hasCachedData = false }) {
   return (
-    <Modal isOpen={isOpen} onClose={null} showCloseButton={false}>
+    <Modal
+      isOpen={isOpen}
+      onClose={null}
+      showCloseButton={false}
+      closeOnOverlayClick={false}
+      closeOnEscape={false}
+    >
       <div className="text-center space-y-6">
         <div className="space-y-2">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -53,10 +59,10 @@ function TokenExpiredDialog({ isOpen, onReLogin, onStayOffline, hasCachedData = 
           )}
         </div>
 
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>• Sign in again: Get fresh data and full functionality</p>
-          {hasCachedData && <p>• Continue offline: Use saved data, no fresh updates</p>}
-        </div>
+        <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
+          <li>Sign in again: Get fresh data and full functionality</li>
+          {hasCachedData && <li>Continue offline: Use saved data, no fresh updates</li>}
+        </ul>
       </div>
     </Modal>
   );

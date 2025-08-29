@@ -16,11 +16,13 @@ import { isTokenExpired } from './auth.js';
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
 // Custom error class for expired tokens
-class TokenExpiredError extends Error {
+export class TokenExpiredError extends Error {
   constructor(message = 'Authentication token has expired') {
     super(message);
     this.name = 'TokenExpiredError';
     this.isTokenExpired = true;
+    this.status = 401;
+    this.code = 'TOKEN_EXPIRED';
   }
 }
 
@@ -41,6 +43,7 @@ function validateTokenBeforeAPICall(token, functionName) {
     logger.warn(`${functionName}: Preventing API call with expired token`, {
       functionName,
       tokenPresent: !!token,
+      tokenExpiresAt: sessionStorage.getItem('token_expires_at') || null,
     }, LOG_CATEGORIES.API);
     throw new TokenExpiredError(`Cannot call ${functionName} - authentication token has expired`);
   }

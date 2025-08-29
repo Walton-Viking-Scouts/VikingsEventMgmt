@@ -172,15 +172,9 @@ export function isTokenExpired() {
       tokenExpiredFlag: sessionStorage.getItem('token_expired'),
     }, LOG_CATEGORIES.AUTH);
     
-    // Fall back to token_expired flag
-    const fallbackExpired = sessionStorage.getItem('token_expired') === 'true';
-    if (fallbackExpired) {
-      logger.info('Setting token_expired flag due to corrupt expiration time', {
-        corruptValue: expiresAt,
-      }, LOG_CATEGORIES.AUTH);
-      sessionStorage.setItem('token_expired', 'true');
-    }
-    return fallbackExpired;
+    // Treat corrupt expiration as expired for safety and consistency
+    sessionStorage.setItem('token_expired', 'true');
+    return true;
   }
   
   const now = Date.now();
@@ -236,7 +230,12 @@ export function generateOAuthUrl(storeCurrentPath = false) {
         `scope=${encodeURIComponent(scope)}&` +
         'response_type=code';
     
-  logger.info('Generated Mobile OAuth URL', { authUrl }, LOG_CATEGORIES.AUTH);
+  logger.info('Generated Mobile OAuth URL', {
+    hasUrl: true,
+    clientIdSuffix: String(clientId).slice(-4),
+    redirectUri,
+    scopeCount: scope.split(' ').length,
+  }, LOG_CATEGORIES.AUTH);
   return authUrl;
 }
 

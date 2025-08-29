@@ -185,10 +185,11 @@ export function useAuth() {
       
       if (accessToken) {
         try {
-          // Store the token and clean up URL with enhanced error handling
-          sessionStorage.setItem('access_token', accessToken);
-          // Clear any expired token flags when storing a new token
+          // Store the token via service to reset auth handler and Sentry context
+          authService.setToken(accessToken);
+          // Clear any expired/invalid token flags when storing a new token
           sessionStorage.removeItem('token_expired');
+          sessionStorage.removeItem('token_invalid');
           if (tokenType) {
             sessionStorage.setItem('token_type', tokenType);
           }
@@ -238,6 +239,8 @@ export function useAuth() {
               // Use a small delay to ensure token processing is complete
               setTimeout(() => {
                 window.history.replaceState({}, '', returnPath);
+                // Nudge Router to react to the URL change without a full reload
+                window.dispatchEvent(new window.PopStateEvent('popstate'));
               }, 100);
             }
           } catch (urlCleanError) {
