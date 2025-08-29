@@ -1,7 +1,7 @@
 // useAuth hook for managing authentication state in React
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
+import authService, { generateOAuthUrl, getAndClearReturnPath, isTokenExpired } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import databaseService from '../services/database.js';
 
@@ -30,58 +30,6 @@ export function useAuth() {
   const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
 
-  // Helper function to check if token has expired based on stored expiration time
-  const isTokenExpired = useCallback(() => {
-    const expiresAt = sessionStorage.getItem('token_expires_at');
-    if (!expiresAt) {
-      // No expiration time stored - fall back to existing token_expired flag
-      return sessionStorage.getItem('token_expired') === 'true';
-    }
-    
-    const expirationTime = parseInt(expiresAt, 10);
-    
-    // Validate the parsed expiration time
-    if (!Number.isFinite(expirationTime)) {
-      logger.warn('Corrupt token expiration time detected, falling back to token_expired flag', {
-        corruptValue: expiresAt,
-        tokenExpiredFlag: sessionStorage.getItem('token_expired'),
-      }, LOG_CATEGORIES.AUTH);
-      
-      // Treat corrupt expiration as expired and set flag for consistency
-      const fallbackExpired = sessionStorage.getItem('token_expired') === 'true';
-      if (!fallbackExpired) {
-        logger.info('Setting token_expired flag due to corrupt expiration time', {
-          corruptValue: expiresAt,
-        }, LOG_CATEGORIES.AUTH);
-        sessionStorage.setItem('token_expired', 'true');
-        return true;
-      }
-      return fallbackExpired;
-    }
-    
-    const now = Date.now();
-    const timeUntilExpiry = expirationTime - now;
-    const isExpired = timeUntilExpiry <= 0;
-    
-    // Log upcoming expiration as a warning
-    if (!isExpired && timeUntilExpiry <= TOKEN_CONFIG.EXPIRATION_WARNING_MS) {
-      logger.warn('Token will expire soon', {
-        expiresAt: new Date(expirationTime).toISOString(),
-        timeUntilExpiryMinutes: Math.round(timeUntilExpiry / (60 * 1000)),
-      }, LOG_CATEGORIES.AUTH);
-    }
-    
-    // If expired, set the token_expired flag for consistency with existing code
-    if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
-      logger.info('Token has expired based on stored expiration time', {
-        expiresAt: new Date(expirationTime).toISOString(),
-        expiredMinutesAgo: Math.round(-timeUntilExpiry / (60 * 1000)),
-      }, LOG_CATEGORIES.AUTH);
-      sessionStorage.setItem('token_expired', 'true');
-    }
-    
-    return isExpired;
-  }, []);
 
   // Helper function to determine auth state based on cached data and tokens
   const determineAuthState = useCallback(async (isAuth) => {
@@ -111,7 +59,7 @@ export function useAuth() {
       logger.warn('Error determining auth state', { error: error.message }, LOG_CATEGORIES.ERROR);
       return isAuth ? 'authenticated' : 'no_data';
     }
-  }, [isTokenExpired]);
+  }, []);
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
@@ -397,7 +345,7 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [determineAuthState, isTokenExpired]); // determineAuthState already depends on isTokenExpired
+  }, [determineAuthState]);
 
   // Login function
   const login = useCallback(() => {
@@ -448,7 +396,7 @@ export function useAuth() {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [checkAuth, isTokenExpired]);
+  }, [checkAuth]);
 
   // Listen for sync completion to update lastSyncTime
   useEffect(() => {
@@ -531,7 +479,7 @@ export function useAuth() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [isTokenExpired, authState, determineAuthState, showTokenExpiredDialog]);
+  }, [authState, determineAuthState, showTokenExpiredDialog]);
 
   // Handler for when user chooses to re-login after token expiration
   const handleReLogin = useCallback(async () => {
