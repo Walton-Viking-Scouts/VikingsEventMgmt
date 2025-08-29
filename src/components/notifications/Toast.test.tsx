@@ -119,8 +119,11 @@ describe('Toast', () => {
 
     render(<Toast notification={notification} onDismiss={onDismiss} />);
 
-    const dismissButton = screen.getByLabelText('Dismiss notification');
-    dismissButton.click();
+    const dismissButton = screen.getByLabelText('Dismiss info notification');
+    
+    act(() => {
+      dismissButton.click();
+    });
 
     // Should trigger animation first, onDismiss called after animation
     expect(onDismiss).not.toHaveBeenCalled();

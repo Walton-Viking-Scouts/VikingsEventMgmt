@@ -188,7 +188,7 @@ describe('ToastProvider', () => {
     expect(screen.getAllByText('Success message')).toHaveLength(2); // Test component + ToastContainer
     
     // Should have dismiss button from Toast component
-    expect(screen.getByLabelText('Dismiss notification')).toBeInTheDocument();
+    expect(screen.getByLabelText('Dismiss success notification')).toBeInTheDocument();
   });
 
   test('shorthand methods use correct default durations', () => {

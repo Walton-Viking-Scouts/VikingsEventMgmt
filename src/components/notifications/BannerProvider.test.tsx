@@ -79,7 +79,7 @@ describe('BannerProvider', () => {
 
   test('shorthand methods add banners with correct types and defaults', () => {
     render(
-      <BannerProvider>
+      <BannerProvider maxBanners={4}>
         <TestComponent />
       </BannerProvider>
     );
@@ -111,7 +111,7 @@ describe('BannerProvider', () => {
 
   test('banner shorthand methods use appropriate persistence defaults', () => {
     render(
-      <BannerProvider>
+      <BannerProvider maxBanners={4}>
         <TestComponent />
       </BannerProvider>
     );

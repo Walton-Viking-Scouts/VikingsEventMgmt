@@ -270,7 +270,7 @@ describe('NotificationStyles', () => {
       expect(attrs.role).toBe('status');
       expect(attrs['aria-live']).toBe('polite');
       expect(attrs['aria-atomic']).toBe(true);
-      expect(attrs['aria-label']).toBe('info notification: Test info message');
+      expect(attrs['aria-label']).toBe('information notification: Test info message');
     });
 
     it('should return correct attributes for success notifications', () => {
@@ -288,7 +288,7 @@ describe('NotificationStyles', () => {
       expect(attrs.role).toBe('status');
       expect(attrs['aria-live']).toBe('polite');
       expect(attrs['aria-atomic']).toBe(true);
-      expect(attrs['aria-label']).toBe('custom notification: Test custom message');
+      expect(attrs['aria-label']).toBe('information notification: Test custom message');
     });
   });
 

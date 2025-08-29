@@ -135,7 +135,10 @@ describe('Banner', () => {
     render(<Banner notification={notification} onDismiss={onDismiss} />);
 
     const dismissButton = screen.getByLabelText('Dismiss info notification');
-    dismissButton.click();
+    
+    act(() => {
+      dismissButton.click();
+    });
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
