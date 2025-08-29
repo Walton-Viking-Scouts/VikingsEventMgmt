@@ -15,11 +15,15 @@ const STEP_DELAY_MS = 150;
  * 
  * @param {Array} events - Array of event data
  * @param {Function} onDataRefresh - Callback to refresh Viking Event data after operations
+ * @param {Object} notificationHandlers - Optional notification handlers from NotificationContext
+ * @param {Function} notificationHandlers.notifyError - Function to display error notifications
+ * @param {Function} notificationHandlers.notifyWarning - Function to display warning notifications
  * @returns {Object} Hook state and functions
  */
-export function useSignInOut(events, onDataRefresh) {
+export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
   const [buttonLoading, setButtonLoading] = useState({});
   const abortControllerRef = useRef(null);
+  const { notifyError, notifyWarning } = notificationHandlers;
 
   // Initialize AbortController and cleanup on unmount to prevent memory leaks
   useEffect(() => {
@@ -326,10 +330,18 @@ export function useSignInOut(events, onDataRefresh) {
         
         if (authResult.offline) {
           // Token expired but we have cached data - user can still use app offline
-          alert('Your session has expired. Please sign in again to refresh data from OSM, or continue using cached data offline.');
+          if (notifyWarning) {
+            notifyWarning('Your session has expired. Please sign in again to refresh data from OSM, or continue using cached data offline.');
+          } else {
+            console.warn('Session expired with offline mode available');
+          }
         } else {
           // No cached data available - user needs to log in
-          alert('Your session has expired. Please sign in to OSM to continue.');
+          if (notifyError) {
+            notifyError('Your session has expired. Please sign in to OSM to continue.');
+          } else {
+            console.error('Session expired without cached data');
+          }
         }
         
         // Force a page reload to trigger auth state re-evaluation
@@ -340,7 +352,11 @@ export function useSignInOut(events, onDataRefresh) {
         }
       } else {
         // Regular error - show generic message
-        alert(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${memberLabel}: ${error.message}`);
+        if (notifyError) {
+          notifyError(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${memberLabel}: ${error.message}`);
+        } else {
+          console.error(`Sign in/out failed: ${error.message}`);
+        }
       }
       
     } finally {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Button } from './ui';
+import { AlertAdapter } from '../adapters';
+import { Button } from './ui';
 
 function BlockedScreen() {
   return (
@@ -8,8 +9,8 @@ function BlockedScreen() {
       data-oid="y26.-o5"
     >
       <div className="max-w-md w-full" data-oid="5vt_1du">
-        <Alert variant="danger" data-oid="yva4rk2">
-          <Alert.Title data-oid="f7jkoto">
+        <AlertAdapter variant="error" data-oid="yva4rk2">
+          <AlertAdapter.Title data-oid="f7jkoto">
             <div className="flex items-center" data-oid="q6i9yc.">
               <svg
                 className="w-6 h-6 mr-2"
@@ -26,13 +27,13 @@ function BlockedScreen() {
               </svg>
               Access Blocked
             </div>
-          </Alert.Title>
-          <Alert.Description className="mt-3" data-oid="2in8wg1">
+          </AlertAdapter.Title>
+          <AlertAdapter.Description className="mt-3" data-oid="2in8wg1">
             OSM API access has been blocked due to rate limiting or other
             restrictions. Please contact the system administrator or try again
             later.
-          </Alert.Description>
-          <Alert.Actions className="mt-4" data-oid="cu8cly3">
+          </AlertAdapter.Description>
+          <AlertAdapter.Actions className="mt-4" data-oid="cu8cly3">
             <Button
               variant="scout-blue"
               onClick={() => window.location.reload()}
@@ -41,8 +42,8 @@ function BlockedScreen() {
             >
               Retry
             </Button>
-          </Alert.Actions>
-        </Alert>
+          </AlertAdapter.Actions>
+        </AlertAdapter>
       </div>
     </div>
   );

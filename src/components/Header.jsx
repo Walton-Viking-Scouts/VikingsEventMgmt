@@ -4,6 +4,8 @@ import ConfirmModal from './ui/ConfirmModal';
 import AuthButton from './AuthButton.jsx';
 import DataFreshness from './DataFreshness.jsx';
 import TokenCountdown from './TokenCountdown.jsx';
+import NotificationBellButton from './NotificationBellButton.jsx';
+import NotificationCenter from './notifications/NotificationCenter';
 
 function Header({
   user,
@@ -15,6 +17,7 @@ function Header({
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -57,6 +60,13 @@ function Header({
               authState={authState}
               className="mr-3"
               data-oid="y5p8b_s"
+            />
+
+            {/* Notification bell button */}
+            <NotificationBellButton
+              onClick={() => setNotificationCenterOpen(!notificationCenterOpen)}
+              className="mr-3"
+              size="md"
             />
 
             {/* Authentication button - always visible */}
@@ -102,7 +112,7 @@ function Header({
               Viking Scouts
             </TailwindHeader.Title>
 
-            {/* Essential status indicators */}
+            {/* Essential status indicators and notification bell */}
             <div className="flex items-center space-x-2" data-oid="iefr:sc">
               <DataFreshness
                 lastSync={lastSyncTime}
@@ -115,6 +125,11 @@ function Header({
                 authState={authState}
                 className="text-xs"
                 data-oid="182ge3q"
+              />
+
+              <NotificationBellButton
+                onClick={() => setNotificationCenterOpen(!notificationCenterOpen)}
+                size="sm"
               />
             </div>
           </div>
@@ -178,6 +193,12 @@ function Header({
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
         data-oid="oknbb-4"
+      />
+
+      {/* Notification Center Panel */}
+      <NotificationCenter 
+        isOpen={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
       />
     </TailwindHeader>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth.js';
 import ResponsiveLayout from './components/ResponsiveLayout.jsx';
@@ -9,12 +9,15 @@ import AttendanceView from './components/AttendanceView.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import databaseService from './services/database.js';
 import logger, { LOG_CATEGORIES } from './services/logger.js';
-import { Alert } from './components/ui';
+import { NotificationProvider } from './adapters';
+import { useNotification } from './contexts/notifications/NotificationContext';
+import ToastContainer from './components/notifications/ToastContainer';
 import './App.css';
 import { getUniqueSectionsFromEvents } from './utils/sectionHelpers.js';
 import { logout as clearAllStorage } from './services/auth.js';
 
-function App() {
+// Internal App component that uses the notification context
+function AppContent() {
   const {
     isLoading,
     user,
@@ -25,48 +28,29 @@ function App() {
     login,
     logout,
   } = useAuth();
+  
+  // Use the notification context instead of custom notification state
+  const { 
+    notifications,
+    notifyInfo, 
+    notifySuccess, 
+    notifyError, 
+    notifyWarning,
+    remove, 
+  } = useNotification();
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-
-  // Notification system state
-  const [notifications, setNotifications] = useState([]);
-
-  // Helper function to add notifications
-  const addNotification = useCallback((type, message, duration = 5000) => {
-    const id = Date.now();
-    const notification = { id, type, message, duration };
-
-    setNotifications((prev) => [...prev, notification]);
-
-    // Auto-dismiss after duration
-    if (duration > 0) {
-      const timeoutId = setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-      }, duration);
-
-      // Store timeout ID for potential cleanup
-      notification.timeoutId = timeoutId;
-    }
-  }, []);
-
-  // Helper function to remove notifications
-  const removeNotification = (id) => {
-    setNotifications((prev) => {
-      const notification = prev.find((n) => n.id === id);
-      if (notification?.timeoutId) {
-        clearTimeout(notification.timeoutId);
-      }
-      return prev.filter((n) => n.id !== id);
-    });
-  };
+  
+  // Track if we've already shown the offline notification to prevent duplicates
+  const offlineNotificationShownRef = useRef(false);
 
   // Refresh function - triggers a data refresh via sync service
   const handleRefresh = async () => {
     // Short-circuit when offline for better UX
     if (isOfflineMode) {
-      addNotification('info', 'Refresh is unavailable while offline.');
+      notifyInfo('Refresh is unavailable while offline.');
       return;
     }
     // Prevent concurrent refreshes
@@ -82,7 +66,7 @@ function App() {
         {},
         LOG_CATEGORIES.APP,
       );
-      addNotification('success', 'Data refreshed successfully');
+      notifySuccess('Data refreshed successfully');
     } catch (error) {
       logger.error(
         'Manual refresh failed',
@@ -90,15 +74,15 @@ function App() {
         LOG_CATEGORIES.ERROR,
       );
       // Avoid leaking raw error messages to end users
-      addNotification('error', 'Refresh failed. Please try again.');
+      notifyError('Refresh failed. Please try again.');
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Show offline toast when loading completes and we're in offline mode
+  // Show offline toast when loading completes and we're in offline mode (only once per session)
   useEffect(() => {
-    if (!isLoading && isOfflineMode && user) {
+    if (!isLoading && isOfflineMode && user && !offlineNotificationShownRef.current) {
       const userName = user?.firstname ? `, ${user.firstname}` : '';
 
       const offlineMessage =
@@ -106,13 +90,15 @@ function App() {
           ? 'Your authentication has expired, but you can still access cached data. Connect to WiFi and refresh to re-authenticate with OSM.'
           : 'You are currently offline. You can still access cached data. Connect to WiFi and refresh to sync changes.';
 
-      addNotification(
-        'info',
+      notifyInfo(
         `Offline Mode${userName}: ${offlineMessage}`,
-        8000, // Show for 8 seconds
+        { duration: 8000 }, // Show for 8 seconds
       );
+      
+      // Mark as shown to prevent duplicate notifications
+      offlineNotificationShownRef.current = true;
     }
-  }, [isLoading, isOfflineMode, user, addNotification]);
+  }, [isLoading, isOfflineMode, user, authState]);
 
   // Listen for sync status changes
   useEffect(() => {
@@ -153,10 +139,9 @@ function App() {
   const handleNavigateToAttendance = async (events, members = null) => {
     // If sync is in progress, show a helpful message and don't navigate
     if (isSyncing) {
-      addNotification(
-        'info',
+      notifyInfo(
         'Please wait for data sync to complete before viewing attendance details.',
-        4000,
+        { duration: 4000 },
       );
       return;
     }
@@ -174,10 +159,9 @@ function App() {
 
         // If no cached members found, the sync might not have completed yet
         if (!membersData || membersData.length === 0) {
-          addNotification(
-            'warning',
+          notifyWarning(
             'Member data not yet available. Please wait for sync to complete or try refreshing.',
-            6000,
+            { duration: 6000 },
           );
           return;
         }
@@ -187,8 +171,7 @@ function App() {
           { error: error.message, sectionsInvolved },
           LOG_CATEGORIES.ERROR,
         );
-        addNotification(
-          'error',
+        notifyError(
           'Unable to load member data for attendance view. Please try refreshing the page.',
         );
         return;
@@ -229,10 +212,9 @@ function App() {
           <button
             onClick={() => {
               clearAllStorage();
-              addNotification(
-                'success',
+              notifySuccess(
                 'All storage cleared successfully. Reloading...',
-                2000,
+                { duration: 2000 },
               );
               setTimeout(() => {
                 window.location.href = '/dashboard';
@@ -302,6 +284,7 @@ function App() {
   return (
     <ErrorBoundary name="App" logProps={false} data-oid=":wd210g">
       <div className="App" data-testid="app" data-oid="j3qzdz4">
+        <ToastContainer toasts={notifications} onDismiss={remove} />
         <ErrorBoundary name="Router" logProps={false} data-oid="w102jf7">
           <Router data-oid="z2kr-jj">
             <ErrorBoundary
@@ -351,33 +334,17 @@ function App() {
           </Router>
         </ErrorBoundary>
 
-        {/* Notification System */}
-        <ErrorBoundary
-          name="NotificationSystem"
-          logProps={false}
-          data-oid="4bf2r12"
-        >
-          <div
-            className="fixed top-4 right-4 z-50 space-y-2"
-            style={{ maxWidth: '400px' }}
-            data-oid="_05cnqk"
-          >
-            {notifications.map((notification) => (
-              <Alert
-                key={notification.id}
-                variant={notification.type}
-                dismissible={true}
-                onDismiss={() => removeNotification(notification.id)}
-                className="shadow-lg"
-                data-oid="j3q9sr_"
-              >
-                {notification.message}
-              </Alert>
-            ))}
-          </div>
-        </ErrorBoundary>
       </div>
     </ErrorBoundary>
+  );
+}
+
+// Main App component that provides the NotificationContext
+function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
   );
 }
 

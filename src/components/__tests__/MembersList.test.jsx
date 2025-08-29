@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   render,
   screen,
@@ -7,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MembersList from '../MembersList.jsx';
+import { NotificationProvider } from '../../contexts/notifications/NotificationContext';
 
 // Mock the API module
 vi.mock('../../services/api.js', () => ({
@@ -22,6 +24,29 @@ vi.mock('../../services/auth.js', () => ({
 vi.mock('../../utils/platform.js', () => ({
   isMobileLayout: vi.fn(() => false),
 }));
+
+// Mock the notification context
+const mockNotify = vi.fn();
+const mockRemove = vi.fn();
+
+vi.mock('../../contexts/notifications/NotificationContext', async () => {
+  const actual = await vi.importActual('../../contexts/notifications/NotificationContext');
+  return {
+    ...actual,
+    useNotification: () => ({
+      notify: mockNotify,
+      remove: mockRemove,
+      notifications: [],
+    }),
+  };
+});
+
+// Test wrapper with NotificationProvider
+const TestWrapper = ({ children }) => (
+  <NotificationProvider>
+    {children}
+  </NotificationProvider>
+);
 
 describe('MembersList', () => {
   const mockSections = [
@@ -271,17 +296,19 @@ describe('MembersList', () => {
 
     await act(async () => {
       render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="j6n6ed3"
-        />,
+        <TestWrapper>
+          <MembersList
+            sections={mockSections}
+            onBack={mockOnBack}
+            data-oid="j6n6ed3"
+          />
+        </TestWrapper>,
       );
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Error Loading Members')).toBeInTheDocument();
-      expect(screen.getByText('Failed to load members: Failed to load members')).toBeInTheDocument();
+      expect(screen.getAllByText(/Error Loading Members/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Failed to load members/).length).toBeGreaterThan(0);
     });
   });
 
@@ -292,11 +319,13 @@ describe('MembersList', () => {
 
     await act(async () => {
       render(
-        <MembersList
-          sections={mockSections}
-          onBack={mockOnBack}
-          data-oid="6zbx8z7"
-        />,
+        <TestWrapper>
+          <MembersList
+            sections={mockSections}
+            onBack={mockOnBack}
+            data-oid="6zbx8z7"
+          />
+        </TestWrapper>,
       );
     });
 

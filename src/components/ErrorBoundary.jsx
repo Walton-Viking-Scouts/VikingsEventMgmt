@@ -1,6 +1,6 @@
 import React from 'react';
 import * as Sentry from '@sentry/react';
-import { Alert } from './ui';
+import { AlertAdapter } from '../adapters';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
 // Shared configuration for sensitive data patterns
@@ -63,13 +63,13 @@ export const EnhancedSentryErrorBoundary = ({
             className="error-boundary-container p-4 max-w-md mx-auto"
             data-oid="yfo:b.x"
           >
-            <Alert variant="error" className="mb-4" data-oid="qgkxfvw">
-              <strong data-oid="4c7tnmx">Something went wrong</strong>
-              <p className="mt-2 text-sm" data-oid=":cyd8jx">
+            <AlertAdapter variant="error" className="mb-4" data-oid="qgkxfvw">
+              <AlertAdapter.Title data-oid="4c7tnmx">Something went wrong</AlertAdapter.Title>
+              <AlertAdapter.Description className="mt-2 text-sm" data-oid=":cyd8jx">
                 {name
                   ? `Error in ${name} component`
                   : 'An unexpected error occurred'}
-              </p>
+              </AlertAdapter.Description>
               <details className="mt-2 text-xs" data-oid="n6w-yw.">
                 <summary className="cursor-pointer" data-oid="g2kr_9c">
                   Technical Details
@@ -78,7 +78,7 @@ export const EnhancedSentryErrorBoundary = ({
                   {error.message}
                 </pre>
               </details>
-            </Alert>
+            </AlertAdapter>
 
             <div className="flex gap-2" data-oid="nez4ifj">
               <button
@@ -261,13 +261,13 @@ class ErrorBoundary extends React.Component {
           className="error-boundary-container p-4 max-w-md mx-auto"
           data-oid="0kizt92"
         >
-          <Alert variant="error" className="mb-4" data-oid="rp5n8vk">
-            <strong data-oid="woy31wr">Something went wrong</strong>
-            <p className="mt-2 text-sm" data-oid="9yl6st9">
+          <AlertAdapter variant="error" className="mb-4" data-oid="rp5n8vk">
+            <AlertAdapter.Title data-oid="woy31wr">Something went wrong</AlertAdapter.Title>
+            <AlertAdapter.Description className="mt-2 text-sm" data-oid="9yl6st9">
               {this.props.name
                 ? `Error in ${this.props.name} component`
                 : 'An unexpected error occurred'}
-            </p>
+            </AlertAdapter.Description>
             {this.state.error && (
               <details className="mt-2 text-xs" data-oid="p16wy:1">
                 <summary className="cursor-pointer" data-oid="d2k28vx">
@@ -278,7 +278,7 @@ class ErrorBoundary extends React.Component {
                 </pre>
               </details>
             )}
-          </Alert>
+          </AlertAdapter>
 
           <div className="flex gap-2" data-oid="cbx9g_j">
             <button
