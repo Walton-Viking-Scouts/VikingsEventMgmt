@@ -448,8 +448,8 @@ export function useAuth() {
       const tokenExpired = isTokenExpired();
       const currentAuthState = authState;
       
-      // If token expired and we're not already in token_expired state
-      if (tokenExpired && currentAuthState === 'authenticated' && !showTokenExpiredDialog) {
+      // If token exists and is expired, show dialog regardless of auth state
+      if (token && tokenExpired && !showTokenExpiredDialog) {
         logger.info('Token expired - showing user choice dialog', {}, LOG_CATEGORIES.AUTH);
         
         // Check if we have cached data for user choice
