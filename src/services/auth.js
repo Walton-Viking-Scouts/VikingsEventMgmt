@@ -138,8 +138,67 @@ export function handleTokenExpiration() {
   return Promise.resolve();
 }
 
-// OAuth URL generation
-export function generateOAuthUrl() {
+// Store current page path for return after OAuth
+export function storeReturnPath() {
+  const currentPath = window.location.pathname + window.location.search + window.location.hash;
+  sessionStorage.setItem('oauth_return_path', currentPath);
+  logger.info('Stored return path for OAuth', { returnPath: currentPath }, LOG_CATEGORIES.AUTH);
+}
+
+// Get stored return path and clear it
+export function getAndClearReturnPath() {
+  const returnPath = sessionStorage.getItem('oauth_return_path');
+  if (returnPath) {
+    sessionStorage.removeItem('oauth_return_path');
+    logger.info('Retrieved and cleared return path', { returnPath }, LOG_CATEGORIES.AUTH);
+  }
+  return returnPath || '/';
+}
+
+// Check if token is expired (for API call prevention)
+export function isTokenExpired() {
+  const expiresAt = sessionStorage.getItem('token_expires_at');
+  if (!expiresAt) {
+    // No expiration time stored - fall back to existing token_expired flag
+    return sessionStorage.getItem('token_expired') === 'true';
+  }
+  
+  const expirationTime = parseInt(expiresAt, 10);
+  
+  // Validate the parsed expiration time
+  if (!Number.isFinite(expirationTime)) {
+    logger.warn('Corrupt token expiration time detected in API validation', {
+      corruptValue: expiresAt,
+      tokenExpiredFlag: sessionStorage.getItem('token_expired'),
+    }, LOG_CATEGORIES.AUTH);
+    
+    // Treat corrupt expiration as expired for safety and consistency
+    sessionStorage.setItem('token_expired', 'true');
+    return true;
+  }
+  
+  const now = Date.now();
+  const isExpired = now >= expirationTime;
+  
+  // If expired, set the token_expired flag for consistency with existing code
+  if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
+    logger.info('Token expiration detected during API validation', {
+      now,
+      expirationTime,
+      expired: true,
+    }, LOG_CATEGORIES.AUTH);
+    sessionStorage.setItem('token_expired', 'true');
+  }
+  
+  return isExpired;
+}
+
+// OAuth URL generation with optional return path storage
+export function generateOAuthUrl(storeCurrentPath = false) {
+  if (storeCurrentPath) {
+    storeReturnPath();
+  }
+
   const BACKEND_URL = config.apiUrl;
   const frontendUrl = window.location.origin;
   
@@ -161,6 +220,7 @@ export function generateOAuthUrl() {
     frontendUrl,
     redirectUri,
     backendUrl: BACKEND_URL,
+    storedCurrentPath: storeCurrentPath,
   }, LOG_CATEGORIES.AUTH);
 
   const authUrl = 'https://www.onlinescoutmanager.co.uk/oauth/authorize?' +
@@ -170,7 +230,12 @@ export function generateOAuthUrl() {
         `scope=${encodeURIComponent(scope)}&` +
         'response_type=code';
     
-  logger.info('Generated Mobile OAuth URL', { authUrl }, LOG_CATEGORIES.AUTH);
+  logger.info('Generated Mobile OAuth URL', {
+    hasUrl: true,
+    clientIdSuffix: String(clientId).slice(-4),
+    redirectUri,
+    scopeCount: scope.split(' ').length,
+  }, LOG_CATEGORIES.AUTH);
   return authUrl;
 }
 

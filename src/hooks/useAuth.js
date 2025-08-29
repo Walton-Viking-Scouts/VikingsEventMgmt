@@ -1,7 +1,7 @@
 // useAuth hook for managing authentication state in React
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import authService from '../services/auth.js';
+import authService, { generateOAuthUrl, getAndClearReturnPath, isTokenExpired } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 import databaseService from '../services/database.js';
 
@@ -25,59 +25,11 @@ export function useAuth() {
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [authState, setAuthState] = useState('no_data'); // New: enhanced auth state
   const [lastSyncTime, setLastSyncTime] = useState(null); // New: track last sync
+  
+  // Token expiration dialog state
+  const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
+  const [hasCachedData, setHasCachedData] = useState(false);
 
-  // Helper function to check if token has expired based on stored expiration time
-  const isTokenExpired = useCallback(() => {
-    const expiresAt = sessionStorage.getItem('token_expires_at');
-    if (!expiresAt) {
-      // No expiration time stored - fall back to existing token_expired flag
-      return sessionStorage.getItem('token_expired') === 'true';
-    }
-    
-    const expirationTime = parseInt(expiresAt, 10);
-    
-    // Validate the parsed expiration time
-    if (!Number.isFinite(expirationTime)) {
-      logger.warn('Corrupt token expiration time detected, falling back to token_expired flag', {
-        corruptValue: expiresAt,
-        tokenExpiredFlag: sessionStorage.getItem('token_expired'),
-      }, LOG_CATEGORIES.AUTH);
-      
-      // Treat corrupt expiration as expired and set flag for consistency
-      const fallbackExpired = sessionStorage.getItem('token_expired') === 'true';
-      if (!fallbackExpired) {
-        logger.info('Setting token_expired flag due to corrupt expiration time', {
-          corruptValue: expiresAt,
-        }, LOG_CATEGORIES.AUTH);
-        sessionStorage.setItem('token_expired', 'true');
-        return true;
-      }
-      return fallbackExpired;
-    }
-    
-    const now = Date.now();
-    const timeUntilExpiry = expirationTime - now;
-    const isExpired = timeUntilExpiry <= 0;
-    
-    // Log upcoming expiration as a warning
-    if (!isExpired && timeUntilExpiry <= TOKEN_CONFIG.EXPIRATION_WARNING_MS) {
-      logger.warn('Token will expire soon', {
-        expiresAt: new Date(expirationTime).toISOString(),
-        timeUntilExpiryMinutes: Math.round(timeUntilExpiry / (60 * 1000)),
-      }, LOG_CATEGORIES.AUTH);
-    }
-    
-    // If expired, set the token_expired flag for consistency with existing code
-    if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
-      logger.info('Token has expired based on stored expiration time', {
-        expiresAt: new Date(expirationTime).toISOString(),
-        expiredMinutesAgo: Math.round(-timeUntilExpiry / (60 * 1000)),
-      }, LOG_CATEGORIES.AUTH);
-      sessionStorage.setItem('token_expired', 'true');
-    }
-    
-    return isExpired;
-  }, []);
 
   // Helper function to determine auth state based on cached data and tokens
   const determineAuthState = useCallback(async (isAuth) => {
@@ -107,7 +59,7 @@ export function useAuth() {
       logger.warn('Error determining auth state', { error: error.message }, LOG_CATEGORIES.ERROR);
       return isAuth ? 'authenticated' : 'no_data';
     }
-  }, [isTokenExpired]);
+  }, []);
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
@@ -181,10 +133,11 @@ export function useAuth() {
       
       if (accessToken) {
         try {
-          // Store the token and clean up URL with enhanced error handling
-          sessionStorage.setItem('access_token', accessToken);
-          // Clear any expired token flags when storing a new token
+          // Store the token via service to reset auth handler and Sentry context
+          authService.setToken(accessToken);
+          // Clear any expired/invalid token flags when storing a new token
           sessionStorage.removeItem('token_expired');
+          sessionStorage.removeItem('token_invalid');
           if (tokenType) {
             sessionStorage.setItem('token_type', tokenType);
           }
@@ -193,7 +146,7 @@ export function useAuth() {
           let expirationTime;
           if (expiresIn) {
             // Use provided expires_in parameter
-            expirationTime = Date.now() + (parseInt(expiresIn) * 1000);
+            expirationTime = Date.now() + (parseInt(expiresIn, 10) * 1000);
             logger.info('Token expiration time stored from OAuth response', { 
               expiresInSeconds: expiresIn,
               expiresAt: new Date(expirationTime).toISOString(),
@@ -222,6 +175,26 @@ export function useAuth() {
               tokenStored: true,
               urlCleaned: true,
             }, LOG_CATEGORIES.AUTH);
+            
+            // Check if we should restore user to their previous page
+            const returnPath = getAndClearReturnPath();
+            if (returnPath && returnPath !== '/' && returnPath !== window.location.pathname + window.location.search + window.location.hash) {
+              logger.info('Restoring user to previous page after OAuth', { 
+                returnPath,
+                currentPath: window.location.pathname + window.location.search + window.location.hash, 
+              }, LOG_CATEGORIES.AUTH);
+              
+              // Use a small delay to ensure token processing is complete
+              setTimeout(() => {
+                window.history.replaceState({}, '', returnPath);
+                // Nudge Router to react to the URL change without a full reload
+                try {
+                  window.dispatchEvent(new window.PopStateEvent('popstate'));
+                } catch {
+                  window.dispatchEvent(new Event('popstate'));
+                }
+              }, 100);
+            }
           } catch (urlCleanError) {
             // URL cleaning failed but token is stored - continue
             logger.warn('Failed to clean URL after OAuth callback, but token stored', { 
@@ -372,11 +345,11 @@ export function useAuth() {
     } finally {
       setIsLoading(false);
     }
-  }, [determineAuthState, isTokenExpired]); // determineAuthState already depends on isTokenExpired
+  }, [determineAuthState]);
 
   // Login function
   const login = useCallback(() => {
-    const oauthUrl = authService.generateOAuthUrl();
+    const oauthUrl = generateOAuthUrl();
     window.location.href = oauthUrl;
   }, []);
 
@@ -423,7 +396,7 @@ export function useAuth() {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [checkAuth, isTokenExpired]);
+  }, [checkAuth]);
 
   // Listen for sync completion to update lastSyncTime
   useEffect(() => {
@@ -466,38 +439,39 @@ export function useAuth() {
 
   // Periodic token expiration monitoring
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
+    if (!sessionStorage.getItem('access_token')) {
       return; // No token to monitor
     }
 
     // Check token expiration every minute
     const intervalId = setInterval(async () => {
       const tokenExpired = isTokenExpired();
-      const currentAuthState = authState;
+      const hasStoredToken = !!sessionStorage.getItem('access_token');
       
-      // If token expired and we're not already in token_expired state
-      if (tokenExpired && currentAuthState === 'authenticated') {
-        logger.info('Token expired - updating auth state', {}, LOG_CATEGORIES.AUTH);
+      // If token exists and is expired, show dialog regardless of auth state
+      if (hasStoredToken && tokenExpired && !showTokenExpiredDialog) {
+        logger.info('Token expired - showing user choice dialog', {}, LOG_CATEGORIES.AUTH);
         
-        // Determine new auth state
-        // Treat stored token presence as evidence we had a token (even if expired)
-        const hadToken = !!sessionStorage.getItem('access_token');
-        const newAuthState = await determineAuthState(hadToken);
-        setAuthState(newAuthState);
-        setIsOfflineMode(true);
-        
-        // Check if we have cached data for user feedback
+        // Check if we have cached data for user choice
         try {
           const cachedSections = await databaseService.getSections();
-          const hasCachedData = cachedSections && cachedSections.length > 0;
+          const hasCached = cachedSections && cachedSections.length > 0;
+          setHasCachedData(hasCached);
           
-          if (hasCachedData) {
-            logger.info('Token expired but cached data available - offline mode enabled', {}, LOG_CATEGORIES.AUTH);
-          } else {
-            logger.warn('Token expired with no cached data - user needs to re-authenticate', {}, LOG_CATEGORIES.AUTH);
-          }
+          // Show the user choice dialog instead of automatically switching to offline
+          setShowTokenExpiredDialog(true);
+          
+          logger.info('Token expired - awaiting user choice', { 
+            hasCachedData: hasCached, 
+          }, LOG_CATEGORIES.AUTH);
         } catch (error) {
-          logger.warn('Could not check cached data after token expiration', { error: error.message }, LOG_CATEGORIES.ERROR);
+          logger.warn('Could not check cached data after token expiration', { 
+            error: error.message, 
+          }, LOG_CATEGORIES.ERROR);
+          
+          // If we can't check cached data, assume no data and show dialog anyway
+          setHasCachedData(false);
+          setShowTokenExpiredDialog(true);
         }
       }
     }, TOKEN_CONFIG.CHECK_INTERVAL_MS);
@@ -505,8 +479,52 @@ export function useAuth() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [isTokenExpired, authState, determineAuthState]);
+  }, [authState, determineAuthState, showTokenExpiredDialog]);
 
+  // Handler for when user chooses to re-login after token expiration
+  const handleReLogin = useCallback(async () => {
+    logger.info('User chose to re-login after token expiration', {}, LOG_CATEGORIES.AUTH);
+    setShowTokenExpiredDialog(false);
+    
+    try {
+      // Generate OAuth URL with return path storage
+      const oauthUrl = generateOAuthUrl(true);
+      
+      logger.info('Redirecting to OAuth for re-authentication', { 
+        storedReturnPath: true, 
+      }, LOG_CATEGORIES.AUTH);
+      
+      // Redirect to OAuth
+      window.location.href = oauthUrl;
+    } catch (error) {
+      logger.error('Error redirecting to OAuth after token expiration', { 
+        error: error.message, 
+      }, LOG_CATEGORIES.ERROR);
+    }
+  }, []);
+
+  // Handler for when user chooses to stay offline after token expiration
+  const handleStayOffline = useCallback(async () => {
+    logger.info('User chose to stay offline after token expiration', {}, LOG_CATEGORIES.AUTH);
+    setShowTokenExpiredDialog(false);
+    
+    try {
+      // Update auth state to reflect token expiration and offline mode
+      const hadToken = !!sessionStorage.getItem('access_token');
+      const newAuthState = await determineAuthState(hadToken);
+      setAuthState(newAuthState);
+      setIsOfflineMode(true);
+      
+      logger.info('Switched to offline mode per user choice', { 
+        newAuthState,
+        hasCachedData: hasCachedData, 
+      }, LOG_CATEGORIES.AUTH);
+    } catch (error) {
+      logger.error('Error switching to offline mode', { 
+        error: error.message, 
+      }, LOG_CATEGORIES.ERROR);
+    }
+  }, [determineAuthState, hasCachedData]);
 
   return {
     isAuthenticated,
@@ -516,6 +534,13 @@ export function useAuth() {
     isOfflineMode,
     authState,        // New: enhanced auth state
     lastSyncTime,     // New: last sync timestamp
+    
+    // Token expiration dialog
+    showTokenExpiredDialog,
+    hasCachedData,
+    handleReLogin,
+    handleStayOffline,
+    
     login,
     logout,
     setToken,

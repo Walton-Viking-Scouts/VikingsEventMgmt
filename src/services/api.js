@@ -11,8 +11,48 @@ import { checkNetworkStatus, addNetworkListener } from '../utils/networkUtils.js
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
 import { isDemoMode } from '../config/demoMode.js';
+import { isTokenExpired } from './auth.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
+
+// Custom error class for expired tokens
+export class TokenExpiredError extends Error {
+  constructor(message = 'Authentication token has expired') {
+    super(message);
+    this.name = 'TokenExpiredError';
+    this.isTokenExpired = true;
+    this.status = 401;
+    this.code = 'TOKEN_EXPIRED';
+  }
+}
+
+/**
+ * Validates token before making API calls to prevent calls with expired tokens
+ * @param {string} token - Authentication token to validate
+ * @param {string} functionName - Name of the API function for logging
+ * @throws {TokenExpiredError} If token is expired
+ * @throws {Error} If no token provided
+ */
+function validateTokenBeforeAPICall(token, functionName) {
+  if (!token) {
+    logger.warn(`${functionName}: No authentication token provided`, {}, LOG_CATEGORIES.API);
+    throw new Error('No authentication token');
+  }
+  
+  if (isTokenExpired()) {
+    logger.warn(`${functionName}: Preventing API call with expired token`, {
+      functionName,
+      tokenPresent: !!token,
+      tokenExpiresAt: sessionStorage.getItem('token_expires_at') || null,
+    }, LOG_CATEGORIES.API);
+    throw new TokenExpiredError(`Cannot call ${functionName} - authentication token has expired`);
+  }
+  
+  logger.debug(`${functionName}: Token validation passed`, {
+    functionName,
+    tokenPresent: !!token,
+  }, LOG_CATEGORIES.API);
+}
 
 
 /**
@@ -344,9 +384,8 @@ export async function getTerms(token, forceRefresh = false) {
       return cached;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // Validate token before making API call
+    validateTokenBeforeAPICall(token, 'getTerms');
 
     const data = await withRateLimitQueue(async () => {
       const response = await fetch(`${BACKEND_URL}/get-terms`, {
@@ -1027,9 +1066,8 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
       return cached;
     }
     
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // Validate token before making API call
+    validateTokenBeforeAPICall(token, 'getSingleFlexiRecord');
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -1498,9 +1536,8 @@ export async function getMembersGrid(sectionId, termId, token) {
       return cachedMembers;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // Validate token before making API call
+    validateTokenBeforeAPICall(token, 'getMembersGrid');
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
