@@ -20,7 +20,7 @@ const VARIANT_MAPPING = {
 
 // Helper function to extract text from React nodes
 const extractText = (node) => {
-  if (node == null || node === false) return '';
+  if (node === null || node === false) return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractText).join('');
   if (React.isValidElement(node)) return extractText(node.props?.children);
@@ -167,9 +167,9 @@ const AlertAdapter = ({
       type: VARIANT_MAPPING[variant] || 'info',
       actions: actions.map(a => a.label).join(','),
       variant,
-      dismissible
+      dismissible,
     }), 
-    [message, variant, actions, dismissible]
+  [message, variant, actions, dismissible],
   );
 
   // Stable ID and timestamp - persist across renders for the same logical notification
