@@ -198,7 +198,7 @@ export function useAuth() {
           let expirationTime;
           if (expiresIn) {
             // Use provided expires_in parameter
-            expirationTime = Date.now() + (parseInt(expiresIn) * 1000);
+            expirationTime = Date.now() + (parseInt(expiresIn, 10) * 1000);
             logger.info('Token expiration time stored from OAuth response', { 
               expiresInSeconds: expiresIn,
               expiresAt: new Date(expirationTime).toISOString(),
@@ -240,7 +240,11 @@ export function useAuth() {
               setTimeout(() => {
                 window.history.replaceState({}, '', returnPath);
                 // Nudge Router to react to the URL change without a full reload
-                window.dispatchEvent(new window.PopStateEvent('popstate'));
+                try {
+                  window.dispatchEvent(new window.PopStateEvent('popstate'));
+                } catch {
+                  window.dispatchEvent(new Event('popstate'));
+                }
               }, 100);
             }
           } catch (urlCleanError) {
@@ -397,7 +401,7 @@ export function useAuth() {
 
   // Login function
   const login = useCallback(() => {
-    const oauthUrl = authService.generateOAuthUrl();
+    const oauthUrl = generateOAuthUrl();
     window.location.href = oauthUrl;
   }, []);
 
@@ -487,7 +491,7 @@ export function useAuth() {
 
   // Periodic token expiration monitoring
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
+    if (!sessionStorage.getItem('access_token')) {
       return; // No token to monitor
     }
 
