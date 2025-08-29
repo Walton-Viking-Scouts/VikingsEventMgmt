@@ -45,7 +45,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set build environment variables
+        run: |
+          # Use git describe to get current version, fallback to package.json version
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.1.0")
+          echo "SENTRY_RELEASE=vikings-eventmgmt-mobile@$VERSION" >> $GITHUB_ENV
+          echo "Building with Sentry release: vikings-eventmgmt-mobile@$VERSION"
+
       - name: Build application
+        env:
+          SENTRY_RELEASE: ${{ env.SENTRY_RELEASE }}
         run: npm run build
 
       - name: Upload build artifacts
@@ -122,7 +131,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set build environment variables
+        run: |
+          # Use git describe to get current version, fallback to package.json version
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.1.0")
+          echo "SENTRY_RELEASE=vikings-eventmgmt-mobile@$VERSION" >> $GITHUB_ENV
+          echo "Building mobile assets with Sentry release: vikings-eventmgmt-mobile@$VERSION"
+
       - name: Build web assets
+        env:
+          SENTRY_RELEASE: ${{ env.SENTRY_RELEASE }}
         run: npm run build
 
       - name: Setup Capacitor
