@@ -603,6 +603,7 @@ function CampGroupsView({
     // Safety timeout: Clear drag state if no move operation occurs within 3 seconds
     // This handles cases like dropping on the same group or invalid drops
     setTimeout(() => {
+      if (!isMountedRef.current) return;
       setDraggingMemberId((currentId) => {
         if (currentId !== null) {
           logger.debug('Drag state cleared by safety timeout - no move operation occurred', {}, LOG_CATEGORIES.APP);
@@ -1676,7 +1677,9 @@ function CampGroupsView({
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
               dragDisabled={
-                !summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0
+                isDemoMode()
+                  ? false
+                  : (!summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0)
               }
               onOfflineError={async (memberName) => {
                 try {
