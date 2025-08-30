@@ -13,7 +13,7 @@ export default defineConfig({
       project: 'viking-event-mgmt',
       authToken: process.env.SENTRY_AUTH_TOKEN,
       release: {
-        name: `vikings-eventmgmt-mobile@${packageJson.version}`,
+        name: process.env.SENTRY_RELEASE || `vikings-eventmgmt-mobile@${packageJson.version}`,
         uploadLegacySourcemaps: false,
         setCommits: {
           auto: true,

@@ -16,6 +16,7 @@ import { AlertAdapter } from '../adapters';
 import { useNotification } from '../contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
+import SectionCardsFlexMasonry from './SectionCardsFlexMasonry.jsx';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
@@ -23,7 +24,9 @@ import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
-  window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  if (import.meta.env.DEV) {
+    window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  }
 
 
   // Use custom hooks for data loading and sign-in/out functionality
@@ -960,9 +963,9 @@ function AttendanceView({ events, members, onBack }) {
 
           {/* View toggle */}
           <div className="border-b border-gray-200 mb-6" data-oid="a-.v.39">
-            <nav className="-mb-px flex space-x-8" data-oid=".r.4i39">
+            <nav className="-mb-px flex flex-wrap space-x-4 sm:space-x-8" data-oid=".r.4i39">
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'overview'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -974,7 +977,7 @@ function AttendanceView({ events, members, onBack }) {
                 Overview
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'register'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -986,7 +989,7 @@ function AttendanceView({ events, members, onBack }) {
                 Register
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'detailed'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -998,7 +1001,7 @@ function AttendanceView({ events, members, onBack }) {
                 Detailed
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'campGroups'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1011,7 +1014,7 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               {hasSharedEvents && (
                 <button
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     viewMode === 'sharedAttendance'
                       ? 'border-scout-blue text-scout-blue'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1494,7 +1497,7 @@ function AttendanceView({ events, members, onBack }) {
                     ).map((member, index) => {
                       return (
                         <tr
-                          key={index}
+                          key={member.scoutid || index}
                           className="hover:bg-gray-50"
                           data-oid="dcezi3q"
                         >
@@ -1775,7 +1778,7 @@ function AttendanceView({ events, members, onBack }) {
                     const memberData = getComprehensiveMemberData(record);
 
                     return (
-                      <tr key={index} className="hover:bg-gray-50 text-xs">
+                      <tr key={record.scoutid || index} className="hover:bg-gray-50 text-xs">
                         {/* Basic Info Cells */}
                         <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
                           <button
@@ -1925,7 +1928,7 @@ function AttendanceView({ events, members, onBack }) {
           )}
 
           {viewMode === 'sharedAttendance' && (
-            <div data-oid="9.d0x7u">
+            <div className="relative" data-oid="9.d0x7u">
               {loadingSharedAttendance ? (
                 <div className="text-center py-8" data-oid="23uyl_q">
                   <div
@@ -2034,8 +2037,8 @@ function AttendanceView({ events, members, onBack }) {
                     return (
                       <>
                         {/* Overall summary */}
-                        <div className="mb-6" data-oid="v4fnjyf">
-                          <div className="flex items-center justify-between mb-4">
+                        <div className="p-4 border-b border-gray-200" data-oid="v4fnjyf">
+                          <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-gray-900" data-oid="m1r6z5c">
                               All Sections ({sections.length})
                             </h3>
@@ -2049,55 +2052,12 @@ function AttendanceView({ events, members, onBack }) {
                           </div>
                         </div>
 
-                        {/* Individual section cards - responsive column layout */}
-                        <div className="columns-1 md:columns-2 lg:columns-3 gap-4" data-oid="section-cards">
-                          {sections.map((section) => (
-                            <div key={section.sectionid} className="bg-white border border-gray-200 rounded-lg overflow-hidden break-inside-avoid mb-4">
-                              {/* Section header */}
-                              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-lg font-semibold text-gray-900">
-                                    {section.sectionname}
-                                  </h4>
-                                  <div className="flex gap-3 text-sm text-gray-600">
-                                    <span>{section.members.length} total</span>
-                                    <span>•</span>
-                                    <span>{section.youngPeopleCount} YP</span>
-                                    <span>•</span>
-                                    <span>{section.adultsCount} adults</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Section members */}
-                              <div className="divide-y divide-gray-200">
-                                {section.members.map((member, memberIndex) => (
-                                  <div
-                                    key={`${section.sectionid}-${member.scoutid || memberIndex}`}
-                                    className="px-5 py-3 hover:bg-gray-50 flex items-center justify-between"
-                                  >
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {member.firstname} {member.lastname}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                        member.person_type === 'Young People'
-                                          ? 'bg-green-100 text-green-800'
-                                          : 'bg-purple-100 text-purple-800'
-                                      }`}>
-                                        {member.person_type === 'Young People' ? 'YP' : 'Adult'}
-                                      </span>
-                                      <div className="text-sm text-gray-500 w-16 text-right">
-                                        {member.age || 'N/A'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                        {/* Scrollable masonry container */}
+                        <div className="max-h-[600px] overflow-y-auto">
+                          <SectionCardsFlexMasonry 
+                            sections={sections} 
+                            isYoungPerson={isYoungPerson}
+                          />
                         </div>
                       </>
                     );

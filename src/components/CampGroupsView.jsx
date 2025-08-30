@@ -238,6 +238,7 @@ function CampGroupsView({
   const [draggingMemberId, setDraggingMemberId] = useState(null);
 
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
+  const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map()); // Track completed moves
   
   // Notification system
   const { notifySuccess, notifyError } = useNotification();
@@ -248,6 +249,9 @@ function CampGroupsView({
 
   // Ref to track component mount status for async operations
   const isMountedRef = useRef(true);
+  
+  // Ref to track timeout IDs for cleanup
+  const timeoutIdsRef = useRef(new Set());
 
   const isMobile = isMobileLayout();
 
@@ -360,6 +364,85 @@ function CampGroupsView({
 
         // Simple organization function that works with getSummaryStats() data
         const organized = organizeAttendeesSimple(attendees);
+        
+        // If we have pending or recently completed moves, preserve optimistic updates
+        if (pendingMoves.size > 0 || recentlyCompletedMoves.size > 0) {
+          logger.debug('Preserving optimistic updates during reload', {
+            pendingMovesCount: pendingMoves.size,
+            recentlyCompletedMovesCount: recentlyCompletedMoves.size,
+            allMoves: [
+              ...Array.from(pendingMoves.entries()).map(([id, move]) => ({
+                id, type: 'pending', memberId: move.member?.scoutid, fromGroup: move.fromGroupName, toGroup: move.toGroupName,
+              })),
+              ...Array.from(recentlyCompletedMoves.entries()).map(([id, move]) => ({
+                id, type: 'completed', memberId: move.member?.scoutid, fromGroup: move.fromGroupName, toGroup: move.toGroupName,
+              })),
+            ],
+          }, LOG_CATEGORIES.APP);
+          
+          // Apply both pending and recently completed moves to the freshly organized data
+          const allMoves = new Map([...pendingMoves, ...recentlyCompletedMoves]);
+          for (const [moveId, moveData] of allMoves.entries()) {
+            if (moveData && moveData.member) {
+              // Find member in current organized groups
+              let memberFound = false;
+              for (const [groupName, group] of Object.entries(organized.groups)) {
+                const memberIndex = group.youngPeople?.findIndex(m => 
+                  m.scoutid === moveData.member.scoutid,
+                );
+                if (memberIndex !== -1) {
+                  // Remove from current group
+                  const memberToMove = {
+                    ...group.youngPeople[memberIndex],
+                    vikingEventData: {
+                      ...group.youngPeople[memberIndex].vikingEventData,
+                      CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber,
+                    },
+                  };
+                  organized.groups[groupName].youngPeople.splice(memberIndex, 1);
+                  organized.groups[groupName].totalMembers--;
+                  
+                  // Add to target group
+                  if (!organized.groups[moveData.toGroupName]) {
+                    organized.groups[moveData.toGroupName] = {
+                      name: moveData.toGroupName,
+                      number: moveData.toGroupNumber,
+                      leaders: [],
+                      youngPeople: [],
+                      totalMembers: 0,
+                    };
+                  }
+                  organized.groups[moveData.toGroupName].youngPeople.push(memberToMove);
+                  organized.groups[moveData.toGroupName].totalMembers++;
+                  memberFound = true;
+                  break;
+                }
+              }
+              if (!memberFound) {
+                logger.warn('Could not find member for optimistic update preservation', {
+                  memberId: moveData.member.scoutid,
+                  moveId,
+                }, LOG_CATEGORIES.APP);
+              }
+            }
+          }
+          
+          // Recalculate summary after optimistic updates
+          organized.summary = {
+            totalGroups: Object.keys(organized.groups).length,
+            totalMembers: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.youngPeople?.length || 0) + (group.leaders?.length || 0), 0,
+            ),
+            totalLeaders: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.leaders?.length || 0), 0,
+            ),
+            totalYoungPeople: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.youngPeople?.length || 0), 0,
+            ),
+            hasUnassigned: !!organized.groups['Group Unassigned'] && organized.groups['Group Unassigned'].totalMembers > 0,
+            vikingEventDataAvailable: organized.summary?.vikingEventDataAvailable || false,
+          };
+        }
 
         // Store the FlexiRecord context for drag operations
         organized.campGroupData = primaryCampGroupData;
@@ -417,12 +500,21 @@ function CampGroupsView({
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
+  }, [events, attendees, members, pendingMoves, recentlyCompletedMoves]); // Include move maps to preserve optimistic updates
 
-  // Mark component as unmounted for async operations
+  // Mark component as unmounted for async operations and cleanup timeouts
   useEffect(() => {
+    // Capture the timeouts ref at effect creation time
+    const timeoutsRef = timeoutIdsRef;
+    
     return () => {
       isMountedRef.current = false;
+      
+      // Clear all tracked timeouts to prevent post-unmount state updates
+      timeoutsRef.current.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      timeoutsRef.current.clear();
     };
   }, []);
 
@@ -511,6 +603,7 @@ function CampGroupsView({
     // Safety timeout: Clear drag state if no move operation occurs within 3 seconds
     // This handles cases like dropping on the same group or invalid drops
     setTimeout(() => {
+      if (!isMountedRef.current) return;
       setDraggingMemberId((currentId) => {
         if (currentId !== null) {
           logger.debug('Drag state cleared by safety timeout - no move operation occurred', {}, LOG_CATEGORIES.APP);
@@ -612,12 +705,21 @@ function CampGroupsView({
           );
         }
 
-        // Add member to target group
+        // Add member to target group with updated CampGroup
         const toGroup = groups[moveData.toGroupName];
         if (toGroup) {
+          // Create updated member object with new CampGroup value
+          const updatedMember = {
+            ...moveData.member,
+            vikingEventData: {
+              ...moveData.member.vikingEventData,
+              CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber,
+            },
+          };
+          
           groups[moveData.toGroupName] = {
             ...toGroup,
-            youngPeople: [...toGroup.youngPeople, moveData.member],
+            youngPeople: [...toGroup.youngPeople, updatedMember],
           };
           groups[moveData.toGroupName].totalMembers = calculateTotalMembers(
             groups[moveData.toGroupName],
@@ -641,12 +743,21 @@ function CampGroupsView({
         const newGroups = { ...prevGroups };
         const groups = { ...newGroups.groups };
 
-        // Add member back to source group
+        // Add member back to source group with original CampGroup value
         const fromGroup = groups[moveData.fromGroupName];
         if (fromGroup) {
+          // Restore original CampGroup value
+          const restoredMember = {
+            ...moveData.member,
+            vikingEventData: {
+              ...moveData.member.vikingEventData,
+              CampGroup: moveData.fromGroupNumber === 'Unassigned' ? '' : moveData.fromGroupNumber,
+            },
+          };
+          
           groups[moveData.fromGroupName] = {
             ...fromGroup,
-            youngPeople: [...fromGroup.youngPeople, moveData.member],
+            youngPeople: [...fromGroup.youngPeople, restoredMember],
           };
           groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(
             groups[moveData.fromGroupName],
@@ -874,10 +985,38 @@ function CampGroupsView({
           setDraggingMemberId(null);
           setIsDragInProgress(false);
           
-          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
+          // Move from pending to recently completed to survive component reloads
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
+            const completedMove = newMap.get(moveId);
             newMap.delete(moveId);
+            
+            // Add to recently completed moves for preservation during reloads
+            if (completedMove) {
+              setRecentlyCompletedMoves((prevCompleted) => {
+                const newCompleted = new Map(prevCompleted);
+                newCompleted.set(moveId, completedMove);
+                return newCompleted;
+              });
+              
+              // Clear from recently completed after 2 seconds (longer than reload cycle)
+              const timeoutId = setTimeout(() => {
+                // Guard against post-unmount state updates
+                if (isMountedRef.current) {
+                  setRecentlyCompletedMoves((prevCompleted) => {
+                    const newCompleted = new Map(prevCompleted);
+                    newCompleted.delete(moveId);
+                    return newCompleted;
+                  });
+                }
+                // Remove timeout ID from tracking set
+                timeoutIdsRef.current.delete(timeoutId);
+              }, 2000);
+              
+              // Track timeout for cleanup
+              timeoutIdsRef.current.add(timeoutId);
+            }
+            
             return newMap;
           });
           
@@ -979,7 +1118,7 @@ function CampGroupsView({
           setIsDragInProgress(false);
           setDraggingMemberId(null);
           
-          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
+          // Remove from pending moves immediately on error (no delay needed for failures)
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
             newMap.delete(moveId);
@@ -1002,6 +1141,7 @@ function CampGroupsView({
       revertOptimisticUpdate,
       showToast,
       sectionsCache,
+      updateDemoCampGroupAssignment,
     ],
   );
 
@@ -1537,7 +1677,9 @@ function CampGroupsView({
               isDragInProgress={isDragInProgress}
               draggingMemberId={draggingMemberId}
               dragDisabled={
-                !summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0
+                isDemoMode()
+                  ? false
+                  : (!summary.vikingEventDataAvailable || !flexiRecordContext || pendingMoves.size > 0)
               }
               onOfflineError={async (memberName) => {
                 try {

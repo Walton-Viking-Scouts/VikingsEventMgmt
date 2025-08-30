@@ -103,7 +103,7 @@ function AppContent() {
       // Mark as shown to prevent duplicate notifications
       offlineNotificationShownRef.current = true;
     }
-  }, [isLoading, isOfflineMode, user, authState]);
+  }, [isLoading, isOfflineMode, user, authState, notifyInfo]);
 
   // Listen for sync status changes
   useEffect(() => {

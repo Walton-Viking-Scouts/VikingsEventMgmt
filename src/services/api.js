@@ -36,7 +36,10 @@ export class TokenExpiredError extends Error {
 function validateTokenBeforeAPICall(token, functionName) {
   if (!token) {
     logger.warn(`${functionName}: No authentication token provided`, {}, LOG_CATEGORIES.API);
-    throw new Error('No authentication token');
+    const err = new Error('No authentication token');
+    err.status = 401;
+    err.code = 'NO_TOKEN';
+    throw err;
   }
   
   if (isTokenExpired()) {
@@ -581,6 +584,8 @@ export async function getUserRoles(token) {
     }
     return sections;
   }
+  
+  // Defer token validation until an online fetch is imminent
 
   return sentryUtils.startSpan(
     {
@@ -608,10 +613,6 @@ export async function getUserRoles(token) {
           return sections;
         }
 
-        if (!token) {
-          throw new Error('No authentication token');
-        }
-
         // Simple circuit breaker - use cache if auth already failed
         if (!authHandler.shouldMakeAPICall()) {
           logger.info('Auth failed this session - using cached sections only');
@@ -624,6 +625,9 @@ export async function getUserRoles(token) {
         // Making request to fetch user roles
 
         const data = await withRateLimitQueue(async () => {
+          // We are online and will call the API – validate now
+          validateTokenBeforeAPICall(token, 'getUserRoles');
+          
           const response = await fetch(`${BACKEND_URL}/get-user-roles`, {
             method: 'GET',
             headers: {
@@ -768,10 +772,8 @@ export async function getEvents(sectionId, termId, token) {
       const events = await databaseService.getEvents(sectionId);
       return events;
     }
-
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    
+    // Defer token validation until an online fetch is imminent
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -781,6 +783,9 @@ export async function getEvents(sectionId, termId, token) {
     }
 
     const data = await withRateLimitQueue(async () => {
+      // Online and allowed – validate now
+      validateTokenBeforeAPICall(token, 'getEvents');
+      
       const response = await fetch(`${BACKEND_URL}/get-events?sectionid=${sectionId}&termid=${termId}`, {
         method: 'GET',
         headers: {
@@ -864,9 +869,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
       return attendance;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // Defer token validation until an online fetch is imminent
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -876,6 +879,8 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     }
 
     const data = await withRateLimitQueue(async () => {
+      validateTokenBeforeAPICall(token, 'getEventAttendance');
+      
       const response = await fetch(`${BACKEND_URL}/get-event-attendance?sectionid=${sectionId}&termid=${termId}&eventid=${eventId}`, {
         method: 'GET',
         headers: {
@@ -936,6 +941,8 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       return cached;
     }
     
+    // Defer token validation until an online fetch is imminent
+    
     const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
     
     // Check network status first
@@ -961,9 +968,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       return cached;
     }
         
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // Token presence validated below, right before the fetch
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -978,6 +983,9 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     }
 
     const data = await withRateLimitQueue(async () => {
+      // Online and allowed – validate now
+      validateTokenBeforeAPICall(token, 'getFlexiRecords');
+      
       const response = await fetch(`${BACKEND_URL}/get-flexi-records?sectionid=${sectionId}&archived=${archived}`, {
         method: 'GET',
         headers: { 
@@ -1126,6 +1134,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       return cached;
     }
     
+    // Defer token validation until we're about to make the network request
+    
     const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
     
     // Check network status first
@@ -1157,10 +1167,6 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       return null;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
       // Auth failed - getFlexiStructure blocked
@@ -1174,6 +1180,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     }
 
     const data = await withRateLimitQueue(async () => {
+      validateTokenBeforeAPICall(token, 'getFlexiStructure');
+      
       const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
         method: 'GET',
         headers: { 
@@ -1254,6 +1262,8 @@ export async function getStartupData(token) {
     if (demoMode) {
       return safeGetItem('demo_viking_startup_data_offline', null);
     }
+    
+    // Defer until we confirm we'll hit the network
 
     // Check network status first
     isOnline = await checkNetworkStatus();
@@ -1265,10 +1275,8 @@ export async function getStartupData(token) {
       return safeGetItem(cacheKey, null);
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
+    validateTokenBeforeAPICall(token, 'getStartupData');
+    
     const response = await fetch(`${BACKEND_URL}/get-startup-data`, {
       method: 'GET',
       headers: { 
@@ -1365,14 +1373,20 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   }
   
   try {
+    validateTokenBeforeAPICall(token, 'updateFlexiRecord');
+    
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
     
     // Check if write operations are allowed (blocks offline writes with expired token)
     checkWritePermission();
-    
-    if (!token) {
-      throw new Error('No authentication token');
+
+    // Validate column id format (e.g. "f_1")
+    if (typeof columnid !== 'string' || !/^f_\d+$/.test(columnid)) {
+      const err = new Error('Invalid columnid format');
+      err.status = 400;
+      err.code = 'INVALID_COLUMN_ID';
+      throw err;
     }
 
     const response = await fetch(`${BACKEND_URL}/update-flexi-record`, {
@@ -1434,6 +1448,8 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
     };
   }
   
+  validateTokenBeforeAPICall(token, 'multiUpdateFlexiRecord');
+  
   try {
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
@@ -1441,8 +1457,14 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
     // Check if write operations are allowed
     checkWritePermission();
     
-    if (!token) {
-      throw new Error('No authentication token');
+    // Token already validated above
+
+    // Validate column id format (e.g. "f_1")
+    if (typeof column !== 'string' || !/^f_\d+$/.test(column)) {
+      const err = new Error('Invalid column format');
+      err.status = 400;
+      err.code = 'INVALID_COLUMN_ID';
+      throw err;
     }
 
     if (!Array.isArray(scouts) || scouts.length === 0) {
@@ -1824,6 +1846,8 @@ export async function getEventSummary(eventId, token) {
       };
     }
     
+    validateTokenBeforeAPICall(token, 'getEventSummary');
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -1891,6 +1915,8 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
         items: [],
       };
     }
+    
+    validateTokenBeforeAPICall(token, 'getEventSharingStatus');
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -1998,9 +2024,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       throw new Error('No network connection and no cached shared attendance available');
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
 
     // Simple circuit breaker - use cache if auth already failed  
     if (!authHandler.shouldMakeAPICall()) {
