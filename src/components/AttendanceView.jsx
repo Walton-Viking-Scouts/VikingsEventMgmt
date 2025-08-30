@@ -16,6 +16,7 @@ import { AlertAdapter } from '../adapters';
 import { useNotification } from '../contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
+import SectionCardsFlexMasonry from './SectionCardsFlexMasonry.jsx';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
@@ -1925,7 +1926,7 @@ function AttendanceView({ events, members, onBack }) {
           )}
 
           {viewMode === 'sharedAttendance' && (
-            <div data-oid="9.d0x7u">
+            <div className="relative" data-oid="9.d0x7u">
               {loadingSharedAttendance ? (
                 <div className="text-center py-8" data-oid="23uyl_q">
                   <div
@@ -2034,8 +2035,8 @@ function AttendanceView({ events, members, onBack }) {
                     return (
                       <>
                         {/* Overall summary */}
-                        <div className="mb-6" data-oid="v4fnjyf">
-                          <div className="flex items-center justify-between mb-4">
+                        <div className="p-4 border-b border-gray-200" data-oid="v4fnjyf">
+                          <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-gray-900" data-oid="m1r6z5c">
                               All Sections ({sections.length})
                             </h3>
@@ -2049,55 +2050,12 @@ function AttendanceView({ events, members, onBack }) {
                           </div>
                         </div>
 
-                        {/* Individual section cards - responsive column layout */}
-                        <div className="columns-1 md:columns-2 lg:columns-3 gap-4" data-oid="section-cards">
-                          {sections.map((section) => (
-                            <div key={section.sectionid} className="bg-white border border-gray-200 rounded-lg overflow-hidden break-inside-avoid mb-4">
-                              {/* Section header */}
-                              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-lg font-semibold text-gray-900">
-                                    {section.sectionname}
-                                  </h4>
-                                  <div className="flex gap-3 text-sm text-gray-600">
-                                    <span>{section.members.length} total</span>
-                                    <span>•</span>
-                                    <span>{section.youngPeopleCount} YP</span>
-                                    <span>•</span>
-                                    <span>{section.adultsCount} adults</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Section members */}
-                              <div className="divide-y divide-gray-200">
-                                {section.members.map((member, memberIndex) => (
-                                  <div
-                                    key={`${section.sectionid}-${member.scoutid || memberIndex}`}
-                                    className="px-5 py-3 hover:bg-gray-50 flex items-center justify-between"
-                                  >
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {member.firstname} {member.lastname}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                        member.person_type === 'Young People'
-                                          ? 'bg-green-100 text-green-800'
-                                          : 'bg-purple-100 text-purple-800'
-                                      }`}>
-                                        {member.person_type === 'Young People' ? 'YP' : 'Adult'}
-                                      </span>
-                                      <div className="text-sm text-gray-500 w-16 text-right">
-                                        {member.age || 'N/A'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                        {/* Scrollable masonry container */}
+                        <div className="max-h-[600px] overflow-y-auto">
+                          <SectionCardsFlexMasonry 
+                            sections={sections} 
+                            isYoungPerson={isYoungPerson}
+                          />
                         </div>
                       </>
                     );
