@@ -259,17 +259,27 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
   );
 
   return (
-    <Card className="h-full flex flex-col" data-oid="3kxvx32">
+    <Card 
+      className="h-full flex flex-col" 
+      role="article"
+      aria-labelledby={`event-title-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}`}
+      data-oid="3kxvx32"
+    >
       <Card.Header className="pb-3" data-oid="20kbjde">
         <div className="flex justify-between items-start" data-oid="oey::ov">
           <div className="flex-1" data-oid="0w-_rn.">
             <Card.Title
               className="text-lg font-semibold text-gray-900 mb-1"
+              id={`event-title-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}`}
               data-oid="pqa5tp."
             >
               {eventCard.name}
             </Card.Title>
-            <p className="text-sm text-gray-600 mb-2" data-oid="4fslyto">
+            <p 
+              className="text-sm text-gray-600 mb-2" 
+              id={`event-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}-description`}
+              data-oid="4fslyto"
+            >
               {formatDateRange(eventCard.events)}
             </p>
           </div>
@@ -329,6 +339,8 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           className="w-full flex items-center justify-center gap-2"
           type="button"
           disabled={loading}
+          aria-label={`View attendees for ${eventCard.name} event`}
+          aria-describedby={`event-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}-description`}
           data-oid="5s0-rzy"
         >
           {loading ? (

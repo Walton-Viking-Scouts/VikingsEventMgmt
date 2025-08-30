@@ -101,6 +101,12 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     
     const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
     
+    // If no token available, skip API calls and use cached data only
+    if (!token) {
+      const cached = safeGetItem(cacheKey, { items: [] });
+      return cached;
+    }
+    
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
@@ -175,6 +181,12 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     }
     
     const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
+    
+    // If no token available, skip API calls and use cached data only
+    if (!token) {
+      const cached = safeGetItem(cacheKey, null);
+      return cached;
+    }
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -258,6 +270,12 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     }
     
     const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
+    
+    // If no token available, skip API calls and use cached data only
+    if (!token) {
+      const cached = safeGetItem(storageKey, null);
+      return cached;
+    }
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
