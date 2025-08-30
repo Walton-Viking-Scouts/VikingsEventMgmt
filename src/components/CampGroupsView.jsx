@@ -360,6 +360,81 @@ function CampGroupsView({
 
         // Simple organization function that works with getSummaryStats() data
         const organized = organizeAttendeesSimple(attendees);
+        
+        // If we have pending moves, preserve optimistic updates
+        if (pendingMoves.size > 0) {
+          logger.debug('Preserving optimistic updates during reload', {
+            pendingMovesCount: pendingMoves.size,
+            pendingMoves: Array.from(pendingMoves.entries()).map(([id, move]) => ({
+              id,
+              memberId: move.member?.scoutid,
+              fromGroup: move.fromGroupName,
+              toGroup: move.toGroupName,
+            })),
+          }, LOG_CATEGORIES.APP);
+          
+          // Apply pending moves to the freshly organized data
+          for (const [moveId, moveData] of pendingMoves.entries()) {
+            if (moveData && moveData.member) {
+              // Find member in current organized groups
+              let memberFound = false;
+              for (const [groupName, group] of Object.entries(organized.groups)) {
+                const memberIndex = group.youngPeople?.findIndex(m => 
+                  m.scoutid === moveData.member.scoutid
+                );
+                if (memberIndex !== -1) {
+                  // Remove from current group
+                  const memberToMove = {
+                    ...group.youngPeople[memberIndex],
+                    vikingEventData: {
+                      ...group.youngPeople[memberIndex].vikingEventData,
+                      CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber
+                    }
+                  };
+                  organized.groups[groupName].youngPeople.splice(memberIndex, 1);
+                  organized.groups[groupName].totalMembers--;
+                  
+                  // Add to target group
+                  if (!organized.groups[moveData.toGroupName]) {
+                    organized.groups[moveData.toGroupName] = {
+                      name: moveData.toGroupName,
+                      number: moveData.toGroupNumber,
+                      leaders: [],
+                      youngPeople: [],
+                      totalMembers: 0,
+                    };
+                  }
+                  organized.groups[moveData.toGroupName].youngPeople.push(memberToMove);
+                  organized.groups[moveData.toGroupName].totalMembers++;
+                  memberFound = true;
+                  break;
+                }
+              }
+              if (!memberFound) {
+                logger.warn('Could not find member for optimistic update preservation', {
+                  memberId: moveData.member.scoutid,
+                  moveId,
+                }, LOG_CATEGORIES.APP);
+              }
+            }
+          }
+          
+          // Recalculate summary after optimistic updates
+          organized.summary = {
+            totalGroups: Object.keys(organized.groups).length,
+            totalMembers: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.youngPeople?.length || 0) + (group.leaders?.length || 0), 0
+            ),
+            totalLeaders: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.leaders?.length || 0), 0
+            ),
+            totalYoungPeople: Object.values(organized.groups).reduce(
+              (sum, group) => sum + (group.youngPeople?.length || 0), 0
+            ),
+            hasUnassigned: !!organized.groups['Group Unassigned'] && organized.groups['Group Unassigned'].totalMembers > 0,
+            vikingEventDataAvailable: organized.summary?.vikingEventDataAvailable || false,
+          };
+        }
 
         // Store the FlexiRecord context for drag operations
         organized.campGroupData = primaryCampGroupData;
@@ -417,7 +492,7 @@ function CampGroupsView({
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, attendees, members]); // Removed onError from dependencies to avoid unnecessary re-executions
+  }, [events, attendees, members, pendingMoves]); // Include pendingMoves to preserve optimistic updates
 
   // Mark component as unmounted for async operations
   useEffect(() => {
@@ -892,18 +967,78 @@ function CampGroupsView({
           setDraggingMemberId(null);
           setIsDragInProgress(false);
           
-          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
-          setPendingMoves((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(moveId);
-            return newMap;
-          });
+          // CRITICAL: Delay removing from pending moves to survive component reloads
+          // The preservation logic needs this to maintain visual state during reloads
+          setTimeout(() => {
+            setPendingMoves((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(moveId);
+              return newMap;
+            });
+          }, 500); // Wait 500ms for component reloads to settle
           
           
-          // Show success notification immediately
-          // Note: Skip manual cache update to prevent parent re-render with stale data
-          // The optimistic update already shows correct UI, and cache will be refreshed
-          // naturally when parent re-fetches from OSM with updated data
+          // Only do heavy cache updates if component is still mounted
+          if (!isMountedRef.current) {
+            // Component is unmounting, show notification immediately before we lose context
+            showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
+            return;
+          }
+          
+          // 4. Update local FlexiRecord cache after successful OSM sync
+          const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
+          let cachedData = {};
+          try {
+            cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          } catch (error) {
+            logger.warn(
+              'Failed to parse cached FlexiRecord data, using empty object',
+              {
+                cacheKey,
+                error: error.message,
+              },
+              LOG_CATEGORIES.ERROR,
+            );
+            cachedData = {};
+          }
+
+          if (cachedData.items) {
+            const memberItemIndex = cachedData.items.findIndex(
+              (item) => item.scoutid === moveData.member.scoutid,
+            );
+            if (memberItemIndex !== -1) {
+              // Create new member item with updated values (immutable update)
+              const updatedMemberItem = {
+                ...cachedData.items[memberItemIndex],
+                [memberFlexiRecordContext.columnid]: moveData.toGroupNumber,
+                CampGroup: moveData.toGroupNumber,
+              };
+
+              // Create new items array with updated member item
+              const updatedItems = [...cachedData.items];
+              updatedItems[memberItemIndex] = updatedMemberItem;
+
+              // Create new cache data object
+              const updatedCacheData = {
+                ...cachedData,
+                items: updatedItems,
+              };
+
+              localStorage.setItem(cacheKey, JSON.stringify(updatedCacheData));
+
+              logger.debug(
+                'Updated local FlexiRecord cache after OSM sync',
+                {
+                  memberId: moveData.member.scoutid,
+                  newGroup: moveData.toGroupNumber,
+                  cacheKey,
+                },
+                LOG_CATEGORIES.APP,
+              );
+            }
+          }
+
+          // Cache updates completed successfully
 
           logger.info(
             'Member move completed successfully - OSM updated and cache refreshed',
@@ -940,7 +1075,7 @@ function CampGroupsView({
           setIsDragInProgress(false);
           setDraggingMemberId(null);
           
-          // Remove from pending moves (CRITICAL: This re-enables drag functionality)
+          // Remove from pending moves immediately on error (no delay needed for failures)
           setPendingMoves((prev) => {
             const newMap = new Map(prev);
             newMap.delete(moveId);
