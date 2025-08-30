@@ -475,6 +475,7 @@ export async function getTerms(token, forceRefresh = false) {
 export async function fetchMostRecentTermId(sectionId, token) {
   return apiQueue.add(async () => {
     try {
+      validateTokenBeforeAPICall(token, 'fetchMostRecentTermId');
       const terms = await getTerms(token);
       return getMostRecentTermId(sectionId, terms);
     } catch (error) {
@@ -568,6 +569,8 @@ async function retrieveUserInfo(token) {
  * });
  */
 export async function getUserRoles(token) {
+  validateTokenBeforeAPICall(token, 'getUserRoles');
+  
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
@@ -752,6 +755,8 @@ export async function getUserRoles(token) {
  */
 export async function getEvents(sectionId, termId, token) {
   try {
+    validateTokenBeforeAPICall(token, 'getEvents');
+    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -837,6 +842,8 @@ export async function getEvents(sectionId, termId, token) {
  */
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
+    validateTokenBeforeAPICall(token, 'getEventAttendance');
+    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -928,6 +935,8 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
  */
 export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
+    validateTokenBeforeAPICall(token, 'getFlexiRecords');
+    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1118,6 +1127,8 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
  */
 export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
+    validateTokenBeforeAPICall(token, 'getFlexiStructure');
+    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1249,6 +1260,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
  */
 export async function getStartupData(token) {
   try {
+    validateTokenBeforeAPICall(token, 'getStartupData');
+    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1349,6 +1362,8 @@ export async function getStartupData(token) {
  * await updateFlexiRecord(123, 456, 789, 'f_1', 'Blue Group', '2024', 'Beavers', token);
  */
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
+  validateTokenBeforeAPICall(token, 'updateFlexiRecord');
+  
   // Demo mode protection
   if (isDemoMode()) {
     logger.info('Demo mode: Simulating updateFlexiRecord success', {
@@ -1418,6 +1433,8 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
  * await multiUpdateFlexiRecord(123, ['456', '789'], 'Yellow', 'f_1', '999', token);
  */
 export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, flexirecordid, token) {
+  validateTokenBeforeAPICall(token, 'multiUpdateFlexiRecord');
+  
   // Demo mode protection
   if (isDemoMode()) {
     logger.info('Demo mode: Simulating multiUpdateFlexiRecord success', {
@@ -1663,6 +1680,8 @@ export async function getMembersGrid(sectionId, termId, token) {
  * console.log(`Total unique members: ${allMembers.length}`);
  */
 export async function getListOfMembers(sections, token) {
+  validateTokenBeforeAPICall(token, 'getListOfMembers');
+  
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
@@ -1807,6 +1826,8 @@ export async function getListOfMembers(sections, token) {
  */
 export async function getEventSummary(eventId, token) {
   try {
+    validateTokenBeforeAPICall(token, 'getEventSummary');
+    
     // Skip API calls in demo mode - return mock data
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1877,6 +1898,8 @@ export async function getEventSummary(eventId, token) {
  */
 export async function getEventSharingStatus(eventId, sectionId, token) {
   try {
+    validateTokenBeforeAPICall(token, 'getEventSharingStatus');
+    
     // Skip API calls in demo mode - return mock data
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1951,6 +1974,8 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
+    validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
+    
     // Check for cached data first - use demo prefix if in demo mode
     const demoMode = isDemoMode();
     const prefix = demoMode ? 'demo_' : '';
