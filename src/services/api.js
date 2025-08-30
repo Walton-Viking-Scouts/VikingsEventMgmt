@@ -754,8 +754,6 @@ export async function getUserRoles(token) {
  */
 export async function getEvents(sectionId, termId, token) {
   try {
-    validateTokenBeforeAPICall(token, 'getEvents');
-    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -772,10 +770,8 @@ export async function getEvents(sectionId, termId, token) {
       const events = await databaseService.getEvents(sectionId);
       return events;
     }
-
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    
+    validateTokenBeforeAPICall(token, 'getEvents');
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -841,8 +837,6 @@ export async function getEvents(sectionId, termId, token) {
  */
 export async function getEventAttendance(sectionId, eventId, termId, token) {
   try {
-    validateTokenBeforeAPICall(token, 'getEventAttendance');
-    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -870,9 +864,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
       return attendance;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    validateTokenBeforeAPICall(token, 'getEventAttendance');
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
@@ -934,8 +926,6 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
  */
 export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
   try {
-    validateTokenBeforeAPICall(token, 'getFlexiRecords');
-    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -943,6 +933,8 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
+    
+    validateTokenBeforeAPICall(token, 'getFlexiRecords');
     
     const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
     
@@ -1361,8 +1353,6 @@ export async function getStartupData(token) {
  * await updateFlexiRecord(123, 456, 789, 'f_1', 'Blue Group', '2024', 'Beavers', token);
  */
 export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, columnid, value, termid, section, token) {
-  validateTokenBeforeAPICall(token, 'updateFlexiRecord');
-  
   // Demo mode protection
   if (isDemoMode()) {
     logger.info('Demo mode: Simulating updateFlexiRecord success', {
@@ -1379,15 +1369,13 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   }
   
   try {
+    validateTokenBeforeAPICall(token, 'updateFlexiRecord');
+    
     // Import the guard function
     const { checkWritePermission } = await import('./auth.js');
     
     // Check if write operations are allowed (blocks offline writes with expired token)
     checkWritePermission();
-    
-    if (!token) {
-      throw new Error('No authentication token');
-    }
 
     const response = await fetch(`${BACKEND_URL}/update-flexi-record`, {
       method: 'POST',
@@ -1432,8 +1420,6 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
  * await multiUpdateFlexiRecord(123, ['456', '789'], 'Yellow', 'f_1', '999', token);
  */
 export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, flexirecordid, token) {
-  validateTokenBeforeAPICall(token, 'multiUpdateFlexiRecord');
-  
   // Demo mode protection
   if (isDemoMode()) {
     logger.info('Demo mode: Simulating multiUpdateFlexiRecord success', {
@@ -1449,6 +1435,8 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       message: `Demo mode: Multi-update simulated for ${Array.isArray(scouts) ? scouts.length : 0} scouts`,
     };
   }
+  
+  validateTokenBeforeAPICall(token, 'multiUpdateFlexiRecord');
   
   try {
     // Import the guard function
@@ -1825,8 +1813,6 @@ export async function getListOfMembers(sections, token) {
  */
 export async function getEventSummary(eventId, token) {
   try {
-    validateTokenBeforeAPICall(token, 'getEventSummary');
-    
     // Skip API calls in demo mode - return mock data
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1843,6 +1829,8 @@ export async function getEventSummary(eventId, token) {
         confirmed: 0,
       };
     }
+    
+    validateTokenBeforeAPICall(token, 'getEventSummary');
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -1897,8 +1885,6 @@ export async function getEventSummary(eventId, token) {
  */
 export async function getEventSharingStatus(eventId, sectionId, token) {
   try {
-    validateTokenBeforeAPICall(token, 'getEventSharingStatus');
-    
     // Skip API calls in demo mode - return mock data
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1913,6 +1899,8 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
         items: [],
       };
     }
+    
+    validateTokenBeforeAPICall(token, 'getEventSharingStatus');
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
