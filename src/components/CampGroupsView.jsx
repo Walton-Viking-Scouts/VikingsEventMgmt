@@ -900,67 +900,10 @@ function CampGroupsView({
           });
           
           
-          // Only do heavy cache updates if component is still mounted
-          if (!isMountedRef.current) {
-            // Component is unmounting, show notification immediately before we lose context
-            showToast('success', `${memberName} moved to ${moveData.toGroupName}`);
-            return;
-          }
-          
-          // 4. Update local FlexiRecord cache after successful OSM sync
-          const cacheKey = `viking_flexi_data_${memberFlexiRecordContext.flexirecordid}_${memberFlexiRecordContext.sectionid}_${memberFlexiRecordContext.termid}_offline`;
-          let cachedData = {};
-          try {
-            cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-          } catch (error) {
-            logger.warn(
-              'Failed to parse cached FlexiRecord data, using empty object',
-              {
-                cacheKey,
-                error: error.message,
-              },
-              LOG_CATEGORIES.ERROR,
-            );
-            cachedData = {};
-          }
-
-          if (cachedData.items) {
-            const memberItemIndex = cachedData.items.findIndex(
-              (item) => item.scoutid === moveData.member.scoutid,
-            );
-            if (memberItemIndex !== -1) {
-              // Create new member item with updated values (immutable update)
-              const updatedMemberItem = {
-                ...cachedData.items[memberItemIndex],
-                [memberFlexiRecordContext.columnid]: moveData.toGroupNumber,
-                CampGroup: moveData.toGroupNumber,
-              };
-
-              // Create new items array with updated member item
-              const updatedItems = [...cachedData.items];
-              updatedItems[memberItemIndex] = updatedMemberItem;
-
-              // Create new cache data object
-              const updatedCacheData = {
-                ...cachedData,
-                items: updatedItems,
-              };
-
-              localStorage.setItem(cacheKey, JSON.stringify(updatedCacheData));
-
-              logger.debug(
-                'Updated local FlexiRecord cache after OSM sync',
-                {
-                  memberId: moveData.member.scoutid,
-                  newGroup: moveData.toGroupNumber,
-                  cacheKey,
-                },
-                LOG_CATEGORIES.APP,
-              );
-            }
-          }
-
-          // Cache updates completed successfully
+          // Show success notification immediately
+          // Note: Skip manual cache update to prevent parent re-render with stale data
+          // The optimistic update already shows correct UI, and cache will be refreshed
+          // naturally when parent re-fetches from OSM with updated data
 
           logger.info(
             'Member move completed successfully - OSM updated and cache refreshed',
