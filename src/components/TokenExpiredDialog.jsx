@@ -13,13 +13,17 @@ function TokenExpiredDialog({ isOpen, onReLogin, onStayOffline, hasCachedData = 
       showCloseButton={false}
       closeOnOverlayClick={false}
       closeOnEscape={false}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="token-expired-title"
+      aria-describedby="token-expired-desc"
     >
       <div className="text-center space-y-6">
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 id="token-expired-title" className="text-xl font-semibold text-gray-900">
             Session Expired
           </h2>
-          <p className="text-gray-600">
+          <p id="token-expired-desc" className="text-gray-600">
             Your authentication session has expired. What would you like to do?
           </p>
         </div>

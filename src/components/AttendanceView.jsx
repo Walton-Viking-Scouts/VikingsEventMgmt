@@ -24,7 +24,9 @@ import { isDemoMode } from '../config/demoMode.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
-  window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  if (import.meta.env.DEV) {
+    window.ATTENDANCE_VIEW_MOUNTED = new Date().toISOString();
+  }
 
 
   // Use custom hooks for data loading and sign-in/out functionality
@@ -1495,7 +1497,7 @@ function AttendanceView({ events, members, onBack }) {
                     ).map((member, index) => {
                       return (
                         <tr
-                          key={index}
+                          key={member.scoutid || index}
                           className="hover:bg-gray-50"
                           data-oid="dcezi3q"
                         >
@@ -1776,7 +1778,7 @@ function AttendanceView({ events, members, onBack }) {
                     const memberData = getComprehensiveMemberData(record);
 
                     return (
-                      <tr key={index} className="hover:bg-gray-50 text-xs">
+                      <tr key={record.scoutid || index} className="hover:bg-gray-50 text-xs">
                         {/* Basic Info Cells */}
                         <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
                           <button
