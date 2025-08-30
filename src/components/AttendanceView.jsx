@@ -963,9 +963,9 @@ function AttendanceView({ events, members, onBack }) {
 
           {/* View toggle */}
           <div className="border-b border-gray-200 mb-6" data-oid="a-.v.39">
-            <nav className="-mb-px flex space-x-8" data-oid=".r.4i39">
+            <nav className="-mb-px flex flex-wrap space-x-4 sm:space-x-8" data-oid=".r.4i39">
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'overview'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -977,7 +977,7 @@ function AttendanceView({ events, members, onBack }) {
                 Overview
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'register'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -989,7 +989,7 @@ function AttendanceView({ events, members, onBack }) {
                 Register
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'detailed'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1001,7 +1001,7 @@ function AttendanceView({ events, members, onBack }) {
                 Detailed
               </button>
               <button
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   viewMode === 'campGroups'
                     ? 'border-scout-blue text-scout-blue'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1014,7 +1014,7 @@ function AttendanceView({ events, members, onBack }) {
               </button>
               {hasSharedEvents && (
                 <button
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     viewMode === 'sharedAttendance'
                       ? 'border-scout-blue text-scout-blue'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
