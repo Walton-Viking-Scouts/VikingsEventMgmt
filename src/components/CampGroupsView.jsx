@@ -249,6 +249,9 @@ function CampGroupsView({
 
   // Ref to track component mount status for async operations
   const isMountedRef = useRef(true);
+  
+  // Ref to track timeout IDs for cleanup
+  const timeoutIdsRef = useRef(new Set());
 
   const isMobile = isMobileLayout();
 
@@ -385,7 +388,7 @@ function CampGroupsView({
               let memberFound = false;
               for (const [groupName, group] of Object.entries(organized.groups)) {
                 const memberIndex = group.youngPeople?.findIndex(m => 
-                  m.scoutid === moveData.member.scoutid
+                  m.scoutid === moveData.member.scoutid,
                 );
                 if (memberIndex !== -1) {
                   // Remove from current group
@@ -393,8 +396,8 @@ function CampGroupsView({
                     ...group.youngPeople[memberIndex],
                     vikingEventData: {
                       ...group.youngPeople[memberIndex].vikingEventData,
-                      CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber
-                    }
+                      CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber,
+                    },
                   };
                   organized.groups[groupName].youngPeople.splice(memberIndex, 1);
                   organized.groups[groupName].totalMembers--;
@@ -428,13 +431,13 @@ function CampGroupsView({
           organized.summary = {
             totalGroups: Object.keys(organized.groups).length,
             totalMembers: Object.values(organized.groups).reduce(
-              (sum, group) => sum + (group.youngPeople?.length || 0) + (group.leaders?.length || 0), 0
+              (sum, group) => sum + (group.youngPeople?.length || 0) + (group.leaders?.length || 0), 0,
             ),
             totalLeaders: Object.values(organized.groups).reduce(
-              (sum, group) => sum + (group.leaders?.length || 0), 0
+              (sum, group) => sum + (group.leaders?.length || 0), 0,
             ),
             totalYoungPeople: Object.values(organized.groups).reduce(
-              (sum, group) => sum + (group.youngPeople?.length || 0), 0
+              (sum, group) => sum + (group.youngPeople?.length || 0), 0,
             ),
             hasUnassigned: !!organized.groups['Group Unassigned'] && organized.groups['Group Unassigned'].totalMembers > 0,
             vikingEventDataAvailable: organized.summary?.vikingEventDataAvailable || false,
@@ -499,10 +502,19 @@ function CampGroupsView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, attendees, members, pendingMoves]); // Include pendingMoves to preserve optimistic updates
 
-  // Mark component as unmounted for async operations
+  // Mark component as unmounted for async operations and cleanup timeouts
   useEffect(() => {
+    // Capture the timeouts ref at effect creation time
+    const timeoutsRef = timeoutIdsRef;
+    
     return () => {
       isMountedRef.current = false;
+      
+      // Clear all tracked timeouts to prevent post-unmount state updates
+      timeoutsRef.current.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      timeoutsRef.current.clear();
     };
   }, []);
 
@@ -700,8 +712,8 @@ function CampGroupsView({
             ...moveData.member,
             vikingEventData: {
               ...moveData.member.vikingEventData,
-              CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber
-            }
+              CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber,
+            },
           };
           
           groups[moveData.toGroupName] = {
@@ -738,8 +750,8 @@ function CampGroupsView({
             ...moveData.member,
             vikingEventData: {
               ...moveData.member.vikingEventData,
-              CampGroup: moveData.fromGroupNumber === 'Unassigned' ? '' : moveData.fromGroupNumber
-            }
+              CampGroup: moveData.fromGroupNumber === 'Unassigned' ? '' : moveData.fromGroupNumber,
+            },
           };
           
           groups[moveData.fromGroupName] = {
@@ -987,13 +999,21 @@ function CampGroupsView({
               });
               
               // Clear from recently completed after 2 seconds (longer than reload cycle)
-              setTimeout(() => {
-                setRecentlyCompletedMoves((prevCompleted) => {
-                  const newCompleted = new Map(prevCompleted);
-                  newCompleted.delete(moveId);
-                  return newCompleted;
-                });
+              const timeoutId = setTimeout(() => {
+                // Guard against post-unmount state updates
+                if (isMountedRef.current) {
+                  setRecentlyCompletedMoves((prevCompleted) => {
+                    const newCompleted = new Map(prevCompleted);
+                    newCompleted.delete(moveId);
+                    return newCompleted;
+                  });
+                }
+                // Remove timeout ID from tracking set
+                timeoutIdsRef.current.delete(timeoutId);
               }, 2000);
+              
+              // Track timeout for cleanup
+              timeoutIdsRef.current.add(timeoutId);
             }
             
             return newMap;
@@ -1120,6 +1140,7 @@ function CampGroupsView({
       revertOptimisticUpdate,
       showToast,
       sectionsCache,
+      updateDemoCampGroupAssignment,
     ],
   );
 
