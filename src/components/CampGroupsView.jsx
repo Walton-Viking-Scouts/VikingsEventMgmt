@@ -612,12 +612,21 @@ function CampGroupsView({
           );
         }
 
-        // Add member to target group
+        // Add member to target group with updated CampGroup
         const toGroup = groups[moveData.toGroupName];
         if (toGroup) {
+          // Create updated member object with new CampGroup value
+          const updatedMember = {
+            ...moveData.member,
+            vikingEventData: {
+              ...moveData.member.vikingEventData,
+              CampGroup: moveData.toGroupNumber === 'Unassigned' ? '' : moveData.toGroupNumber
+            }
+          };
+          
           groups[moveData.toGroupName] = {
             ...toGroup,
-            youngPeople: [...toGroup.youngPeople, moveData.member],
+            youngPeople: [...toGroup.youngPeople, updatedMember],
           };
           groups[moveData.toGroupName].totalMembers = calculateTotalMembers(
             groups[moveData.toGroupName],
@@ -641,12 +650,21 @@ function CampGroupsView({
         const newGroups = { ...prevGroups };
         const groups = { ...newGroups.groups };
 
-        // Add member back to source group
+        // Add member back to source group with original CampGroup value
         const fromGroup = groups[moveData.fromGroupName];
         if (fromGroup) {
+          // Restore original CampGroup value
+          const restoredMember = {
+            ...moveData.member,
+            vikingEventData: {
+              ...moveData.member.vikingEventData,
+              CampGroup: moveData.fromGroupNumber === 'Unassigned' ? '' : moveData.fromGroupNumber
+            }
+          };
+          
           groups[moveData.fromGroupName] = {
             ...fromGroup,
-            youngPeople: [...fromGroup.youngPeople, moveData.member],
+            youngPeople: [...fromGroup.youngPeople, restoredMember],
           };
           groups[moveData.fromGroupName].totalMembers = calculateTotalMembers(
             groups[moveData.fromGroupName],
