@@ -1134,7 +1134,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       return cached;
     }
     
-    validateTokenBeforeAPICall(token, 'getFlexiStructure');
+    // Defer token validation until we're about to make the network request
     
     const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
     
@@ -1167,10 +1167,6 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       return null;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
       // Auth failed - getFlexiStructure blocked
@@ -1184,6 +1180,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     }
 
     const data = await withRateLimitQueue(async () => {
+      validateTokenBeforeAPICall(token, 'getFlexiStructure');
+      
       const response = await fetch(`${BACKEND_URL}/get-flexi-structure?flexirecordid=${extraid}&sectionid=${sectionid}&termid=${termid}`, {
         method: 'GET',
         headers: { 
@@ -1265,7 +1263,7 @@ export async function getStartupData(token) {
       return safeGetItem('demo_viking_startup_data_offline', null);
     }
     
-    validateTokenBeforeAPICall(token, 'getStartupData');
+    // Defer until we confirm we'll hit the network
 
     // Check network status first
     isOnline = await checkNetworkStatus();
@@ -1277,10 +1275,8 @@ export async function getStartupData(token) {
       return safeGetItem(cacheKey, null);
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
+    validateTokenBeforeAPICall(token, 'getStartupData');
+    
     const response = await fetch(`${BACKEND_URL}/get-startup-data`, {
       method: 'GET',
       headers: { 
@@ -1701,8 +1697,6 @@ export async function getListOfMembers(sections, token) {
     }, LOG_CATEGORIES.API);
     return cachedMembers;
   }
-  
-  validateTokenBeforeAPICall(token, 'getListOfMembers');
 
   // Check network status first
   isOnline = await checkNetworkStatus();
