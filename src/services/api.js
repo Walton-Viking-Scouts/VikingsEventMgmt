@@ -475,7 +475,6 @@ export async function getTerms(token, forceRefresh = false) {
 export async function fetchMostRecentTermId(sectionId, token) {
   return apiQueue.add(async () => {
     try {
-      validateTokenBeforeAPICall(token, 'fetchMostRecentTermId');
       const terms = await getTerms(token);
       return getMostRecentTermId(sectionId, terms);
     } catch (error) {
@@ -569,8 +568,6 @@ async function retrieveUserInfo(token) {
  * });
  */
 export async function getUserRoles(token) {
-  validateTokenBeforeAPICall(token, 'getUserRoles');
-  
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
@@ -584,6 +581,8 @@ export async function getUserRoles(token) {
     }
     return sections;
   }
+  
+  validateTokenBeforeAPICall(token, 'getUserRoles');
 
   return sentryUtils.startSpan(
     {
@@ -1127,8 +1126,6 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
  */
 export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
   try {
-    validateTokenBeforeAPICall(token, 'getFlexiStructure');
-    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
@@ -1136,6 +1133,8 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       const cached = safeGetItem(cacheKey, null);
       return cached;
     }
+    
+    validateTokenBeforeAPICall(token, 'getFlexiStructure');
     
     const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
     
@@ -1260,13 +1259,13 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
  */
 export async function getStartupData(token) {
   try {
-    validateTokenBeforeAPICall(token, 'getStartupData');
-    
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
       return safeGetItem('demo_viking_startup_data_offline', null);
     }
+    
+    validateTokenBeforeAPICall(token, 'getStartupData');
 
     // Check network status first
     isOnline = await checkNetworkStatus();
@@ -1680,8 +1679,6 @@ export async function getMembersGrid(sectionId, termId, token) {
  * console.log(`Total unique members: ${allMembers.length}`);
  */
 export async function getListOfMembers(sections, token) {
-  validateTokenBeforeAPICall(token, 'getListOfMembers');
-  
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
@@ -1694,6 +1691,8 @@ export async function getListOfMembers(sections, token) {
     }, LOG_CATEGORIES.API);
     return cachedMembers;
   }
+  
+  validateTokenBeforeAPICall(token, 'getListOfMembers');
 
   // Check network status first
   isOnline = await checkNetworkStatus();
@@ -1974,8 +1973,6 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
-    validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
-    
     // Check for cached data first - use demo prefix if in demo mode
     const demoMode = isDemoMode();
     const prefix = demoMode ? 'demo_' : '';
@@ -2023,9 +2020,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       throw new Error('No network connection and no cached shared attendance available');
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
 
     // Simple circuit breaker - use cache if auth already failed  
     if (!authHandler.shouldMakeAPICall()) {
