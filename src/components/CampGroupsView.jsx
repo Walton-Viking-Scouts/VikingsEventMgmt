@@ -500,7 +500,7 @@ function CampGroupsView({
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, attendees, members, pendingMoves]); // Include pendingMoves to preserve optimistic updates
+  }, [events, attendees, members, pendingMoves, recentlyCompletedMoves]); // Include move maps to preserve optimistic updates
 
   // Mark component as unmounted for async operations and cleanup timeouts
   useEffect(() => {
