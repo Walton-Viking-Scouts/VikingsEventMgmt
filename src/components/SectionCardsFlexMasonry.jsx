@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 
 const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
-  const { columns, currentColumnCount } = useMemo(() => {
+  const { columns } = useMemo(() => {
     // Responsive column count based on screen width
     const getColumnCount = () => {
       if (typeof window === 'undefined') return 1;
@@ -17,7 +17,7 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
     const distributeCards = (cards, numColumns) => {
       const columns = Array(numColumns).fill(null).map(() => ({
         cards: [],
-        height: 0
+        height: 0,
       }));
 
       // Calculate estimated height for each section based on member count
@@ -32,8 +32,9 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
         const estimatedHeight = getEstimatedHeight(section);
         
         // Find column with minimum height
-        const shortestColumn = columns.reduce((min, col) => 
-          col.height < min.height ? col : min
+        const shortestColumn = columns.reduce(
+          (min, col) => (col.height < min.height ? col : min),
+          columns[0],
         );
         
         shortestColumn.cards.push(section);
@@ -47,7 +48,6 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
     
     return {
       columns: distributedColumns,
-      currentColumnCount: columnCount
     };
   }, [sections]);
 
