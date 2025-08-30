@@ -238,6 +238,7 @@ function CampGroupsView({
   const [draggingMemberId, setDraggingMemberId] = useState(null);
 
   const [pendingMoves, setPendingMoves] = useState(new Map()); // Track optimistic updates
+  const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map()); // Track completed moves
   
   // Notification system
   const { notifySuccess, notifyError } = useNotification();
@@ -361,20 +362,24 @@ function CampGroupsView({
         // Simple organization function that works with getSummaryStats() data
         const organized = organizeAttendeesSimple(attendees);
         
-        // If we have pending moves, preserve optimistic updates
-        if (pendingMoves.size > 0) {
+        // If we have pending or recently completed moves, preserve optimistic updates
+        if (pendingMoves.size > 0 || recentlyCompletedMoves.size > 0) {
           logger.debug('Preserving optimistic updates during reload', {
             pendingMovesCount: pendingMoves.size,
-            pendingMoves: Array.from(pendingMoves.entries()).map(([id, move]) => ({
-              id,
-              memberId: move.member?.scoutid,
-              fromGroup: move.fromGroupName,
-              toGroup: move.toGroupName,
-            })),
+            recentlyCompletedMovesCount: recentlyCompletedMoves.size,
+            allMoves: [
+              ...Array.from(pendingMoves.entries()).map(([id, move]) => ({
+                id, type: 'pending', memberId: move.member?.scoutid, fromGroup: move.fromGroupName, toGroup: move.toGroupName,
+              })),
+              ...Array.from(recentlyCompletedMoves.entries()).map(([id, move]) => ({
+                id, type: 'completed', memberId: move.member?.scoutid, fromGroup: move.fromGroupName, toGroup: move.toGroupName,
+              })),
+            ],
           }, LOG_CATEGORIES.APP);
           
-          // Apply pending moves to the freshly organized data
-          for (const [moveId, moveData] of pendingMoves.entries()) {
+          // Apply both pending and recently completed moves to the freshly organized data
+          const allMoves = new Map([...pendingMoves, ...recentlyCompletedMoves]);
+          for (const [moveId, moveData] of allMoves.entries()) {
             if (moveData && moveData.member) {
               // Find member in current organized groups
               let memberFound = false;
@@ -967,15 +972,32 @@ function CampGroupsView({
           setDraggingMemberId(null);
           setIsDragInProgress(false);
           
-          // CRITICAL: Delay removing from pending moves to survive component reloads
-          // The preservation logic needs this to maintain visual state during reloads
-          setTimeout(() => {
-            setPendingMoves((prev) => {
-              const newMap = new Map(prev);
-              newMap.delete(moveId);
-              return newMap;
-            });
-          }, 500); // Wait 500ms for component reloads to settle
+          // Move from pending to recently completed to survive component reloads
+          setPendingMoves((prev) => {
+            const newMap = new Map(prev);
+            const completedMove = newMap.get(moveId);
+            newMap.delete(moveId);
+            
+            // Add to recently completed moves for preservation during reloads
+            if (completedMove) {
+              setRecentlyCompletedMoves((prevCompleted) => {
+                const newCompleted = new Map(prevCompleted);
+                newCompleted.set(moveId, completedMove);
+                return newCompleted;
+              });
+              
+              // Clear from recently completed after 2 seconds (longer than reload cycle)
+              setTimeout(() => {
+                setRecentlyCompletedMoves((prevCompleted) => {
+                  const newCompleted = new Map(prevCompleted);
+                  newCompleted.delete(moveId);
+                  return newCompleted;
+                });
+              }, 2000);
+            }
+            
+            return newMap;
+          });
           
           
           // Only do heavy cache updates if component is still mounted
