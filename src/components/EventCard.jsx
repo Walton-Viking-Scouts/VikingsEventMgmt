@@ -271,7 +271,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
 
   return (
     <Card 
-      className="h-full flex flex-col" 
+      className="h-full flex flex-col break-inside-avoid" 
       role="article"
       aria-labelledby={`event-title-${slug}`}
       data-oid="3kxvx32"
@@ -350,7 +350,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           className="w-full flex items-center justify-center gap-2"
           type="button"
           disabled={loading}
-          aria-label={`View attendees for ${eventCard.name} event`}
+          aria-labelledby={`event-title-${slug} view-attendees-label-${slug}`}
           aria-describedby={`event-${slug}-description`}
           data-oid="5s0-rzy"
         >
@@ -378,6 +378,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   data-oid="stejrrd"
                 ></path>
               </svg>
+              <span id={`view-attendees-label-${slug}`} className="sr-only">View Attendees</span>
               Loading Members...
             </>
           ) : (
@@ -397,7 +398,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   data-oid="8ll3aah"
                 />
               </svg>
-              View Attendees
+              <span id={`view-attendees-label-${slug}`}>View Attendees</span>
             </>
           )}
         </Button>

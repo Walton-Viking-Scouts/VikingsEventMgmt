@@ -141,7 +141,7 @@ return (
 
 ## Example: Dynamic Container Height for Masonry Layout
 
-Suppose your masonry layout calculates card positions and you want the container to expand to fit the tallest column:
+Suppose your masonry layout calculates card positions, and you want the container to expand to fit the tallest column:
 
 ```tsx
 // After calculating card positions:

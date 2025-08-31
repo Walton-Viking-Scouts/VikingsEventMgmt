@@ -1,6 +1,10 @@
 // FlexiRecord Service for Viking Event Management
 // Handles flexirecord data operations with caching following existing patterns
 
+function hasUsableToken(token) {
+  return typeof token === 'string' ? token.trim().length > 0 : !!token;
+}
+
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
@@ -102,7 +106,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
     
     // If no token available, skip API calls and use cached data only
-    if (!token) {
+    if (!hasUsableToken(token)) {
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
@@ -181,7 +185,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
     const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
     
     // If no token available, skip API calls and use cached data only
-    if (!token) {
+    if (!hasUsableToken(token)) {
       const cached = safeGetItem(cacheKey, null);
       return cached;
     }
@@ -268,7 +272,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
     const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
     
     // If no token available, skip API calls and use cached data only
-    if (!token) {
+    if (!hasUsableToken(token)) {
       const cached = safeGetItem(storageKey, null);
       return cached;
     }

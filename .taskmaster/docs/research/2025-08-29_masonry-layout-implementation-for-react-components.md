@@ -15,7 +15,7 @@ exchanges: 1
 
 **Response:**
 
-A **Pinterest-style masonry layout** in React using absolute positioning requires careful management of card placement, container sizing, and prevention of infinite layout recalculation loops. This approach is ideal when cards resize individually and you need precise control over their stacking, especially when pure CSS solutions (like CSS Grid or Flexbox) cannot guarantee correct ordering or dynamic height management[1][4][5]. Below is a comprehensive guide covering best practices, implementation strategies, edge cases, and actionable recommendations tailored to your project context.
+A **Pinterest-style masonry layout** in React using absolute positioning requires careful management of card placement, container sizing, and prevention of infinite layout recalculation loops. This approach is ideal when cards resize individually, and you need precise control over their stacking, especially when pure CSS solutions (like CSS Grid or Flexbox) cannot guarantee correct ordering or dynamic height management[1][4][5]. Below is a comprehensive guide covering best practices, implementation strategies, edge cases, and actionable recommendations tailored to your project context.
 
 ---
 

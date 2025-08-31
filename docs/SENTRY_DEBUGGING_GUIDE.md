@@ -45,7 +45,7 @@ This guide documents lessons learned from systematic Sentry error investigation,
 - Complex filters may not work as expected
 - API timeouts on large result sets
 
-**Solution**: Use broad searches then manually filter results.
+**Solution**: Use broad searches, then manually filter results.
 
 ### 4. Development vs Production Mixing 🚧
 
@@ -102,7 +102,7 @@ Verify environment tags align with URL:
 An issue is **real production impact** if ALL criteria are met:
 
 1. **URL**: `https://vikingeventmgmt.onrender.com/` (exact match)
-2. **Recency**: Last seen within 3-7 days
+2. **Recency**: Last seen within 3–7 days
 3. **User Impact**: Affecting real users (not anonymous testing)
 4. **Version**: Current or recent release version
 5. **Platform**: Real user devices (not development machines)
@@ -148,7 +148,7 @@ sentry search "unresolved issues last 3 days"
 - **Medium**: Production URL + occasional occurrence
 - **Low**: Development environment or stale version
 
-### 4. Root Cause Investigation (30-60 minutes per issue)
+### 4. Root Cause Investigation (30–60 minutes per issue)
 - Review full error context and breadcrumbs
 - Check associated user sessions
 - Investigate code paths in current release
@@ -166,8 +166,8 @@ sentry search "unresolved issues last 3 days"
 # Recent unresolved issues
 is:unresolved lastSeen:-3d
 
-# Production URL filtering (manual verification needed)
-is:unresolved url:vikingeventmgmt.onrender.com
+# Production URL filtering (manual verification still recommended)
+is:unresolved url:"https://vikingeventmgmt.onrender.com/"
 
 # Version filtering (post version-sync fix)
 is:unresolved release:vikings-eventmgmt-mobile@1.3.1
