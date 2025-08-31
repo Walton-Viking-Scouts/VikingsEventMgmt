@@ -16,7 +16,7 @@ This guide documents lessons learned from systematic Sentry error investigation,
 
 **Solution**: Always filter by actual production URL instead of environment tags.
 
-```
+```text
 ❌ Bad:  environment:production
 ✅ Good: url:https://vikingeventmgmt.onrender.com/
 ```
@@ -61,7 +61,7 @@ This guide documents lessons learned from systematic Sentry error investigation,
 
 ### Step 1: Start with Time-Bounded Broad Search
 
-```
+```text
 Search: "unresolved issues in last 3 days"
 ```
 
@@ -162,7 +162,7 @@ sentry search "unresolved issues last 3 days"
 ## Tools and Commands
 
 ### Sentry Search Queries
-```
+```bash
 # Recent unresolved issues
 is:unresolved lastSeen:-3d
 

@@ -201,9 +201,9 @@ return (
 ---
 
 **References:**  
-[2] CSS-Tricks: Absolute Positioning Inside Relative Positioning  
-[5] TailwindCSS: Position Utilities  
-[4] MDN: CSS Position Property
+[2]: https://css-tricks.com/absolute-positioning-inside-relative-positioning/
+[4]: https://developer.mozilla.org/docs/Web/CSS/position
+[5]: https://tailwindcss.com/docs/position
 
 
 ---

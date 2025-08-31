@@ -3,6 +3,17 @@ import { Card, Button, Badge } from './ui';
 import AttendanceGrid from './AttendanceGrid.jsx';
 
 function EventCard({ eventCard, onViewAttendees, loading = false }) {
+  const slug = useMemo(() => {
+    const base = (eventCard?.name ?? '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 64) || 'event';
+    return eventCard?.id ? `${base}-${eventCard.id}` : base;
+  }, [eventCard?.name, eventCard?.id]);
+
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -262,7 +273,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     <Card 
       className="h-full flex flex-col" 
       role="article"
-      aria-labelledby={`event-title-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}`}
+      aria-labelledby={`event-title-${slug}`}
       data-oid="3kxvx32"
     >
       <Card.Header className="pb-3" data-oid="20kbjde">
@@ -270,14 +281,14 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           <div className="flex-1" data-oid="0w-_rn.">
             <Card.Title
               className="text-lg font-semibold text-gray-900 mb-1"
-              id={`event-title-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}`}
+              id={`event-title-${slug}`}
               data-oid="pqa5tp."
             >
               {eventCard.name}
             </Card.Title>
             <p 
               className="text-sm text-gray-600 mb-2" 
-              id={`event-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}-description`}
+              id={`event-${slug}-description`}
               data-oid="4fslyto"
             >
               {formatDateRange(eventCard.events)}
@@ -340,7 +351,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           type="button"
           disabled={loading}
           aria-label={`View attendees for ${eventCard.name} event`}
-          aria-describedby={`event-${eventCard.name.replace(/\s+/g, '-').toLowerCase()}-description`}
+          aria-describedby={`event-${slug}-description`}
           data-oid="5s0-rzy"
         >
           {loading ? (

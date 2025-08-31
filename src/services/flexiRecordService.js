@@ -126,9 +126,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
       return cached;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // token is guaranteed here due to early return above
 
     // Get fresh data from API
     // Fetching flexirecords list from API
@@ -210,9 +208,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
       return null;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // token is guaranteed here due to early return above
 
     // Get fresh data from API
     // Fetching flexirecord structure from API
@@ -299,9 +295,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
       return null;
     }
 
-    if (!token) {
-      throw new Error('No authentication token');
-    }
+    // token is guaranteed here due to early return above
 
     // Get fresh data from API
     // Fetching flexirecord data from API
@@ -524,9 +518,9 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
 
     // Get unique section-term combinations from events
     const sectionTermCombos = [...new Set(
-      events.map(event => `${event.sectionid}-${event.termid}`),
-    )].map(combo => {
-      const [sectionId, termId] = combo.split('-');
+      events.map(e => JSON.stringify([e.sectionid, e.termid])),
+    )].map(key => {
+      const [sectionId, termId] = JSON.parse(key);
       return { sectionId, termId };
     });
 

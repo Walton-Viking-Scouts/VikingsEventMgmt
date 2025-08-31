@@ -93,7 +93,7 @@ containerRef.current.style.height = `${containerHeight}px`;
 - **Guard against recursive updates**: Ensure that updating the container height or card positions does not trigger another layout recalculation unless necessary.
 - **Use React’s `useEffect` with dependencies**: Only recalculate when relevant props (card data, container width) change.
 
-#### Example Debounce Hook
+### Example Debounce Hook
 
 ```typescript
 function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
@@ -108,7 +108,7 @@ function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
 
 ## 5. Responsive Design Considerations
 
-- **Column count** should adapt to container width (e.g., 1 column on mobile, 3-4 on desktop)[2].
+- **Column count** should adapt to container width (e.g., 1 column on mobile, 3–4 on desktop). See [2].
 - **Recalculate layout** on window resize or orientation change.
 - Use a resize observer or window event listener to trigger recalculation.
 
@@ -174,6 +174,11 @@ function useDebouncedEffect(effect: () => void, deps: any[], delay: number) {
 
 By following these best practices and implementation strategies, your React masonry layout will remain robust, performant, and visually consistent, even as cards resize individually and the container boundaries must be strictly maintained.
 
+[1]: https://w3.org/TR/css-grid-2/#masonry-layout
+[2]: https://github.com/cedricdelpoux/react-responsive-masonry
+[3]: https://developer.mozilla.org/docs/Web/CSS/CSS_grid_layout
+[4]: https://web.dev/articles/optimize-jank-free
+[5]: https://css-tricks.com/creating-a-masonry-layout/
 
 ---
 
