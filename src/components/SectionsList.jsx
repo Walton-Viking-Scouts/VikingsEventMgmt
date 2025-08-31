@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui';
+import { Card, Button } from './ui';
 import { getListOfMembers } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import LoadingScreen from './LoadingScreen.jsx';
+import { MedicalDataPill } from './MedicalDataDisplay.jsx';
+import { formatMedicalDataForDisplay } from '../utils/medicalDataUtils.js';
+import { useNotification } from '../contexts/notifications/NotificationContext';
 
 function SectionsList({
   sections,
   selectedSections = [],
   onSectionToggle,
   loadingSection = null,
+  allSections,
 }) {
+  
   if (!sections || sections.length === 0) {
     return (
       <Card data-oid="de.aoaz">
@@ -73,152 +78,32 @@ function SectionsList({
   return (
     <Card data-oid="2c.s3hh">
       <Card.Header data-oid="d7c-ou8">
-        <Card.Title data-oid="solgnx_">Select Sections</Card.Title>
+        <div className="flex items-center justify-between">
+          <Card.Title data-oid="solgnx_">Select Sections</Card.Title>
+        </div>
       </Card.Header>
 
-      <Card.Body data-oid="ri-w62l">
-        <div
-          className="flex flex-wrap justify-center"
-          style={{ gap: '30px' }}
-          data-oid="yuqpqw4"
-        >
-          {sortedSections.map((section) => {
-            const isSelected = isSectionSelected(section.sectionid);
-            const isLoading = loadingSection === section.sectionid;
-            const sectionType = section.section.toLowerCase();
-
-            // Determine background color based on section type
-            let bgColor, hoverBgColor;
-            if (sectionType.includes('earlyyears')) {
-              bgColor = 'var(--scout-red)';
-              hoverBgColor = 'var(--scout-red-dark)';
-            } else if (sectionType.includes('beavers')) {
-              bgColor = 'var(--scout-blue)';
-              hoverBgColor = 'var(--scout-blue-dark)';
-            } else if (sectionType.includes('cubs')) {
-              bgColor = 'var(--scout-forest-green)';
-              hoverBgColor = 'var(--scout-forest-green-dark)';
-            } else if (sectionType.includes('scouts')) {
-              bgColor = 'var(--scout-navy)';
-              hoverBgColor = 'var(--scout-navy-dark)';
-            } else if (sectionType.includes('adults')) {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
-            } else if (sectionType.includes('waitinglist')) {
-              bgColor = 'var(--scout-teal)';
-              hoverBgColor = 'var(--scout-teal-dark)';
-            } else {
-              bgColor = 'var(--scout-purple)';
-              hoverBgColor = 'var(--scout-purple-dark)';
-            }
-
-            return (
-              <button
-                key={section.sectionid}
-                onClick={() => onSectionToggle(section)}
-                disabled={isLoading}
-                style={{
-                  padding: '10px',
-                  backgroundColor: isSelected ? hoverBgColor : bgColor,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  minWidth: '120px',
-                  opacity: isLoading ? 0.6 : isSelected ? 1 : 0.8,
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) {
-                    e.target.style.backgroundColor = hoverBgColor;
-                    e.target.style.opacity = 1;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isLoading) {
-                    e.target.style.backgroundColor = isSelected
-                      ? hoverBgColor
-                      : bgColor;
-                    e.target.style.opacity = isSelected ? 1 : 0.8;
-                  }
-                }}
-                data-oid="-w7mq5i"
-              >
-                {isLoading && (
-                  <svg
-                    className="animate-spin h-3 w-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    data-oid="glzlpdi"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      data-oid="6:yirah"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      data-oid="v:9ro8w"
-                    ></path>
-                  </svg>
-                )}
-                {isLoading ? 'Loading...' : section.sectionname}
-              </button>
-            );
-          })}
-        </div>
+      {/* Members Area - Always show the table */}
+      <Card.Body className="border-t border-gray-200">
+        <MembersTableContent
+          sections={selectedSections}
+          onSectionToggle={onSectionToggle}
+          allSections={allSections}
+          loadingSection={loadingSection}
+        />
       </Card.Body>
-
-      {/* Members Area - Show when sections are selected */}
-      {selectedSections && selectedSections.length > 0 && (
-        <Card.Body
-          className="border-t border-gray-200 bg-gray-50"
-          data-oid="wa.lpc0"
-        >
-          <div className="mb-4" data-oid="y726obn">
-            <h4
-              className="text-lg font-semibold text-gray-900"
-              data-oid="yv1hpdq"
-            >
-              Members from {selectedSections.length} section
-              {selectedSections.length === 1 ? '' : 's'}
-            </h4>
-            <p className="text-sm text-gray-600" data-oid="r.rco_f">
-              {selectedSections.map((s) => s.sectionname).join(', ')}
-            </p>
-          </div>
-
-          {/* Comprehensive Members Table - Same as AttendanceView detailed */}
-          <ComprehensiveMembersTable
-            sections={selectedSections}
-            data-oid="v7s6d.-"
-          />
-        </Card.Body>
-      )}
     </Card>
   );
 }
 
-// Comprehensive Members Table - Same implementation as AttendanceView detailed tab
-function ComprehensiveMembersTable({ sections }) {
+// Members Table Content - Integrated into main card
+function MembersTableContent({ sections, onSectionToggle, allSections, loadingSection }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  const { notifyWarning, notifySuccess, notifyError } = useNotification();
+  
   
   // Data filter state - for controlling which columns to show
   const [dataFilters, setDataFilters] = useState({
@@ -400,26 +285,145 @@ function ComprehensiveMembersTable({ sections }) {
     setSelectedMember(null);
   };
 
+  // CSV Export function
+  const exportToCSV = () => {
+    if (members.length === 0) {
+      notifyWarning('No members to export');
+      return;
+    }
+
+    try {
+      const headers = [
+        'First Name',
+        'Last Name',
+        'Section',
+        'Patrol',
+        'Age',
+        'Allergies',
+        'Medical Details',
+        'Dietary Requirements',
+        'Photo Consent',
+        'Sensitive Info Consent',
+        'Paracetamol Consent',
+        'Ibuprofen Consent',
+        'Suncream Consent',
+      ];
+
+      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csvRows = [
+        headers.map(csv).join(','),
+        ...members.map((member) => {
+          const memberData = getComprehensiveMemberData(member);
+          
+          return [
+            csv(member.firstname),
+            csv(member.lastname),
+            csv(member.sections?.[0] || 'Unknown'),
+            csv(memberData.patrol),
+            csv(memberData.age),
+            csv(formatMedicalDataForDisplay(memberData.allergies, 'allergies').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.medical_details, 'medical_details').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.dietary_requirements, 'dietary_requirements').csvValue),
+            csv(memberData.consent_photos || '---'),
+            csv(memberData.consent_sensitive || '---'),
+            csv(memberData.consent_paracetamol || '---'),
+            csv(memberData.consent_ibuprofen || '---'),
+            csv(memberData.consent_suncream || '---'),
+          ].join(',');
+        }),
+      ];
+
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+      const blob = new globalThis.Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      
+      const sectionNames = sections.map(s => s.sectionname).join('_');
+      const safeSectionNames = sectionNames.replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date().toISOString().split('T')[0];
+      
+      link.setAttribute('download', `sections_members_${safeSectionNames}_${dateStr}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      
+      notifySuccess(`Exported ${members.length} member records`);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      notifyError('Failed to export member data');
+    }
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading members..." />;
   }
 
-  if (members.length === 0) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-        <p className="text-gray-500">No members found for the selected sections.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div>
+      {/* Header with Export Button */}
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-medium text-gray-900">Members ({members.length})</h4>
+        {members.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={exportToCSV}
+            type="button"
+            className="flex items-center"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            >
+              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </Button>
+        )}
+      </div>
+
       {/* Filter Section */}
-      <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-t-lg border-b border-gray-200">
+      <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded border-b border-gray-200">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Data:
+                Sections:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {allSections && allSections.map((section) => {
+                const isSelected = sections.some(s => s.sectionid === section.sectionid);
+                const isLoading = loadingSection === section.sectionid;
+                  
+                return (
+                  <button
+                    key={section.sectionid}
+                    onClick={() => onSectionToggle(section)}
+                    disabled={isLoading}
+                    className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                      isSelected
+                        ? 'bg-scout-blue text-white border-scout-blue'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                    type="button"
+                  >
+                    {isLoading ? '...' : section.sectionname}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                Data:
             </label>
             <div className="flex flex-wrap gap-2">
               <button
@@ -431,15 +435,20 @@ function ComprehensiveMembersTable({ sections }) {
                 }`}
                 type="button"
               >
-                Contacts
+                  Contacts
               </button>
             </div>
           </div>
         </div>
       </div>
-      
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        
+      {members.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <p className="text-gray-500">No members found for the selected sections.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               {/* Basic Info Headers */}
@@ -564,79 +573,126 @@ function ComprehensiveMembersTable({ sections }) {
                   
                   {/* Medical Info Cells - Three separate columns */}
                   <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words text-xs">
-                      <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                        {memberData.allergies || 'None'}
-                      </span>
+                    <div className="max-w-32 break-words">
+                      <MedicalDataPill 
+                        value={memberData.allergies} 
+                        fieldName="allergies"
+                        className="text-xs"
+                      />
                     </div>
                   </td>
                   <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words text-xs">
-                      <span className={memberData.medical_details ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                        {memberData.medical_details || 'None'}
-                      </span>
+                    <div className="max-w-32 break-words">
+                      <MedicalDataPill 
+                        value={memberData.medical_details} 
+                        fieldName="medical_details"
+                        className="text-xs"
+                      />
                     </div>
                   </td>
                   <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words text-xs">
-                      <span className={memberData.dietary_requirements ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                        {memberData.dietary_requirements || 'None'}
-                      </span>
+                    <div className="max-w-32 break-words">
+                      <MedicalDataPill 
+                        value={memberData.dietary_requirements} 
+                        fieldName="dietary_requirements"
+                        className="text-xs"
+                      />
                     </div>
                   </td>
                   
                   {/* Consent Cells */}
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                      memberData.consent_photos === 'Yes' ? 'bg-green-100 text-green-800' : 
-                        memberData.consent_photos === 'No' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                    }`}>
-                      {memberData.consent_photos || 'N/A'}
-                    </span>
+                    {
+                      memberData.consent_photos === 'No' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          No
+                        </span>
+                      ) : memberData.consent_photos === 'Yes' ? (
+                        <span className="text-xs text-gray-700">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          ---
+                        </span>
+                      )
+                    }
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                      memberData.consent_sensitive === 'Yes' ? 'bg-green-100 text-green-800' : 
-                        memberData.consent_sensitive === 'No' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                    }`}>
-                      {memberData.consent_sensitive || 'N/A'}
-                    </span>
+                    {
+                      memberData.consent_sensitive === 'No' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          No
+                        </span>
+                      ) : memberData.consent_sensitive === 'Yes' ? (
+                        <span className="text-xs text-gray-700">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          ---
+                        </span>
+                      )
+                    }
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                      memberData.consent_paracetamol === 'Yes' ? 'bg-green-100 text-green-800' : 
-                        memberData.consent_paracetamol === 'No' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                    }`}>
-                      {memberData.consent_paracetamol || 'N/A'}
-                    </span>
+                    {
+                      memberData.consent_paracetamol === 'No' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          No
+                        </span>
+                      ) : memberData.consent_paracetamol === 'Yes' ? (
+                        <span className="text-xs text-gray-700">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          ---
+                        </span>
+                      )
+                    }
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                      memberData.consent_ibuprofen === 'Yes' ? 'bg-green-100 text-green-800' : 
-                        memberData.consent_ibuprofen === 'No' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                    }`}>
-                      {memberData.consent_ibuprofen || 'N/A'}
-                    </span>
+                    {
+                      memberData.consent_ibuprofen === 'No' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          No
+                        </span>
+                      ) : memberData.consent_ibuprofen === 'Yes' ? (
+                        <span className="text-xs text-gray-700">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          ---
+                        </span>
+                      )
+                    }
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                      memberData.consent_suncream === 'Yes' ? 'bg-green-100 text-green-800' : 
-                        memberData.consent_suncream === 'No' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                    }`}>
-                      {memberData.consent_suncream || 'N/A'}
-                    </span>
+                    {
+                      memberData.consent_suncream === 'No' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          No
+                        </span>
+                      ) : memberData.consent_suncream === 'Yes' ? (
+                        <span className="text-xs text-gray-700">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          ---
+                        </span>
+                      )
+                    }
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
+        </div>
+      )}
       
       {/* Member Detail Modal */}
       <MemberDetailModal
