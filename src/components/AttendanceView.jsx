@@ -21,6 +21,8 @@ import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';
 import { isDemoMode } from '../config/demoMode.js';
+import { MedicalDataPill } from './MedicalDataDisplay.jsx';
+import { formatMedicalDataForDisplay } from '../utils/medicalDataUtils.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
@@ -39,7 +41,7 @@ function AttendanceView({ events, members, onBack }) {
   } = useAttendanceData(events);
 
   // Get notification handlers for the sign-in/out hook
-  const { notifyError, notifyWarning } = useNotification();
+  const { notifyError, notifyWarning, notifySuccess } = useNotification();
 
   const { buttonLoading, handleSignInOut } = useSignInOut(
     events,
@@ -571,6 +573,118 @@ function AttendanceView({ events, members, onBack }) {
     return Object.values(memberStats);
   };
 
+  const exportToCSV = () => {
+    if (filteredAttendanceData.length === 0) {
+      notifyWarning('No attendance data to export');
+      return;
+    }
+
+    try {
+      const headers = [
+        'First Name',
+        'Last Name', 
+        'Section',
+        'Attendance Status',
+        'Patrol',
+        'Age',
+        'Date of Birth',
+        'Address',
+        'Postcode',
+        'Primary Contact 1 Name',
+        'Primary Contact 1 Phone',
+        'Primary Contact 1 Email',
+        'Primary Contact 2 Name',
+        'Primary Contact 2 Phone', 
+        'Primary Contact 2 Email',
+        'Emergency Contact Name',
+        'Emergency Contact Phone',
+        'Allergies',
+        'Medical Details',
+        'Dietary Requirements',
+        'Photo Consent',
+        'Sensitive Info Consent',
+        'Paracetamol Consent',
+        'Ibuprofen Consent',
+        'Suncream Consent',
+        'Camp Group',
+        'Signed In By',
+        'Signed In When',
+        'Signed Out By',
+        'Signed Out When',
+      ];
+
+      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csvRows = [
+        headers.map(csv).join(','),
+        ...filteredAttendanceData.map((record) => {
+          const memberData = getComprehensiveMemberData(record);
+          const vikingData = getVikingEventDataForMember(record.scoutid, record);
+
+          const pc1 = memberData.primary_contacts[0] || {};
+          const pc2 = memberData.primary_contacts[1] || {};
+          const ec = memberData.emergency_contacts[0] || {};
+
+          return [
+            csv(record.firstname),
+            csv(record.lastname),
+            csv(record.sectionname),
+            csv(record.attending),
+            csv(memberData.patrol),
+            csv(memberData.age),
+            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.date_of_birth || ''),
+            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.address || ''),
+            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.postcode || ''),
+            csv(pc1.name || ''),
+            csv(pc1.phone || ''),
+            csv(pc1.email || ''),
+            csv(pc2.name || ''),
+            csv(pc2.phone || ''),
+            csv(pc2.email || ''),
+            csv(ec.name || ''),
+            csv(ec.phone || ''),
+            csv(formatMedicalDataForDisplay(memberData.allergies, 'allergies').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.medical_details, 'medical_details').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.dietary_requirements, 'dietary_requirements').csvValue),
+            csv(memberData.consent_photos),
+            csv(memberData.consent_sensitive),
+            csv(memberData.consent_paracetamol),
+            csv(memberData.consent_ibuprofen),
+            csv(memberData.consent_suncream),
+            csv(vikingData?.CampGroup || ''),
+            csv(vikingData?.SignedInBy || ''),
+            csv(vikingData?.SignedInWhen || ''),
+            csv(vikingData?.SignedOutBy || ''),
+            csv(vikingData?.SignedOutWhen || ''),
+          ].join(',');
+        }),
+      ];
+
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+      const blob = new globalThis.Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      
+      const eventName = events.length === 1 ? events[0].name : 'multiple_events';
+      const safeEventName = eventName.replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date().toISOString().split('T')[0];
+      
+      link.setAttribute('download', `attendance_${safeEventName}_${dateStr}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      
+      notifySuccess(`Exported ${filteredAttendanceData.length} attendance records`);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      notifyError('Failed to export attendance data');
+    }
+  };
+
   // Sign-in/out functionality is now handled by useSignInOut hook
   // SignInOutButton component is now in separate file
 
@@ -895,15 +1009,37 @@ function AttendanceView({ events, members, onBack }) {
             })()}
           </Card.Title>
 
-          <Button
-            variant="outline-scout-blue"
-            onClick={onBack}
-            type="button"
-            className="ml-4"
-            data-oid="k5k22qo"
-          >
-            Back to Dashboard
-          </Button>
+          <div className="flex space-x-3 ml-4">
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={filteredAttendanceData.length === 0}
+              type="button"
+              className="flex items-center"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Export CSV
+            </Button>
+            <Button
+              variant="outline-scout-blue"
+              onClick={onBack}
+              type="button"
+            >
+              Back to Dashboard
+            </Button>
+          </div>
 
         </Card.Header>
 
@@ -1840,72 +1976,118 @@ function AttendanceView({ events, members, onBack }) {
                         
                         {/* Medical Info Cells */}
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32 break-words text-xs">
-                            <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                              {memberData.allergies || 'None'}
-                            </span>
+                          <div className="max-w-32">
+                            <MedicalDataPill 
+                              value={memberData.allergies} 
+                              fieldName="allergies"
+                              className="text-xs break-words"
+                            />
                           </div>
                         </td>
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32 break-words text-xs">
-                            <span className={memberData.medical_details ? 'text-orange-700' : 'text-gray-400'}>
-                              {memberData.medical_details || 'None'}
-                            </span>
+                          <div className="max-w-32">
+                            <MedicalDataPill 
+                              value={memberData.medical_details} 
+                              fieldName="medical_details"
+                              className="text-xs break-words"
+                            />
                           </div>
                         </td>
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32 break-words text-xs">
-                            <span className={memberData.dietary_requirements ? 'text-orange-700' : 'text-gray-400'}>
-                              {memberData.dietary_requirements || 'None'}
-                            </span>
+                          <div className="max-w-32">
+                            <MedicalDataPill 
+                              value={memberData.dietary_requirements} 
+                              fieldName="dietary_requirements"
+                              className="text-xs break-words"
+                            />
                           </div>
                         </td>
                         
                         {/* Consent Cells */}
                         <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_photos === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_photos === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_photos || 'N/A'}
-                          </span>
+                          {
+                            memberData.consent_photos === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : memberData.consent_photos === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_sensitive === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_sensitive === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_sensitive || 'N/A'}
-                          </span>
+                          {
+                            memberData.consent_sensitive === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : memberData.consent_sensitive === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_paracetamol === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_paracetamol === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_paracetamol || 'N/A'}
-                          </span>
+                          {
+                            memberData.consent_paracetamol === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : memberData.consent_paracetamol === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_ibuprofen === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_ibuprofen === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_ibuprofen || 'N/A'}
-                          </span>
+                          {
+                            memberData.consent_ibuprofen === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : memberData.consent_ibuprofen === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                            memberData.consent_suncream === 'Yes' ? 'bg-green-100 text-green-800' : 
-                              memberData.consent_suncream === 'No' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                          }`}>
-                            {memberData.consent_suncream || 'N/A'}
-                          </span>
+                          {
+                            memberData.consent_suncream === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : memberData.consent_suncream === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
                         </td>
                       </tr>
                     );

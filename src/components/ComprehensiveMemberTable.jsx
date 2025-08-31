@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui';
 import { groupContactInfo } from '../utils/contactGroups.js';
+import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 
 
 // Extract comprehensive member data for table display
@@ -609,23 +610,35 @@ function ComprehensiveMemberTable({
                     <>
                       {isColumnVisible('allergies') && (
                         <td className="p-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.allergies ? 'text-orange-700 font-medium' : 'text-gray-400'}>
-                            {memberData.allergies || 'None'}
-                          </span>
+                          <div className="break-words">
+                            <MedicalDataPill 
+                              value={memberData.allergies} 
+                              fieldName="allergies"
+                              className="text-xs"
+                            />
+                          </div>
                         </td>
                       )}
                       {isColumnVisible('medical_details') && (
                         <td className="p-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.medical_details ? 'text-orange-700' : 'text-gray-400'}>
-                            {memberData.medical_details || 'None'}
-                          </span>
+                          <div className="break-words">
+                            <MedicalDataPill 
+                              value={memberData.medical_details} 
+                              fieldName="medical_details"
+                              className="text-xs"
+                            />
+                          </div>
                         </td>
                       )}
                       {isColumnVisible('dietary_requirements') && (
                         <td className="p-2 whitespace-nowrap text-gray-900 bg-orange-25">
-                          <span className={memberData.dietary_requirements ? 'text-orange-700' : 'text-gray-400'}>
-                            {memberData.dietary_requirements || 'None'}
-                          </span>
+                          <div className="break-words">
+                            <MedicalDataPill 
+                              value={memberData.dietary_requirements} 
+                              fieldName="dietary_requirements"
+                              className="text-xs"
+                            />
+                          </div>
                         </td>
                       )}
                     </>
@@ -654,13 +667,21 @@ function ComprehensiveMemberTable({
                         
                         return isColumnVisible(consentField) && (
                           <td key={consentField} className="p-2 whitespace-nowrap text-center bg-emerald-25">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${
-                              normalized === 'Yes' ? 'bg-green-100 text-green-800' : 
-                                normalized === 'No' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                            }`}>
-                              {normalized}
-                            </span>
+                            {
+                              normalized === 'No' ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                  No
+                                </span>
+                              ) : normalized === 'Yes' ? (
+                                <span className="text-xs text-gray-700">
+                                  Yes
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                  ---
+                                </span>
+                              )
+                            }
                           </td>
                         );
                       })}

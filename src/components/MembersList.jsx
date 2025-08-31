@@ -13,6 +13,7 @@ import { useNotification } from '../contexts/notifications/NotificationContext';
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
+import { getMedicalFieldsFromMember } from '../utils/medicalDataUtils.js';
 
 function MembersList({
   sections,
@@ -28,7 +29,7 @@ function MembersList({
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
 
-  const { notifyWarning } = useNotification();
+  const { notifyWarning, notifySuccess, notifyError } = useNotification();
 
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -123,83 +124,133 @@ function MembersList({
       return;
     }
 
-    // Define CSV headers based on available data
-    const headers = [
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Sections',
-      'Patrol',
-      'Type',
-      'Age',
-      'Date of Birth',
-      'Address',
-      'Postcode',
-      'Emergency Contacts',
-      'Medical Notes',
-      'Dietary Requirements',
-      'Active',
-      'Started',
-      'Joined',
-    ];
+    try {
+      const headers = [
+        'First Name',
+        'Last Name',
+        'Email',
+        'Phone',
+        'Sections',
+        'Patrol',
+        'Type',
+        'Age',
+        'Date of Birth',
+        'Address',
+        'Postcode',
+        'Emergency Contacts',
+        'Allergies',
+        'Medical Details',
+        'Dietary Requirements',
+        'Allergies Status',
+        'Medical Status',
+        'Dietary Status',
+        'Photo Consent',
+        'Sensitive Info Consent',
+        'Paracetamol Consent',
+        'Ibuprofen Consent',
+        'Suncream Consent',
+        'Active',
+        'Started',
+        'Joined',
+      ];
 
-    // Convert members to CSV rows using enhanced data
-    const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csvRows = [
-      headers.map(csv).join(','), // keep headers safe too
-      ...filteredMembers.map((member) => {
-        const emergencyContacts = (member.emergency_contacts || [])
-          .map((c) => {
-            const parts = [];
-            if (c?.name && String(c.name).trim() !== '') parts.push(String(c.name).trim());
-            if (c?.phone && String(c.phone).trim() !== '') parts.push(`(${String(c.phone).trim()})`);
-            if (c?.email && String(c.email).trim() !== '') parts.push(String(c.email).trim());
-            return parts.join(' ').trim();
-          })
-          .filter((s) => s.length > 0)
-          .join('; ');
+      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csvRows = [
+        headers.map(csv).join(','),
+        ...filteredMembers.map((member) => {
+          const emergencyContacts = (member.emergency_contacts || [])
+            .map((c) => {
+              const parts = [];
+              if (c?.name && String(c.name).trim() !== '') parts.push(String(c.name).trim());
+              if (c?.phone && String(c.phone).trim() !== '') parts.push(`(${String(c.phone).trim()})`);
+              if (c?.email && String(c.email).trim() !== '') parts.push(String(c.email).trim());
+              return parts.join(' ').trim();
+            })
+            .filter((s) => s.length > 0)
+            .join('; ');
 
-        return [
-          csv(member.firstname),
-          csv(member.lastname),
-          csv(member.email),
-          csv(member.phone),
-          csv((member.sections || []).join('; ')),
-          csv(member.patrol),
-          csv(member.person_type || 'Young People'),
-          csv(calculateAge(member.date_of_birth)),
-          csv(member.date_of_birth),
-          csv(member.address),
-          csv(member.postcode),
-          csv(emergencyContacts),
-          csv(member.medical_notes),
-          csv(member.dietary_requirements),
-          csv(member.active === true ? 'Yes' : member.active === false ? 'No' : ''),
-          csv(member.started),
-          csv(member.joined),
-        ].join(',');
-      }),
-    ];
+          const medicalFields = getMedicalFieldsFromMember(member);
 
-    // Create and download CSV file (prepend BOM for Excel)
-    const csvContent = '\uFEFF' + csvRows.join('\n');
-    const blob = new globalThis.Blob([csvContent], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute(
-      'download',
-      `members_${sectionIds.join('_')}_${new Date().toISOString().split('T')[0]}.csv`,
-    );
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    // Revoke on next tick to allow the click to proceed in all browsers
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+          const groupContactInfo = (member) => {
+            const groups = {};
+            Object.entries(member).forEach(([key, value]) => {
+              if (key.includes('__') && value) {
+                const [groupName, fieldName] = key.split('__');
+                if (!groups[groupName]) {
+                  groups[groupName] = {};
+                }
+                groups[groupName][fieldName] = value;
+              }
+            });
+            return groups;
+          };
+
+          const contactGroups = groupContactInfo(member);
+          const getField = (groupNames, fieldNames) => {
+            for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+              const group = contactGroups[groupName];
+              if (group) {
+                for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+                  if (group[fieldName]) return group[fieldName];
+                }
+              }
+            }
+            return '';
+          };
+
+          return [
+            csv(member.firstname),
+            csv(member.lastname),
+            csv(member.email),
+            csv(member.phone),
+            csv((member.sections || []).join('; ')),
+            csv(member.patrol),
+            csv(member.person_type || 'Young People'),
+            csv(calculateAge(member.date_of_birth)),
+            csv(member.date_of_birth),
+            csv(member.address),
+            csv(member.postcode),
+            csv(emergencyContacts),
+            csv(medicalFields.allergies.csvValue),
+            csv(medicalFields.medical_details.csvValue),
+            csv(medicalFields.dietary_requirements.csvValue),
+            csv(medicalFields.allergies.indicator.label),
+            csv(medicalFields.medical_details.indicator.label),
+            csv(medicalFields.dietary_requirements.indicator.label),
+            csv(getField(['consents'], ['photographs', 'photos']) || member.consents__photographs || ''),
+            csv(getField(['consents'], ['sensitive_information']) || member.consents__sensitive_information || ''),
+            csv(getField(['consents'], ['paracetamol']) || member.consents__paracetamol || ''),
+            csv(getField(['consents'], ['ibuprofen']) || member.consents__ibuprofen || ''),
+            csv(getField(['consents'], ['suncream', 'sun_cream']) || member.consents__suncream || ''),
+            csv(member.active === true ? 'Yes' : member.active === false ? 'No' : ''),
+            csv(member.started),
+            csv(member.joined),
+          ].join(',');
+        }),
+      ];
+
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+      const blob = new globalThis.Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute(
+        'download',
+        `members_${sectionIds.join('_')}_${new Date().toISOString().split('T')[0]}.csv`,
+      );
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      
+      notifySuccess(`Exported ${filteredMembers.length} member records`);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      notifyError('Failed to export member data');
+    }
   };
 
   // Handle member click to show detail modal
