@@ -3,6 +3,17 @@ import { Card, Button, Badge } from './ui';
 import AttendanceGrid from './AttendanceGrid.jsx';
 
 function EventCard({ eventCard, onViewAttendees, loading = false }) {
+  const slug = useMemo(() => {
+    const base = (eventCard?.name ?? '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 64) || 'event';
+    return eventCard?.id ? `${base}-${eventCard.id}` : base;
+  }, [eventCard?.name, eventCard?.id]);
+
   const formatDate = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -259,17 +270,27 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
   );
 
   return (
-    <Card className="h-full flex flex-col" data-oid="3kxvx32">
+    <Card 
+      className="h-full flex flex-col break-inside-avoid" 
+      role="article"
+      aria-labelledby={`event-title-${slug}`}
+      data-oid="3kxvx32"
+    >
       <Card.Header className="pb-3" data-oid="20kbjde">
         <div className="flex justify-between items-start" data-oid="oey::ov">
           <div className="flex-1" data-oid="0w-_rn.">
             <Card.Title
               className="text-lg font-semibold text-gray-900 mb-1"
+              id={`event-title-${slug}`}
               data-oid="pqa5tp."
             >
               {eventCard.name}
             </Card.Title>
-            <p className="text-sm text-gray-600 mb-2" data-oid="4fslyto">
+            <p 
+              className="text-sm text-gray-600 mb-2" 
+              id={`event-${slug}-description`}
+              data-oid="4fslyto"
+            >
               {formatDateRange(eventCard.events)}
             </p>
           </div>
@@ -329,6 +350,8 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           className="w-full flex items-center justify-center gap-2"
           type="button"
           disabled={loading}
+          aria-labelledby={`event-title-${slug} view-attendees-label-${slug}`}
+          aria-describedby={`event-${slug}-description`}
           data-oid="5s0-rzy"
         >
           {loading ? (
@@ -355,6 +378,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   data-oid="stejrrd"
                 ></path>
               </svg>
+              <span id={`view-attendees-label-${slug}`} className="sr-only">View Attendees</span>
               Loading Members...
             </>
           ) : (
@@ -374,7 +398,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   data-oid="8ll3aah"
                 />
               </svg>
-              View Attendees
+              <span id={`view-attendees-label-${slug}`}>View Attendees</span>
             </>
           )}
         </Button>
