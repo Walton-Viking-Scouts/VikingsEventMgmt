@@ -447,6 +447,14 @@ jobs:
             git fetch --tags --force >/dev/null 2>&1 || true
             while git rev-parse --verify "refs/tags/v${FINAL_VERSION}" >/dev/null 2>&1; do
               echo "🏷️ Tag v${FINAL_VERSION} already exists, calculating next available version..."
+              
+              # For explicit versions, do not auto-increment - fail immediately
+              if [ "$VERSION_TYPE" = "explicit" ]; then
+                echo "❌ Explicit version v${FINAL_VERSION} already exists and cannot be auto-incremented"
+                echo "   Either use a different explicit version or remove the explicit version to enable auto-increment"
+                exit 1
+              fi
+              
               RETRY_COUNT=$((RETRY_COUNT + 1))
               if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
                 echo "❌ Max retries ($MAX_RETRIES) reached, unable to find available version"
