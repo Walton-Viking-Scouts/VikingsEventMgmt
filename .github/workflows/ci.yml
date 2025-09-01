@@ -497,13 +497,40 @@ jobs:
                 echo "⚠️ Push failed (attempt $((PUSH_RETRY_COUNT + 1))/$MAX_PUSH_RETRIES). Checking remote..."
                 git fetch --tags --force >/dev/null 2>&1 || true
                 
-                # Check if remote already has this tag
+                # Check if remote already has this tag and whether it matches this commit
                 if git ls-remote --tags origin "v${FINAL_VERSION}" | grep -q "v${FINAL_VERSION}"; then
-                  echo "✅ Tag v${FINAL_VERSION} already exists on remote"
-                  TAG_CREATED="true"
-                  # Clean up local tag since remote has it
+                  REMOTE_SHA="$(git ls-remote --tags origin "v${FINAL_VERSION}" | awk '{print $1}' | head -n1)"
+                  LOCAL_SHA="$(git rev-parse HEAD)"
+                  if [ "$REMOTE_SHA" = "$LOCAL_SHA" ]; then
+                    echo "✅ Tag v${FINAL_VERSION} already exists on remote and points to this commit ($LOCAL_SHA)"
+                    TAG_CREATED="true"
+                    # Clean up local tag since remote has it
+                    git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
+                    break
+                  fi
+                  if [ "$VERSION_TYPE" = "explicit" ]; then
+                    echo "❌ Explicit version v${FINAL_VERSION} already exists on a different commit ($REMOTE_SHA). Refusing to reuse."
+                    exit 1
+                  fi
+                  echo "♻️ Remote has v${FINAL_VERSION} but at $REMOTE_SHA (this commit: $LOCAL_SHA). Recomputing next version..."
+                  # Clean up local tag before recomputing
                   git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
-                  break
+                  # Recompute FINAL_VERSION from latest remote and retry
+                  git fetch --tags --force >/dev/null 2>&1 || true
+                  ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+                  ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
+                  ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+                  IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
+                  if [ "$VERSION_TYPE" = "major" ]; then
+                    FINAL_VERSION="$((A_MAJOR + 1)).0.0"
+                  elif [ "$VERSION_TYPE" = "minor" ]; then
+                    FINAL_VERSION="${A_MAJOR}.$((A_MINOR + 1)).0"
+                  else
+                    FINAL_VERSION="${A_MAJOR}.${A_MINOR}.$((A_PATCH + 1))"
+                  fi
+                  PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
+                  echo "🔄 Push retry $PUSH_RETRY_COUNT: Recomputed version v${FINAL_VERSION}"
+                  continue
                 fi
                 
                 # Clean up failed local tag
