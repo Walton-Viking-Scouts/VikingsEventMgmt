@@ -34,6 +34,7 @@ function AuthButton({
         onClick: null,
         disabled: true,
         variant: 'outline',
+        ariaLabel: 'Currently syncing data with OSM',
       };
     }
 
@@ -44,6 +45,7 @@ function AuthButton({
         onClick: onLogin,
         disabled: false,
         variant: 'scout-purple',
+        ariaLabel: 'Sign in to Online Scout Manager to access data',
       };
 
     case 'cached_only':
@@ -52,6 +54,7 @@ function AuthButton({
         onClick: onRefresh || onLogin, // Prefer onRefresh for cached data
         disabled: false,
         variant: 'outline',
+        ariaLabel: 'Refresh data from OSM - currently using cached data',
       };
 
     case 'token_expired':
@@ -60,6 +63,7 @@ function AuthButton({
         onClick: onLogin,
         disabled: false,
         variant: 'scout-purple',
+        ariaLabel: 'Session expired - sign in again to refresh data',
       };
 
     case 'authenticated':
@@ -68,6 +72,7 @@ function AuthButton({
         onClick: onRefresh || onLogin,
         disabled: false,
         variant: 'outline',
+        ariaLabel: 'Refresh data from OSM',
       };
 
     case 'syncing':
@@ -76,6 +81,7 @@ function AuthButton({
         onClick: null,
         disabled: true,
         variant: 'outline',
+        ariaLabel: 'Currently syncing data with OSM',
       };
 
     default:
@@ -84,6 +90,7 @@ function AuthButton({
         onClick: onLogin,
         disabled: false,
         variant: 'scout-blue',
+        ariaLabel: 'Sign in to Online Scout Manager',
       };
     }
   };
@@ -97,6 +104,7 @@ function AuthButton({
       disabled={config.disabled}
       size={size}
       className={`auth-button ${className}`}
+      aria-label={config.ariaLabel}
       data-testid="auth-button"
       {...rest}
       data-oid="14si21j"

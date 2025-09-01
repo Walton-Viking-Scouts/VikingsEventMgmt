@@ -76,6 +76,7 @@ function DesktopHeader({
             onLogin={onLogin}
             onRefresh={onRefresh}
             className="mr-2"
+            size="sm"
             data-testid="auth-button"
             data-oid="-wvy88p"
           />
@@ -86,6 +87,7 @@ function DesktopHeader({
               size="sm"
               onClick={handleLogout}
               type="button"
+              aria-label={isOfflineMode ? 'Clear cached data and logout' : 'Logout from application'}
               data-oid="fhg::su"
             >
               {isOfflineMode ? 'Clear Data' : 'Logout'}
