@@ -930,8 +930,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               sections={sections}
               selectedSections={selectedSections}
               onSectionToggle={handleSectionToggleForCard}
-              showContinueButton={false}
               loadingSection={loadingSection}
+              allSections={sections}
               data-oid="dmp670d"
             />
           </div>
