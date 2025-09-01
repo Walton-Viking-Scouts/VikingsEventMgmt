@@ -460,13 +460,13 @@ jobs:
                 echo "❌ Max retries ($MAX_RETRIES) reached, unable to find available version"
                 exit 1
               fi
-              # Re-fetch actual latest tag from remote and increment appropriately
+              # Re-fetch tags and increment from the conflicting version, not git-describe latest
               git fetch --tags --force >/dev/null 2>&1 || true
-              ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-              ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
-              echo "🔍 Actual latest tag found: $ACTUAL_LATEST (base: $ACTUAL_BASE)"
+              # Use the conflicting version as base, not git describe result
+              CONFLICT_BASE=$(echo "$FINAL_VERSION" | sed 's/^v//')
+              echo "🔍 Incrementing from conflicting version: v${FINAL_VERSION} (base: $CONFLICT_BASE)"
               # Parse and increment based on original VERSION_TYPE
-              ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+              ACTUAL_SEMVER=$(echo "$CONFLICT_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
               IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
               if [ "$VERSION_TYPE" = "major" ]; then
                 NEXT_A_MAJOR=$((A_MAJOR + 1))
@@ -515,11 +515,11 @@ jobs:
                   echo "♻️ Remote has v${FINAL_VERSION} but at $REMOTE_SHA (this commit: $LOCAL_SHA). Recomputing next version..."
                   # Clean up local tag before recomputing
                   git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
-                  # Recompute FINAL_VERSION from latest remote and retry
+                  # Recompute FINAL_VERSION from conflicting version, not git-describe latest
                   git fetch --tags --force >/dev/null 2>&1 || true
-                  ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-                  ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
-                  ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+                  # Use the conflicting version as base for increment
+                  CONFLICT_BASE=$(echo "$FINAL_VERSION" | sed 's/^v//')
+                  ACTUAL_SEMVER=$(echo "$CONFLICT_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
                   IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
                   if [ "$VERSION_TYPE" = "major" ]; then
                     FINAL_VERSION="$((A_MAJOR + 1)).0.0"
