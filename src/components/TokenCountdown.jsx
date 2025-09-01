@@ -8,7 +8,7 @@ import PropTypes from 'prop-types';
  * - Yellow: 5-15 minutes
  * - Red: < 5 minutes
  */
-function TokenCountdown({ authState, className = '' }) {
+function TokenCountdown({ authState, className = '', compact = false }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [displayText, setDisplayText] = useState('');
 
@@ -70,9 +70,11 @@ function TokenCountdown({ authState, className = '' }) {
   }
 
   return (
-    <div className={`text-sm text-gray-600 ${className}`} data-oid="ni8li1n">
-      <span className="hidden md:inline" data-oid="a-eblja">
-        Session:{' '}
+    <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-600 ${className}`} data-oid="ni8li1n">
+      <span data-oid="a-eblja">
+        {compact ? 'Session: ' : (
+          <span className="hidden md:inline">Session: </span>
+        )}
       </span>
       <span data-oid="z2xm505">{displayText}</span>
     </div>
@@ -88,6 +90,7 @@ TokenCountdown.propTypes = {
     'syncing',
   ]).isRequired,
   className: PropTypes.string,
+  compact: PropTypes.bool,
 };
 
 export default TokenCountdown;

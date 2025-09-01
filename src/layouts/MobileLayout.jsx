@@ -1,5 +1,5 @@
 import React from 'react';
-import Header from '../components/Header.jsx';
+import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
 import OfflineIndicator from '../components/OfflineIndicator.jsx';
 
 function MobileLayout({
@@ -21,7 +21,7 @@ function MobileLayout({
       {...props}
     >
       <OfflineIndicator data-oid=":nycp0v" />
-      <Header
+      <DesktopHeader
         user={user}
         onLogout={onLogout}
         onLogin={onLogin}
