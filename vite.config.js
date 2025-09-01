@@ -61,7 +61,7 @@ export default defineConfig({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
       try {
         // Get version from git tags (matches CI deployment logic)
-        const gitVersion = execSync('git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0"', { encoding: 'utf8' }).trim();
+        const gitVersion = execSync('git describe --tags --abbrev=0', { encoding: 'utf8', stdio: 'pipe' }).trim();
         return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
       } catch {
         // Fallback to package.json if git command fails

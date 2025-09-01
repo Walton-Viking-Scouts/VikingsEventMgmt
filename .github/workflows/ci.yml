@@ -439,29 +439,27 @@ jobs:
 
           # Create tags and releases only for production deployments
           if [ "$DEPLOYMENT_TYPE" = "production" ]; then
-            # Check if tag already exists and retry with incremented version if needed
+            # Check if tag already exists and retry with incremented version if needed (with remote awareness)
             FINAL_VERSION="$NEW_VERSION"
             RETRY_COUNT=0
             MAX_RETRIES=10
-            
+            # Ensure we see the latest remote tags before starting
+            git fetch --tags --force >/dev/null 2>&1 || true
             while git rev-parse --verify "refs/tags/v${FINAL_VERSION}" >/dev/null 2>&1; do
               echo "🏷️ Tag v${FINAL_VERSION} already exists, calculating next available version..."
               RETRY_COUNT=$((RETRY_COUNT + 1))
-              
               if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
                 echo "❌ Max retries ($MAX_RETRIES) reached, unable to find available version"
                 exit 1
               fi
-              
-              # Re-fetch actual latest tag and increment appropriately
+              # Re-fetch actual latest tag from remote and increment appropriately
+              git fetch --tags --force >/dev/null 2>&1 || true
               ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
               ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
               echo "🔍 Actual latest tag found: $ACTUAL_LATEST (base: $ACTUAL_BASE)"
-              
               # Parse and increment based on original VERSION_TYPE
               ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
               IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
-              
               if [ "$VERSION_TYPE" = "major" ]; then
                 NEXT_A_MAJOR=$((A_MAJOR + 1))
                 FINAL_VERSION="${NEXT_A_MAJOR}.0.0"
@@ -473,20 +471,31 @@ jobs:
                 NEXT_A_PATCH=$((A_PATCH + 1))
                 FINAL_VERSION="${A_MAJOR}.${A_MINOR}.${NEXT_A_PATCH}"
               fi
-              
               echo "🔄 Retry $RETRY_COUNT: Trying version v${FINAL_VERSION}"
             done
-            
-            # Create and push git tag for Sentry tracking
+            # Create and push git tag for Sentry tracking (with conflict-aware retry)
             echo "🏷️ Creating new tag v${FINAL_VERSION}"
             git tag "v${FINAL_VERSION}"
-            git push origin "v${FINAL_VERSION}"
+            if ! git push origin "v${FINAL_VERSION}"; then
+              echo "⚠️ Push failed (likely race). Refetching tags and retrying..."
+              git fetch --tags --force >/dev/null 2>&1 || true
+              # Clear local tag if remote has it already
+              if git ls-remote --tags origin "v${FINAL_VERSION}" | grep -q "v${FINAL_VERSION}"; then
+                git tag -d "v${FINAL_VERSION}" || true
+              fi
+              # Force loop to recompute on next run
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
+                echo "❌ Max retries ($MAX_RETRIES) reached after push conflict"
+                exit 1
+              fi
+              # Recompute FINAL_VERSION based on latest remote and bail out for loop re-entry
+              continue
+            fi
             TAG_CREATED="true"
-            
             # Update NEW_VERSION for subsequent steps
             NEW_VERSION="$FINAL_VERSION"
             echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
-            
             echo "✅ Git tag v${NEW_VERSION} created and pushed"
 
             # Create GitHub releases based on version type (only if tag was created)
