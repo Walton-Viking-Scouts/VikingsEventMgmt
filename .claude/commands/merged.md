@@ -15,6 +15,3 @@ LATEST_TAG=$(git describe --tags --abbrev=0)
 CLEAN_VERSION=${LATEST_TAG#v}
 npm version $CLEAN_VERSION --no-git-tag-version --allow-same-version
 echo "✅ Synced package.json to $LATEST_TAG"
-```
-
-This prevents version confusion where npm shows `vikings-eventmgmt-mobile@1.1.0` when actual deployed version is `v1.4.2`.
