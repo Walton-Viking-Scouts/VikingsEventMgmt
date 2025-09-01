@@ -1,19 +1,14 @@
 import React from 'react';
-import { getMedicalDataIndicator, categorizeMedicalData, MEDICAL_DATA_STATES } from '../utils/medicalDataUtils.js';
+import { formatMedicalDataForDisplay, categorizeMedicalData, MEDICAL_DATA_STATES } from '../utils/medicalDataUtils.js';
 
 function MedicalDataPill({ value, fieldName, className = '' }) {
-  const indicator = getMedicalDataIndicator(value, fieldName);
-  const state = categorizeMedicalData(value, fieldName);
-  
-  const displayValue = (state === MEDICAL_DATA_STATES.MISSING || state === MEDICAL_DATA_STATES.SYSTEM_DEFAULT) 
-    ? '---' 
-    : (state === MEDICAL_DATA_STATES.CONFIRMED_NONE ? 'None' : value || '');
+  const { display, indicator } = formatMedicalDataForDisplay(value, fieldName);
   
   if (!indicator.showPill) {
     // No pill - just plain text for "None" and "Yes" cases
     return (
       <span className={`${indicator.color} ${className}`} title={indicator.description}>
-        {displayValue}
+        {display}
       </span>
     );
   }
@@ -24,7 +19,7 @@ function MedicalDataPill({ value, fieldName, className = '' }) {
       className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${indicator.pillColor} ${className}`}
       title={indicator.description}
     >
-      {displayValue}
+      {display}
     </span>
   );
 }
@@ -81,7 +76,11 @@ function MedicalDataSummary({ member, className = '' }) {
 
   return (
     <div className={`flex items-center space-x-2 ${className}`}>
-      <span className={`text-sm ${summaryColor}`}>
+      <span
+        className={`text-sm ${summaryColor}`}
+        role="img"
+        aria-label={missingCount > 0 ? 'Medical data missing' : (hasDataCount > 0 ? 'Medical data present' : 'No medical data reported')}
+      >
         {summaryIcon}
       </span>
       <div className="flex space-x-1">
@@ -98,5 +97,5 @@ function MedicalDataSummary({ member, className = '' }) {
   );
 }
 
-export { MedicalDataPill, MedicalDataField, MedicalDataSummary, getMedicalDataIndicator };
+export { MedicalDataPill, MedicalDataField, MedicalDataSummary };
 export default MedicalDataField;

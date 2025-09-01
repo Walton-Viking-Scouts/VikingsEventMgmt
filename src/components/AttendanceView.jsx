@@ -23,6 +23,7 @@ import { getToken } from '../services/auth.js';
 import { isDemoMode } from '../config/demoMode.js';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 import { formatMedicalDataForDisplay } from '../utils/medicalDataUtils.js';
+import { groupContactInfo } from '../utils/contactGroups.js';
 
 function AttendanceView({ events, members, onBack }) {
   // VISIBLE TEST: Add timestamp to DOM to prove component is mounting
@@ -139,50 +140,7 @@ function AttendanceView({ events, members, onBack }) {
   };
 
   // Helper function to group contact information (reused from MemberDetailModal)
-  const groupContactInfo = (member) => {
-    const groups = {};
-
-    // Process flattened contact fields
-    Object.entries(member).forEach(([key, value]) => {
-      if (key.includes('__') && value) {
-        const [groupName, fieldName] = key.split('__');
-        if (!groups[groupName]) {
-          groups[groupName] = {};
-        }
-        groups[groupName][fieldName] = value;
-      }
-    });
-
-    // Add legacy fields to appropriate groups
-    if (member.email || member.phone) {
-      if (!groups.member_contact) {
-        groups.member_contact = {};
-      }
-      if (member.email) groups.member_contact.email = member.email;
-      if (member.phone) groups.member_contact.phone = member.phone;
-    }
-
-    // Also process nested contact_groups data if available
-    if (member.contact_groups) {
-      Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
-        if (groupData && typeof groupData === 'object') {
-          const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          if (!groups[normalizedGroupName]) {
-            groups[normalizedGroupName] = {};
-          }
-          // Merge nested data with flattened data (nested takes precedence)
-          Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-            if (fieldValue) {
-              const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-              groups[normalizedGroupName][normalizedFieldName] = fieldValue;
-            }
-          });
-        }
-      });
-    }
-
-    return groups;
-  };
+  // Use shared groupContactInfo utility
 
   // Extract comprehensive member data for attendance detailed view
   const getComprehensiveMemberData = (attendanceRecord) => {
@@ -614,11 +572,13 @@ function AttendanceView({ events, members, onBack }) {
       ];
 
       const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const idMap = new Map((members || []).map(m => [parseInt(m.scoutid, 10), m]));
       const csvRows = [
         headers.map(csv).join(','),
         ...filteredAttendanceData.map((record) => {
           const memberData = getComprehensiveMemberData(record);
           const vikingData = getVikingEventDataForMember(record.scoutid, record);
+          const cachedMember = idMap.get(parseInt(record.scoutid, 10));
 
           const pc1 = memberData.primary_contacts[0] || {};
           const pc2 = memberData.primary_contacts[1] || {};
@@ -631,9 +591,9 @@ function AttendanceView({ events, members, onBack }) {
             csv(record.attending),
             csv(memberData.patrol),
             csv(memberData.age),
-            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.date_of_birth || ''),
-            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.address || ''),
-            csv(members?.find(m => m.scoutid === parseInt(record.scoutid))?.postcode || ''),
+            csv(cachedMember?.date_of_birth || ''),
+            csv(cachedMember?.address || ''),
+            csv(cachedMember?.postcode || ''),
             csv(pc1.name || ''),
             csv(pc1.phone || ''),
             csv(pc1.email || ''),
@@ -1976,7 +1936,7 @@ function AttendanceView({ events, members, onBack }) {
                         
                         {/* Medical Info Cells */}
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32">
+                          <div className="max-w-[8rem]">
                             <MedicalDataPill 
                               value={memberData.allergies} 
                               fieldName="allergies"
@@ -1985,7 +1945,7 @@ function AttendanceView({ events, members, onBack }) {
                           </div>
                         </td>
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32">
+                          <div className="max-w-[8rem]">
                             <MedicalDataPill 
                               value={memberData.medical_details} 
                               fieldName="medical_details"
@@ -1994,7 +1954,7 @@ function AttendanceView({ events, members, onBack }) {
                           </div>
                         </td>
                         <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                          <div className="max-w-32">
+                          <div className="max-w-[8rem]">
                             <MedicalDataPill 
                               value={memberData.dietary_requirements} 
                               fieldName="dietary_requirements"

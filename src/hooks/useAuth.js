@@ -304,6 +304,7 @@ export function useAuth() {
         setUser(userInfo);
         setIsOfflineMode(true);
         
+        
         // Note: Toast will be shown in App.jsx after loading completes
         
         // Log offline mode
@@ -453,52 +454,59 @@ export function useAuth() {
     };
   }, []);
 
+  // Helper function to check cached data and show expiration dialog
+  const checkAndShowExpirationDialog = useCallback(async () => {
+    const hasStoredToken = !!sessionStorage.getItem('access_token');
+    const tokenExpired = isTokenExpired();
+    const hasStoredChoice = localStorage.getItem('token_expiration_choice');
+    
+    if (hasStoredToken && tokenExpired && !showTokenExpiredDialog && !hasHandledExpiredToken && !hasStoredChoice) {
+      logger.info('Token expired - showing user choice dialog', {}, LOG_CATEGORIES.AUTH);
+      
+      // Check if we have cached data for user choice
+      try {
+        const cachedSections = await databaseService.getSections();
+        const hasCached = cachedSections && cachedSections.length > 0;
+        setHasCachedData(hasCached);
+        
+        // Show the user choice dialog instead of automatically switching to offline
+        setShowTokenExpiredDialog(true);
+        
+        logger.info('Token expired - awaiting user choice', { 
+          hasCachedData: hasCached, 
+        }, LOG_CATEGORIES.AUTH);
+      } catch (error) {
+        logger.warn('Could not check cached data after token expiration', { 
+          error: error.message, 
+        }, LOG_CATEGORIES.ERROR);
+        // Still show dialog even if cached check fails
+        setShowTokenExpiredDialog(true);
+      }
+    }
+  }, [showTokenExpiredDialog, hasHandledExpiredToken]);
+
+  // Check for immediate token expiration on auth state changes
+  useEffect(() => {
+    if (authState === 'token_expired') {
+      checkAndShowExpirationDialog();
+    }
+  }, [authState, checkAndShowExpirationDialog]);
+
   // Periodic token expiration monitoring
   useEffect(() => {
     if (!sessionStorage.getItem('access_token')) {
       return; // No token to monitor
     }
 
-    // Check token expiration every minute
+    // Check token expiration every minute (as safety net)
     const intervalId = setInterval(async () => {
-      const tokenExpired = isTokenExpired();
-      const hasStoredToken = !!sessionStorage.getItem('access_token');
-      
-      // Check if user has already made a choice for this expired token
-      const hasStoredChoice = localStorage.getItem('token_expiration_choice');
-      
-      // If token exists and is expired, show dialog only if user hasn't handled it yet
-      if (hasStoredToken && tokenExpired && !showTokenExpiredDialog && !hasHandledExpiredToken && !hasStoredChoice) {
-        logger.info('Token expired - showing user choice dialog', {}, LOG_CATEGORIES.AUTH);
-        
-        // Check if we have cached data for user choice
-        try {
-          const cachedSections = await databaseService.getSections();
-          const hasCached = cachedSections && cachedSections.length > 0;
-          setHasCachedData(hasCached);
-          
-          // Show the user choice dialog instead of automatically switching to offline
-          setShowTokenExpiredDialog(true);
-          
-          logger.info('Token expired - awaiting user choice', { 
-            hasCachedData: hasCached, 
-          }, LOG_CATEGORIES.AUTH);
-        } catch (error) {
-          logger.warn('Could not check cached data after token expiration', { 
-            error: error.message, 
-          }, LOG_CATEGORIES.ERROR);
-          
-          // If we can't check cached data, assume no data and show dialog anyway
-          setHasCachedData(false);
-          setShowTokenExpiredDialog(true);
-        }
-      }
+      await checkAndShowExpirationDialog();
     }, TOKEN_CONFIG.CHECK_INTERVAL_MS);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [authState, determineAuthState, showTokenExpiredDialog, hasHandledExpiredToken]);
+  }, [authState, showTokenExpiredDialog, hasHandledExpiredToken, checkAndShowExpirationDialog]);
 
   // Handler for when user chooses to re-login after token expiration
   const handleReLogin = useCallback(async () => {

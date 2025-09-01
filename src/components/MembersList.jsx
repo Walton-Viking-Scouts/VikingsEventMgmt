@@ -14,6 +14,7 @@ import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import ComprehensiveMemberTable from './ComprehensiveMemberTable.jsx';
 import { getMedicalFieldsFromMember } from '../utils/medicalDataUtils.js';
+import { groupContactInfo } from '../utils/contactGroups.js';
 
 function MembersList({
   sections,
@@ -171,19 +172,7 @@ function MembersList({
 
           const medicalFields = getMedicalFieldsFromMember(member);
 
-          const groupContactInfo = (member) => {
-            const groups = {};
-            Object.entries(member).forEach(([key, value]) => {
-              if (key.includes('__') && value) {
-                const [groupName, fieldName] = key.split('__');
-                if (!groups[groupName]) {
-                  groups[groupName] = {};
-                }
-                groups[groupName][fieldName] = value;
-              }
-            });
-            return groups;
-          };
+          // Use shared groupContactInfo utility
 
           const contactGroups = groupContactInfo(member);
           const getField = (groupNames, fieldNames) => {

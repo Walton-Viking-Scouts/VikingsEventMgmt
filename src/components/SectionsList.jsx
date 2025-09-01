@@ -6,6 +6,7 @@ import MemberDetailModal from './MemberDetailModal.jsx';
 import LoadingScreen from './LoadingScreen.jsx';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 import { formatMedicalDataForDisplay } from '../utils/medicalDataUtils.js';
+import { groupContactInfo } from '../utils/contactGroups.js';
 import { useNotification } from '../contexts/notifications/NotificationContext';
 
 function SectionsList({
@@ -35,45 +36,8 @@ function SectionsList({
     );
   }
 
-  const isSectionSelected = (sectionId) => {
-    return selectedSections.some((s) => s.sectionid === sectionId);
-  };
 
-  const getSectionOrder = (sectionType) => {
-    const type = sectionType.toLowerCase();
-    if (type.includes('earlyyears')) return 1;
-    if (type.includes('beavers')) return 2;
-    if (type.includes('cubs')) return 3;
-    if (type.includes('scouts')) return 4;
-    if (type.includes('adults')) return 5;
-    if (type.includes('waitinglist')) return 6;
-    return 7; // Unknown sections at the end
-  };
 
-  const getDayOrder = (sectionName) => {
-    const name = sectionName.toLowerCase();
-    if (name.includes('monday')) return 1;
-    if (name.includes('tuesday')) return 2;
-    if (name.includes('wednesday')) return 3;
-    if (name.includes('thursday')) return 4;
-    if (name.includes('friday')) return 5;
-    if (name.includes('saturday')) return 6;
-    if (name.includes('sunday')) return 7;
-    return 8; // No day mentioned - put at end
-  };
-
-  const sortedSections = [...sections].sort((a, b) => {
-    const sectionOrderA = getSectionOrder(a.section);
-    const sectionOrderB = getSectionOrder(b.section);
-
-    // First sort by section type
-    if (sectionOrderA !== sectionOrderB) {
-      return sectionOrderA - sectionOrderB;
-    }
-
-    // Then sort by day of the week within same section type
-    return getDayOrder(a.sectionname) - getDayOrder(b.sectionname);
-  });
 
   return (
     <Card data-oid="2c.s3hh">
@@ -135,51 +99,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     loadMembers();
   }, [sections]);
 
-  // Helper function to group contact information (same as AttendanceView)
-  const groupContactInfo = (member) => {
-    const groups = {};
-
-    // Process flattened contact fields
-    Object.entries(member).forEach(([key, value]) => {
-      if (key.includes('__') && value) {
-        const [groupName, fieldName] = key.split('__');
-        if (!groups[groupName]) {
-          groups[groupName] = {};
-        }
-        groups[groupName][fieldName] = value;
-      }
-    });
-
-    // Add legacy fields to appropriate groups
-    if (member.email || member.phone) {
-      if (!groups.member_contact) {
-        groups.member_contact = {};
-      }
-      if (member.email) groups.member_contact.email = member.email;
-      if (member.phone) groups.member_contact.phone = member.phone;
-    }
-
-    // Also process nested contact_groups data if available
-    if (member.contact_groups) {
-      Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
-        if (groupData && typeof groupData === 'object') {
-          const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          if (!groups[normalizedGroupName]) {
-            groups[normalizedGroupName] = {};
-          }
-          // Merge nested data with flattened data (nested takes precedence)
-          Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-            if (fieldValue) {
-              const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-              groups[normalizedGroupName][normalizedFieldName] = fieldValue;
-            }
-          });
-        }
-      });
-    }
-
-    return groups;
-  };
+  // Use shared groupContactInfo utility
 
   // Extract comprehensive member data (same as AttendanceView)
   const getComprehensiveMemberData = (member) => {
@@ -399,26 +319,54 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                 Sections:
             </label>
             <div className="flex flex-wrap gap-2">
-              {allSections && allSections.map((section) => {
-                const isSelected = sections.some(s => s.sectionid === section.sectionid);
-                const isLoading = loadingSection === section.sectionid;
+              {allSections && allSections
+                .slice()
+                .sort((a, b) => {
+                  const getSectionOrder = (sectionType) => {
+                    const type = sectionType.toLowerCase();
+                    if (type.includes('earlyyears')) return 1;
+                    if (type.includes('beavers')) return 2;
+                    if (type.includes('cubs')) return 3;
+                    if (type.includes('scouts')) return 4;
+                    if (type.includes('adults')) return 5;
+                    if (type.includes('waitinglist')) return 6;
+                    return 7;
+                  };
+                  const getDayOrder = (sectionName) => {
+                    const name = sectionName.toLowerCase();
+                    if (name.includes('monday')) return 1;
+                    if (name.includes('tuesday')) return 2;
+                    if (name.includes('wednesday')) return 3;
+                    if (name.includes('thursday')) return 4;
+                    if (name.includes('friday')) return 5;
+                    if (name.includes('saturday')) return 6;
+                    if (name.includes('sunday')) return 7;
+                    return 8;
+                  };
+                  const ao = getSectionOrder(a.section);
+                  const bo = getSectionOrder(b.section);
+                  return ao !== bo ? ao - bo : getDayOrder(a.sectionname) - getDayOrder(b.sectionname);
+                })
+                .map((section) => {
+                  const isSelected = sections.some(s => s.sectionid === section.sectionid);
+                  const isLoading = loadingSection === section.sectionid;
                   
-                return (
-                  <button
-                    key={section.sectionid}
-                    onClick={() => onSectionToggle(section)}
-                    disabled={isLoading}
-                    className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
-                      isSelected
-                        ? 'bg-scout-blue text-white border-scout-blue'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                    type="button"
-                  >
-                    {isLoading ? '...' : section.sectionname}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={section.sectionid}
+                      onClick={() => onSectionToggle(section)}
+                      disabled={isLoading}
+                      className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-scout-blue text-white border-scout-blue'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                      type="button"
+                    >
+                      {isLoading ? '...' : section.sectionname}
+                    </button>
+                  );
+                })}
             </div>
           </div>
           <div className="flex-1">
@@ -449,248 +397,248 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {/* Basic Info Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
+            <thead className="bg-gray-50">
+              <tr>
+                {/* Basic Info Headers */}
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
                 Member
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Section
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Patrol
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Age
-              </th>
+                </th>
               
-              {/* Contact Info Headers - conditionally shown */}
-              {dataFilters.contacts && (
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
+                {/* Contact Info Headers - conditionally shown */}
+                {dataFilters.contacts && (
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
                   Primary Contacts
-                </th>
-              )}
+                  </th>
+                )}
               
-              {/* Emergency Contact Headers - conditionally shown */}
-              {dataFilters.contacts && (
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
+                {/* Emergency Contact Headers - conditionally shown */}
+                {dataFilters.contacts && (
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-red-50">
                   Emergency Contacts
-                </th>
-              )}
+                  </th>
+                )}
               
-              {/* Medical Info Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                {/* Medical Info Headers */}
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
                 Allergies
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
                 Medical
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
                 Dietary
-              </th>
+                </th>
               
-              {/* Consent Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                {/* Consent Headers */}
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                 Photos
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                 Sensitive Info
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                 Paracetamol
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                 Ibuprofen
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
                 Suncream
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {members.map((member, index) => {
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {members.map((member, index) => {
               // Get comprehensive member data
-              const memberData = getComprehensiveMemberData(member);
+                const memberData = getComprehensiveMemberData(member);
 
-              return (
-                <tr key={member.scoutid || index} className="hover:bg-gray-50 text-xs">
-                  {/* Basic Info Cells */}
-                  <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
-                    <button
-                      onClick={() => handleMemberClick(member)}
-                      className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
-                    >
-                      {memberData.name}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                    {memberData.section}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                    {memberData.patrol}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                    {memberData.age}
-                  </td>
-                  
-                  {/* Contact Info Cells - conditionally shown */}
-                  {dataFilters.contacts && (
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
-                      {memberData.primary_contacts.length > 0 ? (
-                        <div className="space-y-1">
-                          {memberData.primary_contacts.map((contact, index) => (
-                            <div key={index} className="text-xs">
-                              <div className="font-medium">{contact.label}: {contact.name}</div>
-                              {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
-                              {contact.email && <div className="text-gray-600">📧 {contact.email}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">None</span>
-                      )}
+                return (
+                  <tr key={member.scoutid || index} className="hover:bg-gray-50 text-xs">
+                    {/* Basic Info Cells */}
+                    <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
+                      <button
+                        onClick={() => handleMemberClick(member)}
+                        className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left"
+                      >
+                        {memberData.name}
+                      </button>
                     </td>
-                  )}
-                  
-                  {/* Emergency Contact Cells - conditionally shown */}
-                  {dataFilters.contacts && (
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
-                      {memberData.emergency_contacts.length > 0 ? (
-                        <div className="space-y-1">
-                          {memberData.emergency_contacts.map((contact, index) => (
-                            <div key={index} className="text-xs">
-                              <div className="font-medium">{contact.name}</div>
-                              {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">None</span>
-                      )}
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                      {memberData.section}
                     </td>
-                  )}
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                      {memberData.patrol}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
+                      {memberData.age}
+                    </td>
                   
-                  {/* Medical Info Cells - Three separate columns */}
-                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words">
-                      <MedicalDataPill 
-                        value={memberData.allergies} 
-                        fieldName="allergies"
-                        className="text-xs"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words">
-                      <MedicalDataPill 
-                        value={memberData.medical_details} 
-                        fieldName="medical_details"
-                        className="text-xs"
-                      />
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
-                    <div className="max-w-32 break-words">
-                      <MedicalDataPill 
-                        value={memberData.dietary_requirements} 
-                        fieldName="dietary_requirements"
-                        className="text-xs"
-                      />
-                    </div>
-                  </td>
+                    {/* Contact Info Cells - conditionally shown */}
+                    {dataFilters.contacts && (
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-blue-25">
+                        {memberData.primary_contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {memberData.primary_contacts.map((contact, index) => (
+                              <div key={index} className="text-xs">
+                                <div className="font-medium">{contact.label}: {contact.name}</div>
+                                {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
+                                {contact.email && <div className="text-gray-600">📧 {contact.email}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">None</span>
+                        )}
+                      </td>
+                    )}
                   
-                  {/* Consent Cells */}
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_photos === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                    {/* Emergency Contact Cells - conditionally shown */}
+                    {dataFilters.contacts && (
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900 bg-red-25">
+                        {memberData.emergency_contacts.length > 0 ? (
+                          <div className="space-y-1">
+                            {memberData.emergency_contacts.map((contact, index) => (
+                              <div key={index} className="text-xs">
+                                <div className="font-medium">{contact.name}</div>
+                                {contact.phone && <div className="text-gray-600">📞 {contact.phone}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">None</span>
+                        )}
+                      </td>
+                    )}
+                  
+                    {/* Medical Info Cells - Three separate columns */}
+                    <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                      <div className="max-w-[8rem] break-words">
+                        <MedicalDataPill 
+                          value={memberData.allergies} 
+                          fieldName="allergies"
+                          className="text-xs"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                      <div className="max-w-[8rem] break-words">
+                        <MedicalDataPill 
+                          value={memberData.medical_details} 
+                          fieldName="medical_details"
+                          className="text-xs"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                      <div className="max-w-[8rem] break-words">
+                        <MedicalDataPill 
+                          value={memberData.dietary_requirements} 
+                          fieldName="dietary_requirements"
+                          className="text-xs"
+                        />
+                      </div>
+                    </td>
+                  
+                    {/* Consent Cells */}
+                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                      {
+                        memberData.consent_photos === 'No' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
                           No
-                        </span>
-                      ) : memberData.consent_photos === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
+                          </span>
+                        ) : memberData.consent_photos === 'Yes' ? (
+                          <span className="text-xs text-gray-700">
                           Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
                           ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_sensitive === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          </span>
+                        )
+                      }
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                      {
+                        memberData.consent_sensitive === 'No' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
                           No
-                        </span>
-                      ) : memberData.consent_sensitive === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
+                          </span>
+                        ) : memberData.consent_sensitive === 'Yes' ? (
+                          <span className="text-xs text-gray-700">
                           Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
                           ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_paracetamol === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          </span>
+                        )
+                      }
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                      {
+                        memberData.consent_paracetamol === 'No' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
                           No
-                        </span>
-                      ) : memberData.consent_paracetamol === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
+                          </span>
+                        ) : memberData.consent_paracetamol === 'Yes' ? (
+                          <span className="text-xs text-gray-700">
                           Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
                           ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_ibuprofen === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          </span>
+                        )
+                      }
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                      {
+                        memberData.consent_ibuprofen === 'No' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
                           No
-                        </span>
-                      ) : memberData.consent_ibuprofen === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
+                          </span>
+                        ) : memberData.consent_ibuprofen === 'Yes' ? (
+                          <span className="text-xs text-gray-700">
                           Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
                           ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_suncream === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                          </span>
+                        )
+                      }
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                      {
+                        memberData.consent_suncream === 'No' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
                           No
-                        </span>
-                      ) : memberData.consent_suncream === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
+                          </span>
+                        ) : memberData.consent_suncream === 'Yes' ? (
+                          <span className="text-xs text-gray-700">
                           Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
                           ---
-                        </span>
-                      )
-                    }
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                          </span>
+                        )
+                      }
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
       

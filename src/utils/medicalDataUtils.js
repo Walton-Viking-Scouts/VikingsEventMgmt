@@ -45,7 +45,8 @@ export const MEDICAL_DATA_INDICATORS = {
 };
 
 const NONE_VARIATIONS = [
-  'none', 'n/a', 'na', 'nil', 'no', 'nothing', 'not applicable',
+  'none', 'nil', 'nothing',
+  // Keep phrases for documentation parity; detection handled by regexes
   'not required', 'no allergies', 'no medical issues', 'no dietary requirements',
 ];
 
@@ -104,10 +105,17 @@ export function formatMedicalDataForDisplay(value, fieldName = '') {
 
   // HAS_DATA - show actual value
   return {
-    display: value || '',
-    value: value || '',
+    // Join arrays; coerce other types; trim for cleanliness
+    display: Array.isArray(value)
+      ? value.filter(Boolean).join('; ')
+      : (value ?? '').toString().trim(),
+    value: Array.isArray(value)
+      ? value.filter(Boolean).join('; ')
+      : (value ?? '').toString().trim(),
     indicator,
-    csvValue: value || '',
+    csvValue: Array.isArray(value)
+      ? value.filter(Boolean).join(', ')
+      : (value ?? '').toString().trim(),
   };
 }
 

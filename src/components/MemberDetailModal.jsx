@@ -3,6 +3,7 @@ import { Button, Badge, Card } from './ui';
 import { isMobileLayout } from '../utils/platform.js';
 import { groupContactInfo } from '../utils/contactGroups.js';
 import { MedicalDataField, MedicalDataSummary } from './MedicalDataDisplay.jsx';
+import { getMedicalFieldsFromMember } from '../utils/medicalDataUtils.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -569,21 +570,28 @@ function MemberDetailModal({ member, isOpen, onClose }) {
               </Card.Header>
               <Card.Body data-oid="nw510kb">
                 <div className="space-y-4">
-                  <MedicalDataField 
-                    label="Allergies"
-                    value={member.allergies || member.essential_information?.allergies || member.essential_information__allergies || ''}
-                    fieldName="allergies"
-                  />
-                  <MedicalDataField 
-                    label="Medical Details"
-                    value={member.medical_details || member.essential_information?.medical_details || member.essential_information__medical_details || member.medical_notes || ''}
-                    fieldName="medical_details"
-                  />
-                  <MedicalDataField 
-                    label="Dietary Requirements"
-                    value={member.dietary_requirements || member.essential_information?.dietary_requirements || member.essential_information__dietary_requirements || ''}
-                    fieldName="dietary_requirements"
-                  />
+                  {(() => {
+                    const med = getMedicalFieldsFromMember(member);
+                    return (
+                      <>
+                        <MedicalDataField 
+                          label="Allergies"
+                          value={med.allergies.value}
+                          fieldName="allergies"
+                        />
+                        <MedicalDataField 
+                          label="Medical Details"
+                          value={med.medical_details.value}
+                          fieldName="medical_details"
+                        />
+                        <MedicalDataField 
+                          label="Dietary Requirements"
+                          value={med.dietary_requirements.value}
+                          fieldName="dietary_requirements"
+                        />
+                      </>
+                    );
+                  })()}
                 </div>
               </Card.Body>
             </Card>

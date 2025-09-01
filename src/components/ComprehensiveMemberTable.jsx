@@ -669,15 +669,23 @@ function ComprehensiveMemberTable({
                           <td key={consentField} className="p-2 whitespace-nowrap text-center bg-emerald-25">
                             {
                               normalized === 'No' ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                <span
+                                  className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white"
+                                  aria-label="Consent: No"
+                                  title="Consent: No"
+                                >
                                   No
                                 </span>
                               ) : normalized === 'Yes' ? (
-                                <span className="text-xs text-gray-700">
+                                <span className="text-xs text-gray-700" aria-label="Consent: Yes" title="Consent: Yes">
                                   Yes
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                <span
+                                  className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900"
+                                  aria-label="Consent: Missing or not set"
+                                  title="Consent: Missing or not set"
+                                >
                                   ---
                                 </span>
                               )
