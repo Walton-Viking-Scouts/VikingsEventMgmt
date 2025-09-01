@@ -24,7 +24,7 @@ const STALENESS_COLOURS = {
  * Displays contextual information about when data was last synced
  * with appropriate visual indicators for data staleness urgency
  */
-function DataFreshness({ lastSync, authState, className = '' }) {
+function DataFreshness({ lastSync, authState, className = '', compact = false }) {
   const getDataAge = (timestamp) => {
     const syncTimeMs = parseTimestamp(timestamp);
     if (!syncTimeMs) return null;
@@ -113,7 +113,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
 
   return (
     <div
-      className={`data-freshness text-sm ${info.className} ${className}`}
+      className={`data-freshness ${compact ? 'text-xs' : 'text-sm'} ${info.className} ${className}`}
       data-oid="q3i0cxc"
     >
       <span
@@ -121,7 +121,7 @@ function DataFreshness({ lastSync, authState, className = '' }) {
         title={info.text}
         data-oid="p7xyb7w"
       >
-        {info.text}
+        {compact ? info.text.replace('Last synced: ', 'Synced: ').replace('Cached data from ', 'Cached: ') : info.text}
       </span>
     </div>
   );

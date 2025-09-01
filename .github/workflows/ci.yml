@@ -439,18 +439,133 @@ jobs:
 
           # Create tags and releases only for production deployments
           if [ "$DEPLOYMENT_TYPE" = "production" ]; then
-            # Check if tag already exists before creating (idempotent)
-            if git rev-parse --verify "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; then
-              echo "🏷️ Tag v${NEW_VERSION} already exists, skipping tag creation"
-              TAG_CREATED="false"
-            else
-              # Create and push git tag for Sentry tracking
-              echo "🏷️ Creating new tag v${NEW_VERSION}"
-              git tag "v${NEW_VERSION}"
-              git push origin "v${NEW_VERSION}"
-              TAG_CREATED="true"
-              echo "✅ Git tag v${NEW_VERSION} created and pushed"
+            # Check if tag already exists and retry with incremented version if needed (with remote awareness)
+            FINAL_VERSION="$NEW_VERSION"
+            RETRY_COUNT=0
+            MAX_RETRIES=10
+            # Ensure we see the latest remote tags before starting
+            git fetch --tags --force >/dev/null 2>&1 || true
+            while git rev-parse --verify "refs/tags/v${FINAL_VERSION}" >/dev/null 2>&1; do
+              echo "🏷️ Tag v${FINAL_VERSION} already exists, calculating next available version..."
+              
+              # For explicit versions, do not auto-increment - fail immediately
+              if [ "$VERSION_TYPE" = "explicit" ]; then
+                echo "❌ Explicit version v${FINAL_VERSION} already exists and cannot be auto-incremented"
+                echo "   Either use a different explicit version or remove the explicit version to enable auto-increment"
+                exit 1
+              fi
+              
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
+                echo "❌ Max retries ($MAX_RETRIES) reached, unable to find available version"
+                exit 1
+              fi
+              # Re-fetch actual latest tag from remote and increment appropriately
+              git fetch --tags --force >/dev/null 2>&1 || true
+              ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+              ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
+              echo "🔍 Actual latest tag found: $ACTUAL_LATEST (base: $ACTUAL_BASE)"
+              # Parse and increment based on original VERSION_TYPE
+              ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+              IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
+              if [ "$VERSION_TYPE" = "major" ]; then
+                NEXT_A_MAJOR=$((A_MAJOR + 1))
+                FINAL_VERSION="${NEXT_A_MAJOR}.0.0"
+              elif [ "$VERSION_TYPE" = "minor" ]; then
+                NEXT_A_MINOR=$((A_MINOR + 1))
+                FINAL_VERSION="${A_MAJOR}.${NEXT_A_MINOR}.0"
+              else
+                # patch bump (default)
+                NEXT_A_PATCH=$((A_PATCH + 1))
+                FINAL_VERSION="${A_MAJOR}.${A_MINOR}.${NEXT_A_PATCH}"
+              fi
+              echo "🔄 Retry $RETRY_COUNT: Trying version v${FINAL_VERSION}"
+            done
+            # Create and push git tag for Sentry tracking (with bounded retry loop)
+            echo "🏷️ Creating new tag v${FINAL_VERSION}"
+            TAG_CREATED="false"
+            PUSH_RETRY_COUNT=0
+            MAX_PUSH_RETRIES=5
+            
+            while [ "$PUSH_RETRY_COUNT" -lt "$MAX_PUSH_RETRIES" ]; do
+              git tag "v${FINAL_VERSION}" || true
+              if git push origin "v${FINAL_VERSION}"; then
+                echo "✅ Successfully pushed tag v${FINAL_VERSION}"
+                TAG_CREATED="true"
+                break
+              else
+                echo "⚠️ Push failed (attempt $((PUSH_RETRY_COUNT + 1))/$MAX_PUSH_RETRIES). Checking remote..."
+                git fetch --tags --force >/dev/null 2>&1 || true
+                
+                # Check if remote already has this tag and whether it matches this commit
+                if git ls-remote --tags origin "v${FINAL_VERSION}" | grep -q "v${FINAL_VERSION}"; then
+                  REMOTE_SHA="$(git ls-remote --tags origin "v${FINAL_VERSION}" | awk '{print $1}' | head -n1)"
+                  LOCAL_SHA="$(git rev-parse HEAD)"
+                  if [ "$REMOTE_SHA" = "$LOCAL_SHA" ]; then
+                    echo "✅ Tag v${FINAL_VERSION} already exists on remote and points to this commit ($LOCAL_SHA)"
+                    TAG_CREATED="true"
+                    # Clean up local tag since remote has it
+                    git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
+                    break
+                  fi
+                  if [ "$VERSION_TYPE" = "explicit" ]; then
+                    echo "❌ Explicit version v${FINAL_VERSION} already exists on a different commit ($REMOTE_SHA). Refusing to reuse."
+                    exit 1
+                  fi
+                  echo "♻️ Remote has v${FINAL_VERSION} but at $REMOTE_SHA (this commit: $LOCAL_SHA). Recomputing next version..."
+                  # Clean up local tag before recomputing
+                  git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
+                  # Recompute FINAL_VERSION from latest remote and retry
+                  git fetch --tags --force >/dev/null 2>&1 || true
+                  ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+                  ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
+                  ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+                  IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
+                  if [ "$VERSION_TYPE" = "major" ]; then
+                    FINAL_VERSION="$((A_MAJOR + 1)).0.0"
+                  elif [ "$VERSION_TYPE" = "minor" ]; then
+                    FINAL_VERSION="${A_MAJOR}.$((A_MINOR + 1)).0"
+                  else
+                    FINAL_VERSION="${A_MAJOR}.${A_MINOR}.$((A_PATCH + 1))"
+                  fi
+                  PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
+                  echo "🔄 Push retry $PUSH_RETRY_COUNT: Recomputed version v${FINAL_VERSION}"
+                  continue
+                fi
+                
+                # Clean up failed local tag
+                git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
+                
+                # Recompute FINAL_VERSION based on latest remote tags
+                ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+                ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
+                ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+                IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
+                
+                if [ "$VERSION_TYPE" = "major" ]; then
+                  NEXT_A_MAJOR=$((A_MAJOR + 1))
+                  FINAL_VERSION="${NEXT_A_MAJOR}.0.0"
+                elif [ "$VERSION_TYPE" = "minor" ]; then
+                  NEXT_A_MINOR=$((A_MINOR + 1))
+                  FINAL_VERSION="${A_MAJOR}.${NEXT_A_MINOR}.0"
+                else
+                  NEXT_A_PATCH=$((A_PATCH + 1))
+                  FINAL_VERSION="${A_MAJOR}.${A_MINOR}.${NEXT_A_PATCH}"
+                fi
+                
+                PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
+                echo "🔄 Push retry $PUSH_RETRY_COUNT: Recomputed version v${FINAL_VERSION}"
+              fi
+            done
+            
+            if [ "$TAG_CREATED" != "true" ]; then
+              echo "❌ Failed to create tag after $MAX_PUSH_RETRIES push attempts"
+              exit 1
             fi
+            # Update NEW_VERSION for subsequent steps
+            NEW_VERSION="$FINAL_VERSION"
+            echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
+            echo "✅ Git tag v${NEW_VERSION} created and pushed"
 
             # Create GitHub releases based on version type (only if tag was created)
             if [ "$TAG_CREATED" = "true" ]; then

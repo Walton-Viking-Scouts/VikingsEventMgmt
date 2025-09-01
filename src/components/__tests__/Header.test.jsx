@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import Header from '../Header';
+import DesktopHeader from '../desktop/DesktopHeader';
 import { NotificationProvider } from '../../contexts/notifications/NotificationContext';
 
 describe('Header', () => {
   it('renders with default props', () => {
     render(
       <NotificationProvider>
-        <Header data-oid="tfynk:r" />
+        <DesktopHeader data-oid="tfynk:r" />
       </NotificationProvider>,
     );
     expect(screen.getByRole('banner')).toBeInTheDocument();
@@ -16,7 +16,7 @@ describe('Header', () => {
   it('displays hardcoded title', () => {
     render(
       <NotificationProvider>
-        <Header data-oid="om.zc45" />
+        <DesktopHeader data-oid="om.zc45" />
       </NotificationProvider>,
     );
     expect(

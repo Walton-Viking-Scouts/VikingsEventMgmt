@@ -878,6 +878,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               {/* Clean tab-style navigation */}
               <div
                 className="flex bg-gray-100 rounded-lg p-1"
+                role="tablist"
+                aria-label="Main navigation"
                 data-oid="1dr4vod"
               >
                 <button
@@ -887,6 +889,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  role="tab"
+                  aria-selected={currentView === 'events'}
+                  aria-controls="events-panel"
+                  aria-label="Switch to Events view"
                   data-oid="244:g6c"
                 >
                   📅 Events
@@ -898,6 +904,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  role="tab"
+                  aria-selected={currentView === 'sections'}
+                  aria-controls="sections-panel"
+                  aria-label="Switch to Sections view"
                   data-oid="l7nly.4"
                 >
                   👥 Sections
@@ -925,7 +935,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       >
         {/* Sections Card */}
         {currentView === 'sections' && (
-          <div className="mb-8" data-testid="sections-list" data-oid="883.3lx">
+          <div className="mb-8" id="sections-panel" data-testid="sections-list" data-oid="883.3lx">
             <SectionsList
               sections={sections}
               selectedSections={selectedSections}
@@ -939,7 +949,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
         {/* Events Card */}
         {currentView === 'events' && (
-          <Card data-oid="ve3fjt:">
+          <Card id="events-panel" data-oid="ve3fjt:">
             <div className="border-b px-4 py-3" data-oid="gycj.jl">
               <h2
                 className="text-base font-semibold leading-6 text-gray-900"
@@ -952,7 +962,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             <div className="p-4" data-oid="tw4z.r8">
               {eventCards.length > 0 ? (
                 <div
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 min-[830px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"
                   data-oid="0lg715h"
                 >
                   {eventCards.map((card) => (

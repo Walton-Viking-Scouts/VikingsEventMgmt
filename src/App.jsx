@@ -346,6 +346,11 @@ function AppContent() {
           onStayOffline={handleStayOffline}
           hasCachedData={hasCachedData}
         />
+        
+        {/* Version footer */}
+        <div className="fixed bottom-2 right-2 text-xs text-gray-400 pointer-events-none select-none">
+          v{import.meta.env.VITE_APP_VERSION}
+        </div>
 
       </div>
     </ErrorBoundary>

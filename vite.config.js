@@ -2,6 +2,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import packageJson from './package.json';
 
 // https://vite.dev/config/
@@ -56,7 +57,17 @@ export default defineConfig({
     })(),
   },
   define: {
-    // No need to define process.env since we're using import.meta.env
+    // Inject actual deployed version from git tags
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
+      try {
+        // Get version from git tags (matches CI deployment logic)
+        const gitVersion = execSync('git describe --tags --abbrev=0', { encoding: 'utf8', stdio: 'pipe' }).trim();
+        return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
+      } catch {
+        // Fallback to package.json if git command fails
+        return packageJson.version;
+      }
+    })()),
   },
   build: {
     outDir: 'dist',

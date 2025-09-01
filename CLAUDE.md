@@ -35,7 +35,7 @@ npm run lint && npm run test:run && npm run build
 # Create PR → CodeRabbit Review → Address Feedback → Merge
 # NOTE: No auto-deployment occurs after merge - production remains stable
 
-# 3. Post-Merge Release Process (AUTOMATIC)
+# 3. Post-Merge Release Process (REQUIRES MANUAL SYNC)
 git checkout main && git pull origin main  # Simply sync with merged changes
 # 🚀 GitHub Actions automatically handles the rest:
 # ✅ Auto-detects PR content and bumps version appropriately
@@ -46,6 +46,10 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 # ✅ Creates GitHub release with deployment status
 # ✅ All happens atomically - no manual intervention needed
 
+# 📦 IMPORTANT: Sync local version after PR merge
+# Use Claude Code command: /merged
+# Or run manually: npm version $(git describe --tags --abbrev=0 | sed 's/v//') --no-git-tag-version
+
 # 4. Monitor Deployment Success
 # - GitHub Actions shows real-time deployment status
 # - Sentry gets correct version with source maps immediately
@@ -54,8 +58,17 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 
 #### **Version Bump Rules:**
 - **Bug fixes** → Create release with **patch version** (v1.0.1)
-- **New features** → Create release with **minor version** (v1.1.0)
-- **Breaking changes** → Create release with **major version** (v2.0.0)
+- **New features** → Create release with **minor version** (v1.1.0) - **Requires "feature:" or "feat:" in PR title**
+- **Breaking changes** → Create release with **major version** (v2.0.0) - **Requires "BREAKING CHANGE" or "[major]" in PR title**
+
+#### **PR Title Conventions for Automatic Version Detection:**
+- `feat: add new dashboard widget` → **minor version bump**
+- `feature: redesign user interface` → **minor version bump**  
+- `fix: resolve authentication bug` → **patch version bump**
+- `BREAKING CHANGE: remove legacy API` → **major version bump**
+- `chore: update dependencies` → **patch version bump** (default)
+- `Add new feature [minor]` → **minor version bump** (explicit tag)
+- `Critical fix [patch]` → **patch version bump** (explicit tag)
 
 #### **Benefits of New Workflow:**
 - ✅ **Version Synchronization**: Package.json version always matches deployed code

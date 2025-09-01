@@ -33,28 +33,36 @@ function DesktopHeader({
         className="flex justify-between items-center max-w-7xl mx-auto"
         data-oid="pua2r8c"
       >
-        <div className="flex items-center" data-oid=".fyugfv">
+        <div className="flex flex-col" data-oid=".fyugfv">
           <h1 className="text-2xl font-bold text-scout-blue" data-oid="dfv63mf">
             Viking Scouts (1st Walton on Thames)
           </h1>
+          {user && (
+            <div className="flex flex-col mt-2 text-sm text-gray-600">
+              <span className="text-gray-700 font-medium">
+                Hi, {user.firstname}
+                {isOfflineMode && (
+                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white">
+                    Offline
+                  </span>
+                )}
+              </span>
+              <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                <DataFreshness
+                  lastSync={lastSyncTime}
+                  authState={authState}
+                  compact={true}
+                />
+                <TokenCountdown
+                  authState={authState}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-4" data-oid="36ufks8">
-          {/* Data freshness indicator */}
-          <DataFreshness
-            lastSync={lastSyncTime}
-            authState={authState}
-            className="mr-2"
-            data-oid="_omf1a8"
-          />
-
-          {/* Token countdown - shows remaining login time */}
-          <TokenCountdown
-            authState={authState}
-            className="mr-2"
-            data-oid="2:-9h_g"
-          />
-
           {/* Notification bell button */}
           <NotificationBellButton
             onClick={() => setNotificationCenterOpen(!notificationCenterOpen)}
@@ -68,35 +76,22 @@ function DesktopHeader({
             onLogin={onLogin}
             onRefresh={onRefresh}
             className="mr-2"
+            size="sm"
             data-testid="auth-button"
             data-oid="-wvy88p"
           />
 
           {user && (
-            <div className="flex items-center space-x-3" data-oid="tqy0vxe">
-              <span className="text-gray-700 font-medium" data-oid="dali1_d">
-                Hi, {user.firstname}
-                {isOfflineMode && (
-                  <span
-                    className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white"
-                    data-oid="9c4pjoy"
-                  >
-                    Offline
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-2" data-oid="wwr3y0d">
-                <Button
-                  variant="outline-scout-red"
-                  size="sm"
-                  onClick={handleLogout}
-                  type="button"
-                  data-oid="fhg::su"
-                >
-                  {isOfflineMode ? 'Clear Data' : 'Logout'}
-                </Button>
-              </div>
-            </div>
+            <Button
+              variant="outline-scout-red"
+              size="sm"
+              onClick={handleLogout}
+              type="button"
+              aria-label={isOfflineMode ? 'Clear cached data and logout' : 'Logout from application'}
+              data-oid="fhg::su"
+            >
+              {isOfflineMode ? 'Clear Data' : 'Logout'}
+            </Button>
           )}
         </div>
       </div>
