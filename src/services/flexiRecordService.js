@@ -506,6 +506,116 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
 }
 
 /**
+ * Get Viking Section Movers flexirecord for a section
+ * Looks for flexirecord with name="Viking Section Movers"
+ * 
+ * @param {string} sectionId - Section ID
+ * @param {string} termId - Term ID
+ * @param {string} token - Authentication token (null for offline)
+ * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
+ * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
+ */
+export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
+  try {
+    if (!sectionId || !termId) {
+      throw new Error('Missing required parameters: sectionId and termId are required');
+    }
+
+    // Getting Viking Section Movers data for section
+
+    // Get flexirecords list
+    const flexiRecordsList = await getFlexiRecordsList(sectionId, token);
+
+    // Find the Viking Section Movers flexirecord ID from the list
+    const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record => 
+      record.name === 'Viking Section Movers',
+    );
+
+    if (!vikingSectionMoversFlexiRecord) {
+      logger.warn('No "Viking Section Movers" flexirecord found for section', {
+        sectionId,
+        availableRecords: flexiRecordsList.items?.map(r => r.name || 'Unknown') || [],
+      }, LOG_CATEGORIES.APP);
+      
+      return null;
+    }
+
+    // Found "Viking Section Movers" flexirecord in list
+
+    // Get the consolidated data (structure + data) for the "Viking Section Movers" flexirecord
+    const vikingSectionMoversRecord = await getConsolidatedFlexiRecord(
+      sectionId, 
+      vikingSectionMoversFlexiRecord.extraid, 
+      termId, 
+      token,
+      forceRefresh, // Pass through forceRefresh parameter
+    );
+
+    // Found "Viking Section Movers" flexirecord
+
+    return vikingSectionMoversRecord;
+  } catch (error) {
+    logger.error('Error getting Viking Section Movers data for section', {
+      sectionId,
+      termId,
+      error: error.message,
+      stack: error.stack,
+    }, LOG_CATEGORIES.ERROR);
+
+    sentryUtils.captureException(error, {
+      tags: {
+        operation: 'get_viking_section_movers_data',
+      },
+      contexts: {
+        request: {
+          sectionId,
+          termId,
+          hasToken: !!token,
+        },
+      },
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Validate Viking Section Movers FlexiRecord structure
+ * Checks if required fields exist for section movement assignments
+ * 
+ * @param {Object} consolidatedData - Consolidated flexirecord data from getVikingSectionMoversData
+ * @returns {Object} Validation result with status and missing fields
+ */
+export function validateVikingSectionMoversFields(consolidatedData) {
+  const requiredFields = [
+    'Member ID',
+    'Target Section',
+    'Target Section Name', 
+    'Assignment Term',
+    'Assigned Date'
+  ];
+  
+  if (!consolidatedData || !consolidatedData._structure) {
+    return {
+      isValid: false,
+      missingFields: requiredFields,
+      error: 'FlexiRecord structure not found'
+    };
+  }
+  
+  const fieldMapping = consolidatedData._structure.fieldMapping || {};
+  const availableFields = Object.values(fieldMapping).map(field => field.name);
+  const missingFields = requiredFields.filter(field => !availableFields.includes(field));
+  
+  return {
+    isValid: missingFields.length === 0,
+    missingFields,
+    availableFields,
+    fieldMapping: fieldMapping
+  };
+}
+
+/**
  * Get Viking Event Management data for all sections involved in events
  * Each event contains its own termId, so we use section-term combinations from the events
  * 

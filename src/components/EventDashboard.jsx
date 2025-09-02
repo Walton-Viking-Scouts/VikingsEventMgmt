@@ -24,7 +24,7 @@ import {
   expandSharedEvents,
 } from '../utils/eventDashboardHelpers.js';
 
-function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
+function EventDashboard({ onNavigateToMembers, onNavigateToAttendance, onNavigateToSectionMovements }) {
   useAuth(); // Initialize auth hook
   const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
@@ -911,6 +911,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                   data-oid="l7nly.4"
                 >
                   👥 Sections
+                </button>
+                <button
+                  onClick={onNavigateToSectionMovements}
+                  className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900"
+                  aria-label="Navigate to Section Movers"
+                >
+                  🔄 Movers
                 </button>
               </div>
 

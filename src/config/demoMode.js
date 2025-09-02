@@ -582,6 +582,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Leaders'),
+      date_of_birth: getRandomBirthDate(section.section, 'Leaders'),
     });
   }
   
@@ -598,6 +599,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Young Leaders'),
+      date_of_birth: getRandomBirthDate(section.section, 'Young Leaders'),
     });
   }
   
@@ -614,6 +616,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Young People'),
+      date_of_birth: getRandomBirthDate(section.section, 'Young People'),
     });
   }
 

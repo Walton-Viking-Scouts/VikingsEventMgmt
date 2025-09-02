@@ -11,7 +11,8 @@ Steps:
 
 ```bash
 git checkout main && git pull origin main
-LATEST_TAG=$(git describe --tags --abbrev=0)
+git fetch --tags
+LATEST_TAG=$(git tag --sort=-version:refname | head -1)
 CLEAN_VERSION=${LATEST_TAG#v}
 npm version $CLEAN_VERSION --no-git-tag-version --allow-same-version
 echo "✅ Synced package.json to $LATEST_TAG"
