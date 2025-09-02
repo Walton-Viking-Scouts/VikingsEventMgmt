@@ -50,14 +50,9 @@ function SectionTypeGroup({
     ).length;
   };
 
-  const assignmentsForThisType = Array.from(assignments.values()).filter(assignment => {
-    const assignedSection = allSections.find(section => section.sectionId === assignment.sectionId);
-    if (!assignedSection) return false;
-    const assignedSectionType = mapSectionType(assignedSection.sectionType?.toLowerCase() || '');
-    const nameBasedTypeRaw = getSectionTypeFromName(assignedSection.sectionName);
-    const nameBasedType = mapSectionType(nameBasedTypeRaw);
-    return assignedSectionType === sectionType || nameBasedType === sectionType;
-  });
+  const assignmentsForThisType = incomingMovers.filter(mover => 
+    assignments.has(mover.memberId)
+  );
 
 
   return (
@@ -109,6 +104,7 @@ function SectionTypeGroup({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {group.sections.map(summary => {
             const sectionData = allSections.find(s => s.sectionId === summary.sectionId);
+            const incomingCount = sectionData?.incomingCount || 0;
             return (
               <SectionMovementCard
                 key={summary.sectionId}
@@ -116,7 +112,7 @@ function SectionTypeGroup({
                 currentCount={summary.currentMembers.length}
                 outgoingMovers={summary.outgoingMovers}
                 remainingCount={summary.remainingCount}
-                incomingCount={sectionData?.incomingCount || 0}
+                incomingCount={incomingCount}
               />
             );
           })}
