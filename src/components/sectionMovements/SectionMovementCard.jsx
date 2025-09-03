@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card } from '../ui';
 
 function SectionMovementCard({ 
@@ -57,4 +57,4 @@ function SectionMovementCard({
   );
 }
 
-export default SectionMovementCard;
+export default memo(SectionMovementCard);

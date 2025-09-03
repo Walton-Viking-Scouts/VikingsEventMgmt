@@ -2,7 +2,10 @@
 // Handles flexirecord data operations with caching following existing patterns
 
 function hasUsableToken(token) {
-  return typeof token === 'string' ? token.trim().length > 0 : !!token;
+  if (typeof token !== 'string') {
+    return false;
+  }
+  return token.trim().length > 0;
 }
 
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
@@ -95,6 +98,14 @@ function cacheData(cacheKey, data) {
  * @returns {Promise<Object>} Flexirecords list
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
+  if (!sectionId || typeof sectionId !== 'string') {
+    throw new Error('Valid sectionId (string) is required');
+  }
+  
+  if (typeof forceRefresh !== 'boolean') {
+    forceRefresh = false;
+  }
+  
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
@@ -174,6 +185,20 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @returns {Promise<Object>} FlexiRecord structure
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
+  if (!flexirecordId || typeof flexirecordId !== 'string') {
+    throw new Error('Valid flexirecordId (string) is required');
+  }
+  if (!sectionId || typeof sectionId !== 'string') {
+    throw new Error('Valid sectionId (string) is required');
+  }
+  if (!termId || typeof termId !== 'string') {
+    throw new Error('Valid termId (string) is required');
+  }
+  
+  if (typeof forceRefresh !== 'boolean') {
+    forceRefresh = false;
+  }
+  
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
@@ -261,6 +286,20 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
  * @returns {Promise<Object>} FlexiRecord attendance data
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
+  if (!flexirecordId || typeof flexirecordId !== 'string') {
+    throw new Error('Valid flexirecordId (string) is required');
+  }
+  if (!sectionId || typeof sectionId !== 'string') {
+    throw new Error('Valid sectionId (string) is required');
+  }
+  if (!termId || typeof termId !== 'string') {
+    throw new Error('Valid termId (string) is required');
+  }
+  
+  if (typeof forceRefresh !== 'boolean') {
+    forceRefresh = true;
+  }
+  
   try {
     // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
@@ -442,10 +481,18 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * @returns {Promise<Object|null>} Viking Event Mgmt flexirecord data or null if not found
  */
 export async function getVikingEventData(sectionId, termId, token, forceRefresh = false) {
+  if (!sectionId || typeof sectionId !== 'string') {
+    throw new Error('Valid sectionId (string) is required');
+  }
+  if (!termId || typeof termId !== 'string') {
+    throw new Error('Valid termId (string) is required');
+  }
+  
+  if (typeof forceRefresh !== 'boolean') {
+    forceRefresh = false;
+  }
+  
   try {
-    if (!sectionId || !termId) {
-      throw new Error('Missing required parameters: sectionId and termId are required');
-    }
 
     // Getting Viking Event data for section
 
@@ -516,10 +563,18 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
  * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
  */
 export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
+  if (!sectionId || typeof sectionId !== 'string') {
+    throw new Error('Valid sectionId (string) is required');
+  }
+  if (!termId || typeof termId !== 'string') {
+    throw new Error('Valid termId (string) is required');
+  }
+  
+  if (typeof forceRefresh !== 'boolean') {
+    forceRefresh = false;
+  }
+  
   try {
-    if (!sectionId || !termId) {
-      throw new Error('Missing required parameters: sectionId and termId are required');
-    }
 
     // Getting Viking Section Movers data for section
 

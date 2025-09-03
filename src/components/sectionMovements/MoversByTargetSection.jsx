@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../utils/sectionMovements/sectionGrouping.js';
 
@@ -11,10 +11,16 @@ function MoversByTargetSection({
   onTermOverrideChange,
 }) {
   const moversByTarget = useMemo(() => {
+    if (!Array.isArray(movers)) {
+      return new Map();
+    }
+    
     const grouped = new Map();
     
     movers.forEach(mover => {
-      const targetSectionType = mapSectionType(mover.targetSection?.toLowerCase());
+      if (!mover) return;
+      
+      const targetSectionType = mapSectionType(mover.targetSection?.toLowerCase() || '');
       
       if (!grouped.has(targetSectionType)) {
         grouped.set(targetSectionType, {
@@ -41,18 +47,23 @@ function MoversByTargetSection({
     return grouped;
   }, [movers, assignments]);
 
-  const getAvailableSectionsForType = (sectionType) => {
+  const getAvailableSectionsForType = useCallback((sectionType) => {
+    if (!Array.isArray(allSections)) {
+      return [];
+    }
     return allSections.filter(section => {
+      if (!section) return false;
       const sectionSectionType = mapSectionType(section.sectionType?.toLowerCase() || '');
       return sectionSectionType === sectionType;
     });
-  };
+  }, [allSections]);
 
-  const getIncomingCountForSection = (sectionId) => {
+  const getIncomingCountForSection = useCallback((sectionId) => {
+    if (!sectionId) return 0;
     return Array.from(assignments.values()).filter(
-      assignment => assignment.sectionId === sectionId,
+      assignment => assignment?.sectionId === sectionId,
     ).length;
-  };
+  }, [assignments]);
 
   const sortedSectionTypes = ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'];
   const orderedGroups = Array.from(moversByTarget.entries())
@@ -112,4 +123,4 @@ function MoversByTargetSection({
   );
 }
 
-export default MoversByTargetSection;
+export default memo(MoversByTargetSection);
