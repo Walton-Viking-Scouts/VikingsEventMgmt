@@ -648,7 +648,10 @@ function generateAttendanceForEvent(section, _eventId) {
       lastname: member.lastname,
       sectionid: section.sectionid,
       sectionname: section.sectionname,
-      patrolid: 12345 + (parseInt(member.scoutid.split('_')[2]) % 3),
+      patrolid: (() => {
+        const n = parseInt(String(member.scoutid).replace(/\D/g, ''), 10);
+        return 12345 + (Number.isNaN(n) ? 0 : (n % 3));
+      })(),
       _filterString: `${member.firstname.toLowerCase()} ${member.lastname.toLowerCase()}`,
     };
   });
