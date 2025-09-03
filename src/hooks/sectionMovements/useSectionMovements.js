@@ -68,21 +68,18 @@ export default function useSectionMovements() {
         
         if (cachedList) {
           const parsedList = JSON.parse(cachedList);
-          console.log(`🔍 Direct cache check for section ${sectionId}:`, parsedList?.items?.length || 0, 'FlexiRecords');
           
           // Find Viking Section Movers FlexiRecord
           const vikingMoversRecord = parsedList.items?.find(record => 
-            record.name === 'Viking Section Movers'
+            record.name === 'Viking Section Movers',
           );
           
           if (vikingMoversRecord) {
-            console.log(`✅ Found Viking Section Movers in direct cache for section ${sectionId}:`, vikingMoversRecord.extraid);
             
             // Try to load the actual FlexiRecord data
-            const dataKey = `viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_*`;
             const allKeys = Object.keys(localStorage);
             const matchingDataKeys = allKeys.filter(key => 
-              key.includes(`viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_`)
+              key.includes(`viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_`),
             );
             
             if (matchingDataKeys.length > 0) {
@@ -91,7 +88,6 @@ export default function useSectionMovements() {
               
               if (cachedData) {
                 const parsedData = JSON.parse(cachedData);
-                console.log(`📦 Found cached FlexiRecord data for section ${sectionId}:`, parsedData?.items?.length || 0, 'members');
                 
                 // Add members with consistent section information
                 const membersWithSection = (parsedData.items || []).map(member => ({
@@ -111,7 +107,6 @@ export default function useSectionMovements() {
       }
     }
     
-    console.log(`🎯 Direct cache loading complete: ${allMembersData.length} total members from cache`);
     return allMembersData;
   };
 

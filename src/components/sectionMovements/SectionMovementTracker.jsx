@@ -23,15 +23,6 @@ function SectionMovementTracker({ onBack }) {
     return futureTerms.map((term, termIndex) => {
       const calculations = calculateSectionMovements(availableMembers, term.startDate, sections, term);
       
-      console.log(`🔍 ${term.displayName} movers:`, {
-        totalMovers: calculations.movers.length,
-        movers: calculations.movers.map(m => ({ 
-          id: m.memberId, 
-          name: m.name, 
-          flexiTerm: m.flexiRecordTerm,
-          targetSection: m.targetSection, 
-        })),
-      });
       
       // Update cumulative counts for each section
       const updatedSectionSummaries = new Map();

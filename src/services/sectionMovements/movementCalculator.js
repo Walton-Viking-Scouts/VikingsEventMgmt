@@ -72,7 +72,7 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
       currentSection: sectionName,
     };
     
-    const birthdate = member.date_of_birth;
+    const birthdate = member.date_of_birth || member.dob;
     const ageAtTermStart = birthdate 
       ? getCachedAge(birthdate, termStartDate)
       : null;
@@ -102,9 +102,9 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     }
     
     const memberMovement = {
-      memberId: member.member_id,
-      name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member',
-      birthdate: member.date_of_birth,
+      memberId: member.member_id || member.scoutid,
+      name: `${member.first_name || member.firstname || ''} ${member.last_name || member.lastname || ''}`.trim() || 'Unknown Member',
+      birthdate: member.date_of_birth || member.dob,
       currentSection: sectionName,
       currentSectionId: sectionId || null,
       age: ageAtTermStart,

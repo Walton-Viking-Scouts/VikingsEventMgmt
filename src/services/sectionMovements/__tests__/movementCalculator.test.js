@@ -9,7 +9,7 @@ describe('calculateSectionMovements', () => {
       member_id: 1,
       first_name: 'Alice',
       last_name: 'Smith',
-      date_of_birth: '2015-10-01',
+      date_of_birth: '2015-10-01', // 8+ years old, moves from Beavers to Cubs
       section_id: 10,
       sectionname: 'Wednesday Beavers',
     },
@@ -17,7 +17,7 @@ describe('calculateSectionMovements', () => {
       member_id: 2,
       first_name: 'Bob',
       last_name: 'Jones',
-      date_of_birth: '2015-11-01',
+      date_of_birth: '2015-11-01', // 8+ years old, moves from Beavers to Cubs  
       section_id: 11,
       sectionname: 'Thursday Beavers',
     },
@@ -25,7 +25,7 @@ describe('calculateSectionMovements', () => {
       member_id: 3,
       first_name: 'Charlie',
       last_name: 'Brown',
-      date_of_birth: '2017-06-01',
+      date_of_birth: '2017-06-01', // 6-7 years old, stays in Beavers
       section_id: 10,
       sectionname: 'Wednesday Beavers',
     },
@@ -33,7 +33,7 @@ describe('calculateSectionMovements', () => {
       member_id: 4,
       first_name: 'Diana',
       last_name: 'Lee',
-      date_of_birth: '2010-01-01',
+      date_of_birth: '2013-01-01', // 10.5+ years old, moves from Cubs to Scouts
       section_id: 20,
       sectionname: 'Monday Cubs',
     },
@@ -62,9 +62,9 @@ describe('calculateSectionMovements', () => {
     
     const wedBeavers = result.sectionSummaries.get(10);
     expect(wedBeavers.sectionName).toBe('Wednesday Beavers');
-    expect(wedBeavers.currentMembers).toHaveLength(2);
-    expect(wedBeavers.outgoingMovers).toHaveLength(1);
-    expect(wedBeavers.remainingCount).toBe(1);
+    expect(wedBeavers.currentMembers).toHaveLength(2); // Alice and Charlie
+    expect(wedBeavers.outgoingMovers).toHaveLength(1); // Only Alice moves
+    expect(wedBeavers.remainingCount).toBe(1); // Charlie remains
   });
 
   it('handles FlexiRecord data correctly', () => {

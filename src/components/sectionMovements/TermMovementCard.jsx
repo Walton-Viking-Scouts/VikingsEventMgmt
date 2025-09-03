@@ -8,7 +8,6 @@ import logger, { LOG_CATEGORIES } from '../../services/logger.js';
 import { useNotification } from '../../contexts/notifications/NotificationContext';
 
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, onDataRefresh }) {
-  console.log(`🔍 TermMovementCard ${term.displayName}:`, { moversCount: movers?.length, movers });
   
   const [sectionState, setSectionState] = useState({
     assignments: new Map(),
@@ -237,20 +236,11 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, onData
         throw new Error('Could not extract FlexiRecord context for assignments');
       }
 
-      // Debug: Check final context values
-      console.log('🔍 Final context check:', {
-        assignedTerm: context.assignedTerm,
-        assignedSection: context.assignedSection,
-        flexirecordid: context.flexirecordid,
-        willMakeTermCalls: !!context.assignedTerm,
-        willMakeSectionCalls: !!context.assignedSection,
-      });
 
       // Group assignments by current section AND value (each section has different flexirecordid)
       
       // Group by term values per section
       if (context.assignedTerm) {
-        console.log('🔍 Starting term grouping with assignments:', assignmentsList);
         const termGroups = new Map(); // Key: "sectionId|termValue"
         
         for (const assignment of assignmentsList) {
@@ -269,7 +259,6 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, onData
           termGroups.get(groupKey).memberIds.push(memberId);
         }
 
-        console.log('🔍 Term groups created:', termGroups);
 
         // Make one API call per unique (section, term value) combination
         for (const group of termGroups.values()) {

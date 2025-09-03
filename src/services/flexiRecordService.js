@@ -116,15 +116,9 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     
     const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
     
-    // PRIORITY: Check if we have cached data and use it immediately if available
-    // This prevents hanging API calls from blocking the Section Movers functionality
-    const cached = safeGetItem(cacheKey, null);
-    if (cached && cached.items && cached.items.length > 0) {
-      return cached;
-    }
-    
     // If no token available, skip API calls and use empty cache fallback
     if (!hasUsableToken(token)) {
+      console.log(`🔒 No usable token for section ${sectionId}, skipping API call`);
       const emptyCache = safeGetItem(cacheKey, { items: [] });
       return emptyCache;
     }
@@ -149,7 +143,6 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     // token is guaranteed here due to early return above
 
     // Get fresh data from API
-    // Fetching flexirecords list from API
     const flexiRecords = await getFlexiRecords(sectionId, token);
     
     // Cache data with timestamp
@@ -994,7 +987,7 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
     // Discover Viking Section Movers FlexiRecords across all sections
     const discoveryPromises = sectionsData.map(async (section) => {
       try {
-        const sectionId = section.sectionid;
+        const sectionId = section.sectionid.toString();
         const sectionName = section.sectionname || section.name || 'Unknown Section';
         
         // Get FlexiRecords list for this section
