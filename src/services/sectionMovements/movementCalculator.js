@@ -30,9 +30,13 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     sectionLookup.set(section.sectionid, section.sectionname);
   });
 
-  const youngPeople = members.filter(member => 
-    member.person_type === 'Young People',
-  );
+  const youngPeople = members.filter(member => {
+    const sectionId = member.section_id || member.sectionid;
+    const section = sections.find(s => s.sectionid === sectionId);
+    if (!section) return true;
+    
+    return section.sectiontype !== 'adults' && section.sectiontype !== 'waiting';
+  });
 
   // Use term object if provided, otherwise derive from date
   let termBeingDisplayed;
