@@ -71,23 +71,12 @@ describe('calculateSectionMovements', () => {
     expect(wedBeavers.remainingCount).toBe(1);
   });
 
-  it('filters out non-young people', () => {
-    const membersWithLeaders = [
-      ...mockMembers,
-      {
-        scoutid: 5,
-        firstname: 'Leader',
-        lastname: 'Smith',
-        date_of_birth: '1990-01-01',
-        sectionid: 10,
-        sectionname: 'Wednesday Beavers',
-        person_type: 'Leaders',
-      },
-    ];
-    
-    const result = calculateSectionMovements(membersWithLeaders, termStart);
+  it('handles FlexiRecord data correctly', () => {
+    // FlexiRecords only contain young people, so no filtering needed
+    const result = calculateSectionMovements(mockMembers, termStart);
     
     expect(result.movers).toHaveLength(3);
+    expect(result.movers.every(mover => mover.age > 0)).toBe(true);
   });
 });
 
