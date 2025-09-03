@@ -141,7 +141,6 @@ function OfflineIndicator({ hideBanner = false }) {
 
     syncService.addSyncListener(handleSyncStatus);
 
-    // Return cleanup function
     return () => {
       syncService.removeSyncListener(handleSyncStatus);
     };
@@ -198,7 +197,7 @@ function OfflineIndicator({ hideBanner = false }) {
       if (networkCleanup) networkCleanup();
       if (syncCleanup) syncCleanup();
     };
-  }, [setupNetworkListeners]); // include setupNetworkListeners in dependencies
+  }, []); // removed setupNetworkListeners dependency to avoid re-running effect
 
   const handleLoginConfirm = () => {
     setShowLoginPrompt(false);

@@ -38,13 +38,8 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     }
   });
 
-  const youngPeople = members.filter(member => {
-    const sectionId = member.section_id;
-    const section = sections.find(s => s.sectionid === sectionId);
-    if (!section) return true;
-    
-    return section.sectiontype !== 'adults' && section.sectiontype !== 'waiting';
-  });
+  // FlexiRecords only contain young people, so no filtering needed
+  const youngPeople = members;
 
   // Use term object if provided, otherwise derive from date
   let termBeingDisplayed;
@@ -63,7 +58,7 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
   youngPeople.forEach(member => {
     if (!member) return;
     
-    const sectionId = member.section_id;
+    const sectionId = member.section_id || member.sectionid;
     const sectionName = sectionLookup.get(sectionId) || member.sectionname || 'Unknown Section';
     
     const memberWithSection = {
@@ -102,9 +97,9 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     }
     
     const memberMovement = {
-      memberId: member.member_id || member.scoutid,
+      memberId: member.member_id || member.scoutid || null,
       name: `${member.first_name || member.firstname || ''} ${member.last_name || member.lastname || ''}`.trim() || 'Unknown Member',
-      birthdate: member.date_of_birth || member.dob,
+      birthdate: member.date_of_birth || member.dob || null,
       currentSection: sectionName,
       currentSectionId: sectionId || null,
       age: ageAtTermStart,
