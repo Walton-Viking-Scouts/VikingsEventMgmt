@@ -123,7 +123,7 @@ function OfflineIndicator({ hideBanner = false }) {
       if (networkCleanup) networkCleanup();
       if (syncCleanup) syncCleanup();
     };
-  }, []); // mount-only
+  }, [setupNetworkListeners]); // include setupNetworkListeners in dependencies
 
   const checkInitialStatus = async () => {
     try {

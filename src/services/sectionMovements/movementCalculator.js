@@ -14,8 +14,14 @@ function getCachedAge(birthdate, termStartDate) {
 }
 
 export function calculateSectionMovements(members, termStartDate, sections = [], termObject = null) {
-  if (!Array.isArray(members) || !termStartDate) {
-    throw new Error('Members array and term start date are required');
+  if (!Array.isArray(members)) {
+    throw new Error('Members must be an array');
+  }
+  if (!termStartDate || typeof termStartDate !== 'string') {
+    throw new Error('Valid termStartDate (string) is required');
+  }
+  if (!Array.isArray(sections)) {
+    sections = [];
   }
 
   ageCalculationCache.clear();
@@ -27,7 +33,9 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
 
   const sectionLookup = new Map();
   sections.forEach(section => {
-    sectionLookup.set(section.sectionid, section.sectionname);
+    if (section?.sectionid && section?.sectionname) {
+      sectionLookup.set(section.sectionid, section.sectionname);
+    }
   });
 
   const youngPeople = members.filter(member => {
@@ -53,6 +61,8 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
   }
   
   youngPeople.forEach(member => {
+    if (!member) return;
+    
     const sectionId = member.section_id || member.sectionid;
     const sectionName = sectionLookup.get(sectionId) || member.sectionname || 'Unknown Section';
     
@@ -92,11 +102,11 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     }
     
     const memberMovement = {
-      memberId: member.member_id || member.scoutid,
-      name: `${member.first_name || member.firstname} ${member.last_name || member.lastname}`,
-      birthdate: member.date_of_birth || member.dob,
+      memberId: member.member_id || member.scoutid || null,
+      name: `${member.first_name || member.firstname || ''} ${member.last_name || member.lastname || ''}`.trim() || 'Unknown Member',
+      birthdate: member.date_of_birth || member.dob || null,
       currentSection: sectionName,
-      currentSectionId: sectionId,
+      currentSectionId: sectionId || null,
       age: ageAtTermStart,
       ageAtTermStart,
       shouldMove,
@@ -104,8 +114,8 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
       assignedSection: null, // Only set by manual assignment interface
       assignedSectionId: null,
       // Include FlexiRecord data separately
-      flexiRecordTerm: assignedTerm,
-      flexiRecordSection: assignedSection,
+      flexiRecordTerm: assignedTerm || null,
+      flexiRecordSection: assignedSection || null,
     };
 
     // Add to movers list if they're actually moving sections
@@ -142,9 +152,11 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
 }
 
 function getTargetSection(currentSectionName) {
-  if (!currentSectionName) return null;
+  if (!currentSectionName || typeof currentSectionName !== 'string') {
+    return null;
+  }
   
-  const normalized = currentSectionName.toLowerCase();
+  const normalized = currentSectionName.toLowerCase().trim();
   
   if (normalized.includes('squirrel')) return 'Beavers';
   if (normalized.includes('beaver')) return 'Cubs';
@@ -155,11 +167,17 @@ function getTargetSection(currentSectionName) {
 }
 
 export function groupMoversByTargetSection(movers) {
+  if (!Array.isArray(movers)) {
+    return new Map();
+  }
+  
   const grouped = new Map();
   
   movers.forEach(mover => {
+    if (!mover) return;
+    
     const target = mover.targetSection;
-    if (!target) return;
+    if (!target || typeof target !== 'string') return;
     
     if (!grouped.has(target)) {
       grouped.set(target, []);

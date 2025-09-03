@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, memo } from 'react';
 
 /**
  * SectionFilter - Reusable pill-based filter for sections
@@ -16,20 +16,22 @@ function SectionFilter({
   sections,
   className = '',
 }) {
-  if (!sections || sections.length === 0) {
-    return null;
-  }
-
-  const handleFilterToggle = (sectionId) => {
+  const handleFilterToggle = useCallback((sectionId) => {
+    if (!sectionId || typeof onFiltersChange !== 'function') return;
+    
     const newFilters = {
       ...sectionFilters,
       [sectionId]: !sectionFilters[sectionId],
     };
     onFiltersChange(newFilters);
-  };
+  }, [sectionFilters, onFiltersChange]);
 
   // Get section color based on section type (matching dashboard colors)
-  const getSectionColor = (section) => {
+  const getSectionColor = useCallback((section) => {
+    if (!section) {
+      return 'bg-scout-purple text-white border-scout-purple';
+    }
+    
     // Try to determine section type from sectionname or section field
     const sectionType = (
       section.section ||
@@ -52,7 +54,11 @@ function SectionFilter({
 
     // Default fallback to purple for unknown sections
     return 'bg-scout-purple text-white border-scout-purple';
-  };
+  }, []);
+
+  if (!sections || sections.length === 0) {
+    return null;
+  }
 
   return (
     <div
@@ -91,4 +97,4 @@ function SectionFilter({
   );
 }
 
-export default SectionFilter;
+export default memo(SectionFilter);
