@@ -70,14 +70,12 @@ export function calculateAgeAtDate(birthdate, targetDate) {
 export function willMemberMoveUp(member, termStartDate) {
   const birthdate = member.date_of_birth || member.dob;
   if (!birthdate) {
-    console.log('No birthdate for member:', member.member_id || member.scoutid);
     return false;
   }
 
   const ageAtTermStart = calculateAgeAtDate(birthdate, termStartDate);
   
   if (ageAtTermStart === null) {
-    console.log('Invalid age calculation for member:', member.member_id || member.scoutid, 'birthdate:', birthdate, 'termStart:', termStartDate);
     return false;
   }
   
@@ -85,21 +83,16 @@ export function willMemberMoveUp(member, termStartDate) {
   const currentSectionType = getSectionTypeFromName(sectionName);
   
   if (!currentSectionType) {
-    console.log('No section type found for member:', member.member_id || member.scoutid, 'sectionName:', sectionName);
     return false;
   }
 
   const transition = MOVEMENT_TRANSITIONS.find(t => t.from === currentSectionType);
   
   if (!transition) {
-    console.log('No transition found for section type:', currentSectionType);
     return false;
   }
 
   const shouldMove = ageAtTermStart >= transition.ageThreshold;
-  if (shouldMove) {
-    console.log('Member should move:', member.first_name || member.firstname, 'age:', ageAtTermStart, 'threshold:', transition.ageThreshold, 'from:', currentSectionType, 'to:', transition.to);
-  }
 
   return shouldMove;
 }

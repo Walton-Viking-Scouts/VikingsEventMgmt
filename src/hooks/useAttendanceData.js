@@ -255,6 +255,7 @@ export function useAttendanceData(events) {
           totalSections: vikingEventMap.size,
         });
       }
+
       
       setVikingEventData(vikingEventMap);
       

@@ -82,3 +82,6 @@ dev-debug.log
 # Task files
 tasks.json
 tasks/ 
+
+# Real OSM data examples
+api_examples/

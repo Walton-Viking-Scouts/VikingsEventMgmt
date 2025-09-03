@@ -214,11 +214,11 @@ function DraggableMover({
       className={`
         relative p-3 rounded-lg transition-all duration-200 select-none w-full
         ${isDraggable
-          ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
-          : isAssigned
-            ? 'cursor-default bg-green-50 border-2 border-green-200'
-            : 'cursor-default bg-gray-50 border-2 border-gray-200'
-        }
+      ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-300 border-2 border-blue-100 bg-blue-25 hover:shadow-md transform hover:scale-[1.02]'
+      : isAssigned
+        ? 'cursor-default bg-green-50 border-2 border-green-200'
+        : 'cursor-default bg-gray-50 border-2 border-gray-200'
+    }
         ${mouseDown ? 'cursor-grabbing scale-[1.01] shadow-lg' : ''}
         ${dragPreview ? 'opacity-60 transform rotate-1 scale-95 shadow-xl' : ''}
         ${touchDragActive ? 'opacity-30' : ''}

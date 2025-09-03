@@ -6,6 +6,7 @@ import { calculateSectionMovements } from '../../services/sectionMovements/movem
 import TermMovementCard from './TermMovementCard.jsx';
 import { getFutureTerms } from '../../utils/sectionMovements/termCalculations.js';
 
+
 function SectionMovementTracker({ onBack }) {
   const [numberOfTerms, setNumberOfTerms] = useState(2);
   const { members, sections, loading, error, refetch } = useSectionMovements();
@@ -17,10 +18,54 @@ function SectionMovementTracker({ onBack }) {
     
     let availableMembers = [...members];
     const alreadyMoved = new Set();
+    const cumulativeSectionCounts = new Map(); // Track cumulative counts across terms
     
-    return futureTerms.map(term => {
-      const calculations = calculateSectionMovements(availableMembers, term.startDate, sections);
-      const unassignedMovers = calculations.movers.filter(mover => !mover.assignedSection);
+    return futureTerms.map((term, termIndex) => {
+      const calculations = calculateSectionMovements(availableMembers, term.startDate, sections, term);
+      
+      console.log(`🔍 ${term.displayName} movers:`, {
+        totalMovers: calculations.movers.length,
+        movers: calculations.movers.map(m => ({ 
+          id: m.memberId, 
+          name: m.name, 
+          flexiTerm: m.flexiRecordTerm,
+          targetSection: m.targetSection, 
+        })),
+      });
+      
+      // Update cumulative counts for each section
+      const updatedSectionSummaries = new Map();
+      
+      calculations.sectionSummaries.forEach((summary, sectionId) => {
+        // For first term, use actual current members count
+        // For subsequent terms, use previous term's projected count
+        let cumulativeCurrentCount;
+        if (termIndex === 0) {
+          // For first term, count actual members from FlexiRecord for this section
+          const sectionMembers = members.filter(member => {
+            const memberSectionId = member.section_id || member.sectionid;
+            return memberSectionId === sectionId;
+          });
+          cumulativeCurrentCount = sectionMembers.length;
+          cumulativeSectionCounts.set(sectionId, cumulativeCurrentCount);
+        } else {
+          cumulativeCurrentCount = cumulativeSectionCounts.get(sectionId) || 0;
+        }
+        
+        // Calculate projected count: current - outgoing + incoming
+        const projectedCount = Math.max(0, cumulativeCurrentCount - summary.outgoingMovers.length + summary.incomingMovers.length);
+        
+        // Store projected count for next term
+        cumulativeSectionCounts.set(sectionId, projectedCount);
+        
+        // Create updated summary with cumulative counts
+        updatedSectionSummaries.set(sectionId, {
+          ...summary,
+          cumulativeCurrentCount,
+          projectedCount,
+          remainingCount: Math.max(0, cumulativeCurrentCount - summary.outgoingMovers.length),
+        });
+      });
       
       calculations.movers.forEach(mover => {
         alreadyMoved.add(mover.memberId);
@@ -33,8 +78,8 @@ function SectionMovementTracker({ onBack }) {
       
       return {
         term,
-        sectionSummaries: calculations.sectionSummaries,
-        unassignedMovers,
+        sectionSummaries: updatedSectionSummaries,
+        unassignedMovers: calculations.movers,
         movers: calculations.movers,
       };
     });
@@ -116,6 +161,7 @@ function SectionMovementTracker({ onBack }) {
                 sectionsData={sections}
                 unassignedMovers={termData.unassignedMovers}
                 movers={termData.movers}
+                onDataRefresh={refetch}
               />
             ))}
           </div>

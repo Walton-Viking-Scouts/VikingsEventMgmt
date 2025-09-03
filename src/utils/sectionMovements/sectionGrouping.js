@@ -63,7 +63,7 @@ export function calculateGroupTotals(movers, groupedSections) {
   
   groupedSections.forEach((group, sectionType) => {
     const incomingFromPrevious = movers.filter(mover => 
-      mover.targetSection && mapSectionType(mover.targetSection.toLowerCase()) === sectionType
+      mover.targetSection && mapSectionType(mover.targetSection.toLowerCase()) === sectionType,
     ).length;
     
     const outgoingToNext = group.totalOutgoing;

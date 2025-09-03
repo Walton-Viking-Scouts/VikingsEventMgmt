@@ -50,7 +50,7 @@ function MoversByTargetSection({
 
   const getIncomingCountForSection = (sectionId) => {
     return Array.from(assignments.values()).filter(
-      assignment => assignment.sectionId === sectionId
+      assignment => assignment.sectionId === sectionId,
     ).length;
   };
 

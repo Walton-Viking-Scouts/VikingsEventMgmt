@@ -90,6 +90,7 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 ### Development Commands
 ```bash
 # Mobile App Development
+# *** DO NOT RUN DEV SERVER IN BACKGROUND DURING CLAUDE SESSIONS ***
 npm run dev              # Start dev server (https://localhost:3001)
 npm run lint            # ESLint checks
 npm run test:run        # Unit tests

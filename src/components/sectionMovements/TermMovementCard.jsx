@@ -1,26 +1,46 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import SectionTypeGroup from './SectionTypeGroup.jsx';
-import MoversByTargetSection from './MoversByTargetSection.jsx';
 import { groupSectionsByType, mapSectionType } from '../../utils/sectionMovements/sectionGrouping.js';
-import { useVikingSectionMovers } from '../../hooks/useVikingSectionMovers.js';
-import { Button } from '../ui';
+import { multiUpdateFlexiRecord } from '../../services/api.js';
+import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversContext } from '../../services/flexiRecordService.js';
+import { getToken } from '../../services/auth.js';
+import logger, { LOG_CATEGORIES } from '../../services/logger.js';
+import { useNotification } from '../../contexts/notifications/NotificationContext';
 
-function TermMovementCard({ term, sectionSummaries, sectionsData, unassignedMovers, movers }) {
-  const [assignments, setAssignments] = useState(new Map());
-  const [optimisticCounts, setOptimisticCounts] = useState(new Map());
-
-  const sectionsWithMovers = useMemo(() => {
-    const sectionIds = [...new Set(movers.map(mover => mover.currentSectionId))];
-    return sectionIds.filter(id => id);
-  }, [movers]);
-
-  const firstSectionId = sectionsWithMovers[0];
-  const { validationStatus, fieldMapping, isValid } = useVikingSectionMovers(
-    firstSectionId, 
-    `${term.type.toLowerCase()}_${term.year}`
-  );
+function TermMovementCard({ term, sectionSummaries, sectionsData, movers, onDataRefresh }) {
+  console.log(`🔍 TermMovementCard ${term.displayName}:`, { moversCount: movers?.length, movers });
   
+  const [sectionState, setSectionState] = useState({
+    assignments: new Map(),
+    optimisticCounts: new Map(),
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  
+  // Notification system
+  const { notifySuccess, notifyError } = useNotification();
+  
+  // Show toast message using NotificationContext
+  const showToast = useCallback((type, message) => {
+    // Log error toast messages for debugging
+    if (type === 'error') {
+      logger.error('Toast Error Message', {
+        message,
+        type,
+        timestamp: new Date().toISOString(),
+      }, LOG_CATEGORIES.COMPONENT);
+    }
+    
+    // Use NotificationContext instead of custom toast
+    if (type === 'success') {
+      notifySuccess(message);
+    } else if (type === 'error') {
+      notifyError(message);
+    }
+  }, [notifySuccess, notifyError]);
+
   const groupedSections = groupSectionsByType(sectionSummaries, sectionsData);
+  
   
   // Ensure all section types with incoming movers are included
   const allSectionTypes = ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'];
@@ -50,20 +70,22 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, unassignedMove
   const availableSections = useMemo(() => {
     const sections = Array.from(sectionSummaries.values()).map(summary => {
       const sectionData = sectionsData.find(s => s.sectionId === summary.sectionId);
-      const optimisticIncoming = optimisticCounts.get(summary.sectionId) || 0;
+      // Ensure consistent string comparison for optimistic counts
+      const sectionIdStr = String(summary.sectionId);
+      const optimisticIncoming = sectionState.optimisticCounts.get(sectionIdStr) || 0;
       return {
         sectionId: summary.sectionId,
         sectionName: summary.sectionName,
         sectionType: sectionData?.sectionType || '',
-        currentCount: summary.currentMembers.length,
+        currentCount: summary.cumulativeCurrentCount || summary.currentMembers.length,
         incomingCount: optimisticIncoming,
-        totalProjectedCount: summary.currentMembers.length + optimisticIncoming,
+        totalProjectedCount: (summary.cumulativeCurrentCount || summary.currentMembers.length) + optimisticIncoming,
         maxCapacity: null,
       };
     });
     
     return sections;
-  }, [sectionSummaries, sectionsData, optimisticCounts]);
+  }, [sectionSummaries, sectionsData, sectionState.optimisticCounts]);
 
   const availableTerms = useMemo(() => {
     return [
@@ -74,60 +96,287 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, unassignedMove
     ];
   }, [term.year]);
 
-  const handleAssignmentChange = (memberId, assignment) => {
-    setAssignments(prev => {
-      const updated = new Map(prev);
-      const previousAssignment = prev.get(memberId);
+  const handleAssignmentChange = useCallback((memberId, assignment) => {
+    setSectionState(prev => {
+      const previousAssignment = prev.assignments.get(memberId);
       
-      // Update optimistic counts
-      setOptimisticCounts(countsPrev => {
-        const updatedCounts = new Map(countsPrev);
-        
-        // Remove previous assignment count
-        if (previousAssignment?.sectionId) {
-          const prevCount = updatedCounts.get(previousAssignment.sectionId) || 0;
-          updatedCounts.set(previousAssignment.sectionId, Math.max(0, prevCount - 1));
-        }
-        
-        // Add new assignment count
-        if (assignment.sectionId) {
-          const newCount = updatedCounts.get(assignment.sectionId) || 0;
-          updatedCounts.set(assignment.sectionId, newCount + 1);
-          updated.set(memberId, assignment);
-        } else {
-          updated.delete(memberId);
-        }
-        
-        return updatedCounts;
-      });
+      // Check if this is actually a change to prevent duplicate updates
+      const isSameAssignment = previousAssignment?.sectionId === assignment.sectionId;
+      if (isSameAssignment) {
+        return prev;
+      }
       
-      return updated;
+      // Create new state with both assignments and optimistic counts updated atomically
+      const updatedAssignments = new Map(prev.assignments);
+      const updatedCounts = new Map(prev.optimisticCounts);
+      
+      // Remove previous assignment count
+      if (previousAssignment?.sectionId) {
+        const prevSectionIdStr = String(previousAssignment.sectionId);
+        const prevCount = updatedCounts.get(prevSectionIdStr) || 0;
+        updatedCounts.set(prevSectionIdStr, Math.max(0, prevCount - 1));
+      }
+      
+      // Add new assignment count and update assignments
+      if (assignment.sectionId) {
+        const sectionIdStr = String(assignment.sectionId);
+        const newCount = updatedCounts.get(sectionIdStr) || 0;
+        updatedCounts.set(sectionIdStr, newCount + 1);
+        updatedAssignments.set(memberId, assignment);
+      } else {
+        updatedAssignments.delete(memberId);
+      }
+      
+      return {
+        assignments: updatedAssignments,
+        optimisticCounts: updatedCounts,
+      };
     });
-  };
+  }, []);
 
   const handleTermOverrideChange = (memberId, termOverride) => {
-    setAssignments(prev => {
-      const updated = new Map(prev);
-      const existing = updated.get(memberId);
+    setSectionState(prev => {
+      const updatedAssignments = new Map(prev.assignments);
+      const existing = updatedAssignments.get(memberId);
+      
       if (existing) {
-        updated.set(memberId, { ...existing, term: termOverride });
+        // Update existing assignment with term override
+        updatedAssignments.set(memberId, { ...existing, term: termOverride });
+      } else if (termOverride) {
+        // Find the member's current section
+        const member = movers.find(m => m.memberId === memberId);
+        const currentSectionId = member?.currentSectionId;
+        
+        // Create new assignment with just term override (no section yet)
+        updatedAssignments.set(memberId, { 
+          memberId,
+          currentSectionId,
+          sectionId: null,
+          sectionName: null,
+          term: termOverride,
+        });
       }
-      return updated;
+      
+      return {
+        assignments: updatedAssignments,
+        optimisticCounts: prev.optimisticCounts,
+      };
     });
   };
 
   const handleSaveAssignments = async () => {
-    const assignmentsList = Array.from(assignments.values());
-    console.log('Saving assignments (local state only):', assignmentsList);
+    const assignmentsList = Array.from(sectionState.assignments.values());
     
-    // TODO: Task 6.6 - Implement FlexiRecord API persistence
-    // Will use proper termId format from fetchMostRecentTermId()
-    // Will use multiUpdateFlexiRecord with correct field mapping
+    if (assignmentsList.length === 0) {
+      logger.info('No assignments to save', {}, LOG_CATEGORIES.USER_ACTION);
+      showToast('error', 'No assignments to save. Please assign members to sections first.');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const token = getToken();
+      if (!token) {
+        showToast('error', 'Authentication required. Please sign in to save assignments.');
+        throw new Error('Authentication required to save assignments');
+      }
+
+      // Discover Viking Section Movers FlexiRecords to get the correct FlexiRecord ID
+      const discoveredRecords = await discoverVikingSectionMoversFlexiRecords(token);
+      if (!discoveredRecords || discoveredRecords.length === 0) {
+        showToast('error', 'No Viking Section Movers configuration found. Please contact an administrator.');
+        throw new Error('No Viking Section Movers FlexiRecords found');
+      }
+
+      // Use the first discovered FlexiRecord
+      const firstRecord = discoveredRecords[0];
+      
+      // Get preloaded structure from cache and process fieldMapping
+      const { safeGetItem } = await import('../../utils/storageUtils.js');
+      const cacheKey = `viking_flexi_structure_${firstRecord.flexiRecordId}_offline`;
+      const structureData = safeGetItem(cacheKey, null);
+      
+      if (!structureData) {
+        const errorMsg = 'FlexiRecord structure not found in cache. Please refresh the app.';
+        showToast('error', errorMsg);
+        throw new Error('FlexiRecord structure not found in cache');
+      }
+
+      // Process the raw structure to create fieldMapping like in getConsolidatedFlexiRecord
+      const { parseFlexiStructure } = await import('../../utils/flexiRecordTransforms.js');
+      const fieldMapping = parseFlexiStructure(structureData);
+      
+      // Convert fieldMapping Map to object for easier access
+      const fieldMappingObj = {};
+      fieldMapping.forEach((fieldInfo, fieldId) => {
+        fieldMappingObj[fieldId] = {
+          columnId: fieldId,
+          ...fieldInfo,
+        };
+      });
+
+      // Create structure with fieldMapping for extraction
+      const processedStructure = {
+        ...structureData,
+        fieldMapping: fieldMappingObj,
+      };
+
+      // Extract context using the processed structure
+      const context = extractVikingSectionMoversContext(
+        { _structure: processedStructure },
+        firstRecord.sectionId,
+        null, // termId not needed for field mapping
+        null,  // sectionName not needed for field mapping
+      );
+
+      if (!context) {
+        const errorMsg = 'Unable to extract FlexiRecord field mappings. Check that AssignedSection and AssignedTerm fields exist.';
+        showToast('error', errorMsg);
+        throw new Error('Could not extract FlexiRecord context for assignments');
+      }
+
+      // Debug: Check final context values
+      console.log('🔍 Final context check:', {
+        assignedTerm: context.assignedTerm,
+        assignedSection: context.assignedSection,
+        flexirecordid: context.flexirecordid,
+        willMakeTermCalls: !!context.assignedTerm,
+        willMakeSectionCalls: !!context.assignedSection,
+      });
+
+      // Group assignments by current section AND value (each section has different flexirecordid)
+      
+      // Group by term values per section
+      if (context.assignedTerm) {
+        console.log('🔍 Starting term grouping with assignments:', assignmentsList);
+        const termGroups = new Map(); // Key: "sectionId|termValue"
+        
+        for (const assignment of assignmentsList) {
+          const termValue = assignment.term || '';
+          const memberId = assignment.memberId || assignment.scoutId;
+          const currentSectionId = assignment.currentSectionId;
+          const groupKey = `${currentSectionId}|${termValue}`;
+          
+          if (!termGroups.has(groupKey)) {
+            termGroups.set(groupKey, {
+              sectionId: currentSectionId,
+              termValue,
+              memberIds: [],
+            });
+          }
+          termGroups.get(groupKey).memberIds.push(memberId);
+        }
+
+        console.log('🔍 Term groups created:', termGroups);
+
+        // Make one API call per unique (section, term value) combination
+        for (const group of termGroups.values()) {
+          if (group.memberIds.length > 0) {
+            // Get the correct FlexiRecord ID for this specific section
+            const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
+            const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
+            
+            if (sectionFlexiRecordId) {
+              await multiUpdateFlexiRecord(
+                group.sectionId,
+                group.memberIds,
+                [group.termValue], // Single value for all members in this section
+                context.assignedTerm,
+                sectionFlexiRecordId,
+                token,
+              );
+            }
+          }
+        }
+      }
+      
+      // Group by section values per current section
+      if (context.assignedSection) {
+        const sectionGroups = new Map(); // Key: "currentSectionId|targetSectionValue"
+        
+        for (const assignment of assignmentsList) {
+          const sectionValue = assignment.sectionId === 'Not Known' || !assignment.sectionId 
+            ? 'Not Known' 
+            : assignment.sectionName || 'Not Known';
+          const memberId = assignment.memberId || assignment.scoutId;
+          const currentSectionId = assignment.currentSectionId;
+          const groupKey = `${currentSectionId}|${sectionValue}`;
+          
+          if (!sectionGroups.has(groupKey)) {
+            sectionGroups.set(groupKey, {
+              sectionId: currentSectionId,
+              sectionValue,
+              memberIds: [],
+            });
+          }
+          sectionGroups.get(groupKey).memberIds.push(memberId);
+        }
+
+        // Make one API call per unique (current section, target section value) combination
+        for (const group of sectionGroups.values()) {
+          if (group.memberIds.length > 0) {
+            // Get the correct FlexiRecord ID for this specific section
+            const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
+            const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
+            
+            if (sectionFlexiRecordId) {
+              await multiUpdateFlexiRecord(
+                group.sectionId,
+                group.memberIds,
+                [group.sectionValue], // Single value for all members in this section
+                context.assignedSection,
+                sectionFlexiRecordId,
+                token,
+              );
+            }
+          }
+        }
+      }
+
+      logger.info('Section mover assignments saved successfully', {
+        assignmentCount: assignmentsList.length,
+      }, LOG_CATEGORIES.USER_ACTION);
+
+      // Show success toast
+      showToast('success', `Successfully saved ${assignmentsList.length} assignment${assignmentsList.length > 1 ? 's' : ''}`);
+
+      // Reset assignments after successful save
+      setSectionState({
+        assignments: new Map(),
+        optimisticCounts: new Map(),
+      });
+
+      // Force refresh of FlexiRecord data in the background to re-render with new assignments
+      if (onDataRefresh) {
+        setTimeout(() => {
+          onDataRefresh().catch(err => {
+            logger.warn('Background FlexiRecord refresh failed after save', {
+              error: err.message,
+            }, LOG_CATEGORIES.APP);
+          });
+        }, 500); // Small delay to allow API to process
+      }
+
+    } catch (error) {
+      logger.error('Failed to save section mover assignments', {
+        error: error.message,
+        assignmentCount: assignmentsList.length,
+      }, LOG_CATEGORIES.API);
+      
+      setSaveError(error.message);
+      showToast('error', `Failed to save assignments: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleResetAssignments = () => {
-    setAssignments(new Map());
-    setOptimisticCounts(new Map());
+    setSectionState({
+      assignments: new Map(),
+      optimisticCounts: new Map(),
+    });
   };
   
   return (
@@ -140,6 +389,14 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, unassignedMove
           Term starts: {new Date(term.startDate).toLocaleDateString()}
         </div>
       </div>
+      
+      {saveError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <div className="text-sm text-red-800">
+            Error saving assignments: {saveError}
+          </div>
+        </div>
+      )}
       
       {sectionTypeGroups.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
@@ -156,11 +413,13 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, unassignedMove
               showAssignmentInterface={true}
               allSections={availableSections}
               availableTerms={availableTerms}
-              assignments={assignments}
+              assignments={sectionState.assignments}
+              currentTerm={term}
               onAssignmentChange={handleAssignmentChange}
               onTermOverrideChange={handleTermOverrideChange}
               onSaveAssignments={handleSaveAssignments}
               onResetAssignments={handleResetAssignments}
+              isSaving={isSaving}
             />
           ))}
         </div>

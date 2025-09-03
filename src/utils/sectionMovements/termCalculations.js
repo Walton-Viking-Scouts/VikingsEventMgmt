@@ -1,4 +1,4 @@
-import { parseISO, format, addYears, isAfter, isBefore } from 'date-fns';
+import { format, isAfter } from 'date-fns';
 
 export const TERM_TYPES = {
   AUTUMN: 'Autumn',
@@ -46,26 +46,26 @@ export function getNextTerm(currentTerm) {
   const { type, year } = currentTerm;
   
   switch (type) {
-    case TERM_TYPES.AUTUMN:
-      return {
-        type: TERM_TYPES.SPRING,
-        year: year + 1,
-        startDate: `${year + 1}-01-01`,
-      };
-    case TERM_TYPES.SPRING:
-      return {
-        type: TERM_TYPES.SUMMER,
-        year: year,
-        startDate: `${year}-04-15`,
-      };
-    case TERM_TYPES.SUMMER:
-      return {
-        type: TERM_TYPES.AUTUMN,
-        year: year,
-        startDate: `${year}-09-01`,
-      };
-    default:
-      throw new Error(`Unknown term type: ${type}`);
+  case TERM_TYPES.AUTUMN:
+    return {
+      type: TERM_TYPES.SPRING,
+      year: year + 1,
+      startDate: `${year + 1}-01-01`,
+    };
+  case TERM_TYPES.SPRING:
+    return {
+      type: TERM_TYPES.SUMMER,
+      year: year,
+      startDate: `${year}-04-15`,
+    };
+  case TERM_TYPES.SUMMER:
+    return {
+      type: TERM_TYPES.AUTUMN,
+      year: year,
+      startDate: `${year}-09-01`,
+    };
+  default:
+    throw new Error(`Unknown term type: ${type}`);
   }
 }
 

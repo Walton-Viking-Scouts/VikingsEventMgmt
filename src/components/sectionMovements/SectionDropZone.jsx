@@ -15,7 +15,6 @@ function SectionDropZone({
   const dropZoneRef = useRef(null);
 
   const isAtCapacity = maxCapacity && (currentCount + incomingCount) >= maxCapacity;
-  const isOverCapacity = maxCapacity && (currentCount + incomingCount) > maxCapacity;
 
   const handleDragOver = (e) => {
     e.preventDefault();
