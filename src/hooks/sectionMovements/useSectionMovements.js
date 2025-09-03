@@ -59,13 +59,11 @@ export default function useSectionMovements() {
     try {
       const token = getToken();
       if (!token) {
-        logger.warn('No auth token available for loading FlexiRecords', {}, LOG_CATEGORIES.APP);
-        setFlexiRecordLoadingState(prev => ({ ...prev, loading: false }));
-        setLoading(false);
-        return;
+        logger.warn('No auth token available for loading FlexiRecords - trying offline/cached data', {}, LOG_CATEGORIES.APP);
       }
 
       // Discover ALL Viking Section Movers FlexiRecords once (not per section)
+      // This will work with or without token - it will use cached data when offline
       const discoveredRecords = await discoverVikingSectionMoversFlexiRecords(token);
       
       if (!discoveredRecords || discoveredRecords.length === 0) {

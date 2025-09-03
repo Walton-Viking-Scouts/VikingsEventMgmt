@@ -162,12 +162,15 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     // Try cache as fallback
     try {
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      console.log(`🔄 API failed for section ${sectionId}, trying cache fallback with key: ${cacheKey}`);
       const cached = safeGetItem(cacheKey, null);
+      console.log(`📦 Cache result for ${sectionId}:`, cached ? `Found ${cached.items?.length || 0} items` : 'No cached data');
       if (cached) {
         logger.warn('Using cached flexirecords list after API failure', { sectionId });
         return cached;
       }
     } catch (cacheError) {
+      console.log(`❌ Cache fallback error for section ${sectionId}:`, cacheError.message);
       logger.error('Cache fallback failed', { error: cacheError.message });
     }
 
@@ -993,7 +996,9 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
         const sectionName = section.sectionname || section.name || 'Unknown Section';
         
         // Get FlexiRecords list for this section
+        console.log(`🔍 About to call getFlexiRecordsList for section ${sectionId} (${sectionName}), hasToken: ${!!token}`);
         const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
+        console.log(`✅ Successfully got FlexiRecords list for section ${sectionId}, items:`, flexiRecordsList?.items?.length || 0);
         
         // Find Viking Section Movers FlexiRecord
         const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record => 
@@ -1017,6 +1022,8 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
           sectionId: section.sectionid,
           sectionName: section.sectionname,
           error: error.message,
+          stack: error.stack,
+          hasToken: !!token,
         }, LOG_CATEGORIES.APP);
         
         return null;
