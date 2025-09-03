@@ -53,6 +53,68 @@ export default function useSectionMovements() {
     };
   }, []);
 
+  // Direct cache access function - bypasses API discovery when it fails
+  const loadFlexiRecordsFromDirectCache = async (sectionsData) => {
+    const allMembersData = [];
+    
+    for (const section of sectionsData) {
+      try {
+        const sectionId = section.sectionid;
+        const sectionName = section.sectionname || section.name || 'Unknown Section';
+        
+        // Check if there's cached FlexiRecord list for this section
+        const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+        const cachedList = localStorage.getItem(cacheKey);
+        
+        if (cachedList) {
+          const parsedList = JSON.parse(cachedList);
+          console.log(`🔍 Direct cache check for section ${sectionId}:`, parsedList?.items?.length || 0, 'FlexiRecords');
+          
+          // Find Viking Section Movers FlexiRecord
+          const vikingMoversRecord = parsedList.items?.find(record => 
+            record.name === 'Viking Section Movers'
+          );
+          
+          if (vikingMoversRecord) {
+            console.log(`✅ Found Viking Section Movers in direct cache for section ${sectionId}:`, vikingMoversRecord.extraid);
+            
+            // Try to load the actual FlexiRecord data
+            const dataKey = `viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_*`;
+            const allKeys = Object.keys(localStorage);
+            const matchingDataKeys = allKeys.filter(key => 
+              key.includes(`viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_`)
+            );
+            
+            if (matchingDataKeys.length > 0) {
+              const dataKey = matchingDataKeys[0]; // Use first matching key
+              const cachedData = localStorage.getItem(dataKey);
+              
+              if (cachedData) {
+                const parsedData = JSON.parse(cachedData);
+                console.log(`📦 Found cached FlexiRecord data for section ${sectionId}:`, parsedData?.items?.length || 0, 'members');
+                
+                // Add members with consistent section information
+                const membersWithSection = (parsedData.items || []).map(member => ({
+                  ...member,
+                  section_id: sectionId,
+                  sectionid: sectionId,
+                  sectionname: sectionName,
+                }));
+                
+                allMembersData.push(...membersWithSection);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`❌ Error loading direct cache for section ${section.sectionid}:`, error.message);
+      }
+    }
+    
+    console.log(`🎯 Direct cache loading complete: ${allMembersData.length} total members from cache`);
+    return allMembersData;
+  };
+
   const loadFlexiRecordsForAllSections = async (sectionsData, forceRefresh = false) => {
     setFlexiRecordLoadingState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -67,9 +129,27 @@ export default function useSectionMovements() {
       const discoveredRecords = await discoverVikingSectionMoversFlexiRecords(token);
       
       if (!discoveredRecords || discoveredRecords.length === 0) {
-        logger.warn('No Viking Section Movers FlexiRecords discovered', {
+        logger.warn('No Viking Section Movers FlexiRecords discovered via API, trying direct cache access', {
           sectionCount: sectionsData.length,
         }, LOG_CATEGORIES.APP);
+        
+        // FALLBACK: Try to load data directly from cache since discovery failed
+        const directCacheResults = await loadFlexiRecordsFromDirectCache(sectionsData);
+        if (directCacheResults.length > 0) {
+          logger.info('Successfully loaded Viking Section Movers from direct cache', {
+            recordCount: directCacheResults.length,
+          }, LOG_CATEGORIES.APP);
+          
+          setMembers(directCacheResults);
+          setFlexiRecordLoadingState({ 
+            loading: false, 
+            error: null, 
+            loadedSections: new Set(directCacheResults.map(m => m.section_id)), 
+          });
+          setLoading(false);
+          return;
+        }
+        
         setFlexiRecordLoadingState(prev => ({ ...prev, loading: false }));
         setLoading(false);
         return;
