@@ -30,13 +30,9 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     sectionLookup.set(section.sectionid, section.sectionname);
   });
 
-  const youngPeople = members.filter(member => {
-    const sectionId = member.section_id || member.sectionid;
-    const section = sections.find(s => s.sectionid === sectionId);
-    if (!section) return true;
-    
-    return section.sectiontype !== 'adults' && section.sectiontype !== 'waiting';
-  });
+  const youngPeople = members.filter(member => 
+    member.person_type === 'Young People',
+  );
 
   // Use term object if provided, otherwise derive from date
   let termBeingDisplayed;
@@ -76,13 +72,6 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     
     if (assignedTerm) {
       // Member has FlexiRecord assignment - use it as source of truth
-      console.log('🔍 Term comparison:', {
-        memberId: member.member_id || member.scoutid,
-        assignedTerm,
-        termBeingDisplayed,
-        matches: assignedTerm === termBeingDisplayed,
-      });
-      
       if (assignedTerm === termBeingDisplayed) {
         // Member is assigned to move in this term
         shouldMove = true;
@@ -90,24 +79,12 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
         // If "Not Known", we know the section type but need to assign specific section
         // So we use the age-based target section type for filtering
         targetSection = getTargetSection(sectionName);
-        console.log('🔍 FlexiRecord target section:', {
-          memberId: member.member_id || member.scoutid,
-          assignedSection,
-          targetSectionType: targetSection,
-          sectionName,
-          note: 'Using age-based section type for assignment interface filtering',
-        });
       }
       // If assignedTerm !== termBeingDisplayed, they don't move in this term
     } else {
       // No FlexiRecord assignment - fall back to age-based calculation
       shouldMove = willMemberMoveUp(memberWithSection, termStartDate);
       targetSection = shouldMove ? getTargetSection(sectionName) : null;
-    }
-    
-    // Skip if not a mover in this term
-    if (!shouldMove) {
-      return;
     }
     
     const memberMovement = {
