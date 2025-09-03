@@ -39,7 +39,7 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
   });
 
   const youngPeople = members.filter(member => {
-    const sectionId = member.section_id || member.sectionid;
+    const sectionId = member.section_id;
     const section = sections.find(s => s.sectionid === sectionId);
     if (!section) return true;
     
@@ -63,7 +63,7 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
   youngPeople.forEach(member => {
     if (!member) return;
     
-    const sectionId = member.section_id || member.sectionid;
+    const sectionId = member.section_id;
     const sectionName = sectionLookup.get(sectionId) || member.sectionname || 'Unknown Section';
     
     const memberWithSection = {
@@ -72,7 +72,7 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
       currentSection: sectionName,
     };
     
-    const birthdate = member.date_of_birth || member.dob;
+    const birthdate = member.date_of_birth;
     const ageAtTermStart = birthdate 
       ? getCachedAge(birthdate, termStartDate)
       : null;
@@ -102,9 +102,9 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
     }
     
     const memberMovement = {
-      memberId: member.member_id || member.scoutid || null,
-      name: `${member.first_name || member.firstname || ''} ${member.last_name || member.lastname || ''}`.trim() || 'Unknown Member',
-      birthdate: member.date_of_birth || member.dob || null,
+      memberId: member.member_id,
+      name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member',
+      birthdate: member.date_of_birth,
       currentSection: sectionName,
       currentSectionId: sectionId || null,
       age: ageAtTermStart,
