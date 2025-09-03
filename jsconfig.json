@@ -9,7 +9,7 @@
     "strict": false,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -26,9 +26,7 @@
     }
   },
   "include": [
-    "src/**/*",
-    "src/**/*.jsx",
-    "src/**/*.js"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
