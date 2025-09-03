@@ -16,6 +16,8 @@ function MoverAssignmentRow({
     
     if (onAssignmentChange) {
       onAssignmentChange(mover.memberId, {
+        memberId: mover.memberId,
+        currentSectionId: mover.currentSectionId,
         sectionId: sectionId || null,
         sectionName: targetSection?.sectionName || null,
       });
@@ -31,47 +33,91 @@ function MoverAssignmentRow({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white rounded border border-gray-200 hover:border-gray-300">
-      <div className="min-w-0 flex-1">
-        <div className="font-medium text-sm text-gray-900">
-          {mover.name}
+    <div className="p-2 bg-white rounded border border-gray-200 hover:border-gray-300">
+      {/* Mobile Layout */}
+      <div className="md:hidden space-y-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="font-medium text-sm text-gray-900">
+              {mover.name} <span className="text-xs text-gray-500 font-normal">
+                ({mover.birthdate ? new Date(mover.birthdate).toLocaleDateString() : 'Unknown'})
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-gray-500">
-          DOB: {mover.birthdate ? new Date(mover.birthdate).toLocaleDateString() : 'Unknown'}
+        
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 min-w-[60px]">Section:</span>
+            <select
+              value={currentAssignment}
+              onChange={handleSectionChange}
+              className="text-xs border border-gray-300 rounded px-2 py-1 flex-1"
+            >
+              <option value="">Select section...</option>
+              {availableSections.map(section => (
+                <option key={section.sectionId} value={section.sectionId}>
+                  {section.sectionName}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 min-w-[60px]">Term:</span>
+            <select
+              value={currentTermOverride}
+              onChange={handleTermChange}
+              className="text-xs border border-gray-300 rounded px-2 py-1 flex-1"
+              title="Override term assignment"
+            >
+              {availableTerms.map(term => (
+                <option key={`${term.type}-${term.year}`} value={`${term.type}-${term.year}`}>
+                  {term.type} {term.year}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       
-      <div className="flex items-center space-x-3 ml-4">
-        <div className="text-xs text-gray-600">→</div>
-        
-        <div className="flex flex-col space-y-1">
-          <select
-            value={currentAssignment}
-            onChange={handleSectionChange}
-            className="text-xs border border-gray-300 rounded px-2 py-1 min-w-[120px]"
-          >
-            <option value="">Select section...</option>
-            {availableSections.map(section => (
-              <option key={section.sectionId} value={section.sectionId}>
-                {section.sectionName}
-              </option>
-            ))}
-          </select>
-          
-          <select
-            value={currentTermOverride}
-            onChange={handleTermChange}
-            className="text-xs border border-gray-300 rounded px-2 py-1 min-w-[120px]"
-            title="Override term assignment"
-          >
-            <option value="">Auto term</option>
-            {availableTerms.map(term => (
-              <option key={`${term.type}-${term.year}`} value={`${term.type}-${term.year}`}>
-                {term.type} {term.year}
-              </option>
-            ))}
-          </select>
+      {/* Desktop Layout */}
+      <div className="hidden md:grid grid-cols-[140px_8px_150px_110px] gap-1 items-center">
+        <div className="min-w-0">
+          <div className="font-medium text-xs text-gray-900 leading-tight" title={mover.name}>
+            {mover.name} <span className="text-xs text-gray-500 font-normal">
+              ({mover.birthdate ? new Date(mover.birthdate).toLocaleDateString() : 'Unknown'})
+            </span>
+          </div>
         </div>
+        
+        <div className="text-xs text-gray-600 text-center flex-shrink-0">→</div>
+        
+        <select
+          value={currentAssignment}
+          onChange={handleSectionChange}
+          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-0"
+        >
+          <option value="">Select section...</option>
+          {availableSections.map(section => (
+            <option key={section.sectionId} value={section.sectionId}>
+              {section.sectionName}
+            </option>
+          ))}
+        </select>
+        
+        <select
+          value={currentTermOverride}
+          onChange={handleTermChange}
+          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-0"
+          title="Override term assignment"
+        >
+          {availableTerms.map(term => (
+            <option key={`${term.type}-${term.year}`} value={`${term.type}-${term.year}`}>
+              {term.type} {term.year}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );
