@@ -1,17 +1,86 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Button, Alert } from '../ui';
 import LoadingScreen from '../LoadingScreen.jsx';
 import useSectionMovements from '../../hooks/sectionMovements/useSectionMovements.js';
 import { calculateSectionMovements } from '../../services/sectionMovements/movementCalculator.js';
 import TermMovementCard from './TermMovementCard.jsx';
 import { getFutureTerms } from '../../utils/sectionMovements/termCalculations.js';
+import { useNotification } from '../../contexts/notifications/NotificationContext';
+import { safeGetItem } from '../../utils/storageUtils.js';
 
 
 function SectionMovementTracker({ onBack }) {
   const [numberOfTerms, setNumberOfTerms] = useState(2);
   const { members, sections, loading, error, refetch } = useSectionMovements();
+  const { notifyError } = useNotification();
+  const hasCheckedFlexiRecords = useRef(false);
   
   const futureTerms = getFutureTerms(numberOfTerms);
+
+  // Check for missing Viking Section Movers FlexiRecords
+  const checkForMissingFlexiRecords = useCallback((sectionsData) => {
+    if (!sectionsData || sectionsData.length === 0) return;
+
+    const missingSections = [];
+
+    sectionsData.forEach(section => {
+      const sectionId = section.sectionid;
+      const sectionName = section.sectionname || section.name || 'Unknown Section';
+      
+      // Filter out adults and waitinglist sections
+      const normalizedName = sectionName.toLowerCase();
+      if (normalizedName.includes('adults') || 
+          normalizedName.includes('waiting') || 
+          normalizedName.includes('waitinglist')) {
+        return; // Skip these sections
+      }
+
+      // Check if FlexiRecord list exists in cache for this section
+      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
+      const flexiRecordsList = safeGetItem(cacheKey, null);
+      
+      if (!flexiRecordsList || !flexiRecordsList.items) {
+        missingSections.push(sectionName);
+        return;
+      }
+
+      // Check if Viking Section Movers FlexiRecord exists in the list
+      const hasVikingSectionMovers = flexiRecordsList.items.some(record => 
+        record.name === 'Viking Section Movers',
+      );
+
+      if (!hasVikingSectionMovers) {
+        missingSections.push(sectionName);
+      }
+    });
+
+    // Show notification if there are missing FlexiRecords
+    if (missingSections.length > 0) {
+      const sectionList = missingSections.join(', ');
+      const requiredFields = ['AssignedSection', 'AssignedTerm'];
+      const optionalFields = ['AssignmentDate', 'AssignedBy'];
+      
+      const message = `Missing "Viking Section Movers" FlexiRecord for: ${sectionList}. ` +
+        `Contact your administrator to create this FlexiRecord with required fields: ${requiredFields.join(', ')} ` +
+        `and optional fields: ${optionalFields.join(', ')}.`;
+      notifyError(message);
+    }
+  }, [notifyError]);
+
+  // Check for missing FlexiRecords when sections load (only once per session)
+  useEffect(() => {
+    if (sections && sections.length > 0 && !hasCheckedFlexiRecords.current) {
+      checkForMissingFlexiRecords(sections);
+      hasCheckedFlexiRecords.current = true;
+    }
+  }, [sections, checkForMissingFlexiRecords]);
+
+  // Reset the check flag when component unmounts
+  useEffect(() => {
+    return () => {
+      hasCheckedFlexiRecords.current = false;
+    };
+  }, []);
   
   const termCalculations = useMemo(() => {
     if (!members || !sections) return [];
