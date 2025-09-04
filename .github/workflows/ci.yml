@@ -47,8 +47,12 @@ jobs:
 
       - name: Set build environment variables
         run: |
-          # Use git describe to get current version, fallback to package.json version
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.1.0")
+          # Get highest semantic version tag, not just reachable ones
+          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.1.0"
+          fi
+          VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
           echo "SENTRY_RELEASE=vikings-eventmgmt-mobile@$VERSION" >> $GITHUB_ENV
           echo "Building with Sentry release: vikings-eventmgmt-mobile@$VERSION"
 
@@ -133,8 +137,12 @@ jobs:
 
       - name: Set build environment variables
         run: |
-          # Use git describe to get current version, fallback to package.json version
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.1.0")
+          # Get highest semantic version tag, not just reachable ones
+          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.1.0"
+          fi
+          VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
           echo "SENTRY_RELEASE=vikings-eventmgmt-mobile@$VERSION" >> $GITHUB_ENV
           echo "Building mobile assets with Sentry release: vikings-eventmgmt-mobile@$VERSION"
 
@@ -296,8 +304,11 @@ jobs:
             echo "🔍 Preview deployment detected"
             echo "📋 Using PR title: $PR_TITLE"
 
-            # Get current production version from latest git tag
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            # Get current production version from highest semantic version tag (not just reachable ones)
+            LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+            if [ -z "$LATEST_TAG" ]; then
+              LATEST_TAG="v1.0.0"
+            fi
             BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
             echo "🏷️ Latest production tag: $LATEST_TAG (base: $BASE_VERSION)"
 
@@ -385,8 +396,11 @@ jobs:
               echo "Or version tags like: 'Add new feature [minor]' or 'Breaking change [major]'"
               echo "Or conventional commits like: 'feat:', 'fix:', 'BREAKING CHANGE:'"
 
-              # Get base version from latest git tag (more reliable than package.json)
-              LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+              # Get base version from highest semantic version tag (not just reachable ones)
+              LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+              if [ -z "$LATEST_TAG" ]; then
+                LATEST_TAG="v1.0.0"
+              fi
               # Remove only a leading 'v'
               BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
               echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
@@ -536,8 +550,11 @@ jobs:
                 # Clean up failed local tag
                 git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
                 
-                # Recompute FINAL_VERSION based on latest remote tags
-                ACTUAL_LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+                # Recompute FINAL_VERSION based on highest semantic version tag
+                ACTUAL_LATEST=$(git tag -l "v*.*.*" | sort -V | tail -1)
+                if [ -z "$ACTUAL_LATEST" ]; then
+                  ACTUAL_LATEST="v1.0.0"
+                fi
                 ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
                 ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
                 IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
