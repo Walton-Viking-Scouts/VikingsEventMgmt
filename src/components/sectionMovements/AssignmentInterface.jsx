@@ -29,7 +29,7 @@ function AssignmentInterface({
 
   const getIncomingCountForSection = useCallback((sectionId) => {
     return Array.from(assignments.values()).filter(
-      assignment => assignment.targetSectionId === sectionId,
+      assignment => assignment.sectionId === sectionId,
     ).length;
   }, [assignments]);
 
@@ -162,8 +162,8 @@ function AssignmentInterface({
         moverId: dragData.moverId,
         moverName: dragData.moverName,
         currentSectionId: dragData.currentSectionId,
-        targetSectionId: targetSection.sectionId,
-        targetSectionName: targetSection.sectionName,
+        sectionId: targetSection.sectionId,
+        sectionName: targetSection.sectionName,
         term: term.type,
         termYear: term.year,
         assignedAt: new Date().toISOString(),
@@ -307,7 +307,7 @@ function AssignmentInterface({
                         {mover.name}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {mover.currentSection} → {mover.assignment.targetSectionName}
+                        {mover.currentSection} → {mover.assignment.sectionName}
                       </div>
                     </div>
                     <button
