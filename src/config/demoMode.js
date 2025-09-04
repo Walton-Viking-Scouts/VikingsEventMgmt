@@ -582,6 +582,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Leaders'),
+      date_of_birth: getRandomBirthDate(section.section, 'Leaders'),
     });
   }
   
@@ -598,6 +599,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Young Leaders'),
+      date_of_birth: getRandomBirthDate(section.section, 'Young Leaders'),
     });
   }
   
@@ -614,6 +616,7 @@ function generateMembersForSection(section) {
       patrol: `Patrol ${String.fromCharCode(65 + (members.length % 3))}`, // A, B, C
       active: 1,
       dateofbirth: getRandomBirthDate(section.section, 'Young People'),
+      date_of_birth: getRandomBirthDate(section.section, 'Young People'),
     });
   }
 
@@ -645,7 +648,10 @@ function generateAttendanceForEvent(section, _eventId) {
       lastname: member.lastname,
       sectionid: section.sectionid,
       sectionname: section.sectionname,
-      patrolid: 12345 + (parseInt(member.scoutid.split('_')[2]) % 3),
+      patrolid: (() => {
+        const n = parseInt(String(member.scoutid).replace(/\D/g, ''), 10);
+        return 12345 + (Number.isNaN(n) ? 0 : (n % 3));
+      })(),
       _filterString: `${member.firstname.toLowerCase()} ${member.lastname.toLowerCase()}`,
     };
   });

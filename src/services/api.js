@@ -1449,6 +1449,7 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
   }
   
   validateTokenBeforeAPICall(token, 'multiUpdateFlexiRecord');
+  logger.debug('multiUpdateFlexiRecord: Token validation passed', {}, LOG_CATEGORIES.API);
   
   try {
     // Import the guard function
@@ -1456,6 +1457,7 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
     
     // Check if write operations are allowed
     checkWritePermission();
+    logger.debug('multiUpdateFlexiRecord: Write permission check passed', {}, LOG_CATEGORIES.API);
     
     // Token already validated above
 
@@ -1466,10 +1468,12 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       err.code = 'INVALID_COLUMN_ID';
       throw err;
     }
+    logger.debug('multiUpdateFlexiRecord: Column format validation passed', { column }, LOG_CATEGORIES.API);
 
     if (!Array.isArray(scouts) || scouts.length === 0) {
       throw new Error('Scouts array is required and must not be empty');
     }
+    logger.debug('multiUpdateFlexiRecord: Scouts array validation passed', { scoutCount: scouts.length }, LOG_CATEGORIES.API);
 
     const requestBody = {
       sectionid,
@@ -1479,7 +1483,10 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       flexirecordid,
     };
 
-    // Multi-updating FlexiRecord field
+    logger.debug('multiUpdateFlexiRecord: Making API call', { 
+      url: `${BACKEND_URL}/multi-update-flexi-record`,
+      requestBody, 
+    }, LOG_CATEGORIES.API);
 
     const response = await fetch(`${BACKEND_URL}/multi-update-flexi-record`, {
       method: 'POST',
@@ -1489,8 +1496,18 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
       },
       body: JSON.stringify(requestBody),
     });
+
+    logger.debug('multiUpdateFlexiRecord: Response received', { 
+      status: response.status,
+      statusText: response.statusText, 
+    }, LOG_CATEGORIES.API);
         
     const data = await handleAPIResponseWithRateLimit(response, 'multiUpdateFlexiRecord');
+    
+    logger.debug('multiUpdateFlexiRecord: Response processed', { 
+      success: data?.data?.success,
+      data: data, 
+    }, LOG_CATEGORIES.API);
     
     if (data?.data?.success) {
       // Multi-update FlexiRecord successful

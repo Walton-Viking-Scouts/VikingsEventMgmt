@@ -524,7 +524,8 @@ class DatabaseService {
         // Filter members by requested sections
         // Now that section IDs are standardized as numbers, filtering is simple
         const filteredMembers = members.filter(member => {
-          return member.sectionid && sectionIds.includes(member.sectionid);
+          const memberSectionId = member.section_id || member.sectionid;
+          return memberSectionId && sectionIds.includes(memberSectionId);
         });
         
         return filteredMembers;

@@ -6,6 +6,7 @@ import BlockedScreen from './components/BlockedScreen.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
 import EventDashboard from './components/EventDashboard.jsx';
 import AttendanceView from './components/AttendanceView.jsx';
+import { SectionMovementTracker } from './components/sectionMovements';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import TokenExpiredDialog from './components/TokenExpiredDialog.jsx';
 import databaseService from './services/database.js';
@@ -257,6 +258,10 @@ function AppContent() {
   // Always show dashboard - authentication is now contextual via header
   // No more blocking LoginScreen!
 
+  const handleNavigateToSectionMovements = () => {
+    setCurrentView('section-movements');
+  };
+
   const renderCurrentView = () => {
     // Helper to extract unique sections from events
 
@@ -276,10 +281,17 @@ function AppContent() {
         />
       );
     }
+    case 'section-movements':
+      return (
+        <SectionMovementTracker
+          onBack={handleBackToDashboard}
+        />
+      );
     default:
       return (
         <EventDashboard
           onNavigateToAttendance={handleNavigateToAttendance}
+          onNavigateToSectionMovements={handleNavigateToSectionMovements}
           data-oid="bs.j_-c"
         />
       );

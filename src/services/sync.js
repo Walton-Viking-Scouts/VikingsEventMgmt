@@ -434,6 +434,7 @@ class SyncService {
         total: sections.length,
       }, LOG_CATEGORIES.SYNC);
 
+
       // Now load structures for all unique flexirecords found
       const allFlexiRecords = new Map();
       
@@ -463,24 +464,25 @@ class SyncService {
         count: allFlexiRecords.size,
       }, LOG_CATEGORIES.SYNC);
 
-      // Load structures in parallel - only for "Viking Event Mgmt" records (optimization)
-      const vikingEventRecords = Array.from(allFlexiRecords.values()).filter(record => 
-        record.name === 'Viking Event Mgmt',
+      // Load structures in parallel - only for "Viking Event Mgmt" and "Viking Section Movers" records
+      const vikingRecords = Array.from(allFlexiRecords.values()).filter(record => 
+        record.name === 'Viking Event Mgmt' || record.name === 'Viking Section Movers',
       );
       
-      logger.info('Loading structures for "Viking Event Mgmt" flexirecords only', {
+      logger.info('Loading structures for Viking flexirecords', {
         totalRecords: allFlexiRecords.size,
-        vikingEventRecords: vikingEventRecords.length,
+        vikingEventMgmt: vikingRecords.filter(r => r.name === 'Viking Event Mgmt').length,
+        vikingSectionMovers: vikingRecords.filter(r => r.name === 'Viking Section Movers').length,
       }, LOG_CATEGORIES.SYNC);
       
-      const structurePromises = vikingEventRecords.map(async (record) => {
+      const structurePromises = vikingRecords.map(async (record) => {
         try {
           // Use first section ID for the request
           const sectionId = record.sectionIds[0];
           await getFlexiStructure(record.extraid, sectionId, null, token);
           return { success: true, record };
         } catch (error) {
-          logger.warn('Failed to preload structure for "Viking Event Mgmt" flexirecord', {
+          logger.warn('Failed to preload structure for Viking flexirecord', {
             recordName: record.name,
             extraid: record.extraid,
             error: error.message,

@@ -72,59 +72,6 @@ function OfflineIndicator({ hideBanner = false }) {
     }
   };
 
-  useEffect(() => {
-    checkInitialStatus();
-    const networkCleanup = setupNetworkListeners();
-    const syncCleanup = setupSyncListeners();
-
-    // Setup login prompt listener
-    const handleLoginPrompt = (promptData) => {
-      setLoginPromptData(promptData);
-      setShowLoginPrompt(true);
-    };
-
-    syncService.addLoginPromptListener(handleLoginPrompt);
-
-    // Test API connectivity on mount and with exponential backoff when offline
-    testApiConnectivity();
-
-    let backoffDelay = 30000; // Start with 30 seconds
-    const maxDelay = 300000; // Max 5 minutes
-    let connectivityTimeoutId;
-
-    const scheduleNextCheck = () => {
-      connectivityTimeoutId = setTimeout(() => {
-        testApiConnectivity()
-          .then((status) => {
-            if (status === true) {
-              // Connected, reset backoff
-              backoffDelay = 30000;
-            } else if (status === false) {
-              // Hard failure, increase backoff
-              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
-            }
-            // status === null means rate-limited, keep current backoff
-            scheduleNextCheck();
-          })
-          .catch(() => {
-            // Error in connectivity test, continue with backoff
-            backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
-            scheduleNextCheck();
-          });
-      }, backoffDelay);
-    };
-
-    scheduleNextCheck();
-
-    return () => {
-      // Cleanup listeners
-      syncService.removeLoginPromptListener(handleLoginPrompt);
-      if (connectivityTimeoutId) clearTimeout(connectivityTimeoutId);
-      if (networkCleanup) networkCleanup();
-      if (syncCleanup) syncCleanup();
-    };
-  }, []); // mount-only
-
   const checkInitialStatus = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
@@ -194,11 +141,63 @@ function OfflineIndicator({ hideBanner = false }) {
 
     syncService.addSyncListener(handleSyncStatus);
 
-    // Return cleanup function
     return () => {
       syncService.removeSyncListener(handleSyncStatus);
     };
   };
+
+  useEffect(() => {
+    checkInitialStatus();
+    const networkCleanup = setupNetworkListeners();
+    const syncCleanup = setupSyncListeners();
+
+    // Setup login prompt listener
+    const handleLoginPrompt = (promptData) => {
+      setLoginPromptData(promptData);
+      setShowLoginPrompt(true);
+    };
+
+    syncService.addLoginPromptListener(handleLoginPrompt);
+
+    // Test API connectivity on mount and with exponential backoff when offline
+    testApiConnectivity();
+
+    let backoffDelay = 30000; // Start with 30 seconds
+    const maxDelay = 300000; // Max 5 minutes
+    let connectivityTimeoutId;
+
+    const scheduleNextCheck = () => {
+      connectivityTimeoutId = setTimeout(() => {
+        testApiConnectivity()
+          .then((status) => {
+            if (status === true) {
+              // Connected, reset backoff
+              backoffDelay = 30000;
+            } else if (status === false) {
+              // Hard failure, increase backoff
+              backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            }
+            // status === null means rate-limited, keep current backoff
+            scheduleNextCheck();
+          })
+          .catch(() => {
+            // Error in connectivity test, continue with backoff
+            backoffDelay = Math.min(backoffDelay * 1.5, maxDelay);
+            scheduleNextCheck();
+          });
+      }, backoffDelay);
+    };
+
+    scheduleNextCheck();
+
+    return () => {
+      // Cleanup listeners
+      syncService.removeLoginPromptListener(handleLoginPrompt);
+      if (connectivityTimeoutId) clearTimeout(connectivityTimeoutId);
+      if (networkCleanup) networkCleanup();
+      if (syncCleanup) syncCleanup();
+    };
+  }, []); // removed setupNetworkListeners dependency to avoid re-running effect
 
   const handleLoginConfirm = () => {
     setShowLoginPrompt(false);
