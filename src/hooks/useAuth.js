@@ -47,9 +47,15 @@ export function useAuth() {
       const tokenExpired = isTokenExpired();
       const hasValidToken = authService.isAuthenticated(); // This checks if token is valid (not expired)
       
+      // Check if user was previously authenticated (has stored user info)
+      const hasPreviousAuth = !!authService.getUserInfo();
+      
       if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
       } else if (isAuth && tokenExpired && hasCachedData) {
+        return 'token_expired';
+      } else if (hasCachedData && hasPreviousAuth) {
+        // User has cached data and was previously authenticated - likely token expired or cleared
         return 'token_expired';
       } else if (hasCachedData) {
         return 'cached_only';
@@ -278,6 +284,9 @@ export function useAuth() {
       const hasStoredToken = !!sessionStorage.getItem('access_token'); // Check for any stored token
       const tokenExpired = isTokenExpired();
       
+      // Check if user was previously authenticated (has stored token OR user info)
+      const wasPreviouslyAuthenticated = hasStoredToken || !!authService.getUserInfo();
+      
       if (hasValidToken) {
         // Valid token - normal authenticated state
         setIsAuthenticated(true);
@@ -327,7 +336,8 @@ export function useAuth() {
       
       // Determine and set the enhanced auth state
       // For authState determination, consider both valid and expired tokens as "having a token"
-      const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired);
+      // Also consider if user was previously authenticated (has user info) even if token is cleared
+      const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired) || (wasPreviouslyAuthenticated && tokenExpired);
       const newAuthState = await determineAuthState(currentHasToken);
       setAuthState(newAuthState);
       
