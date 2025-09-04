@@ -35,7 +35,12 @@ function SectionMovementTracker({ onBack }) {
         return; // Skip these sections
       }
 
-      // Check if FlexiRecord list exists in cache for this section
+      // Check if this section is already loaded (has FlexiRecord data)
+      if (flexiRecordState.loadedSections && flexiRecordState.loadedSections.has(sectionId)) {
+        return; // Section has FlexiRecord loaded, treat as present
+      }
+
+      // Fallback: Check if FlexiRecord list exists in cache for this section
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
       const flexiRecordsList = safeGetItem(cacheKey, null);
       
@@ -65,7 +70,7 @@ function SectionMovementTracker({ onBack }) {
         `and optional fields: ${optionalFields.join(', ')}.`;
       notifyError(message);
     }
-  }, [notifyError]);
+  }, [notifyError, flexiRecordState.loadedSections]);
 
   // Check for missing FlexiRecords when sections load and FlexiRecord discovery completes (only once per session)
   useEffect(() => {
