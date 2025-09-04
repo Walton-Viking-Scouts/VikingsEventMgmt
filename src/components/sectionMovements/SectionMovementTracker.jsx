@@ -11,7 +11,7 @@ import { safeGetItem } from '../../utils/storageUtils.js';
 
 function SectionMovementTracker({ onBack }) {
   const [numberOfTerms, setNumberOfTerms] = useState(2);
-  const { members, sections, loading, error, refetch } = useSectionMovements();
+  const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
   const { notifyError } = useNotification();
   const hasCheckedFlexiRecords = useRef(false);
   
@@ -67,13 +67,13 @@ function SectionMovementTracker({ onBack }) {
     }
   }, [notifyError]);
 
-  // Check for missing FlexiRecords when sections load (only once per session)
+  // Check for missing FlexiRecords when sections load and FlexiRecord discovery completes (only once per session)
   useEffect(() => {
-    if (sections && sections.length > 0 && !hasCheckedFlexiRecords.current) {
+    if (sections && sections.length > 0 && !hasCheckedFlexiRecords.current && flexiRecordState.loading === false) {
       checkForMissingFlexiRecords(sections);
       hasCheckedFlexiRecords.current = true;
     }
-  }, [sections, checkForMissingFlexiRecords]);
+  }, [sections, checkForMissingFlexiRecords, flexiRecordState.loading]);
 
   // Reset the check flag when component unmounts
   useEffect(() => {
