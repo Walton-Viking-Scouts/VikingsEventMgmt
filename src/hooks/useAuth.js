@@ -17,16 +17,7 @@ const TOKEN_CONFIG = {
 // Helper function to broadcast auth changes across tabs
 const broadcastAuthSync = () => {
   try {
-    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      const ch = new window.BroadcastChannel('auth_sync');
-      ch.postMessage({ ts: Date.now() });
-      ch.close();
-      return;
-    }
-  } catch {
-    // BroadcastChannel not available, fall through to localStorage
-  }
-  try {
+    // Use localStorage to signal other tabs to refresh auth state
     localStorage.setItem('auth_sync', String(Date.now()));
     localStorage.removeItem('auth_sync');
   } catch {
