@@ -245,7 +245,7 @@ export function useAttendanceData(events) {
       
       // Load Viking Event Management data for all sections
       // getVikingEventDataForEvents handles section-term combinations correctly
-      const vikingEventMap = await getVikingEventDataForEvents(events, token);
+      const vikingEventMap = await getVikingEventDataForEvents(events, token, true);
       
       if (import.meta.env.DEV) {
         console.log('useAttendanceData: Viking Event data loaded successfully', {

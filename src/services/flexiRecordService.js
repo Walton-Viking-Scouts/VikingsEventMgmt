@@ -8,6 +8,12 @@ function hasUsableToken(token) {
   return token.trim().length > 0;
 }
 
+function normalizeId(id, name) {
+  if (typeof id === 'number') return String(id);
+  if (typeof id === 'string' && id.trim() !== '' && id !== 'undefined' && id !== 'null') return id;
+  throw new Error(`Valid ${name} (string or number) is required`);
+}
+
 import { safeGetItem, safeSetItem } from '../utils/storageUtils.js';
 import { checkNetworkStatus } from '../utils/networkUtils.js';
 import logger, { LOG_CATEGORIES } from './logger.js';
@@ -92,15 +98,13 @@ function cacheData(cacheKey, data) {
 
 /**
  * Get available flexirecords for a section (follows getTerms pattern)
- * @param {string} sectionId - Section ID
+ * @param {string|number} sectionId - Section ID
  * @param {string} token - Authentication token  
  * @param {boolean} forceRefresh - Force API call ignoring cache
  * @returns {Promise<Object>} Flexirecords list
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
-  if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
-  }
+  sectionId = normalizeId(sectionId, 'sectionId');
   
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
@@ -118,7 +122,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
     
     // If no token available, skip API calls and use empty cache fallback
     if (!hasUsableToken(token)) {
-      console.log(`🔒 No usable token for section ${sectionId}, skipping API call`);
+      logger.info('No usable token for section, skipping API call', { sectionId }, LOG_CATEGORIES.APP);
       const emptyCache = safeGetItem(cacheKey, { items: [] });
       return emptyCache;
     }
@@ -175,23 +179,17 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
 
 /**
  * Get flexirecord structure (field definitions) - cached longer as they don't change often
- * @param {string} flexirecordId - FlexiRecord ID
- * @param {string} sectionId - Section ID
- * @param {string} termId - Term ID
+ * @param {string|number} flexirecordId - FlexiRecord ID
+ * @param {string|number} sectionId - Section ID
+ * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token
  * @param {boolean} forceRefresh - Force API call ignoring cache
  * @returns {Promise<Object>} FlexiRecord structure
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
-  if (!flexirecordId || typeof flexirecordId !== 'string') {
-    throw new Error('Valid flexirecordId (string) is required');
-  }
-  if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
-  }
-  if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
-  }
+  flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
+  sectionId = normalizeId(sectionId, 'sectionId');
+  termId = normalizeId(termId, 'termId');
   
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
@@ -276,23 +274,17 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
 
 /**
  * Get flexirecord attendance data - refreshed frequently as it changes often
- * @param {string} flexirecordId - FlexiRecord ID
- * @param {string} sectionId - Section ID
- * @param {string} termId - Term ID
+ * @param {string|number} flexirecordId - FlexiRecord ID
+ * @param {string|number} sectionId - Section ID
+ * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token
  * @param {boolean} forceRefresh - Force API call ignoring cache (default: true)
  * @returns {Promise<Object>} FlexiRecord attendance data
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
-  if (!flexirecordId || typeof flexirecordId !== 'string') {
-    throw new Error('Valid flexirecordId (string) is required');
-  }
-  if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
-  }
-  if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
-  }
+  flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
+  sectionId = normalizeId(sectionId, 'sectionId');
+  termId = normalizeId(termId, 'termId');
   
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = true;
@@ -472,19 +464,15 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * Get Viking Event Management flexirecord for a section
  * Looks for flexirecord with name="Viking Event Mgmt"
  * 
- * @param {string} sectionId - Section ID
- * @param {string} termId - Term ID
+ * @param {string|number} sectionId - Section ID
+ * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token (null for offline)
  * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
  * @returns {Promise<Object|null>} Viking Event Mgmt flexirecord data or null if not found
  */
 export async function getVikingEventData(sectionId, termId, token, forceRefresh = false) {
-  if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
-  }
-  if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
-  }
+  sectionId = normalizeId(sectionId, 'sectionId');
+  termId = normalizeId(termId, 'termId');
   
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
@@ -493,9 +481,9 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
   try {
 
     // Getting Viking Event data for section
-
+    
     // Get flexirecords list
-    const flexiRecordsList = await getFlexiRecordsList(sectionId, token);
+    const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
 
     // Find the Viking Event Mgmt flexirecord ID from the list
     const vikingEventFlexiRecord = flexiRecordsList.items?.find(record => 
@@ -554,19 +542,15 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
  * Get Viking Section Movers flexirecord for a section
  * Looks for flexirecord with name="Viking Section Movers"
  * 
- * @param {string} sectionId - Section ID
- * @param {string} termId - Term ID
+ * @param {string|number} sectionId - Section ID
+ * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token (null for offline)
  * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
  * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
  */
 export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
-  if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
-  }
-  if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
-  }
+  sectionId = normalizeId(sectionId, 'sectionId');
+  termId = normalizeId(termId, 'termId');
   
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
@@ -577,7 +561,7 @@ export async function getVikingSectionMoversData(sectionId, termId, token, force
     // Getting Viking Section Movers data for section
 
     // Get flexirecords list
-    const flexiRecordsList = await getFlexiRecordsList(sectionId, token);
+    const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
 
     // Find the Viking Section Movers flexirecord ID from the list
     const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record => 
@@ -1061,17 +1045,19 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
  */
 export async function getVikingEventDataForEvents(events, token, forceRefresh = true) {
   try {
+    
     if (!events || !Array.isArray(events)) {
       throw new Error('Invalid events: must be an array');
     }
 
     // Get unique section-term combinations from events
     const sectionTermCombos = [...new Set(
-      events.map(e => JSON.stringify([e.sectionid, e.termid])),
+      events.map(e => JSON.stringify([String(e.sectionid), String(e.termid)])),
     )].map(key => {
       const [sectionId, termId] = JSON.parse(key);
       return { sectionId, termId };
     });
+
 
     // Getting Viking Event data for section-term combinations
 
@@ -1096,7 +1082,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
 
     const results = await Promise.all(vikingEventPromises);
     const vikingEventDataBySections = new Map(
-      results.map(({ sectionId, vikingEventData }) => [sectionId, vikingEventData]),
+      results.map(({ sectionId, vikingEventData }) => [String(sectionId), vikingEventData]),
     );
 
     // const successCount = results.filter(r => r.vikingEventData !== null).length;
