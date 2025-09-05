@@ -8,13 +8,21 @@ import databaseService from '../services/database.js';
 // Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
   // Default token expiration time when OAuth server doesn't provide expires_in
-  DEFAULT_EXPIRATION_SECONDS: import.meta.env.DEV ? 60 * 60 : 60 * 60, // 1 hour (both environments - OSM typical)
+  DEFAULT_EXPIRATION_SECONDS: 60 * 60, // 1 hour (OSM typical)
   
   // How often to check for token expiration (in milliseconds)
   CHECK_INTERVAL_MS: import.meta.env.DEV ? 30 * 1000 : 60 * 1000, // 30s dev, 60s prod
-  
-  // How early to warn about upcoming expiration (in milliseconds)
-  EXPIRATION_WARNING_MS: import.meta.env.DEV ? 2 * 60 * 1000 : 5 * 60 * 1000, // 2min dev, 5min prod
+};
+
+// Helper function to broadcast auth changes across tabs
+const broadcastAuthSync = () => {
+  try {
+    // Use localStorage to signal other tabs to refresh auth state
+    localStorage.setItem('auth_sync', Date.now().toString());
+    localStorage.removeItem('auth_sync'); // Clean up immediately
+  } catch (error) {
+    // Silently fail if localStorage is not available
+  }
 };
 
 export function useAuth() {
@@ -37,9 +45,9 @@ export function useAuth() {
     try {
       // Check if we have any cached data
       const cachedSections = await databaseService.getSections();
-      const hasCachedData = cachedSections && cachedSections.length > 0;
+      const hasCache = cachedSections && cachedSections.length > 0;
       
-      // Get last sync time from cache
+      // Get last sync time from cache (side effect kept for compatibility)
       const lastSync = localStorage.getItem('viking_last_sync');
       setLastSyncTime(lastSync);
       
@@ -52,12 +60,12 @@ export function useAuth() {
       
       if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
-      } else if (isAuth && tokenExpired && hasCachedData) {
+      } else if (isAuth && tokenExpired && hasCache) {
         return 'token_expired';
-      } else if (hasCachedData && hasPreviousAuth) {
+      } else if (hasCache && hasPreviousAuth) {
         // User has cached data and was previously authenticated - likely token expired or cleared
         return 'token_expired';
-      } else if (hasCachedData) {
+      } else if (hasCache) {
         return 'cached_only';
       } else {
         return 'no_data';
@@ -142,6 +150,8 @@ export function useAuth() {
         try {
           // Store the token via service to reset auth handler and Sentry context
           authService.setToken(accessToken);
+          // Notify other tabs
+          broadcastAuthSync();
           // Clear any expired/invalid token flags when storing a new token
           sessionStorage.removeItem('token_expired');
           sessionStorage.removeItem('token_invalid');
@@ -284,8 +294,7 @@ export function useAuth() {
       const hasStoredToken = !!sessionStorage.getItem('access_token'); // Check for any stored token
       const tokenExpired = isTokenExpired();
       
-      // Check if user was previously authenticated (has stored token OR user info)
-      const wasPreviouslyAuthenticated = hasStoredToken || !!authService.getUserInfo();
+
       
       if (hasValidToken) {
         // Valid token - normal authenticated state
@@ -307,26 +316,39 @@ export function useAuth() {
           },
         });
       } else if (hasStoredToken && tokenExpired) {
-        // Expired token but we have cached data - offline mode
-        setIsAuthenticated(true); // Keep authenticated for UI purposes
-        const userInfo = authService.getUserInfo();
-        setUser(userInfo);
-        setIsOfflineMode(true);
-        
-        
-        // Note: Toast will be shown in App.jsx after loading completes
-        
-        // Log offline mode
-        Sentry.addBreadcrumb({
-          category: 'auth',
-          message: 'User authentication successful (offline mode)',
-          level: 'info',
-          data: {
-            hasUserInfo: !!userInfo,
-            userFullname: userInfo?.fullname || 'Unknown',
-            isOfflineMode: true,
-          },
-        });
+        try {
+          const cachedSections = await databaseService.getSections();
+          const hasCached = cachedSections && cachedSections.length > 0;
+          if (hasCached) {
+            // Expired token but we have cached data - offline mode
+            setIsAuthenticated(true); // Keep authenticated for UI purposes
+            const userInfo = authService.getUserInfo();
+            setUser(userInfo);
+            setIsOfflineMode(true);
+            
+            // Log offline mode
+            Sentry.addBreadcrumb({
+              category: 'auth',
+              message: 'User authentication successful (offline mode)',
+              level: 'info',
+              data: {
+                hasUserInfo: !!userInfo,
+                userFullname: userInfo?.fullname || 'Unknown',
+                isOfflineMode: true,
+              },
+            });
+          } else {
+            // No cache → require re-auth
+            setIsAuthenticated(false);
+            setUser(null);
+            setIsOfflineMode(false);
+          }
+        } catch {
+          // On error determining cache, prefer safe default: not authenticated
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsOfflineMode(false);
+        }
       } else {
         // No token exists - show login
         setIsAuthenticated(false);
@@ -336,8 +358,7 @@ export function useAuth() {
       
       // Determine and set the enhanced auth state
       // For authState determination, consider both valid and expired tokens as "having a token"
-      // Also consider if user was previously authenticated (has user info) even if token is cleared
-      const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired) || (wasPreviouslyAuthenticated && tokenExpired);
+      const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired);
       const newAuthState = await determineAuthState(currentHasToken);
       setAuthState(newAuthState);
       
@@ -372,6 +393,7 @@ export function useAuth() {
   // Logout function
   const logout = useCallback(async () => {
     authService.logout();
+    broadcastAuthSync();
     setIsAuthenticated(false);
     setUser(null);
     setIsBlocked(false);
@@ -388,6 +410,7 @@ export function useAuth() {
   // Set token (for OAuth callback handling)
   const setToken = useCallback((token) => {
     authService.setToken(token);
+    broadcastAuthSync();
     checkAuth(); // Recheck auth after setting token
   }, [checkAuth]);
 
@@ -413,7 +436,7 @@ export function useAuth() {
     // Listen for storage changes (in case user logs out in another tab)
     const handleStorageChange = (e) => {
       if (!mounted) return;
-      if (e.key === 'access_token' || e.key === 'osm_blocked' || e.key === 'token_invalid') {
+      if (e.key === 'auth_sync' || e.key === 'osm_blocked') {
         checkAuth();
       }
     };

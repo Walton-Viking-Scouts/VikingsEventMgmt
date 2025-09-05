@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import AuthButton from '../AuthButton.jsx';
 
@@ -37,7 +38,8 @@ describe('AuthButton', () => {
     expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Refresh data from OSM - currently using cached data');
   });
 
-  it('shows "Sign in to refresh" when authState is token_expired', () => {
+  it('shows "Sign in to refresh" when authState is token_expired', async () => {
+    const user = userEvent.setup();
     render(
       <AuthButton
         authState="token_expired"
@@ -48,9 +50,14 @@ describe('AuthButton', () => {
 
     expect(screen.getByText('Sign in to refresh')).toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Session expired - sign in again to refresh data');
+    
+    await user.click(screen.getByRole('button'));
+    expect(mockOnLogin).toHaveBeenCalledTimes(1);
+    expect(mockOnRefresh).not.toHaveBeenCalled();
   });
 
-  it('shows "Refresh" when authState is authenticated', () => {
+  it('shows "Refresh" when authState is authenticated', async () => {
+    const user = userEvent.setup();
     render(
       <AuthButton
         authState="authenticated"
@@ -61,6 +68,10 @@ describe('AuthButton', () => {
 
     expect(screen.getByText('Refresh')).toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Refresh data from OSM');
+    
+    await user.click(screen.getByRole('button'));
+    expect(mockOnRefresh).toHaveBeenCalledTimes(1);
+    expect(mockOnLogin).not.toHaveBeenCalled();
   });
 
   it('shows "Syncing..." when isLoading is true', () => {
