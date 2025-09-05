@@ -17,11 +17,20 @@ const TOKEN_CONFIG = {
 // Helper function to broadcast auth changes across tabs
 const broadcastAuthSync = () => {
   try {
-    // Use localStorage to signal other tabs to refresh auth state
-    localStorage.setItem('auth_sync', Date.now().toString());
-    localStorage.removeItem('auth_sync'); // Clean up immediately
-  } catch (error) {
-    // Silently fail if localStorage is not available
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const ch = new window.BroadcastChannel('auth_sync');
+      ch.postMessage({ ts: Date.now() });
+      ch.close();
+      return;
+    }
+  } catch {
+    // BroadcastChannel not available, fall through to localStorage
+  }
+  try {
+    localStorage.setItem('auth_sync', String(Date.now()));
+    localStorage.removeItem('auth_sync');
+  } catch {
+    // localStorage not available, silently fail
   }
 };
 
@@ -436,7 +445,7 @@ export function useAuth() {
     // Listen for storage changes (in case user logs out in another tab)
     const handleStorageChange = (e) => {
       if (!mounted) return;
-      if (e.key === 'auth_sync' || e.key === 'osm_blocked') {
+      if (e.storageArea === localStorage && (e.key === 'auth_sync' || e.key === 'osm_blocked')) {
         checkAuth();
       }
     };
@@ -580,6 +589,10 @@ export function useAuth() {
       const newAuthState = await determineAuthState(hadToken);
       setAuthState(newAuthState);
       setIsOfflineMode(true);
+      // Mirror offline branch in checkAuth
+      setIsAuthenticated(true);
+      const userInfo = authService.getUserInfo();
+      setUser(userInfo);
       
       logger.info('Switched to offline mode per user choice', { 
         newAuthState,
@@ -613,3 +626,5 @@ export function useAuth() {
     checkAuth,
   };
 }
+
+export default useAuth;
