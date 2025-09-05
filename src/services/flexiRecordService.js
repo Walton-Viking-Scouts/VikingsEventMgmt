@@ -98,8 +98,12 @@ function cacheData(cacheKey, data) {
  * @returns {Promise<Object>} Flexirecords list
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
+  // Convert sectionId to string if it's a number
+  if (typeof sectionId === 'number') {
+    sectionId = sectionId.toString();
+  }
   if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
+    throw new Error('Valid sectionId (string or number) is required');
   }
   
   if (typeof forceRefresh !== 'boolean') {
@@ -183,14 +187,28 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @returns {Promise<Object>} FlexiRecord structure
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
+  // Convert flexirecordId to string if it's a number
+  if (typeof flexirecordId === 'number') {
+    flexirecordId = flexirecordId.toString();
+  }
   if (!flexirecordId || typeof flexirecordId !== 'string') {
-    throw new Error('Valid flexirecordId (string) is required');
+    throw new Error('Valid flexirecordId (string or number) is required');
+  }
+  
+  // Convert sectionId to string if it's a number
+  if (typeof sectionId === 'number') {
+    sectionId = sectionId.toString();
   }
   if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
+    throw new Error('Valid sectionId (string or number) is required');
+  }
+  
+  // Convert termId to string if it's a number
+  if (typeof termId === 'number') {
+    termId = termId.toString();
   }
   if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
+    throw new Error('Valid termId (string or number) is required');
   }
   
   if (typeof forceRefresh !== 'boolean') {
@@ -284,14 +302,28 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
  * @returns {Promise<Object>} FlexiRecord attendance data
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
+  // Convert flexirecordId to string if it's a number
+  if (typeof flexirecordId === 'number') {
+    flexirecordId = flexirecordId.toString();
+  }
   if (!flexirecordId || typeof flexirecordId !== 'string') {
-    throw new Error('Valid flexirecordId (string) is required');
+    throw new Error('Valid flexirecordId (string or number) is required');
+  }
+  
+  // Convert sectionId to string if it's a number
+  if (typeof sectionId === 'number') {
+    sectionId = sectionId.toString();
   }
   if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
+    throw new Error('Valid sectionId (string or number) is required');
+  }
+  
+  // Convert termId to string if it's a number
+  if (typeof termId === 'number') {
+    termId = termId.toString();
   }
   if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
+    throw new Error('Valid termId (string or number) is required');
   }
   
   if (typeof forceRefresh !== 'boolean') {
@@ -479,11 +511,21 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * @returns {Promise<Object|null>} Viking Event Mgmt flexirecord data or null if not found
  */
 export async function getVikingEventData(sectionId, termId, token, forceRefresh = false) {
+  
+  // Convert sectionId to string if it's a number
+  if (typeof sectionId === 'number') {
+    sectionId = sectionId.toString();
+  }
   if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
+    throw new Error('Valid sectionId (string or number) is required');
+  }
+  
+  // Convert termId to string if it's a number
+  if (typeof termId === 'number') {
+    termId = termId.toString();
   }
   if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
+    throw new Error('Valid termId (string or number) is required');
   }
   
   if (typeof forceRefresh !== 'boolean') {
@@ -493,7 +535,7 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
   try {
 
     // Getting Viking Event data for section
-
+    
     // Get flexirecords list
     const flexiRecordsList = await getFlexiRecordsList(sectionId, token);
 
@@ -561,11 +603,20 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
  * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
  */
 export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
+  // Convert sectionId to string if it's a number
+  if (typeof sectionId === 'number') {
+    sectionId = sectionId.toString();
+  }
   if (!sectionId || typeof sectionId !== 'string') {
-    throw new Error('Valid sectionId (string) is required');
+    throw new Error('Valid sectionId (string or number) is required');
+  }
+  
+  // Convert termId to string if it's a number
+  if (typeof termId === 'number') {
+    termId = termId.toString();
   }
   if (!termId || typeof termId !== 'string') {
-    throw new Error('Valid termId (string) is required');
+    throw new Error('Valid termId (string or number) is required');
   }
   
   if (typeof forceRefresh !== 'boolean') {
@@ -1061,6 +1112,7 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
  */
 export async function getVikingEventDataForEvents(events, token, forceRefresh = true) {
   try {
+    
     if (!events || !Array.isArray(events)) {
       throw new Error('Invalid events: must be an array');
     }
@@ -1072,6 +1124,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
       const [sectionId, termId] = JSON.parse(key);
       return { sectionId, termId };
     });
+
 
     // Getting Viking Event data for section-term combinations
 
