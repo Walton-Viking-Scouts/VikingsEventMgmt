@@ -64,8 +64,13 @@ function MemberDetailModal({ member, isOpen, onClose }) {
   // Helper function to format phone number for calling
   const formatPhoneForCall = (phone) => {
     if (!phone) return null;
-    // Remove all non-digit characters for tel: link
-    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Clean phone number: preserve single leading +, remove all other non-digits
+    let cleanPhone = String(phone).trim();
+    // Remove all non-digits except a single leading +
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
+    // Remove any extra + signs (keep only the first one if it's at the start)
+    cleanPhone = cleanPhone.replace(/(?!^)\+/g, '');
 
     // Validate phone number length and pattern
     if (!isValidPhoneNumber(cleanPhone)) {
@@ -75,67 +80,38 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     return cleanPhone;
   };
 
-  // Helper function to validate phone number with proper NANP validation
-  const isValidPhoneNumber = (phoneDigits) => {
-    if (!phoneDigits || typeof phoneDigits !== 'string') {
+  // Helper function to validate phone number - E.164-friendly for international formats
+  const isValidPhoneNumber = (input) => {
+    if (!input) return false;
+    
+    // Convert to string and clean: preserve single leading +, remove all other non-digits
+    let cleanInput = typeof input === 'string' ? input : String(input);
+    cleanInput = cleanInput.trim().replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '');
+    
+    // Check if it contains only digits with optional leading +
+    if (!/^\+?\d+$/.test(cleanInput)) {
       return false;
     }
 
-    // Check if it contains only digits
-    if (!/^\d+$/.test(phoneDigits)) {
+    // Extract digits for length and pattern validation
+    const digits = cleanInput.replace(/^\+/, '');
+
+    // Reject numbers with all same digits (e.g., 0000000000, 1111111111)
+    if (/^(\d)\1+$/.test(digits)) {
       return false;
     }
 
-    // Reject numbers with all same digits (e.g., 0000000000)
-    if (/^(\d)\1+$/.test(phoneDigits)) {
+    // Reject obviously invalid numbers (E.164 allows 7-15 digits)
+    if (digits.length < 7 || digits.length > 15) {
       return false;
     }
 
-    // NANP (North American Numbering Plan) validation for 10-11 digit numbers
-    if (phoneDigits.length === 10 || phoneDigits.length === 11) {
-      let number = phoneDigits;
-
-      // Handle 11-digit numbers with country code 1
-      if (phoneDigits.length === 11) {
-        if (!phoneDigits.startsWith('1')) {
-          return false; // 11-digit numbers must start with 1 for NANP
-        }
-        number = phoneDigits.substring(1); // Remove country code for validation
-      }
-
-      // Validate 10-digit NANP format: NXX-NXX-XXXX
-      // N = 2-9 (area code and exchange code first digit)
-      // X = 0-9 (any digit)
-      const areaCode = number.substring(0, 3);
-      const exchangeCode = number.substring(3, 6);
-
-      // Area code validation: first digit 2-9, second and third digits 0-9
-      if (!/^[2-9][0-9][0-9]$/.test(areaCode)) {
-        return false;
-      }
-
-      // Exchange code validation: first digit 2-9, second and third digits 0-9
-      if (!/^[2-9][0-9][0-9]$/.test(exchangeCode)) {
-        return false;
-      }
-
-      return true;
-    }
-
-    // International numbers: 7-15 digits (excluding NANP)
-    if (phoneDigits.length >= 7 && phoneDigits.length <= 15) {
-      // UK numbers can start with 0
-      if (phoneDigits.length === 11 && phoneDigits.startsWith('0')) {
-        return true; // UK mobile or landline
-      }
-
-      // Other international formats
-      if (phoneDigits.length >= 8) {
-        return true;
-      }
-    }
-
-    return false;
+    // Allow most reasonable phone number lengths
+    // 7-15 digits covers most international formats including:
+    // - US/Canada: 10 digits (2125551234) or 11 with country code (12125551234)
+    // - UK: 10-11 digits (01234567890, 07123456789)
+    // - International: varies but typically 7-15 digits with optional + prefix
+    return true;
   };
 
   // Helper function to handle phone call
@@ -145,7 +121,9 @@ function MemberDetailModal({ member, isOpen, onClose }) {
     if (cleanPhone) {
       window.location.href = `tel:${cleanPhone}`;
     } else {
-      console.warn('Invalid phone number format:', phone);
+      // Mask phone number for privacy in logs (avoid logging PII)
+      const masked = String(phone).replace(/\d(?=\d{2})/g, '•');
+      console.warn('Invalid phone number format:', masked);
       setErrorNotification(
         'Invalid phone number format. Please check the number and try again.',
       );
