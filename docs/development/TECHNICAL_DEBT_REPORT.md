@@ -5,7 +5,7 @@ created: "2025-01-06"
 last_updated: "2025-01-06"
 version: "1.0.0"
 tags: ["technical-debt", "issues", "improvements", "architecture"]
-related_docs: ["../architecture/system-design.md", "contributing.md"]
+related_docs: ["../architecture/system-design.md", "contributing.md", "ARCHITECTURAL_REFACTORING_PLAN.md"]
 ---
 
 # Technical Debt and Issues Report
@@ -242,6 +242,7 @@ Comprehensive analysis of technical debt, design shortfalls, and improvement opp
 ## 📋 Recommendations by Priority
 
 ### High Priority (Address Immediately)
+**See [Architectural Refactoring Plan](ARCHITECTURAL_REFACTORING_PLAN.md) for detailed implementation**
 1. **Refactor monolithic page components** - Break down 2,000+ line files
 2. **Implement proper URL-based routing** - Replace state-based navigation
 3. **Reorganize by feature** - Create `/events`, `/sections`, `/movers` directories
