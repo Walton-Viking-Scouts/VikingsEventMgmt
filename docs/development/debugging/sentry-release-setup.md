@@ -1,3 +1,13 @@
+---
+title: "Sentry Release Management Setup"
+description: "Setup and configuration for Sentry releases and version tracking"
+created: "2025-01-06"
+last_updated: "2025-01-06"
+version: "1.0.0"
+tags: ["sentry", "releases", "monitoring", "debugging"]
+related_docs: ["sentry-debugging.md", "../release-process.md"]
+---
+
 # Sentry Release Management Setup
 
 This document explains how to set up and use Sentry releases for version tracking and automatic issue resolution.

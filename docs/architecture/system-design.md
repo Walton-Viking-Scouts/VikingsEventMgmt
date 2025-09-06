@@ -1,6 +1,16 @@
-# Vikings Event Management - Codebase Analysis
+---
+title: "System Design Overview"
+description: "Comprehensive technical architecture and system design documentation"
+created: "2025-01-06"
+last_updated: "2025-01-06"
+version: "1.0.0"
+tags: ["architecture", "system-design", "technical-overview"]
+related_docs: ["data-management.md", "ui-architecture.md", "performance.md"]
+---
 
-## Overview
+# System Design Overview
+
+## Architecture Overview
 
 This is a **mobile-first React application** for Scout event management with comprehensive offline capabilities. It's designed to work both as a responsive web app and as a native mobile app using Capacitor.
 
