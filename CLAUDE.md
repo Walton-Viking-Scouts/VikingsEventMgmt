@@ -118,21 +118,27 @@ git checkout main && git pull origin main  # Just sync with merged PR
 
 ## Documentation
 
-### System Overview & Architecture
-- **[System Overview](docs/SYSTEM_OVERVIEW.md)** - Main entry point and quick reference
-- **[Architecture Documentation](docs/architecture/)** - Detailed technical architecture
+### 📚 Complete Documentation
+- **[Documentation Hub](docs/)** - Comprehensive documentation portal
+- **[Getting Started](docs/getting-started/)** - Setup and development guides
+- **[Architecture](docs/architecture/)** - Technical architecture and system design
+- **[Features](docs/features/)** - Feature-specific implementation guides
 
-### Development & Setup Guides
-- **[Mobile Setup](docs/MOBILE_SETUP.md)** - Capacitor configuration for iOS/Android
-- **[Testing Strategy](docs/MOBILE_TESTING_STRATEGY.md)** - Testing framework and strategy
-- **[Database Schema](docs/DATABASE_SCHEMA.md)** - SQLite schema reference
+### 🚀 Quick Links
+- **[Installation Guide](docs/getting-started/installation.md)** - Complete development setup
+- **[Development Workflow](docs/getting-started/development-workflow.md)** - Development processes
+- **[Mobile Setup](docs/getting-started/mobile-setup.md)** - Capacitor configuration
+- **[Testing Strategy](docs/development/testing-strategy.md)** - Testing framework and strategy
+- **[Database Schema](docs/reference/database-schema.md)** - SQLite schema reference
 
-### Production Support
-- **[Caching Error Handling](docs/CACHING_ERROR_HANDLING.md)** - Production debugging patterns
+### 🔧 Development Support
+- **[Debugging Guides](docs/development/debugging/)** - Error tracking and troubleshooting
+- **[Release Process](docs/development/release-process.md)** - Release and deployment workflow
+- **[Contributing Guidelines](docs/development/contributing.md)** - How to contribute
 
 ### External Repository
 - **[Backend Documentation](https://github.com/Walton-Viking-Scouts/VikingsEventMgmtAPI/blob/main/CLAUDE.md)** - Node.js Express server documentation
 
 ---
 
-**For detailed technical architecture, system design, and comprehensive documentation, see the `docs/` directory.**
+**📍 Start Here**: [Documentation Overview](docs/README.md) for complete technical architecture, system design, and comprehensive documentation.

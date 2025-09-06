@@ -375,13 +375,47 @@ export async function getMyData(token) {
 - iOS 12+ (native app)
 - Android support (with `npx cap add android`)
 
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) folder:
+
+### 🚀 Getting Started
+- **[Quick Start Guide](docs/getting-started/)** - Get up and running quickly
+- **[Installation & Setup](docs/getting-started/installation.md)** - Complete development environment setup
+- **[Development Workflow](docs/getting-started/development-workflow.md)** - Development processes and commands
+
+### 🏗️ Architecture & Technical
+- **[System Design](docs/architecture/system-design.md)** - Comprehensive technical architecture
+- **[Architecture Documentation](docs/architecture/)** - Detailed technical documentation
+- **[Database Schema](docs/reference/database-schema.md)** - Complete database reference
+
+### ⚡ Features & Implementation
+- **[Notification System](docs/features/notifications/)** - Toast, banner, and alert notifications
+- **[Authentication](docs/features/authentication/)** - OAuth and security implementation
+- **[Offline Capabilities](docs/features/offline-capabilities/)** - Data sync and caching strategies
+
+### 👥 User Guides
+- **[User Documentation](docs/user-guides/)** - End user and admin guides
+- **[Troubleshooting](docs/user-guides/troubleshooting.md)** - Common issues and solutions
+
+### 💻 Development
+- **[Testing Strategy](docs/development/testing-strategy.md)** - Comprehensive testing approach
+- **[Release Process](docs/development/release-process.md)** - Release and deployment workflow
+- **[Debugging Guides](docs/development/debugging/)** - Error tracking and debugging
+
+### 📖 Reference
+- **[API Reference](docs/reference/api-reference.md)** - Complete API documentation
+- **[Environment Variables](docs/reference/environment-variables.md)** - Configuration reference
+
+**📍 Start Here**: [Documentation Overview](docs/README.md)
+
 ## Contributing
 
 1. Follow responsive design principles
 2. Test on both desktop and mobile
 3. Ensure offline functionality works
 4. Write tests for new features
-5. Update documentation
+5. Update documentation (see [Contributing Guidelines](docs/development/contributing.md))
 
 ## Related Projects
 
