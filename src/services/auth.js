@@ -8,8 +8,7 @@ import logger, { LOG_CATEGORIES } from './logger.js';
 import { authHandler } from './simpleAuthHandler.js';
 import { isDemoMode } from '../config/demoMode.js';
 
-// OAuth scope - client ID now handled server-side for security
-const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
+// OAuth configuration now handled server-side for security
 
 // Token management
 export function getToken() {
