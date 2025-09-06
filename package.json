@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "1.4.4",
+  "version": "1.5.5",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
