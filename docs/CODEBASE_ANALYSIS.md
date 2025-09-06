@@ -28,7 +28,7 @@ This is a **mobile-first React application** for Scout event management with com
 
 ## Project Structure
 
-```
+```text
 src/
 ├── components/          # Reusable UI components
 │   ├── desktop/        # Desktop-specific components
@@ -128,7 +128,7 @@ export default MyComponent;
 ```
 
 ### 2. **Data Flow**
-```
+```text
 OSM API ↔ Backend Proxy ↔ Frontend ↔ Local Cache ↔ SQLite/localStorage
 ```
 
@@ -172,6 +172,8 @@ npx cap sync           # Sync to native platforms (optional)
 - `capacitor.config.json` - Native mobile app configuration
 - `tailwind.config.js` - CSS framework configuration
 - `eslint.config.js` - Code linting rules
+- `cypress.config.js` - Cypress test runner configuration
+- `cypress.env.example.json` - Cypress environment variables template
 - `.env.example` - Environment variables template
 
 ## Important Conventions
