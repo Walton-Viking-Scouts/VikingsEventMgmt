@@ -16,6 +16,8 @@ This is a **mobile-first React application** for Scout event management with com
 ### Database & Storage
 - **SQLite** - Offline database for native mobile apps
 - **localStorage** - Fallback storage for web browsers
+
+### Observability & Monitoring
 - **Sentry** - Error monitoring and performance tracking
 
 ### Testing & Quality
