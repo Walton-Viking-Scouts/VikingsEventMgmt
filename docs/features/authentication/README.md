@@ -95,6 +95,30 @@ VITE_AUTH_COOKIE_SAME_SITE=strict
 ### OAuth Setup
 See [OAuth Setup Guide](oauth-setup.md) for detailed configuration instructions.
 
+### TypeScript Environment Variables
+For TypeScript projects, add environment variable typing:
+```typescript
+// src/vite-env.d.ts or src/types/env.d.ts
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_OSM_CLIENT_ID: string;
+    readonly VITE_OSM_CLIENT_SECRET: string;
+    readonly VITE_OSM_REDIRECT_URI: string;
+    readonly VITE_OSM_API_BASE_URL: string;
+    readonly VITE_OSM_SCOPE: string;
+    readonly VITE_AUTH_COOKIE_SECURE: string;
+    readonly VITE_AUTH_COOKIE_SAME_SITE: string;
+  }
+}
+
+// Usage in code
+const authConfig = {
+  clientId: import.meta.env.VITE_OSM_CLIENT_ID,
+  redirectUri: import.meta.env.VITE_OSM_REDIRECT_URI,
+  apiBaseUrl: import.meta.env.VITE_OSM_API_BASE_URL,
+};
+```
+
 ## 🏗️ Implementation Details
 
 ### Authentication Flow

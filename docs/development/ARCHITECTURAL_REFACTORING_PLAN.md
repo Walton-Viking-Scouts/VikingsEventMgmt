@@ -56,7 +56,7 @@ npm install react-router-dom
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Feature flag for gradual rollout
-const USE_URL_ROUTING = process.env.VITE_USE_URL_ROUTING === 'true';
+const USE_URL_ROUTING = import.meta.env.VITE_USE_URL_ROUTING === 'true';
 
 function AppRouter() {
   if (!USE_URL_ROUTING) {
@@ -80,6 +80,17 @@ function AppRouter() {
 ```bash
 # Add to .env.example and .env.local
 VITE_USE_URL_ROUTING=false  # Start disabled
+```
+
+**TypeScript Support**: Add environment variable typing
+```typescript
+// src/vite-env.d.ts or src/types/env.d.ts
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_USE_URL_ROUTING: string;
+    // Add other Vite environment variables as needed
+  }
+}
 ```
 
 **Technical Debt Items Fixed**: Partial fix for Issue #2 (routing foundation)

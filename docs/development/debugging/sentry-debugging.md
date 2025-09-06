@@ -33,8 +33,8 @@ This guide documents lessons learned from systematic Sentry error investigation,
 - Cannot distinguish between releases
 
 **Solution**: Configure build to use git tags for Sentry releases:
-- Update `vite.config.js` to use `process.env.SENTRY_RELEASE`
-- Set `SENTRY_RELEASE=vikings-eventmgmt-mobile@{git-tag-version}` in CI/CD
+- Update `vite.config.js` to use `import.meta.env.VITE_SENTRY_RELEASE`
+- Set `VITE_SENTRY_RELEASE=vikings-eventmgmt-mobile@{git-tag-version}` in CI/CD
 
 ### 3. Search API Limitations 🔍
 
