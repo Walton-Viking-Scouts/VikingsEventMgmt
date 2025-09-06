@@ -1,3 +1,13 @@
+---
+title: "Mobile Testing Strategy"
+description: "Comprehensive testing strategy for mobile application across platforms and scenarios"
+created: "2025-09-06"
+last_updated: "2025-09-06"
+version: "1.0.0"
+tags: ["testing", "mobile", "strategy", "qa"]
+related_docs: ["../development/code-style-guide.md", "../development/debugging/"]
+---
+
 # Mobile Testing Strategy
 
 This document outlines the comprehensive testing strategy for the Vikings Event Management mobile application across different platforms and testing scenarios.

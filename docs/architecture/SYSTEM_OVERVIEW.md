@@ -26,7 +26,7 @@ Mobile-first web application for Scout leaders to manage event attendance, membe
 
 ### Deployment
 - **Frontend**: Render.com (auto-deploy on PR merge)
-- **Backend**: Northflank (auto-deploy on PR merge)
+- **Backend**: Code.run (auto-deploy on PR merge)
 - **Releases**: GitHub Actions (tag-triggered with Sentry integration)
 
 ### Monitoring
@@ -46,7 +46,7 @@ Mobile-first web application for Scout leaders to manage event attendance, membe
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Express.js Proxy Server                        │
-│                    (Northflank)                                 │
+│                    (Code.run)                                   │
 │              • Rate Limiting                                    │
 │              • OAuth Handling                                   │
 │              • Request Proxying                                 │

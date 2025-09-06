@@ -1,3 +1,13 @@
+---
+title: "SQLite Database Schema Documentation"
+description: "Complete database schema for offline data storage in the mobile application"
+created: "2025-09-06"
+last_updated: "2025-09-06"
+version: "1.0.0"
+tags: ["database", "schema", "sqlite", "reference"]
+related_docs: ["../architecture/data-management.md", "../features/offline-capabilities/"]
+---
+
 # SQLite Database Schema Documentation
 
 This document describes the SQLite database schema used by the Vikings Event Management mobile app for offline data storage.
