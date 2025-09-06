@@ -1,8 +1,8 @@
 ---
 title: "Offline Capabilities Overview"
 description: "Comprehensive offline functionality with data synchronization and caching"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["offline", "sync", "caching", "mobile"]
 related_docs: ["data-sync.md", "caching-strategies.md"]

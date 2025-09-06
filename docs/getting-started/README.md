@@ -1,8 +1,8 @@
 ---
 title: "Getting Started - Vikings Event Management"
 description: "Quick start guide for developers and users"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["getting-started", "setup", "quickstart"]
 related_docs: ["installation.md", "development-workflow.md", "mobile-setup.md"]

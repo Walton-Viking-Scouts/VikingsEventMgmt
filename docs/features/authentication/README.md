@@ -1,8 +1,8 @@
 ---
 title: "Authentication System Overview"
 description: "OAuth integration and security implementation for Online Scout Manager"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["authentication", "oauth", "security", "osm"]
 related_docs: ["oauth-setup.md", "../../architecture/authentication.md"]

@@ -1,8 +1,8 @@
 ---
 title: "API Reference"
 description: "Complete API documentation for Vikings Event Management"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["api", "reference", "endpoints", "documentation"]
 related_docs: ["database-schema.md", "environment-variables.md"]
@@ -199,8 +199,8 @@ GET /api/members/{member_id}
     }
   ],
   "medical_alerts": true,
-  "created_at": "2025-01-06T12:00:00Z",
-  "updated_at": "2025-01-06T12:00:00Z"
+  "created_at": "2025-09-06T12:00:00Z",
+  "updated_at": "2025-09-06T12:00:00Z"
 }
 ```
 
@@ -318,7 +318,7 @@ GET /api/members/{member_id}/medical
     "phone": "+44 20 7946 0958",
     "practice": "Local GP Surgery"
   },
-  "last_updated": "2025-01-06T12:00:00Z"
+  "last_updated": "2025-09-06T12:00:00Z"
 }
 ```
 
@@ -415,7 +415,7 @@ GET /api/sync/conflicts
       "local_version": { /* local data */ },
       "remote_version": { /* remote data */ },
       "conflict_type": "UPDATE_CONFLICT",
-      "created_at": "2025-01-06T12:00:00Z"
+      "created_at": "2025-09-06T12:00:00Z"
     }
   ]
 }
@@ -468,7 +468,7 @@ GET /api/reports/attendance
     "code": "ERROR_CODE",
     "message": "Human readable error message",
     "details": "Additional error details",
-    "timestamp": "2025-01-06T12:00:00Z",
+    "timestamp": "2025-09-06T12:00:00Z",
     "request_id": "uuid"
   }
 }
@@ -559,7 +559,7 @@ GET /health
 ```json
 {
   "status": "ok",
-  "timestamp": "2025-01-06T12:00:00Z"
+  "timestamp": "2025-09-06T12:00:00Z"
 }
 ```
 

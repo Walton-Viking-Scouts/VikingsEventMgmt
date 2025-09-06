@@ -1,8 +1,8 @@
 ---
 title: "Notification System Overview"
 description: "Comprehensive notification system with toast, banner, and alert components"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["notifications", "toast", "banner", "alerts", "ui"]
 related_docs: ["implementation-guide.md", "migration-guide.md", "best-practices.md"]

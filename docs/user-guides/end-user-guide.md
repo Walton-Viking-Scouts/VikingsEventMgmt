@@ -1,8 +1,8 @@
 ---
 title: "End User Guide"
 description: "Complete guide for Scout leaders and members using Vikings Event Management"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["user-guide", "end-user", "tutorial"]
 related_docs: ["admin-guide.md", "troubleshooting.md"]

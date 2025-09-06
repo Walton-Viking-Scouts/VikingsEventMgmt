@@ -1,8 +1,8 @@
 ---
 title: "Development Documentation Overview"
 description: "Development processes, testing, and contribution guidelines"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["development", "documentation", "process"]
 related_docs: ["testing-strategy.md", "release-process.md", "contributing.md"]

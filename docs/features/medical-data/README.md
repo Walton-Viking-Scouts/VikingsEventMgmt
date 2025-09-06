@@ -1,8 +1,8 @@
 ---
 title: "Medical Data Display Overview"
 description: "Display and caching of medical data from Online Scout Manager"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["medical", "display", "osm", "caching"]
 related_docs: ["data-states.md"]

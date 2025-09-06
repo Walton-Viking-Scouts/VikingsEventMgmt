@@ -1,8 +1,8 @@
 ---
 title: "Medical Data States"
 description: "Visual indicators for different states of medical information from OSM"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["medical", "data-states", "indicators", "osm"]
 related_docs: ["README.md"]

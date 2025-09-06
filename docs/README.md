@@ -1,8 +1,8 @@
 ---
 title: "Vikings Event Management - Documentation"
 description: "Comprehensive documentation for the Vikings Event Management mobile application"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "2.0.0"
 tags: ["overview", "documentation", "index"]
 ---
@@ -11,7 +11,7 @@ tags: ["overview", "documentation", "index"]
 
 **Mobile-first Scout event management application with comprehensive offline capabilities**
 
-*Version: 1.1.0 | Documentation Version: 2.0.0 | Last Updated: 2025-01-06*
+*Version: 1.1.0 | Documentation Version: 2.0.0 | Last Updated: 2025-09-06*
 
 ## 🚀 Quick Start
 

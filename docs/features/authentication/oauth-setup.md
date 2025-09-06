@@ -1,8 +1,8 @@
 ---
 title: "OAuth Security Configuration"
 description: "Critical OAuth setup and security configuration for Online Scout Manager integration"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["oauth", "security", "authentication", "configuration"]
 related_docs: ["README.md", "../../getting-started/installation.md"]

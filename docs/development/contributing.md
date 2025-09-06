@@ -1,8 +1,8 @@
 ---
 title: "Contributing Guidelines"
 description: "Guidelines for contributing to Vikings Event Management"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["contributing", "development", "guidelines", "process"]
 related_docs: ["../getting-started/development-workflow.md", "testing-strategy.md"]

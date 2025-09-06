@@ -1,8 +1,8 @@
 ---
 title: "Admin Guide"
 description: "Administrative functions and management for Vikings Event Management"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["admin", "management", "configuration", "permissions"]
 related_docs: ["end-user-guide.md", "troubleshooting.md"]

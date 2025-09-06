@@ -1,8 +1,8 @@
 ---
 title: "Development Workflow"
 description: "Development processes, commands, and best practices for Vikings Event Management"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["development", "workflow", "process", "commands"]
 related_docs: ["installation.md", "../development/testing-strategy.md", "../development/release-process.md"]

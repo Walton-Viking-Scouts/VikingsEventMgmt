@@ -1,8 +1,8 @@
 ---
 title: "Notification Storybook Examples"
 description: "Interactive examples and best practices for notification components"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["notifications", "storybook", "examples", "development"]
 related_docs: ["README.md", "implementation-guide.md", "best-practices.md"]

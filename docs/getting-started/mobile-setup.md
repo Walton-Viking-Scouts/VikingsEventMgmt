@@ -1,8 +1,8 @@
 ---
 title: "Mobile Development Setup Guide"
 description: "Capacitor configuration and mobile development workflow for iOS and Android"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["mobile", "capacitor", "ios", "android", "setup"]
 related_docs: ["installation.md", "development-workflow.md"]

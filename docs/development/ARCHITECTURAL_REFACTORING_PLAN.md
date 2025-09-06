@@ -1,8 +1,8 @@
 ---
 title: "Architectural Refactoring Plan"
 description: "Implementation plan to address critical technical debt: monolithic components and state-based navigation"
-created: "2025-01-06"
-last_updated: "2025-01-06"
+created: "2025-09-06"
+last_updated: "2025-09-06"
 version: "1.0.0"
 tags: ["refactoring", "architecture", "technical-debt", "routing"]
 related_docs: ["TECHNICAL_DEBT_REPORT.md"]
