@@ -15,8 +15,8 @@ Complete API documentation for the Vikings Event Management application.
 ## 🔗 Base URL
 
 ```
-Production: https://vikings-osm-backend.onrender.com
-Development: https://vikings-osm-backend.onrender.com
+Production: https://site--vikings-event-management--ytnrhtcfzsqn.code.run
+Development: https://site--vikings-event-management--ytnrhtcfzsqn.code.run
 Local Backend: http://localhost:3000 (if running backend locally)
 ```
 

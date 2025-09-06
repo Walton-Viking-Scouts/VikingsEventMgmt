@@ -96,7 +96,7 @@ VITE_JWT_EXPIRY=3600  # 1 hour
 ### API Configuration
 ```bash
 # Backend API configuration (OSM proxy)
-VITE_API_URL=https://vikings-osm-backend.onrender.com
+VITE_API_URL=https://site--vikings-event-management--ytnrhtcfzsqn.code.run
 
 # OAuth Configuration
 VITE_OAUTH_CLIENT_ID=your_osm_client_id_here

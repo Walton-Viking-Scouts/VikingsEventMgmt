@@ -17,7 +17,7 @@ Automated deployment pipeline that provides fast iteration cycles while maintain
                  │                │                │
                  ▼                ▼                ▼
 ┌─────────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│    Render.com       │  │  GitHub Actions │  │   Northflank    │
+│    Render.com       │  │  GitHub Actions │  │    Code.run     │
 │  (Frontend Auto)    │  │  (Tag Releases) │  │ (Backend Auto)  │
 │                     │  │                 │  │                 │
 │ ✅ PR Merge → Deploy│  │ ✅ Tag → Release│  │ ✅ PR → Deploy  │
@@ -40,7 +40,7 @@ SENTRY_AUTH_TOKEN=sntryu_... // For source map uploads
 SENTRY_DEBUG=false
 ```
 
-#### Backend (Northflank)
+#### Backend (Code.run)
 ```javascript
 // Environment Variables
 OAUTH_CLIENT_ID=osm_client_id
@@ -66,7 +66,7 @@ git commit -m "chore: bump version to v1.x.x for release"
 
 # 3. PR Review & Merge
 # Create PR → CodeRabbit Review → Address Feedback → Merge
-# 🚀 Render.com/Northflank AUTO-DEPLOY immediately
+# 🚀 Render.com/Code.run AUTO-DEPLOY immediately
 
 # 4. Create Versioned Release (Sentry Integration)
 git checkout main && git pull origin main
@@ -74,7 +74,7 @@ git tag v1.x.x
 git push origin v1.x.x  # Triggers GitHub Actions release
 
 # 5. Monitor Deployment
-# Check Render.com/Northflank dashboards
+# Check Render.com/Code.run dashboards
 # Monitor Sentry for new errors
 # Verify source maps uploaded correctly
 ```
@@ -154,9 +154,9 @@ services:
         fromSecret: sentry_dsn_frontend
 ```
 
-### Backend Auto-Deploy (Northflank)
+### Backend Auto-Deploy (Code.run)
 ```yaml
-# northflank.json (configuration)
+# code.run configuration
 {
   "spec": {
     "kind": "Workflow",
@@ -261,7 +261,7 @@ git commit -m "chore: bump to v1.x.x for critical production fixes"
 # - Include security improvements beyond minimum requirements
 
 # 5. PR Merge → Immediate Production Deployment
-# PR merged → Render.com/Northflank auto-deploys → Users get fixes immediately
+# PR merged → Render.com/Code.run auto-deploys → Users get fixes immediately
 
 # 6. Create Sentry Release (CRITICAL for Error Tracking)
 git checkout main && git pull origin main  # Get ALL merged fixes
@@ -381,7 +381,7 @@ git push origin main  # Triggers automatic re-deploy
 
 # Option 2: Manual rollback in hosting dashboards
 # - Render.com: Deploy previous successful build
-# - Northflank: Rollback to previous deployment
+# - Code.run: Rollback to previous deployment
 
 # Option 3: Hotfix branch for urgent fixes
 git checkout -b hotfix/urgent-fix
