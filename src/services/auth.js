@@ -8,16 +8,8 @@ import logger, { LOG_CATEGORIES } from './logger.js';
 import { authHandler } from './simpleAuthHandler.js';
 import { isDemoMode } from '../config/demoMode.js';
 
-const clientId = config.oauthClientId;
+// OAuth scope - client ID now handled server-side for security
 const scope = 'section:member:read section:programme:read section:event:read section:flexirecord:write';
-
-// Validate client ID is provided
-if (!clientId) {
-  logger.error('OAuth client ID environment variable not set', { 
-    variable: 'VITE_OAUTH_CLIENT_ID', 
-  }, LOG_CATEGORIES.AUTH);
-  throw new Error('OAuth client ID not configured. Please set VITE_OAUTH_CLIENT_ID environment variable.');
-}
 
 // Token management
 export function getToken() {
@@ -193,7 +185,7 @@ export function isTokenExpired() {
   return isExpired;
 }
 
-// OAuth URL generation with optional return path storage
+// OAuth URL generation - now delegates to backend for security
 export function generateOAuthUrl(storeCurrentPath = false) {
   if (storeCurrentPath) {
     storeReturnPath();
@@ -201,41 +193,24 @@ export function generateOAuthUrl(storeCurrentPath = false) {
 
   const BACKEND_URL = config.apiUrl;
   const frontendUrl = window.location.origin;
-  
-  // Build redirect URI without query parameter to match OSM registration
-  const redirectUri = `${BACKEND_URL}/oauth/callback`;
     
   // Determine environment based on hostname
   const hostname = window.location.hostname;
   const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikings-eventmgmt-mobile.onrender.com';
     
-  // Embed frontend URL in state parameter for backend detection
+  // Embed frontend URL in query parameter for backend detection
   const baseState = isDeployedServer ? 'prod' : 'dev';
-  const stateWithFrontendUrl = `${baseState}&frontend_url=${encodeURIComponent(frontendUrl)}`;
+  const authUrl = `${BACKEND_URL}/oauth/login?state=${encodeURIComponent(baseState)}&frontend_url=${encodeURIComponent(frontendUrl)}`;
     
-  logger.info('Mobile OAuth configuration', {
+  logger.info('Generated OAuth redirect to backend', {
     hostname,
     isDeployedServer,
     baseState,
     frontendUrl,
-    redirectUri,
     backendUrl: BACKEND_URL,
     storedCurrentPath: storeCurrentPath,
   }, LOG_CATEGORIES.AUTH);
-
-  const authUrl = 'https://www.onlinescoutmanager.co.uk/oauth/authorize?' +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `state=${encodeURIComponent(stateWithFrontendUrl)}&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        'response_type=code';
     
-  logger.info('Generated Mobile OAuth URL', {
-    hasUrl: true,
-    clientIdSuffix: String(clientId).slice(-4),
-    redirectUri,
-    scopeCount: scope.split(' ').length,
-  }, LOG_CATEGORIES.AUTH);
   return authUrl;
 }
 

@@ -3,9 +3,9 @@
 
 // Required environment variables for basic functionality
 // Skip validation in demo mode to allow public access
+// OAuth client ID removed - now handled server-side for security
 const requiredVars = [
   'VITE_API_URL',
-  'VITE_OAUTH_CLIENT_ID',
 ];
 
 // Helper function to check demo mode safely
@@ -66,7 +66,6 @@ if (apiUrl && !apiUrl.match(/^https?:\/\/.+/)) {
 export const config = {
   // API Configuration
   apiUrl: import.meta.env.VITE_API_URL,
-  oauthClientId: import.meta.env.VITE_OAUTH_CLIENT_ID,
   
   // Optional Configuration
   sentryDsn: import.meta.env.VITE_SENTRY_DSN,
@@ -109,7 +108,7 @@ export const config = {
 if (config.actualEnvironment === 'development') {
   console.log('🔧 Environment Configuration:');
   console.log('   API URL:', config.apiUrl);
-  console.log('   OAuth Client ID:', config.oauthClientId ? '***configured***' : '❌ missing');
+  console.log('   OAuth Client ID:', '***handled by backend***');
   console.log('   Sentry DSN:', config.sentryDsn ? '***configured***' : 'not configured');
   console.log('   Environment:', config.actualEnvironment);
   console.log('   Vite Mode:', config.mode);
