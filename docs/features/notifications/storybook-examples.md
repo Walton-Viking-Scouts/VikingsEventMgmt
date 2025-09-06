@@ -15,18 +15,18 @@ This document provides links and explanations for the interactive Storybook exam
 ## 🚀 Getting Started with Storybook
 
 ### Storybook Configuration
-Storybook is configured for the project with comprehensive notification examples, but the dependencies are not currently installed.
+Storybook is fully configured for the project with comprehensive notification examples and all dependencies are installed.
 
-### To Enable Storybook
+### Running Storybook
 ```bash
-# Install Storybook dependencies (not currently installed)
-npx storybook@latest init
-
-# Then run Storybook
+# Start Storybook development server
 npm run storybook
+
+# Build Storybook for production
+npm run build-storybook
 ```
 
-The configuration exists in `.storybook/` and stories are available in `src/stories/`.
+The configuration exists in `.storybook/` and stories are available in `src/stories/`. Storybook will start on `http://localhost:6006/`.
 
 ## 📚 Available Stories
 
