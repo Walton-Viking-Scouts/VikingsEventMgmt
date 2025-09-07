@@ -308,7 +308,7 @@ function EventsRegister() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Events Available</h3>
               <p className="text-gray-600 mb-4">
-                No events found for registration. Make sure you're connected and data has been synced.
+                No events found for registration. Make sure you&apos;re connected and data has been synced.
               </p>
               <Link
                 to="/events"

@@ -51,7 +51,7 @@ export default function useSectionMovements() {
     return () => {
       isMounted = false;
     };
-  }, []); // loadFlexiRecordsForAllSections is stable due to useCallback
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Direct cache access function - bypasses API discovery when it fails
   const loadFlexiRecordsFromDirectCache = async (sectionsData) => {

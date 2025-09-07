@@ -136,7 +136,7 @@ function EventsDetail() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Event Not Found</h3>
               <p className="text-gray-600 mb-4">
-                The event "{eventName}" could not be found.
+                The event &quot;{eventName}&quot; could not be found.
               </p>
               <Link
                 to="/events"

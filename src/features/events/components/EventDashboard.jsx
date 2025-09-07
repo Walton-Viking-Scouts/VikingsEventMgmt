@@ -24,7 +24,7 @@ import {
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
 
-function EventDashboard({ onNavigateToMembers, onNavigateToAttendance, onNavigateToSectionMovements }) {
+function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useAuth(); // Initialize auth hook
   const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
@@ -60,7 +60,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance, onNavigat
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
 
   // Simple view toggle state
-  const [currentView, setCurrentView] = useState('events'); // 'events' or 'sections'
+  const [currentView] = useState('events'); // 'events' or 'sections'
 
   // Section selection state for the Sections card
   const [selectedSections, setSelectedSections] = useState([]);
