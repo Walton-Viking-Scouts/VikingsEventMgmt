@@ -5,7 +5,7 @@ import LoginScreen from '../LoginScreen.jsx';
 function RouteGuard({ 
   children, 
   authLevel = 'none',
-  showLoginScreen = true 
+  showLoginScreen = true, 
 }) {
   const { authState, isLoading, user } = useAuth();
 
@@ -20,17 +20,17 @@ function RouteGuard({
   // Define access levels
   const hasAccess = () => {
     switch (authLevel) {
-      case 'none':
-        return true; // No auth required
-      case 'offline_capable':
-        return authState === 'authenticated' || 
+    case 'none':
+      return true; // No auth required
+    case 'offline_capable':
+      return authState === 'authenticated' || 
                authState === 'cached_only' || 
                authState === 'token_expired' ||
                (user && authState !== 'no_data');
-      case 'authenticated':
-        return authState === 'authenticated' && user;
-      default:
-        return true;
+    case 'authenticated':
+      return authState === 'authenticated' && user;
+    default:
+      return true;
     }
   };
 

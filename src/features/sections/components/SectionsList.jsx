@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button } from "../../../shared/components/ui";
+import { Card, Button } from '../../../shared/components/ui';
 import { getListOfMembers } from '../../../shared/services/api/api.js';
 import { getToken } from '../../auth/services/auth.js';
 import MemberDetailModal from './MemberDetailModal.jsx';

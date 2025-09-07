@@ -10,9 +10,9 @@ function ToastContainer({ toasts = [], onDismiss = () => {} }) {
           key={toast.id}
           className={`max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden ${
             toast.type === 'error' ? 'border-l-4 border-red-500' :
-            toast.type === 'success' ? 'border-l-4 border-green-500' :
-            toast.type === 'warning' ? 'border-l-4 border-yellow-500' :
-            'border-l-4 border-blue-500'
+              toast.type === 'success' ? 'border-l-4 border-green-500' :
+                toast.type === 'warning' ? 'border-l-4 border-yellow-500' :
+                  'border-l-4 border-blue-500'
           }`}
         >
           <div className="p-4">

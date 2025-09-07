@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
@@ -11,6 +11,7 @@ import { useURLSync } from '../../../shared/hooks/useURLSync.js';
 
 function EventsOverview() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useAppState();
   const { navigateWithState, updateNavigationData } = useURLSync();
   const [events, setEvents] = useState([]);

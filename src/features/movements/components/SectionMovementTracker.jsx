@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Button, Alert } from "../../../shared/components/ui";
+import { Button, Alert } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import useSectionMovements from '../hooks/useSectionMovements.js';
 import { calculateSectionMovements } from '../services/movementCalculator.js';

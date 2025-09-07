@@ -1,6 +1,6 @@
 import React from 'react';
 
-function LoadingScreen({ message = "Loading..." }) {
+function LoadingScreen({ message = 'Loading...' }) {
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">

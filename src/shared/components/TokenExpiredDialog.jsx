@@ -7,7 +7,7 @@ function TokenExpiredDialog({
   onReLogin = null,
   onStayOffline = null,
   hasCachedData = false,
-  message = "Your session has expired. Please refresh or log in again."
+  message = 'Your session has expired. Please refresh or log in again.',
 }) {
   if (!isOpen) return null;
 
@@ -17,8 +17,8 @@ function TokenExpiredDialog({
   // Enhanced message based on cached data availability
   const enhancedMessage = useNewAuthFlow 
     ? hasCachedData 
-      ? "Your session has expired. You can continue working with cached data offline, or log in again to sync your latest changes."
-      : "Your session has expired. Please log in again to continue."
+      ? 'Your session has expired. You can continue working with cached data offline, or log in again to sync your latest changes.'
+      : 'Your session has expired. Please log in again to continue.'
     : message;
 
   return (

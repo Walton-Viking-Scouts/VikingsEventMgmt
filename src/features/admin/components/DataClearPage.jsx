@@ -8,7 +8,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 
 function DataClearPage() {
   const navigate = useNavigate();
-  const { clearNavigationData } = useAppState();
+  const { clearNavigationData: _clearNavigationData } = useAppState();
   const [isClearing, setIsClearing] = useState(false);
   const [cleared, setCleared] = useState(false);
 

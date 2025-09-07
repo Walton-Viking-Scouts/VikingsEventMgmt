@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Card } from "../../../shared/components/ui";
+import { Card } from '../../../shared/components/ui';
 
 function SectionMovementCard({ 
   sectionName, 

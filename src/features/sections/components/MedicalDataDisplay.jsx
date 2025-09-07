@@ -4,14 +4,14 @@ import PropTypes from 'prop-types';
 export function MedicalDataPill({ data, type = 'info', className = '' }) {
   const getTypeStyles = (type) => {
     switch (type) {
-      case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'danger':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'success':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'warning':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'danger':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'success':
+      return 'bg-green-100 text-green-800 border-green-200';
+    default:
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     }
   };
 
@@ -73,8 +73,8 @@ MedicalDataList.propTypes = {
         condition: PropTypes.string,
         text: PropTypes.string,
         severity: PropTypes.string,
-      })
-    ])
+      }),
+    ]),
   ),
   className: PropTypes.string,
 };
