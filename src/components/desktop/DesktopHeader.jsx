@@ -7,6 +7,7 @@ import DataFreshness from '../DataFreshness.jsx';
 import TokenCountdown from '../TokenCountdown.jsx';
 import NotificationBellButton from '../NotificationBellButton.jsx';
 import NotificationCenter from '../notifications/NotificationCenter';
+import { NavigationTabs } from '../navigation';
 
 function DesktopHeader({
   user,
@@ -61,6 +62,13 @@ function DesktopHeader({
             </div>
           )}
         </div>
+
+        {/* Navigation tabs - centered */}
+        {user && (
+          <div className="flex-1 flex justify-center">
+            <NavigationTabs />
+          </div>
+        )}
 
         <div className="flex items-center space-x-4" data-oid="36ufks8">
           {/* Notification bell button */}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Button, Alert } from '../ui';
 import LoadingScreen from '../LoadingScreen.jsx';
 import useSectionMovements from '../../hooks/sectionMovements/useSectionMovements.js';
@@ -235,5 +236,9 @@ function SectionMovementTracker({ onBack }) {
     </div>
   );
 }
+
+SectionMovementTracker.propTypes = {
+  onBack: PropTypes.func.isRequired,
+};
 
 export default SectionMovementTracker;

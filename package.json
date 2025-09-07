@@ -63,7 +63,7 @@
     "jsdom": "^26.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.2",
+    "react-router-dom": "^6.30.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

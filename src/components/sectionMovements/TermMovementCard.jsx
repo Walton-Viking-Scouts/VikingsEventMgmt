@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import SectionTypeGroup from './SectionTypeGroup.jsx';
 import { groupSectionsByType, mapSectionType } from '../../utils/sectionMovements/sectionGrouping.js';
 import { multiUpdateFlexiRecord } from '../../services/api.js';
@@ -416,5 +417,17 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, onData
     </div>
   );
 }
+
+TermMovementCard.propTypes = {
+  term: PropTypes.shape({
+    type: PropTypes.string.isRequired,
+    year: PropTypes.number.isRequired,
+    displayName: PropTypes.string,
+  }).isRequired,
+  sectionSummaries: PropTypes.arrayOf(PropTypes.object).isRequired,
+  sectionsData: PropTypes.arrayOf(PropTypes.object).isRequired,
+  movers: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onDataRefresh: PropTypes.func.isRequired,
+};
 
 export default TermMovementCard;

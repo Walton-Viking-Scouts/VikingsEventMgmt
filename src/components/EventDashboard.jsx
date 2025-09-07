@@ -8,7 +8,7 @@ import { generateOAuthUrl, getToken } from '../services/auth.js';
 import { authHandler } from '../services/simpleAuthHandler.js';
 import { useAuth } from '../hooks/useAuth.js';
 import LoadingScreen from './LoadingScreen.jsx';
-import SectionsList from './SectionsList.jsx';
+import { SectionsList } from './sections';
 import EventCard from './EventCard.jsx';
 import databaseService from '../services/database.js';
 import { Button, Card } from './ui';
@@ -875,52 +875,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance, onNavigat
         >
           <div className="flex justify-between items-center" data-oid="3562u3z">
             <div data-oid="dk-vy.7">
-              {/* Clean tab-style navigation */}
-              <div
-                className="flex bg-gray-100 rounded-lg p-1"
-                role="tablist"
-                aria-label="Main navigation"
-                data-oid="1dr4vod"
-              >
-                <button
-                  onClick={() => setCurrentView('events')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                    currentView === 'events'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  role="tab"
-                  aria-selected={currentView === 'events'}
-                  aria-controls="events-panel"
-                  aria-label="Switch to Events view"
-                  data-oid="244:g6c"
-                >
-                  📅 Events
-                </button>
-                <button
-                  onClick={() => setCurrentView('sections')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                    currentView === 'sections'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  role="tab"
-                  aria-selected={currentView === 'sections'}
-                  aria-controls="sections-panel"
-                  aria-label="Switch to Sections view"
-                  data-oid="l7nly.4"
-                >
-                  👥 Sections
-                </button>
-                <button
-                  onClick={onNavigateToSectionMovements}
-                  className="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900"
-                  aria-label="Navigate to Section Movers"
-                >
-                  🔄 Movers
-                </button>
-              </div>
-
               {/* Show queue stats if active */}
               {(queueStats.processing || queueStats.queueLength > 0) && (
                 <div className="mt-2" data-oid="t::a22m">

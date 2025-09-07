@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import databaseService from '../../services/database.js';
 import { 
   discoverVikingSectionMoversFlexiRecords,
@@ -51,7 +51,7 @@ export default function useSectionMovements() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, []); // loadFlexiRecordsForAllSections is stable due to useCallback
 
   // Direct cache access function - bypasses API discovery when it fails
   const loadFlexiRecordsFromDirectCache = async (sectionsData) => {
@@ -110,7 +110,7 @@ export default function useSectionMovements() {
     return allMembersData;
   };
 
-  const loadFlexiRecordsForAllSections = async (sectionsData, forceRefresh = false) => {
+  const loadFlexiRecordsForAllSections = useCallback(async (sectionsData, forceRefresh = false) => {
     setFlexiRecordLoadingState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
@@ -233,7 +233,7 @@ export default function useSectionMovements() {
       setError(error.message);
       setLoading(false);
     }
-  };
+  }, [setFlexiRecordLoadingState, setMembers, setLoading, setError]);
 
 
   const refetch = async () => {

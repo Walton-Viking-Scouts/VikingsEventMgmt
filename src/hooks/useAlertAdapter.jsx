@@ -1,22 +1,22 @@
 import { useCallback } from 'react';
 import { useNotification } from '../contexts/notifications/NotificationContext';
 
+// Map Alert variants to notification types and functions
+const variantToNotificationMap = {
+  success: 'success',
+  warning: 'warning', 
+  error: 'error',
+  info: 'info',
+  'scout-blue': 'info',
+  'scout-green': 'success',
+  'scout-red': 'error', 
+  'scout-orange': 'warning',
+  neutral: 'info',
+  dark: 'custom',
+};
+
 const useAlertAdapter = () => {
   const { notify, notifySuccess, notifyError, notifyWarning, notifyInfo, remove } = useNotification();
-
-  // Map Alert variants to notification types and functions
-  const variantToNotificationMap = {
-    success: 'success',
-    warning: 'warning', 
-    error: 'error',
-    info: 'info',
-    'scout-blue': 'info',
-    'scout-green': 'success',
-    'scout-red': 'error', 
-    'scout-orange': 'warning',
-    neutral: 'info',
-    dark: 'custom',
-  };
 
   // Helper to get scout-themed icon
   const getScoutIcon = useCallback((variant) => {
@@ -96,7 +96,7 @@ const useAlertAdapter = () => {
     default:
       return notify({ type: notificationType, ...notificationConfig });
     }
-  }, [notify, notifySuccess, notifyError, notifyWarning, notifyInfo, getScoutIcon, variantToNotificationMap]);
+  }, [notify, notifySuccess, notifyError, notifyWarning, notifyInfo, getScoutIcon]);
 
   // Convenience methods for different alert types
   const showSuccessAlert = useCallback((message, options = {}) => {

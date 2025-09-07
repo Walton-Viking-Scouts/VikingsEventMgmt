@@ -8,7 +8,7 @@ import React, {
 import LoadingScreen from './LoadingScreen.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
-import SectionFilter from './SectionFilter.jsx';
+import { SectionFilter, SectionCardsFlexMasonry } from './sections';
 import CampGroupsView from './CampGroupsView.jsx';
 import SignInOutButton from './SignInOutButton.jsx';
 import { Card, Button, Badge } from './ui';
@@ -16,7 +16,6 @@ import { AlertAdapter } from '../adapters';
 import { useNotification } from '../contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../hooks/useSignInOut.js';
-import SectionCardsFlexMasonry from './SectionCardsFlexMasonry.jsx';
 import { findMemberSectionName } from '../utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../services/api.js';
 import { getToken } from '../services/auth.js';

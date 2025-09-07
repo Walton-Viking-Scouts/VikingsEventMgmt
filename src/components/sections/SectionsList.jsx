@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button } from './ui';
-import { getListOfMembers } from '../services/api.js';
-import { getToken } from '../services/auth.js';
-import MemberDetailModal from './MemberDetailModal.jsx';
-import LoadingScreen from './LoadingScreen.jsx';
-import { MedicalDataPill } from './MedicalDataDisplay.jsx';
-import { formatMedicalDataForDisplay } from '../utils/medicalDataUtils.js';
-import { groupContactInfo } from '../utils/contactGroups.js';
-import { useNotification } from '../contexts/notifications/NotificationContext';
+import { Card, Button } from '../ui';
+import { getListOfMembers } from '../../services/api.js';
+import { getToken } from '../../services/auth.js';
+import MemberDetailModal from '../MemberDetailModal.jsx';
+import LoadingScreen from '../LoadingScreen.jsx';
+import { MedicalDataPill } from '../MedicalDataDisplay.jsx';
+import { formatMedicalDataForDisplay } from '../../utils/medicalDataUtils.js';
+import { groupContactInfo } from '../../utils/contactGroups.js';
+import { useNotification } from '../../contexts/notifications/NotificationContext';
 
 function SectionsList({
   sections,
