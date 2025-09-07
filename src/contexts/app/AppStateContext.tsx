@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import logger, { LOG_CATEGORIES } from '../../services/logger.js';
-import { safeGetItem, safeSetItem } from '../../utils/storageUtils.js';
+import logger, { LOG_CATEGORIES } from '../../shared/services/utils/logger.js';
+import { safeGetItem, safeSetItem } from '../../shared/utils/storageUtils.js';
 
 // Types for application state
 export interface NavigationData {

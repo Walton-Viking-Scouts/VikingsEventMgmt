@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import AlertAdapter, { AlertTitle, AlertDescription, AlertActions } from '../components/ui/AlertAdapter';
 import { Button } from '../components/ui';
-import { NotificationProvider } from '../contexts/notifications/NotificationContext';
+import { NotificationProvider } from '../../../shared/contexts/notifications/NotificationContext';
 
 // Wrapper component to provide notification context
 const AlertWrapper = ({ children }: { children: React.ReactNode }) => (

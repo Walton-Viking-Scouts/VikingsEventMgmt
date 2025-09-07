@@ -1,6 +1,5 @@
 import React from 'react';
-import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
-import OfflineIndicator from '../components/OfflineIndicator.jsx';
+import VikingHeader from '../shared/components/VikingHeader.jsx';
 
 function MobileLayout({
   children,
@@ -20,8 +19,7 @@ function MobileLayout({
       style={{ touchAction: 'pan-y' }}
       {...props}
     >
-      <OfflineIndicator data-oid=":nycp0v" />
-      <DesktopHeader
+      <VikingHeader
         user={user}
         onLogout={onLogout}
         onLogin={onLogin}

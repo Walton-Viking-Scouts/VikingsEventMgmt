@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
-import { NotificationProvider } from '../contexts/notifications/NotificationContext';
+import { NotificationProvider } from '../../../shared/contexts/notifications/NotificationContext';
 import { useNotificationUtils } from '../contexts/notifications/notificationUtils';
 import AlertAdapter, { AlertTitle, AlertDescription, AlertActions } from '../components/ui/AlertAdapter';
 import ToastContainer from '../components/notifications/ToastContainer';

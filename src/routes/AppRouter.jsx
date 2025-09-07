@@ -9,13 +9,13 @@ const USE_URL_ROUTING = import.meta.env.VITE_USE_URL_ROUTING === 'true';
 import LegacyApp from './LegacyApp.jsx';
 
 // Import page components for the new routing system
-import MoversPage from '../pages/movers/MoversPage.jsx';
-import SectionsPage from '../pages/sections/SectionsPage.jsx';
-import EventsRouter from '../pages/events/EventsRouter.jsx';
-import DataClearPage from '../components/DataClearPage.jsx';
+import { MoversPage } from '../features/movements/components';
+import { SectionsPage } from '../features/sections/components';
+import { EventsRouter } from '../features/events/components';
+import { DataClearPage } from '../features/admin/components';
 
 // Import route guards
-import { RouteGuard } from '../components/guards';
+import { RouteGuard } from '../shared/components/guards';
 
 function AppRouter() {
   // Feature flag controls migration from state-based to URL-based routing
@@ -57,10 +57,14 @@ function AppRouter() {
             } 
           />
           
-          {/* Data clearing route */}
+          {/* Data clearing route - wrapped in RouteGuard for consistency */}
           <Route 
             path="/clear" 
-            element={<DataClearPage />} 
+            element={
+              <RouteGuard authLevel="none">
+                <DataClearPage />
+              </RouteGuard>
+            } 
           />
           
           {/* Legacy route redirects for backward compatibility */}

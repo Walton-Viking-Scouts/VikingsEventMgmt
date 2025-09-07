@@ -1,6 +1,6 @@
 // Safe storage utilities with structured logging
-import { sentryUtils } from '../services/sentry.js';
-import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import { sentryUtils } from '../shared/services/utils/sentry.js';
+import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
 
 /**
  * Safely get and parse an item from localStorage with structured error logging
@@ -210,8 +210,8 @@ export function safeSetSessionItem(key, value) {
  */
 export async function safeCacheWithLogging(cacheKey, data, category, context = {}) {
   // Dynamic imports to avoid circular dependencies
-  const { default: logger, LOG_CATEGORIES } = await import('../services/logger.js');
-  const { sentryUtils } = await import('../services/sentry.js');
+  const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
+  const { sentryUtils } = await import('../shared/services/utils/sentry.js');
   
   try {
     // Add timestamp for TTL-based caching

@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.js';
-import ResponsiveLayout from '../components/ResponsiveLayout.jsx';
-import BlockedScreen from '../components/BlockedScreen.jsx';
-import LoadingScreen from '../components/LoadingScreen.jsx';
-import EventDashboard from '../components/EventDashboard.jsx';
-import AttendanceView from '../components/AttendanceView.jsx';
-import { SectionMovementTracker } from '../components/sectionMovements';
-import ErrorBoundary from '../components/ErrorBoundary.jsx';
-import TokenExpiredDialog from '../components/TokenExpiredDialog.jsx';
-import databaseService from '../services/database.js';
-import logger, { LOG_CATEGORIES } from '../services/logger.js';
-import { NotificationProvider } from '../adapters';
-import { useNotification } from '../contexts/notifications/NotificationContext';
-import ToastContainer from '../components/notifications/ToastContainer';
+import { useAuth } from '../features/auth/hooks';
+import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
+import BlockedScreen from '../shared/components/BlockedScreen.jsx';
+import LoadingScreen from '../shared/components/LoadingScreen.jsx';
+import { EventDashboard, AttendanceView } from '../features/events/components';
+import { SectionMovementTracker } from '../features/movements/components';
+import ErrorBoundary from '../shared/components/ErrorBoundary.jsx';
+import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
+import { database as databaseService } from '../shared/services/storage';
+import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
+import { NotificationProvider } from '../shared/adapters';
+import { useNotification } from '../shared/contexts/notifications/NotificationContext';
+import ToastContainer from '../shared/components/notifications/ToastContainer';
 import '../App.css';
-import { getUniqueSectionsFromEvents } from '../utils/sectionHelpers.js';
-import { logout as clearAllStorage } from '../services/auth.js';
+import { getUniqueSectionsFromEvents } from '../shared/utils/sectionHelpers.js';
+import { logout as clearAllStorage } from '../features/auth/services';
 
 // Internal App component that uses the notification context
 function LegacyAppContent() {
@@ -64,7 +63,7 @@ function LegacyAppContent() {
     setIsRefreshing(true);
     try {
       // Import sync service dynamically to avoid circular dependencies
-      const { default: syncService } = await import('../services/sync.js');
+      const { default: syncService } = await import('../shared/services/storage/sync.js');
       // Trigger comprehensive data sync
       await syncService.syncAll();
       logger.info(
@@ -112,7 +111,7 @@ function LegacyAppContent() {
 
     const setupSyncListener = async () => {
       try {
-        const { default: syncService } = await import('../services/sync.js');
+        const { default: syncService } = await import('../shared/services/storage/sync.js');
 
         const handleSyncStatus = (status) => {
           setIsSyncing(status.status === 'syncing');

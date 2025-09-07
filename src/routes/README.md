@@ -233,10 +233,9 @@ import { Link } from 'react-router-dom';
 <Link to="/events/overview">Events Overview</Link>
 
 // Dynamic navigation
-<Link to={`/events/detail/${event.eventid}`}>
+<Link to={`/events/detail/${event.eventId}`}>
   View Event Details
 </Link>
-```
 
 ## Error Handling & Fallbacks
 
@@ -319,16 +318,17 @@ it('should allow access with cached data', () => {
 
 ```jsx
 // Test route parameters
+// Test route parameters
 it('should extract eventId from URL', () => {
   render(
     <MemoryRouter initialEntries={['/events/detail/test_event_123']}>
-      <EventsDetail />
+      <Routes>
+        <Route path="/events/detail/:eventId" element={<EventsDetail />} />
+      </Routes>
     </MemoryRouter>
   );
   // Assert eventId is correctly parsed and used
 });
-```
-
 ## Performance Considerations
 
 ### Code Splitting
