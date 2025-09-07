@@ -13,7 +13,7 @@ function EventsOverview() {
   const location = useLocation();
   const navigate = useNavigate();
   const { state } = useAppState();
-  const { navigateWithState, updateNavigationData } = useURLSync();
+  const { _navigateWithState, updateNavigationData } = useURLSync();
   const [events, setEvents] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);

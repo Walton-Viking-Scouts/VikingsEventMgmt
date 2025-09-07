@@ -60,7 +60,8 @@ export function useAuth() {
       
       if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
-      } else if (isAuth && tokenExpired && hasCache) {
+      } else if (tokenExpired && hasCache) {
+        // Token expired but we have cached data - show sign in option
         return 'token_expired';
       } else if (hasCache && hasPreviousAuth) {
         // User has cached data and was previously authenticated - likely token expired or cleared

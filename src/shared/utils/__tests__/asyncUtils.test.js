@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { sleep, sleepWithAbort } from '../asyncUtils.js';
 
 // Mock logger and sentry
-vi.mock('../../services/logger.js', () => ({
+vi.mock('../../services/utils/logger.js', () => ({
   default: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('../../services/logger.js', () => ({
   },
 }));
 
-vi.mock('../../services/sentry.js', () => ({
+vi.mock('../../services/utils/sentry.js', () => ({
   sentryUtils: {
     captureException: vi.fn(),
   },
@@ -31,8 +31,8 @@ describe('Async Utilities', () => {
     vi.useFakeTimers();
     
     // Import mocked modules
-    logger = (await import('../../services/logger.js')).default;
-    sentryUtils = (await import('../../services/sentry.js')).sentryUtils;
+    logger = (await import('../../services/utils/logger.js')).default;
+    sentryUtils = (await import('../../services/utils/sentry.js')).sentryUtils;
   });
 
   afterEach(() => {

@@ -16,13 +16,13 @@ function EventsCampGroups() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { notifyInfo, notifyError, notifyWarning } = useNotification();
+  const { _notifyInfo, notifyError, _notifyWarning } = useNotification();
 
   const {
     attendanceData,
     loading: attendanceLoading,
     error: attendanceError,
-    loadVikingEventData,
+    _loadVikingEventData,
   } = useAttendanceData(events);
 
   useEffect(() => {

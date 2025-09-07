@@ -8,7 +8,7 @@ import {
 } from '../eventDashboardHelpers.js';
 
 // Mock external dependencies
-vi.mock('../../services/api.js', () => ({
+vi.mock('../../services/api/api.js', () => ({
   fetchMostRecentTermId: vi.fn(),
   getEvents: vi.fn(),
   getEventAttendance: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../services/api.js', () => ({
   getEventSharingStatus: vi.fn(),
 }));
 
-vi.mock('../../services/database.js', () => ({
+vi.mock('../../services/storage/database.js', () => ({
   default: {
     saveEvents: vi.fn(),
     getEvents: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../../services/database.js', () => ({
   },
 }));
 
-vi.mock('../../services/logger.js', () => ({
+vi.mock('../../services/utils/logger.js', () => ({
   default: {
     error: vi.fn(),
     info: vi.fn(),
@@ -43,9 +43,9 @@ vi.mock('../../config/demoMode.js', () => ({
 }));
 
 // Import mocked modules for assertions
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../../services/api.js';
-import databaseService from '../../services/database.js';
-import logger from '../../services/logger.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../../services/api/api.js';
+import databaseService from '../../services/storage/database.js';
+import logger from '../../services/utils/logger.js';
 
 describe('EventDashboard Helper Functions', () => {
   beforeEach(() => {

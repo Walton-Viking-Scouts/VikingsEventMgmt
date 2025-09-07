@@ -38,17 +38,18 @@ function RouteGuard({
                authState === 'cached_only' || 
                authState === 'token_expired' ||
                (user && authState !== 'no_data');
-    case 'authenticated':
+    case 'authenticated': {
       const isAuthenticated = authState === 'authenticated' && user;
       
       // Check additional permissions if specified
       if (isAuthenticated && requiredPermissions.length > 0) {
         return requiredPermissions.every(permission => 
-          user.permissions && user.permissions.includes(permission)
+          user.permissions && user.permissions.includes(permission),
         );
       }
       
       return isAuthenticated;
+    }
     default:
       return true;
     }

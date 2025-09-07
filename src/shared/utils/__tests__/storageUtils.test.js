@@ -8,7 +8,7 @@ import {
 } from '../storageUtils.js';
 
 // Mock logger and sentry
-vi.mock('../../services/logger.js', () => ({
+vi.mock('../../services/utils/logger.js', () => ({
   default: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../../services/logger.js', () => ({
   },
 }));
 
-vi.mock('../../services/sentry.js', () => ({
+vi.mock('../../services/utils/sentry.js', () => ({
   sentryUtils: {
     captureException: vi.fn(),
   },
@@ -41,8 +41,8 @@ describe('Storage Utilities', () => {
     sessionStorage.setItem.mockClear();
     
     // Import mocked modules
-    logger = (await import('../../services/logger.js')).default;
-    sentryUtils = (await import('../../services/sentry.js')).sentryUtils;
+    logger = (await import('../../services/utils/logger.js')).default;
+    sentryUtils = (await import('../../services/utils/sentry.js')).sentryUtils;
   });
 
   describe('safeGetItem', () => {

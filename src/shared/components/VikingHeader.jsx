@@ -16,7 +16,7 @@ function VikingHeader({
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [_notificationCenterOpen, _setNotificationCenterOpen] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
