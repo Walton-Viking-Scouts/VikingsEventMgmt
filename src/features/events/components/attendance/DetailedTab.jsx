@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge } from '../../../../shared/components/ui';
 import { MedicalDataPill } from '../../../../shared/components/ui';
 // import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
+import { calculateAge } from '../../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
@@ -58,7 +59,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
       section: member.sections?.[0] || 'Unknown',
       patrol: member.patrol || '',
-      age: member.date_of_birth ? Math.floor((Date.now() - new Date(member.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '',
+      age: calculateAge(member.date_of_birth),
       
       // Primary Contacts (1 and 2)
       primary_contacts: (() => {
