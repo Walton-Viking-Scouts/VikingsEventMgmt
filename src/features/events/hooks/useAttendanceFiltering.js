@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 
 export function useAttendanceFiltering(attendanceData, events) {
   // Attendance filter state - exclude "Not Invited" by default
@@ -66,12 +66,13 @@ export function useAttendanceFiltering(attendanceData, events) {
         bValue = b.name?.toLowerCase() || '';
         break;
         
-      case 'attendance':
+      case 'attendance': {
         // Priority order for attendance status
         const statusPriority = { 'Yes': 4, 'No': 3, 'Invited': 2, 'Not Invited': 1 };
         aValue = statusPriority[a.attendance] || 0;
         bValue = statusPriority[b.attendance] || 0;
         break;
+      }
         
       case 'section':
         aValue = a.sectionName?.toLowerCase() || '';

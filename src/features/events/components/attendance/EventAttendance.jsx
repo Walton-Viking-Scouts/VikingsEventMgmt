@@ -236,7 +236,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return { sections, totals };
-  }, [filteredAttendanceData, uniqueSections, sectionFilters]);
+  }, [filteredAttendanceData, uniqueSections, sectionFilters, members]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);

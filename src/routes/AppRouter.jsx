@@ -29,7 +29,7 @@ function AppContent() {
   const {
     isLoading,
     user,
-    isBlocked,
+    isBlocked: _isBlocked,
     isOfflineMode,
     authState,
     lastSyncTime,

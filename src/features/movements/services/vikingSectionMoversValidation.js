@@ -108,7 +108,7 @@ export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, 
     }
 
     // Step 3: Check for required fields
-    const { fields, fieldMapping } = fieldContext;
+    const { fields: _fields, fieldMapping } = fieldContext;
     validation.availableFields = Object.keys(fieldMapping).map(fieldId => ({
       fieldId,
       fieldName: fieldMapping[fieldId].name,
