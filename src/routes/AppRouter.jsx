@@ -9,11 +9,7 @@ import ToastContainer from '../shared/components/notifications/ToastContainer.js
 import { useAuth } from '../features/auth/hooks';
 import { useNotification } from '../shared/contexts/notifications/NotificationContext';
 
-// Feature flag for gradual rollout
-const USE_URL_ROUTING = import.meta.env.VITE_USE_URL_ROUTING === 'true';
-
-// Import the existing App component for legacy mode
-import LegacyApp from './LegacyApp.jsx';
+// URL-based routing is now the only routing system
 
 // Lazy load main feature modules for better performance
 const MoversPage = React.lazy(() => import('../features/movements/components').then(module => ({ default: module.MoversPage })));
@@ -127,12 +123,7 @@ function AppContent() {
 }
 
 function AppRouter() {
-  // Feature flag controls migration from state-based to URL-based routing
-  if (!USE_URL_ROUTING) {
-    return <LegacyApp />;
-  }
-
-  // New URL-based routing with OAuth processing
+  // URL-based routing with OAuth processing
   return (
     <BrowserRouter>
       <NotificationProvider>

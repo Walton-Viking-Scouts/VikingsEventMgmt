@@ -1,6 +1,5 @@
 // Events components barrel export
 export { default as AttendanceGrid } from './AttendanceGrid.jsx';
-export { default as AttendanceView } from './AttendanceView.jsx';
 export { default as CampGroupCard } from './CampGroupCard.jsx';
 export { default as CampGroupsView } from './CampGroupsView.jsx';
 export { default as CompactAttendanceFilter } from './CompactAttendanceFilter.jsx';
