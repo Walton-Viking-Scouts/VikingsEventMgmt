@@ -1,6 +1,6 @@
 import databaseService from './database.js';
 import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, getMembersGrid } from '../api/api.js';
-import { getToken, validateToken, generateOAuthUrl } from '../../../features/auth/services/auth.js';
+import { getToken, generateOAuthUrl, validateToken } from '../auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';

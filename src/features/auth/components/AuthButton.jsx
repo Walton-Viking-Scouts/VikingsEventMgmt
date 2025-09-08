@@ -15,6 +15,7 @@ import { Button } from '../../../shared/components/ui';
  * @param {Function} props.onLogin - Login handler function
  * @param {Function} props.onRefresh - Refresh handler function
  * @param {boolean} props.isLoading - Whether sync is in progress
+ * @param {boolean} props.isOfflineMode - Whether the app is in offline mode
  * @param {string} props.className - Additional CSS classes
  * @param {string} props.size - Button size (xs, sm, md, lg, xl)
  */
@@ -23,6 +24,7 @@ function AuthButton({
   onLogin,
   onRefresh,
   isLoading = false,
+  isOfflineMode = false,
   className = '',
   size,
   ...rest
@@ -49,12 +51,21 @@ function AuthButton({
       };
 
     case 'cached_only':
+      if (isOfflineMode) {
+        return {
+          text: 'Offline - Sign in to refresh',
+          onClick: onLogin,
+          disabled: false,
+          variant: 'outline',
+          ariaLabel: 'You are offline with cached data - sign in to refresh data from OSM',
+        };
+      }
       return {
-        text: 'Refresh data',
-        onClick: onRefresh || onLogin, // Prefer onRefresh for cached data
+        text: 'Sign in to refresh',
+        onClick: onLogin, // Need to login first to get token for refresh
         disabled: false,
-        variant: 'outline',
-        ariaLabel: 'Refresh data from OSM - currently using cached data',
+        variant: 'scout-purple',
+        ariaLabel: 'Sign in to OSM to refresh data - currently using cached data',
       };
 
     case 'token_expired':

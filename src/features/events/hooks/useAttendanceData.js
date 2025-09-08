@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getEventAttendance } from '../../../shared/services/api/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
-import { getToken } from '../../auth/services/auth.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
@@ -285,13 +285,28 @@ export function useAttendanceData(events) {
     return lookup;
   }, [vikingEventData]);
 
+  // Enhanced attendance data with Viking Event data attached
+  const enhancedAttendanceData = useMemo(() => {
+    if (!attendanceData || attendanceData.length === 0 || vikingEventLookup.size === 0) {
+      return attendanceData;
+    }
+
+    return attendanceData.map(record => {
+      const vikingData = vikingEventLookup.get(record.scoutid);
+      return {
+        ...record,
+        vikingEventData: vikingData || null,
+      };
+    });
+  }, [attendanceData, vikingEventLookup]);
+
   // Get Viking Event Management data for a specific member using optimized O(1) lookup
   const getVikingEventDataForMember = (scoutid) => {
     return vikingEventLookup.get(scoutid) || null;
   };
 
   return {
-    attendanceData,
+    attendanceData: enhancedAttendanceData,
     vikingEventData,
     loading,
     error,

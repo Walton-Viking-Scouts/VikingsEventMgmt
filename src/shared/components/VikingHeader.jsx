@@ -9,8 +9,8 @@ import TokenCountdown from './TokenCountdown.jsx';
 function VikingHeader({
   user,
   onLogout,
-  onLogin,
-  onRefresh,
+  onLogin: _onLogin,
+  onRefresh: _onRefresh,
   isOfflineMode,
   authState = 'no_data',
   lastSyncTime = null,
@@ -61,11 +61,11 @@ function VikingHeader({
         </div>
 
         <div className="flex items-center space-x-4" data-oid="36ufks8">
-          {/* Authentication button - always visible */}
           <AuthButton
             authState={authState}
-            onLogin={onLogin}
-            onRefresh={onRefresh}
+            onLogin={_onLogin}
+            onRefresh={_onRefresh}
+            isOfflineMode={isOfflineMode}
             className="mr-2"
             size="sm"
             data-testid="auth-button"

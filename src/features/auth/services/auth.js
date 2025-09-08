@@ -231,6 +231,10 @@ export function setUserInfo(userInfo) {
   sessionStorage.setItem('user_info', JSON.stringify(userInfo));
 }
 
+export function clearUserInfo() {
+  sessionStorage.removeItem('user_info');
+}
+
 // Fetch fresh user info from OSM startup data API
 export async function fetchUserInfoFromAPI() {
   const fallbackUserInfo = {
@@ -503,6 +507,7 @@ export default {
   generateOAuthUrl,
   getUserInfo,
   setUserInfo,
+  clearUserInfo,
   fetchUserInfo,
   validateToken,
   logout,

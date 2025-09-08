@@ -4,7 +4,7 @@ import {
   discoverVikingSectionMoversFlexiRecords,
   getVikingSectionMoversData,
 } from '../../events/services/flexiRecordService.js';
-import { getToken } from '../../auth/services/auth.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { fetchMostRecentTermId } from '../../../shared/services/api/api.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 

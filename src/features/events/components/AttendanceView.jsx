@@ -6,21 +6,26 @@ import React, {
   useCallback,
 } from 'react';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
-import MemberDetailModal from '../../sections/components/MemberDetailModal.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
-import { SectionFilter, SectionCardsFlexMasonry } from '../../sections';
 import CampGroupsView from './CampGroupsView.jsx';
 import SignInOutButton from './SignInOutButton.jsx';
-import { Card, Button, Badge } from '../../../shared/components/ui';
+import { 
+  Card, 
+  Button, 
+  Badge, 
+  SectionFilter, 
+  SectionCardsFlexMasonry,
+  MemberDetailModal,
+  MedicalDataPill,
+} from '../../../shared/components/ui';
 import AlertAdapter from '../../../shared/components/ui/AlertAdapter.jsx';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../shared/hooks/useSignInOut.js';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
-import { getToken } from '../../auth/services/auth.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
-import { MedicalDataPill } from '../../sections/components/MedicalDataDisplay.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 

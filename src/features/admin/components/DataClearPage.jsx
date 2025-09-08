@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../shared/components/ui';
 import { useAppState } from '../../../contexts/app';
 import databaseService from '../../../shared/services/storage/database.js';
-import { clearToken } from '../../auth/services/auth.js';
+import { clearToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function DataClearPage() {

@@ -1,6 +1,6 @@
 import React from 'react';
 import CompactAttendanceFilter from '../CompactAttendanceFilter.jsx';
-import { SectionFilter } from '../../../sections';
+import { SectionFilter } from '../../../../shared/components/ui';
 
 function AttendanceFilters({
   attendanceFilters,
@@ -11,7 +11,7 @@ function AttendanceFilters({
   showDataFilters = false,
   dataFilters = {},
   onDataFiltersChange,
-  attendanceData = []
+  attendanceData = [],
 }) {
   if (!attendanceData || attendanceData.length === 0) {
     return null;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
-import MemberDetailModal from '../../sections/components/MemberDetailModal.jsx';
+import { MemberDetailModal } from '../../../shared/components/ui';
 import SignInOutButton from './SignInOutButton.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';

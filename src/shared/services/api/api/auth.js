@@ -10,7 +10,7 @@ import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../../../features/auth/services/simpleAuthHandler.js';
+import { authHandler } from '../../auth/authHandler.js';
 import { sentryUtils } from '../../utils/sentry.js';
 import databaseService from '../../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
@@ -61,24 +61,15 @@ async function retrieveUserInfo(token) {
       logger.info('User info found in cached startup data', { firstname: userInfo.firstname });
       return userInfo;
     } else {
-      // Don't overwrite existing user info if we can't find it
-      const authService = await import('../../../../features/auth/services/auth.js');
-      const existingUserInfo = authService.getUserInfo();
-      
-      if (!existingUserInfo) {
-        // Ultimate fallback - only if no existing user info
-        const fallbackUserInfo = {
-          firstname: 'Scout Leader',
-          lastname: '',
-          userid: null,
-          email: null,
-        };
-        logger.warn('Created fallback user info - no startup data available');
-        return fallbackUserInfo;
-      } else {
-        logger.info('Keeping existing user info', { firstname: existingUserInfo.firstname });
-        return existingUserInfo;
-      }
+      // Ultimate fallback - create default user info if we can't find it anywhere
+      const fallbackUserInfo = {
+        firstname: 'Scout Leader',
+        lastname: '',
+        userid: null,
+        email: null,
+      };
+      logger.warn('Created fallback user info - no startup data available');
+      return fallbackUserInfo;
     }
   }
 }
@@ -169,8 +160,8 @@ export async function getUserRoles(token) {
 
         // Get user information from startup data (getUserRoles doesn't contain user info)
         const userInfo = await retrieveUserInfo(token);
-        const authService = await import('../../../../features/auth/services/auth.js');
-        authService.setUserInfo(userInfo);
+        // TODO: Store user info in shared location instead of auth service
+        logger.info('User info retrieved', { firstname: userInfo.firstname });
 
         const sections = Object.keys(data)
           .filter(key => Number.isInteger(Number(key)) && key !== '')

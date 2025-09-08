@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../../../../shared/components/ui';
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
-import MemberDetailModal from '../../../sections/components/MemberDetailModal.jsx';
+import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
 import { useNotification } from '../../../../shared/contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
@@ -279,50 +279,50 @@ function EventAttendance({ events, members, onBack }) {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return (
-          <OverviewTab 
-            summaryStats={simplifiedSummaryStats}
-            members={members}
-            onResetFilters={handleResetFilters}
-            uniqueSections={uniqueSections}
-          />
-        );
+    case 'overview':
+      return (
+        <OverviewTab 
+          summaryStats={simplifiedSummaryStats}
+          members={members}
+          onResetFilters={handleResetFilters}
+          uniqueSections={uniqueSections}
+        />
+      );
       
-      case 'register':
-        return (
-          <RegisterTab 
-            summaryStats={summaryStats}
-            onSignInOut={handleSignInOut}
-            buttonLoading={buttonLoading}
-            onMemberClick={handleMemberClick}
-            sortConfig={sortConfig}
-            onSort={setSortConfig}
-          />
-        );
+    case 'register':
+      return (
+        <RegisterTab 
+          summaryStats={summaryStats}
+          onSignInOut={handleSignInOut}
+          buttonLoading={buttonLoading}
+          onMemberClick={handleMemberClick}
+          sortConfig={sortConfig}
+          onSort={setSortConfig}
+        />
+      );
       
-      case 'detailed':
-        return (
-          <DetailedTab 
-            summaryStats={summaryStats}
-            members={members}
-            onMemberClick={handleMemberClick}
-            showContacts={dataFilters.contacts}
-          />
-        );
+    case 'detailed':
+      return (
+        <DetailedTab 
+          summaryStats={summaryStats}
+          members={members}
+          onMemberClick={handleMemberClick}
+          showContacts={dataFilters.contacts}
+        />
+      );
       
-      case 'campGroups':
-        return (
-          <CampGroupsView 
-            attendanceData={attendanceData}
-            events={events}
-            members={members}
-            onBack={() => setActiveTab('overview')}
-          />
-        );
+    case 'campGroups':
+      return (
+        <CampGroupsView 
+          attendanceData={attendanceData}
+          events={events}
+          members={members}
+          onBack={() => setActiveTab('overview')}
+        />
+      );
       
-      default:
-        return <div>Tab content not implemented yet</div>;
+    default:
+      return <div>Tab content not implemented yet</div>;
     }
   };
 

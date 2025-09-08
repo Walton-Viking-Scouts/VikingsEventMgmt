@@ -51,7 +51,8 @@ export {
   updateFlexiRecord,
   multiUpdateFlexiRecord,
   // Re-exported from other services
-  getConsolidatedFlexiRecord,
+  // TODO: Move getConsolidatedFlexiRecord to shared layer
+  // getConsolidatedFlexiRecord,
   parseFlexiStructure,
   transformFlexiRecordData,
   extractVikingEventFields,

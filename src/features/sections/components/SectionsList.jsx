@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from '../../../shared/components/ui';
 import { getListOfMembers } from '../../../shared/services/api/api.js';
-import { getToken } from '../../auth/services/auth.js';
-import MemberDetailModal from './MemberDetailModal.jsx';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
+import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
-import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';

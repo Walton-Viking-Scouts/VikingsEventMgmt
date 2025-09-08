@@ -68,6 +68,11 @@ export function useAuth() {
         return 'token_expired';
       } else if (hasCache) {
         return 'cached_only';
+      } else if (hasPreviousAuth && hasValidToken && !hasCache) {
+        // Has valid token and user info but no cached data - likely cache was cleared
+        // Clear user info to force fresh login
+        authService.clearUserInfo();
+        return 'no_data';
       } else {
         return 'no_data';
       }

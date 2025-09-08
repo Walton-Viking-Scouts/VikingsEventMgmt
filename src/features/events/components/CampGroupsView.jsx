@@ -10,12 +10,12 @@ import { AlertAdapter } from '../../../shared/adapters';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import CampGroupCard from './CampGroupCard.jsx';
-import MemberDetailModal from '../../sections/components/MemberDetailModal.jsx';
+import { MemberDetailModal } from '../../../shared/components/ui';
 import GroupNamesEditModal from './GroupNamesEditModal.jsx';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 // import { organizeMembersByCampGroups } from '../utils/flexiRecordTransforms.js';
 import { fetchMostRecentTermId, multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
-import { getToken } from '../../auth/services/auth.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { isMobileLayout } from '../../../shared/utils/platform.js';
 import {

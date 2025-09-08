@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
+import { formatMedicalDataForDisplay } from '../../utils/medicalDataUtils.js';
 
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   

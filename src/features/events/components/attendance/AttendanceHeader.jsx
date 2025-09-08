@@ -6,7 +6,7 @@ function AttendanceHeader({
   onBack, 
   onRefresh, 
   canRefresh = true,
-  refreshLoading = false 
+  refreshLoading = false, 
 }) {
   if (!events || events.length === 0) {
     return null;

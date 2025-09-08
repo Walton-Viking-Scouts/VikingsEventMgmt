@@ -9,7 +9,7 @@ import {
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../../../features/auth/services/simpleAuthHandler.js';
+import { authHandler } from '../../auth/authHandler.js';
 import { getMostRecentTermId } from '../../../utils/termUtils.js';
 import { getTerms } from './terms.js';
 import databaseService from '../../storage/database.js';

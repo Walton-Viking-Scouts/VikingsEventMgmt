@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Badge, Button } from '../../../../shared/components/ui';
-import { MedicalDataPill } from '../../../sections/components/MedicalDataDisplay.jsx';
-import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
+import { Badge } from '../../../../shared/components/ui';
+import { MedicalDataPill } from '../../../../shared/components/ui';
+// import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [_selectedMember, _setSelectedMember] = useState(null);
+  const [_showMemberModal, _setShowMemberModal] = useState(false);
 
   if (!summaryStats || !Array.isArray(summaryStats) || summaryStats.length === 0) {
     return (

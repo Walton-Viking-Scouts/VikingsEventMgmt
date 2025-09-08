@@ -10,7 +10,7 @@ import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../../../features/auth/services/simpleAuthHandler.js';
+import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 

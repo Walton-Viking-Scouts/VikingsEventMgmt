@@ -3,13 +3,13 @@
 
 import { sentryUtils } from '../../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
-import { authHandler } from '../../../../features/auth/services/simpleAuthHandler.js';
+import { authHandler } from '../../auth/authHandler.js';
 import { sleep } from '../../../utils/asyncUtils.js';
 import { checkNetworkStatus, addNetworkListener } from '../../../utils/networkUtils.js';
 // Storage utilities imported where needed
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { isTokenExpired } from '../../../../features/auth/services/auth.js';
+import { isTokenExpired } from '../../auth/tokenService.js';
 
 export const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 

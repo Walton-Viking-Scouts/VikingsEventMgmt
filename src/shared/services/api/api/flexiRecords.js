@@ -10,7 +10,8 @@ import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../../../features/auth/services/simpleAuthHandler.js';
+import { authHandler } from '../../auth/authHandler.js';
+import { checkWritePermission } from '../../auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 
 /**
@@ -362,9 +363,6 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
   try {
     validateTokenBeforeAPICall(token, 'updateFlexiRecord');
     
-    // Import the guard function
-    const { checkWritePermission } = await import('../../../../features/auth/services/auth.js');
-    
     // Check if write operations are allowed (blocks offline writes with expired token)
     checkWritePermission();
 
@@ -439,9 +437,6 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
   logger.debug('multiUpdateFlexiRecord: Token validation passed', {}, LOG_CATEGORIES.API);
   
   try {
-    // Import the guard function
-    const { checkWritePermission } = await import('../../../../features/auth/services/auth.js');
-    
     // Check if write operations are allowed
     checkWritePermission();
     logger.debug('multiUpdateFlexiRecord: Write permission check passed', {}, LOG_CATEGORIES.API);
@@ -508,10 +503,8 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
   }
 }
 
-// Re-export FlexiRecord functions from service and transforms
-export { 
-  getConsolidatedFlexiRecord,
-} from '../../../../features/events/services/flexiRecordService.js';
+// TODO: Move getConsolidatedFlexiRecord to shared layer to avoid circular dependency
+// Temporarily removing cross-feature export
 
 export { 
   parseFlexiStructure,

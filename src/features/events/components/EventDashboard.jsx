@@ -4,12 +4,12 @@ import {
   getListOfMembers,
   getAPIQueueStats,
 } from '../../../shared/services/api/api.js';
-import { generateOAuthUrl, getToken } from '../../auth/services/auth.js';
-import { authHandler } from '../../auth/services/simpleAuthHandler.js';
+import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
+import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/useAuth.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
-import { SectionsList } from '../../sections';
 import EventCard from './EventCard.jsx';
+import { SectionsList } from '../../sections';
 import databaseService from '../../../shared/services/storage/database.js';
 import { Button, Card } from '../../../shared/components/ui';
 import AlertAdapter from '../../../shared/components/ui/AlertAdapter.jsx';

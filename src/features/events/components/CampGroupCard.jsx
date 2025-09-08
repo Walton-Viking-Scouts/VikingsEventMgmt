@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, Badge } from '../../../shared/components/ui';
 import DraggableMember from './DraggableMember.jsx';
 import { checkNetworkStatus } from '../../../shared/utils/networkUtils.js';
-import { getToken } from '../../auth/services/auth.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**

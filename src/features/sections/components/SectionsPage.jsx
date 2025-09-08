@@ -1,61 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/hooks/useAuth.js';
-import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
-import { NotificationProvider } from '../../../shared/adapters';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
-import ToastContainer from '../../../shared/components/notifications/ToastContainer';
-import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.jsx';
+import { Card } from '../../../shared/components/ui';
+import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { SectionsList } from '../components';
-import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import databaseService from '../../../shared/services/storage/database.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 
-function SectionsPageContent() {
+function SectionsPage() {
   const navigate = useNavigate();
-  const {
-    user,
-    isOfflineMode,
-    authState,
-    lastSyncTime,
-    showTokenExpiredDialog,
-    hasCachedData,
-    handleReLogin,
-    handleStayOffline,
-    login,
-    logout,
-  } = useAuth();
-  
-  const { notifications, remove } = useNotification();
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-
-  // Sections-specific state
   const [sections, setSections] = useState([]);
   const [selectedSections, setSelectedSections] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [loadingSection] = useState(null);
 
-  const handleRefresh = async () => {
-    if (isOfflineMode) {
-      return;
-    }
-    setIsRefreshing(true);
-    try {
-      const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-      await syncService.syncAll();
-    } catch (error) {
-      console.error('Refresh failed:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+  const handleNavigateToSectionMovements = () => {
+    navigate('/movers');
   };
 
   // Load sections data on component mount
   useEffect(() => {
     const loadSections = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const sectionsData = await databaseService.getSections();
         setSections(sectionsData || []);
-      } catch (error) {
-        console.error('Failed to load sections:', error);
+        
+        logger.debug('Sections loaded from cache', {
+          sectionsCount: sectionsData?.length || 0,
+        }, LOG_CATEGORIES.APP);
+      } catch (err) {
+        logger.error('Failed to load sections from cache', { error: err.message }, LOG_CATEGORIES.ERROR);
+        setError(err.message);
+        setSections([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -74,62 +56,72 @@ function SectionsPageContent() {
     });
   };
 
-  // Handle navigation to movers
-  const handleNavigateToSectionMovements = () => {
-    navigate('/movers');
-  };
+  if (loading) {
+    return <LoadingScreen message="Loading sections..." />;
+  }
 
-  return (
-    <div className="sections-page">
-      <ToastContainer toasts={notifications} onDismiss={remove} />
-      <ResponsiveLayout
-        user={user}
-        onLogout={logout}
-        onLogin={login}
-        onRefresh={handleRefresh}
-        currentView="sections"
-        isOfflineMode={isOfflineMode}
-        authState={authState}
-        lastSyncTime={lastSyncTime}
-        isRefreshing={isRefreshing}
-      >
-        <MainNavigation onNavigateToSectionMovements={handleNavigateToSectionMovements} />
-        <div className="p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Sections Management</h1>
-              <p className="text-gray-600 mt-1">
-                Select sections to view their member details and information.
-              </p>
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-6">
+            <div className="text-red-600">
+              <h2 className="text-lg font-semibold mb-2">Error Loading Sections</h2>
+              <p>{error}</p>
+              <button
+                onClick={() => navigate('/events')}
+                className="mt-4 px-4 py-2 bg-scout-blue text-white rounded hover:bg-scout-blue-dark"
+              >
+                Back to Events Dashboard
+              </button>
             </div>
-            
-            <SectionsList
-              sections={sections}
-              selectedSections={selectedSections}
-              onSectionToggle={handleSectionToggle}
-              loadingSection={loadingSection}
-              allSections={sections}
-            />
-          </div>
+          </Card>
         </div>
-      </ResponsiveLayout>
-      
-      {/* Token expiration user choice dialog */}
-      <TokenExpiredDialog
-        isOpen={showTokenExpiredDialog}
-        onReLogin={handleReLogin}
-        onStayOffline={handleStayOffline}
-        hasCachedData={hasCachedData}
-      />
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
-function SectionsPage() {
   return (
-    <NotificationProvider>
-      <SectionsPageContent />
-    </NotificationProvider>
+    <>
+      <MainNavigation onNavigateToSectionMovements={handleNavigateToSectionMovements} />
+      {/* Sections Content */}
+      <Card className="p-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Sections</h2>
+          <p className="text-gray-600 mt-1">
+            View and manage section information and member data
+          </p>
+        </div>
+
+        {sections.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-500 mb-4">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sections Available</h3>
+            <p className="text-gray-600 mb-4">
+              No sections found. Make sure you&apos;re connected and data has been synced.
+            </p>
+            <button
+              onClick={() => navigate('/events')}
+              className="px-4 py-2 bg-scout-blue text-white rounded hover:bg-scout-blue-dark"
+            >
+              Back to Events Dashboard
+            </button>
+          </div>
+        ) : (
+          <SectionsList
+            sections={sections}
+            selectedSections={selectedSections}
+            onSectionToggle={handleSectionToggle}
+            loadingSection={loadingSection}
+            allSections={sections}
+          />
+        )}
+      </Card>
+    </>
   );
 }
 

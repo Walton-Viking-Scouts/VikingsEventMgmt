@@ -18,7 +18,7 @@ function SignInOutButton({
     <Button
       onClick={handleClick}
       disabled={disabled || loading}
-      variant={isSignedIn ? 'outline' : 'primary'}
+      variant={isSignedIn ? 'error' : 'scout-green'}
       size='sm'
     >
       {loading ? 'Processing...' : (isSignedIn ? 'Sign Out' : 'Sign In')}

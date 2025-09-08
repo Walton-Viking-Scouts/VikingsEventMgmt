@@ -3,6 +3,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import cypress from 'eslint-plugin-cypress';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   js.configs.recommended,
@@ -45,6 +46,7 @@ export default [
       react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      'import': importPlugin,
     },
     rules: {
       ...react.configs.recommended.rules,
@@ -81,6 +83,52 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off', // We're using TypeScript-style props without PropTypes
+      
+      // Directory structure enforcement
+      'import/no-restricted-paths': ['error', {
+        zones: [
+          // Features cannot import from other features directly
+          {
+            target: './src/features/auth/**/*',
+            from: './src/features/!(auth)/**/*',
+            message: 'Features cannot import from other features directly. Use shared resources or explicit interfaces.',
+          },
+          {
+            target: './src/features/events/**/*',
+            from: './src/features/!(events)/**/*',
+            message: 'Features cannot import from other features directly. Use shared resources or explicit interfaces.',
+          },
+          {
+            target: './src/features/sections/**/*',
+            from: './src/features/!(sections)/**/*',
+            message: 'Features cannot import from other features directly. Use shared resources or explicit interfaces.',
+          },
+          {
+            target: './src/features/movements/**/*',
+            from: './src/features/!(movements)/**/*',
+            message: 'Features cannot import from other features directly. Use shared resources or explicit interfaces.',
+          },
+          {
+            target: './src/features/admin/**/*',
+            from: './src/features/!(admin)/**/*',
+            message: 'Features cannot import from other features directly. Use shared resources or explicit interfaces.',
+          },
+          // Shared resources cannot import from features
+          {
+            target: './src/shared/**/*',
+            from: './src/features/**/*',
+            message: 'Shared resources cannot import from features. This would create circular dependencies.',
+          },
+          // Enforce proper layering: contexts at application level
+          {
+            target: './src/contexts/**/*',
+            from: './src/features/**/*',
+            message: 'Global contexts cannot import from features. Consider moving context to shared or feature-local.',
+          },
+        ],
+      }],
+      'import/no-cycle': ['error', { maxDepth: 10 }],
+      'import/no-self-import': 'error',
     },
     settings: {
       react: {
@@ -131,7 +179,7 @@ export default [
     },
   },
   {
-    files: ['vite.config.js', 'cypress.config.js'],
+    files: ['vite.config.js', 'cypress.config.js', 'scripts/**/*.js'],
     languageOptions: {
       globals: {
         process: 'readonly',

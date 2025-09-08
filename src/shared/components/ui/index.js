@@ -48,6 +48,13 @@ export { default as ConfirmModal } from './ConfirmModal';
 export { default as Alert } from './Alert';
 export { default as Badge } from './Badge';
 
+// Feature Components - moved from features to shared
+export { default as SectionFilter } from './SectionFilter';
+export { default as SectionCardsFlexMasonry } from './SectionCardsFlexMasonry';
+export { default as MemberDetailModal } from './MemberDetailModal';
+export { default as MedicalDataDisplay } from './MedicalDataDisplay';
+export { MedicalDataPill, MedicalDataList } from './MedicalDataDisplay';
+
 // Re-export individual components for convenience
 export { CardHeader, CardTitle, CardBody, CardFooter } from './Card';
 export { FormRow, FormSection, FormActions, Label, HelperText, ErrorText } from './FormGroup';

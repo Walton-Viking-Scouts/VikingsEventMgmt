@@ -27,17 +27,17 @@ const sortData = (data, key, direction) => {
     let aValue, bValue;
 
     switch (key) {
-      case 'member':
-        aValue = a.name?.toLowerCase() || '';
-        bValue = b.name?.toLowerCase() || '';
-        break;
-      case 'attendance':
-        aValue = a.yes + a.no + a.invited + a.notInvited;
-        bValue = b.yes + b.no + b.invited + b.notInvited;
-        break;
-      default:
-        aValue = '';
-        bValue = '';
+    case 'member':
+      aValue = a.name?.toLowerCase() || '';
+      bValue = b.name?.toLowerCase() || '';
+      break;
+    case 'attendance':
+      aValue = a.yes + a.no + a.invited + a.notInvited;
+      bValue = b.yes + b.no + b.invited + b.notInvited;
+      break;
+    default:
+      aValue = '';
+      bValue = '';
     }
 
     if (aValue < bValue) return direction === 'asc' ? -1 : 1;
@@ -78,7 +78,7 @@ function RegisterTab({
   buttonLoading,
   onMemberClick,
   sortConfig,
-  onSort 
+  onSort, 
 }) {
   const handleSort = (key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';

@@ -3,7 +3,7 @@ import React from 'react';
 function AttendanceTabNavigation({ 
   activeTab, 
   onTabChange, 
-  hasSharedEvents = false 
+  hasSharedEvents = false, 
 }) {
   const tabs = [
     { id: 'overview', label: 'Overview' },
