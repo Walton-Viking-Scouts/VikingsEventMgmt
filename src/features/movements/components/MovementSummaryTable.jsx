@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
@@ -16,6 +16,81 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
+function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedCounts) {
+  const firstTermGrouped = groupSectionsByType(termCalculations[0]?.sectionSummaries, sectionsData || []);
+  const firstTermGroup = firstTermGrouped.get(sectionType);
+  if (!firstTermGroup) return null;
+  
+  const rows = [];
+  
+  firstTermGroup.sections.forEach(section => {
+    rows.push(
+      <tr key={`${section.sectionId}`} className="border-b">
+        <td className="py-2 px-4 pl-8 text-gray-700">
+          {section.sectionName}
+        </td>
+        {termCalculations.map((termData, termIndex) => {
+          const sectionSummary = termData.sectionSummaries.get(section.sectionId);
+            
+          if (!sectionSummary) {
+            return (
+              <td key={termIndex} className="py-2 px-4 text-center text-gray-500">
+                  -
+              </td>
+            );
+          }
+            
+          const currentCount = sectionSummary.cumulativeCurrentCount || sectionSummary.currentMembers.length;
+          const outgoingCount = sectionSummary.outgoingMovers.length;
+            
+          const sectionAssignments = assignments ? termData.movers.filter(mover => {
+            const assignment = assignments.get(mover.memberId);
+            return assignment && String(assignment.sectionId) === String(section.sectionId);
+          }).length : 0;
+            
+          const plannedCount = currentCount + sectionAssignments - outgoingCount;
+            
+          return (
+            <td key={termIndex} className="py-2 px-4 text-center">
+              <div className="text-xs flex items-center justify-center space-x-1">
+                <span className="text-gray-600">Current: {currentCount}</span>
+                <span className={sectionAssignments > 0 ? 'text-green-500' : 'text-gray-400'}>↑{sectionAssignments}</span>
+                <span className={outgoingCount > 0 ? 'text-orange-500' : 'text-gray-400'}>↓{outgoingCount}</span>
+                <span className="font-medium text-gray-800">Planned: {plannedCount}</span>
+              </div>
+            </td>
+          );
+        })}
+      </tr>,
+    );
+  });
+    
+  rows.push(
+    <tr key={`unassigned-${sectionType}`} className="border-b bg-amber-50">
+      <td className="py-2 px-4 pl-8 text-amber-800 italic">
+          Unassigned
+      </td>
+      {termCalculations.map((termData, termIndex) => {
+        const unassignedCount = unassignedCounts.get(`${sectionType}-${termIndex}`) || 0;
+          
+        return (
+          <td key={termIndex} className="py-2 px-4 text-center">
+            <div className="text-xs flex items-center justify-center">
+              {unassignedCount > 0 ? (
+                <span className="text-amber-600">↑{unassignedCount} incoming</span>
+              ) : (
+                <span className="text-gray-400">-</span>
+              )}
+            </div>
+          </td>
+        );
+      })}
+    </tr>,
+  );
+    
+  return rows;
+}
+
 function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
   
   if (!termCalculations || termCalculations.length === 0) {
@@ -23,6 +98,45 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
   }
 
   const allSectionTypes = ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'];
+  
+  // Pre-calculate unassigned counts for performance (avoid repeated filtering in render)
+  const unassignedCounts = useMemo(() => {
+    if (!assignments) return new Map();
+    
+    const counts = new Map();
+    
+    termCalculations.forEach((termData, termIndex) => {
+      allSectionTypes.forEach(sectionType => {
+        // Calculate unassigned movers for this section type
+        const incomingMovers = termData.movers.filter(mover => {
+          const targetSectionType = mover.targetSection?.toLowerCase();
+          return targetSectionType === sectionType.toLowerCase();
+        });
+        
+        // Count how many are assigned to specific sections of this type
+        const assignedCount = incomingMovers.filter(mover => {
+          const assignment = assignments.get(mover.memberId);
+          if (!assignment) return false;
+          
+          // Check if the assignment is for a section of this type
+          const assignedSection = sectionsData?.find(s => 
+            String(s.sectionId || s.sectionid) === String(assignment.sectionId),
+          );
+          if (!assignedSection) return false;
+          
+          // Get the section type from the assigned section
+          const assignedSectionName = assignedSection.sectionname || assignedSection.name || '';
+          const assignedSectionType = getSectionTypeFromName(assignedSectionName);
+          return assignedSectionType?.toLowerCase() === sectionType.toLowerCase();
+        }).length;
+        
+        const unassignedCount = Math.max(0, incomingMovers.length - assignedCount);
+        counts.set(`${sectionType}-${termIndex}`, unassignedCount);
+      });
+    });
+    
+    return counts;
+  }, [termCalculations, assignments, sectionsData]);
   
   // Calculate section type totals across all terms to handle cascading
   const sectionTypeTotals = new Map();
@@ -133,106 +247,7 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
                   </tr>
                   
                   {/* Individual Section Rows */}
-                  {(() => {
-                    const firstTermGrouped = groupSectionsByType(termCalculations[0]?.sectionSummaries, sectionsData || []);
-                    const firstTermGroup = firstTermGrouped.get(sectionType);
-                    if (!firstTermGroup) return null;
-                    
-                    const rows = [];
-                    
-                    // Add individual section rows
-                    firstTermGroup.sections.forEach(section => {
-                      rows.push(
-                        <tr key={`${section.sectionId}`} className="border-b">
-                          <td className="py-2 px-4 pl-8 text-gray-700">
-                            {section.sectionName}
-                          </td>
-                          {termCalculations.map((termData, termIndex) => {
-                            const sectionSummary = termData.sectionSummaries.get(section.sectionId);
-                              
-                            if (!sectionSummary) {
-                              return (
-                                <td key={termIndex} className="py-2 px-4 text-center text-gray-500">
-                                    -
-                                </td>
-                              );
-                            }
-                              
-                            const currentCount = sectionSummary.cumulativeCurrentCount || sectionSummary.currentMembers.length;
-                            const outgoingCount = sectionSummary.outgoingMovers.length;
-                              
-                            // Get assignments for this specific section from this term's movers
-                            const sectionAssignments = assignments ? termData.movers.filter(mover => {
-                              const assignment = assignments.get(mover.memberId);
-                              return assignment && String(assignment.sectionId) === String(section.sectionId);
-                            }).length : 0;
-                              
-                            const plannedCount = currentCount + sectionAssignments - outgoingCount;
-                              
-                            return (
-                              <td key={termIndex} className="py-2 px-4 text-center">
-                                <div className="text-xs flex items-center justify-center space-x-1">
-                                  <span className="text-gray-600">Current: {currentCount}</span>
-                                  <span className={sectionAssignments > 0 ? 'text-green-500' : 'text-gray-400'}>↑{sectionAssignments}</span>
-                                  <span className={outgoingCount > 0 ? 'text-orange-500' : 'text-gray-400'}>↓{outgoingCount}</span>
-                                  <span className="font-medium text-gray-800">Planned: {plannedCount}</span>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>,
-                      );
-                    });
-                      
-                    // Add unassigned row for this section type
-                    rows.push(
-                      <tr key={`unassigned-${sectionType}`} className="border-b bg-amber-50">
-                        <td className="py-2 px-4 pl-8 text-amber-800 italic">
-                            Unassigned
-                        </td>
-                        {termCalculations.map((termData, termIndex) => {
-                          // Calculate unassigned movers for this section type
-                          const incomingMovers = termData.movers.filter(mover => {
-                            const targetSectionType = mover.targetSection?.toLowerCase();
-                            return targetSectionType === sectionType.toLowerCase();
-                          });
-                            
-                          // Count how many are assigned to specific sections of this type from this term's movers
-                          const assignedCount = assignments ? incomingMovers.filter(mover => {
-                            const assignment = assignments.get(mover.memberId);
-                            if (!assignment) return false;
-                              
-                            // Check if the assignment is for a section of this type
-                            const assignedSection = sectionsData?.find(s => 
-                              String(s.sectionId || s.sectionid) === String(assignment.sectionId),
-                            );
-                            if (!assignedSection) return false;
-                              
-                            // Get the section type from the assigned section
-                            const assignedSectionName = assignedSection.sectionname || assignedSection.name || '';
-                            const assignedSectionType = getSectionTypeFromName(assignedSectionName);
-                            return assignedSectionType?.toLowerCase() === sectionType.toLowerCase();
-                          }).length : 0;
-                            
-                          const unassignedCount = Math.max(0, incomingMovers.length - assignedCount);
-                            
-                          return (
-                            <td key={termIndex} className="py-2 px-4 text-center">
-                              <div className="text-xs flex items-center justify-center">
-                                {unassignedCount > 0 ? (
-                                  <span className="text-amber-600">↑{unassignedCount} incoming</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>,
-                    );
-                      
-                    return rows;
-                  })()}
+                  {renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedCounts)}
                 </React.Fragment>
               );
             })}
@@ -244,9 +259,23 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
 }
 
 MovementSummaryTable.propTypes = {
-  termCalculations: PropTypes.arrayOf(PropTypes.object).isRequired,
+  termCalculations: PropTypes.arrayOf(PropTypes.shape({
+    term: PropTypes.shape({
+      type: PropTypes.string.isRequired,
+      year: PropTypes.number.isRequired,
+      displayName: PropTypes.string,
+    }).isRequired,
+    sectionSummaries: PropTypes.instanceOf(Map).isRequired,
+    movers: PropTypes.arrayOf(PropTypes.object).isRequired,
+  })).isRequired,
   assignments: PropTypes.instanceOf(Map),
-  sectionsData: PropTypes.arrayOf(PropTypes.object),
+  sectionsData: PropTypes.arrayOf(PropTypes.shape({
+    sectionId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    sectionid: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    sectionName: PropTypes.string,
+    sectionname: PropTypes.string,
+    name: PropTypes.string,
+  })),
 };
 
 export default MovementSummaryTable;

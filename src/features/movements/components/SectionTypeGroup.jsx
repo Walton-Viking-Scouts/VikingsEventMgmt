@@ -132,9 +132,9 @@ function SectionTypeGroup({
             );
           })}
           
-          {/* Assignment interface card - dynamic width to fit content */}
+          {/* Assignment interface card - stable width to prevent layout shifts */}
           {showAssignmentInterface && incomingMovers.length > 0 && (
-            <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 w-fit min-w-[400px]">
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 w-[400px] max-w-full">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-amber-900">
                   Moving to {sectionType}

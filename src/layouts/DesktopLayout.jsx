@@ -1,5 +1,6 @@
 import React from 'react';
 import VikingHeader from '../shared/components/VikingHeader.jsx';
+import Footer from '../shared/components/Footer.jsx';
 
 function DesktopLayout({
   children,
@@ -46,6 +47,8 @@ function DesktopLayout({
           </div>
         </main>
       </div>
+      
+      <Footer />
     </div>
   );
 }
