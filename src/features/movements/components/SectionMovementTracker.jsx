@@ -5,18 +5,53 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import useSectionMovements from '../hooks/useSectionMovements.js';
 import { calculateSectionMovements } from '../services/movementCalculator.js';
 import TermMovementCard from './TermMovementCard.jsx';
+import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
+import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
 import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 
+// User preferences utilities
+const USER_PREFERENCES_KEY = 'viking_user_preferences';
+
+const getUserPreferences = () => {
+  try {
+    const stored = localStorage.getItem(USER_PREFERENCES_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch (error) {
+    console.warn('Failed to load user preferences:', error);
+    return {};
+  }
+};
+
+const saveUserPreference = (key, value) => {
+  try {
+    const preferences = getUserPreferences();
+    preferences[key] = value;
+    localStorage.setItem(USER_PREFERENCES_KEY, JSON.stringify(preferences));
+  } catch (error) {
+    console.warn('Failed to save user preference:', error);
+  }
+};
+
 
 function SectionMovementTracker({ onBack }) {
-  const [numberOfTerms, setNumberOfTerms] = useState(2);
+  // Load numberOfTerms from user preferences, default to 2
+  const [numberOfTerms, setNumberOfTerms] = useState(() => {
+    const preferences = getUserPreferences();
+    return preferences.numberOfTerms || 2;
+  });
+  const [_allAssignments, _setAllAssignments] = useState(new Map());
   const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
   const { notifyError } = useNotification();
   const hasCheckedFlexiRecords = useRef(false);
   
   const futureTerms = getFutureTerms(numberOfTerms);
+
+  // Save numberOfTerms preference whenever it changes
+  useEffect(() => {
+    saveUserPreference('numberOfTerms', numberOfTerms);
+  }, [numberOfTerms]);
 
   // Check for missing Viking Section Movers FlexiRecords
   const checkForMissingFlexiRecords = useCallback((sectionsData) => {
@@ -94,6 +129,7 @@ function SectionMovementTracker({ onBack }) {
     let availableMembers = [...members];
     const alreadyMoved = new Set();
     const cumulativeSectionCounts = new Map(); // Track cumulative counts across terms
+    const cumulativeSectionTypeCounts = new Map(); // Track section type totals across terms
     
     return futureTerms.map((term, termIndex) => {
       const calculations = calculateSectionMovements(availableMembers, term.startDate, sections, term);
@@ -118,8 +154,18 @@ function SectionMovementTracker({ onBack }) {
           cumulativeCurrentCount = cumulativeSectionCounts.get(sectionId) || 0;
         }
         
-        // Calculate projected count: current - outgoing + incoming
-        const projectedCount = Math.max(0, cumulativeCurrentCount - summary.outgoingMovers.length + summary.incomingMovers.length);
+        // Get manual assignments for this section from FlexiRecord data
+        const manualAssignments = calculations.movers.filter(mover => {
+          if (!mover.flexiRecordSection || mover.flexiRecordSection === 'Not Known') return false;
+          const assignedSection = sections?.find(section => 
+            section.sectionname === mover.flexiRecordSection ||
+            section.name === mover.flexiRecordSection,
+          );
+          return assignedSection && String(assignedSection.sectionid || assignedSection.sectionId) === String(sectionId);
+        }).length;
+        
+        // Calculate projected count: current - outgoing + incoming + manual assignments
+        const projectedCount = Math.max(0, cumulativeCurrentCount - summary.outgoingMovers.length + summary.incomingMovers.length + manualAssignments);
         
         // Store projected count for next term
         cumulativeSectionCounts.set(sectionId, projectedCount);
@@ -142,14 +188,89 @@ function SectionMovementTracker({ onBack }) {
         return !alreadyMoved.has(memberId);
       });
       
+      // Calculate section type totals for this term
+      const groupedSections = groupSectionsByType(updatedSectionSummaries, sections);
+      const sectionTypeTotals = new Map();
+      
+      const allSectionTypes = ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'];
+      allSectionTypes.forEach(sectionType => {
+        const group = groupedSections.get(sectionType);
+        if (!group) return;
+        
+        let startingCount;
+        if (termIndex === 0) {
+          // First term: sum of actual current members for this section type
+          startingCount = group.sections.reduce((total, section) => {
+            return total + (section.cumulativeCurrentCount || section.currentMembers.length);
+          }, 0);
+        } else {
+          // Subsequent terms: use planned count from previous term
+          const prevTermKey = `${sectionType}-${termIndex - 1}`;
+          startingCount = cumulativeSectionTypeCounts.get(prevTermKey) || 0;
+        }
+        
+        const incomingCount = calculations.movers.filter(mover => {
+          const targetSectionType = mover.targetSection?.toLowerCase();
+          return targetSectionType === sectionType.toLowerCase();
+        }).length;
+        
+        const outgoingCount = group.totalOutgoing;
+        const plannedCount = startingCount + incomingCount - outgoingCount;
+        
+        // Store for next term
+        const termKey = `${sectionType}-${termIndex}`;
+        cumulativeSectionTypeCounts.set(termKey, plannedCount);
+        
+        sectionTypeTotals.set(sectionType, {
+          startingCount,
+          incomingCount,
+          outgoingCount,
+          plannedCount,
+        });
+      });
+      
       return {
         term,
         sectionSummaries: updatedSectionSummaries,
         unassignedMovers: calculations.movers,
         movers: calculations.movers,
+        sectionTypeTotals,
       };
     });
   }, [members, sections, futureTerms]);
+
+  // Collect all FlexiRecord assignments from all terms for the summary table
+  const allFlexiRecordAssignments = useMemo(() => {
+    const assignments = new Map();
+    
+    termCalculations.forEach(termData => {
+      termData.movers.forEach(mover => {
+        if (mover.flexiRecordSection && mover.flexiRecordSection !== 'Not Known') {
+          // Find the section that matches the assigned section name
+          const assignedSection = sections?.find(section => 
+            section.sectionname === mover.flexiRecordSection ||
+            section.name === mover.flexiRecordSection,
+          );
+          
+          if (assignedSection) {
+            console.log('DEBUG: Found assignment:', mover.name, 'to', mover.flexiRecordSection, 'section ID:', assignedSection.sectionid);
+            const assignment = {
+              memberId: mover.memberId,
+              currentSectionId: mover.currentSectionId,
+              sectionId: assignedSection.sectionid || assignedSection.sectionId,
+              sectionName: assignedSection.sectionname || assignedSection.name,
+              term: mover.flexiRecordTerm || `${termData.term.type}-${termData.term.year}`,
+            };
+            
+            assignments.set(mover.memberId, assignment);
+          }
+        }
+      });
+    });
+    
+    console.log('DEBUG: FlexiRecord assignments collected:', assignments.size, assignments);
+    return assignments;
+  }, [termCalculations, sections]);
 
   if (loading) {
     return (
@@ -219,6 +340,13 @@ function SectionMovementTracker({ onBack }) {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Movement Summary Table */}
+            <MovementSummaryTable 
+              termCalculations={termCalculations}
+              assignments={allFlexiRecordAssignments}
+              sectionsData={sections}
+            />
+            
             {termCalculations.map(termData => (
               <TermMovementCard
                 key={`${termData.term.type}-${termData.term.year}`}
@@ -227,6 +355,7 @@ function SectionMovementTracker({ onBack }) {
                 sectionsData={sections}
                 unassignedMovers={termData.unassignedMovers}
                 movers={termData.movers}
+                sectionTypeTotals={termData.sectionTypeTotals}
                 onDataRefresh={refetch}
               />
             ))}
