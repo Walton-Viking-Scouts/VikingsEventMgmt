@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Input } from '../../../shared/components/ui';
+import { Button } from '../../../shared/components/ui';
 import { AlertAdapter } from '../../../shared/adapters';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
@@ -355,16 +355,17 @@ function GroupNamesEditModal({
                   </div>
 
                   <div className="flex-1" data-oid="-ed6jek">
-                    <Input
+                    <input
                       id={`group-${originalGroupName}`}
+                      type="text"
                       value={currentValue}
                       onChange={(e) =>
                         handleNameChange(originalGroupName, e.target.value)
                       }
                       placeholder="Enter new group name"
-                      className={
-                        hasError ? 'border-red-500 focus:border-red-500' : ''
-                      }
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-scout-blue ${
+                        hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'
+                      }`}
                       disabled={loading}
                       data-oid="vy.2us4"
                     />
