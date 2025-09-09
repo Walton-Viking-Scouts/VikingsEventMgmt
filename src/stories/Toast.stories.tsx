@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import Toast from '../components/notifications/Toast';
-import { NotificationProvider } from '../contexts/notifications/NotificationContext';
+import { NotificationProvider } from '../../../shared/contexts/notifications/NotificationContext';
 import { SuccessIcon, ErrorIcon, WarningIcon, InfoIcon } from '../components/notifications/NotificationStyles';
 
 // Wrapper component to provide notification context

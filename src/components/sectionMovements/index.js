@@ -1,1 +1,0 @@
-export { default as SectionMovementTracker } from './SectionMovementTracker.jsx';

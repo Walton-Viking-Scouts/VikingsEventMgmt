@@ -1,8 +1,8 @@
 // Demo mode configuration and initialization
 // Handles demo mode initialization and data pre-population using production data structure
 
-import { safeSetItem } from '../utils/storageUtils.js';
-import logger, { LOG_CATEGORIES } from '../services/logger.js';
+import { safeSetItem } from '../shared/utils/storageUtils.js';
+import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
 
 /**
  * Detect if demo mode should be enabled

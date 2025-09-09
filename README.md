@@ -401,6 +401,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) folder:
 ### 💻 Development
 - **[Testing Strategy](docs/development/testing-strategy.md)** - Comprehensive testing approach
 - **[Release Process](docs/development/release-process.md)** - Release and deployment workflow
+- **[Routing Feature Flag](docs/development/ROUTING_FEATURE_FLAG.md)** - URL routing migration guide
 - **[Debugging Guides](docs/development/debugging/)** - Error tracking and debugging
 
 ### 📖 Reference

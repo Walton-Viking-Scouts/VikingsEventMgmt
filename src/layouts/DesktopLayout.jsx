@@ -1,6 +1,5 @@
 import React from 'react';
-import DesktopHeader from '../components/desktop/DesktopHeader.jsx';
-import OfflineIndicator from '../components/OfflineIndicator.jsx';
+import VikingHeader from '../shared/components/VikingHeader.jsx';
 
 function DesktopLayout({
   children,
@@ -21,9 +20,8 @@ function DesktopLayout({
       data-testid="desktop-layout"
       {...props}
     >
-      <OfflineIndicator hideBanner={true} data-oid="vfr2pqb" />
 
-      <DesktopHeader
+      <VikingHeader
         user={user}
         onLogout={onLogout}
         onLogin={onLogin}
