@@ -22,7 +22,7 @@ function EventsLayoutContent() {
     logout,
   } = useAuth();
   
-  const { notifications, notifyInfo, notifyError, remove } = useNotification();
+  const { notifyInfo, notifyError } = useNotification();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
