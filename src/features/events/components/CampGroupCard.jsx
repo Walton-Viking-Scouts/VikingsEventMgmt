@@ -6,16 +6,23 @@ import DraggableMember from './DraggableMember.jsx';
  * CampGroupCard - Individual card component for displaying camp group members
  * Shows group name, leaders/young leaders in header, young people in body
  * Enhanced with drag & drop functionality for moving members between groups
+ * 
+ * Error Handling Contract:
+ * - onMemberMove callback handles all auth/network failures with user-facing error messages
+ * - Provides contextual error information including from/to group details
+ * - Implements optimistic UI updates with rollback on failure
+ * - Uses toast notifications for consistent error UX across the application
+ * 
  * @param {Object} props - Component props
  * @param {Object} props.group - Group data with name, leaders, youngPeople arrays
  * @param {Function} props.onMemberClick - Optional callback when member is clicked
  * @param {Function} props.onMemberMove - Callback when a member is dropped into this group
+ *   Expected to handle failures gracefully with user notifications and state rollback
  * @param {Function} props.onDragStart - Callback when drag operation starts from this group
  * @param {Function} props.onDragEnd - Callback when drag operation ends
  * @param {boolean} props.isDragInProgress - Whether any drag operation is in progress
  * @param {string} props.draggingMemberId - ID of member currently being dragged
  * @param {boolean} props.dragDisabled - Whether drag & drop functionality is disabled
- * @param {Function} props.onOfflineError - Callback when move fails due to offline/auth issues
  * @param {string} props.className - Additional CSS classes
  */
 function CampGroupCard({
@@ -27,7 +34,6 @@ function CampGroupCard({
   isDragInProgress = false,
   draggingMemberId = null,
   dragDisabled = false,
-  onOfflineError: _onOfflineError,
   className = '',
 }) {
   // Drop zone state
