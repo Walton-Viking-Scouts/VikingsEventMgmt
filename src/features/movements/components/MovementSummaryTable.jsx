@@ -45,7 +45,10 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
             
           const sectionAssignments = assignments ? termData.movers.filter(mover => {
             const assignment = assignments.get(mover.memberId);
-            return assignment && String(assignment.sectionId) === String(section.sectionId);
+            const currentTermKey = `${termData.term.type}-${termData.term.year}`;
+            return assignment 
+              && String(assignment.sectionId) === String(section.sectionId)
+              && assignment.term === currentTermKey;
           }).length : 0;
             
           const plannedCount = sectionSummary.projectedCount ?? (currentCount + sectionAssignments - outgoingCount);
@@ -115,6 +118,10 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
         const assignedCount = incomingMovers.filter(mover => {
           const assignment = assignments.get(mover.memberId);
           if (!assignment) return false;
+          
+          // Check if assignment is for the current term
+          const currentTermKey = `${termData.term.type}-${termData.term.year}`;
+          if (assignment.term !== currentTermKey) return false;
           
           // Check if the assignment is for a section of this type
           const assignedSection = sectionsData?.find(s => 
