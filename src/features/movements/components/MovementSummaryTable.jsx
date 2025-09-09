@@ -16,7 +16,7 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
-function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedCounts) {
+function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedData) {
   const firstTermGrouped = groupSectionsByType(termCalculations[0]?.sectionSummaries, sectionsData || []);
   const firstTermGroup = firstTermGrouped.get(sectionType);
   if (!firstTermGroup) return null;
@@ -71,16 +71,17 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
           Unassigned
       </td>
       {termCalculations.map((termData, termIndex) => {
-        const unassignedCount = unassignedCounts.get(`${sectionType}-${termIndex}`) || 0;
+        const termKey = `${sectionType}-${termIndex}`;
+        const unassignedInfo = unassignedData.get(termKey) || { currentCount: 0, incomingCount: 0, outgoingCount: 0, plannedCount: 0 };
+        const { currentCount, incomingCount, outgoingCount, plannedCount } = unassignedInfo;
           
         return (
           <td key={termIndex} className="py-2 px-4 text-center">
-            <div className="text-xs flex items-center justify-center">
-              {unassignedCount > 0 ? (
-                <span className="text-amber-600">↑{unassignedCount} incoming</span>
-              ) : (
-                <span className="text-gray-400">-</span>
-              )}
+            <div className="text-xs flex items-center justify-center space-x-1">
+              <span className="text-gray-600">Current: {currentCount}</span>
+              <span className={incomingCount > 0 ? 'text-green-500' : 'text-gray-400'}>↑{incomingCount}</span>
+              <span className={outgoingCount > 0 ? 'text-orange-500' : 'text-gray-400'}>↓{outgoingCount}</span>
+              <span className="font-medium text-amber-700">Planned: {plannedCount}</span>
             </div>
           </td>
         );
@@ -94,15 +95,16 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
 function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
   const allSectionTypes = useMemo(() => ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'], []);
   
-  // Pre-calculate unassigned counts for performance (avoid repeated filtering in render)
-  const unassignedCounts = useMemo(() => {
+  // Pre-calculate unassigned counts and cascading totals for performance
+  const unassignedData = useMemo(() => {
     if (!termCalculations || termCalculations.length === 0 || !assignments) return new Map();
     
-    const counts = new Map();
+    const data = new Map();
+    const cumulativeUnassigned = new Map();
     
     termCalculations.forEach((termData, termIndex) => {
       allSectionTypes.forEach(sectionType => {
-        // Calculate unassigned movers for this section type
+        // Calculate incoming movers for this section type
         const incomingMovers = termData.movers.filter(mover => {
           const targetSectionType = mover.targetSection?.toLowerCase();
           return targetSectionType === sectionType.toLowerCase();
@@ -125,12 +127,35 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
           return assignedSectionType?.toLowerCase() === sectionType.toLowerCase();
         }).length;
         
-        const unassignedCount = Math.max(0, incomingMovers.length - assignedCount);
-        counts.set(`${sectionType}-${termIndex}`, unassignedCount);
+        const newUnassignedCount = Math.max(0, incomingMovers.length - assignedCount);
+        
+        // Calculate cascading current count
+        let currentCount;
+        if (termIndex === 0) {
+          currentCount = 0; // First term starts with 0 unassigned
+        } else {
+          // Subsequent terms start with previous term's planned count
+          const prevTermKey = `${sectionType}-${termIndex - 1}`;
+          currentCount = cumulativeUnassigned.get(prevTermKey) || 0;
+        }
+        
+        // Calculate planned count (current + new incoming)
+        const plannedCount = currentCount + newUnassignedCount;
+        
+        // Store for next term
+        const termKey = `${sectionType}-${termIndex}`;
+        cumulativeUnassigned.set(termKey, plannedCount);
+        
+        data.set(termKey, {
+          currentCount,
+          incomingCount: newUnassignedCount,
+          outgoingCount: 0, // Unassigned movers don't move out
+          plannedCount,
+        });
       });
     });
     
-    return counts;
+    return data;
   }, [termCalculations, assignments, sectionsData, allSectionTypes]);
 
   if (!termCalculations || termCalculations.length === 0) {
@@ -246,7 +271,7 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
                   </tr>
                   
                   {/* Individual Section Rows */}
-                  {renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedCounts)}
+                  {renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedData)}
                 </React.Fragment>
               );
             })}
