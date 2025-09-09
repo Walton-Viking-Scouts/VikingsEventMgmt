@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth';
 import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
-import { NotificationProvider } from '../../../shared/adapters';
+import { NotificationProvider } from '../../../shared/contexts/notifications';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
 import ToastContainer from '../../../shared/components/notifications/ToastContainer';
 import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.jsx';

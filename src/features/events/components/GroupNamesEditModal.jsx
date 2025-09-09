@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Input } from '../../../shared/components/ui';
-import { AlertAdapter } from '../../../shared/adapters';
+import { Alert } from '../../../shared/components/ui';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
@@ -326,12 +326,12 @@ function GroupNamesEditModal({
           data-oid="fbpcw7a"
         >
           {Object.keys(errors).length > 0 && (
-            <AlertAdapter variant="error" className="mb-4" data-oid="9i3l0tz">
-              <AlertAdapter.Title data-oid="4qhsz54">Validation Errors</AlertAdapter.Title>
-              <AlertAdapter.Description data-oid="e4spk6t">
+            <Alert variant="error" className="mb-4" data-oid="9i3l0tz">
+              <Alert.Title data-oid="4qhsz54">Validation Errors</Alert.Title>
+              <Alert.Description data-oid="e4spk6t">
                 Please fix the errors below before saving.
-              </AlertAdapter.Description>
-            </AlertAdapter>
+              </Alert.Description>
+            </Alert>
           )}
 
           <div className="space-y-4" data-oid="stc4uf5">
