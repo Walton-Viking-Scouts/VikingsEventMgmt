@@ -23,7 +23,6 @@ function EventsCampGroups() {
     vikingEventData,
     loading: attendanceLoading,
     error: attendanceError,
-    loadVikingEventData,
   } = useAttendanceData(events);
 
   useEffect(() => {

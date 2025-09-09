@@ -4,7 +4,6 @@ import { getFlexiRecordsList } from '../../features/events/services/flexiRecordS
 // TODO: Move getFlexiRecordStructure to shared layer to avoid circular dependency
 // import { getFlexiRecordStructure } from '../../features/events/services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
-import { extractFlexiRecordContext } from '../../features/events/services/campGroupAllocationService.js';
 import { getToken } from '../services/auth/tokenService.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';

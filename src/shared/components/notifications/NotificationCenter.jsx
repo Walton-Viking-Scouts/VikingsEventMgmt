@@ -9,7 +9,7 @@ function NotificationCenter({ isOpen, onClose }) {
     markAsRead,
     markAllAsRead,
     clearHistory,
-    removeFromHistory
+    removeFromHistory,
   } = useNotification();
 
   const [filter, setFilter] = useState('all');
@@ -55,7 +55,7 @@ function NotificationCenter({ isOpen, onClose }) {
       // Focus trap: Tab navigation
       if (event.key === 'Tab') {
         const focusableElements = panelRef.current?.querySelectorAll(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         );
         
         if (focusableElements && focusableElements.length > 0) {
@@ -112,11 +112,11 @@ function NotificationCenter({ isOpen, onClose }) {
   const getTypeIcon = (type, priority) => {
     if (priority === 'critical') return '🚨';
     switch (type) {
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      case 'success': return '✅';
-      case 'info': return 'ℹ️';
-      default: return '📋';
+    case 'error': return '❌';
+    case 'warning': return '⚠️';
+    case 'success': return '✅';
+    case 'info': return 'ℹ️';
+    default: return '📋';
     }
   };
 
@@ -196,7 +196,7 @@ function NotificationCenter({ isOpen, onClose }) {
                     { key: 'all', label: 'All', count: history.length },
                     { key: 'unread', label: 'Unread', count: unreadCount },
                     { key: 'error', label: 'Errors', count: history.filter(h => h.type === 'error').length },
-                    { key: 'today', label: 'Today', count: history.filter(h => new Date(h.timestamp).toDateString() === new Date().toDateString()).length }
+                    { key: 'today', label: 'Today', count: history.filter(h => new Date(h.timestamp).toDateString() === new Date().toDateString()).length },
                   ].map(({ key, label, count }) => (
                     <button
                       key={key}
@@ -245,10 +245,10 @@ function NotificationCenter({ isOpen, onClose }) {
                   </svg>
                   <p className="text-center">
                     {searchQuery ? 'No notifications match your search' : 
-                     filter === 'unread' ? 'No unread notifications' :
-                     filter === 'error' ? 'No error notifications' :
-                     filter === 'today' ? 'No notifications today' :
-                     'No notifications yet'}
+                      filter === 'unread' ? 'No unread notifications' :
+                        filter === 'error' ? 'No error notifications' :
+                          filter === 'today' ? 'No notifications today' :
+                            'No notifications yet'}
                   </p>
                   {history.length > 0 && searchQuery && (
                     <button

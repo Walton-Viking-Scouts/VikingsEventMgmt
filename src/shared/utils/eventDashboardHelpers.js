@@ -269,13 +269,7 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
       const maxCacheAge = 60 * 60 * 1000; // 1 hour
       
       if (cacheAge < maxCacheAge) {
-        // Use cached data if it's fresh - removed debug log to reduce console spam
-        if (import.meta.env.DEV && false) { // Disabled to reduce spam
-          logger.debug('Using cached attendance data', {
-            eventId: event.eventid,
-            cacheAgeMinutes: Math.floor(cacheAge / (1000 * 60)),
-          }, LOG_CATEGORIES.COMPONENT);
-        }
+        // Use cached data if it's fresh
         return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
       }
     }

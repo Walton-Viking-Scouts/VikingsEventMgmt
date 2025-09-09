@@ -61,7 +61,7 @@ export function useSharedAttendance(events, viewMode) {
       hasSharedEvents,
       sharedAttendanceData: !!sharedAttendanceData,
       isDemoMode: isDemoMode(),
-      shouldLoad: viewMode === 'sharedAttendance' && hasSharedEvents && (!sharedAttendanceData || (Array.isArray(sharedAttendanceData) && sharedAttendanceData.length === 0))
+      shouldLoad: viewMode === 'sharedAttendance' && hasSharedEvents && (!sharedAttendanceData || (Array.isArray(sharedAttendanceData) && sharedAttendanceData.length === 0)),
     });
     
     if (
@@ -194,7 +194,7 @@ export function useSharedAttendance(events, viewMode) {
               try {
                 console.log('🐛 Fetching shared attendance from API...', {
                   eventId: sharedEvent.eventid,
-                  sectionId: sharedEvent.sectionid
+                  sectionId: sharedEvent.sectionid,
                 });
                 sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
                 
@@ -234,7 +234,7 @@ export function useSharedAttendance(events, viewMode) {
                   const metadata = JSON.parse(sharedMetadata);
                   if (metadata._allSections) {
                     metadata._allSections.forEach(section => {
-                      if (section.receiving_eventid && section.receiving_eventid !== "0") {
+                      if (section.receiving_eventid && section.receiving_eventid !== '0') {
                         const sectionAttendanceKey = `viking_attendance_${section.receiving_eventid}_offline`;
                         const sectionAttendanceData = localStorage.getItem(sectionAttendanceKey);
                         

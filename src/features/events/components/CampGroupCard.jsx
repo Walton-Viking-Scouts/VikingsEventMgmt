@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, Badge } from '../../../shared/components/ui';
 import DraggableMember from './DraggableMember.jsx';
-import { checkNetworkStatus } from '../../../shared/utils/networkUtils.js';
-import { getToken } from '../../../shared/services/auth/tokenService.js';
-import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
  * CampGroupCard - Individual card component for displaying camp group members
@@ -30,7 +27,7 @@ function CampGroupCard({
   isDragInProgress = false,
   draggingMemberId = null,
   dragDisabled = false,
-  onOfflineError,
+  onOfflineError: _onOfflineError,
   className = '',
 }) {
   // Drop zone state
@@ -151,7 +148,7 @@ function CampGroupCard({
     } catch (error) {
       // Silently ignore malformed drag data - validation happens during drop
     }
-  }, [dragDisabled, onMemberMove, onOfflineError, group]);
+  }, [dragDisabled, onMemberMove, group]);
 
   // Add mobile drop event listener
   useEffect(() => {
