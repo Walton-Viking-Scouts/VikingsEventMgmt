@@ -40,6 +40,7 @@ export default [
         confirm: 'readonly',
         Event: 'readonly',
         performance: 'readonly', // Added for browser performance API
+        process: 'readonly', // Added for environment variable access
       },
     },
     plugins: {

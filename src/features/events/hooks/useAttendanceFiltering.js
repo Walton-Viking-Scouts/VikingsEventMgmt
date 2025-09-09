@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-export function useAttendanceFiltering(attendanceData, events) {
+function useAttendanceFiltering(attendanceData, events) {
   // Attendance filter state - exclude "Not Invited" by default
   const [attendanceFilters, setAttendanceFilters] = useState({
     yes: true,
@@ -9,13 +9,14 @@ export function useAttendanceFiltering(attendanceData, events) {
     notInvited: false,
   });
 
-  // Section filter state - initialize with all sections enabled
+  // Section filter state - initialize with all sections enabled except Adults
   const [sectionFilters, setSectionFilters] = useState(() => {
     const filters = {};
-    const uniqueSections = [...new Set(events.map((e) => e.sectionid))];
+    const src = events ?? [];
+    const uniqueSections = [...new Set(src.map((e) => e.sectionid))];
     uniqueSections.forEach((sectionId) => {
       // Find the section name to check if it's an Adults section
-      const sectionEvent = events.find((e) => e.sectionid === sectionId);
+      const sectionEvent = src.find((e) => e.sectionid === sectionId);
       const sectionName = sectionEvent?.sectionname?.toLowerCase() || '';
 
       // Set Adults sections to false by default, all others to true
@@ -75,15 +76,19 @@ export function useAttendanceFiltering(attendanceData, events) {
       }
         
       case 'section':
-        aValue = a.sectionName?.toLowerCase() || '';
-        bValue = b.sectionName?.toLowerCase() || '';
+      case 'sectionName':
+        aValue = (a.sectionname || a.sectionName || '')?.toLowerCase();
+        bValue = (b.sectionname || b.sectionName || '')?.toLowerCase();
         break;
         
       case 'signintime':
-      case 'signouttime':
-        aValue = a[key] ? new Date(a[key]).getTime() : 0;
-        bValue = b[key] ? new Date(b[key]).getTime() : 0;
+      case 'signouttime': {
+        const aTime = a[key] ? new Date(a[key]).getTime() : NaN;
+        const bTime = b[key] ? new Date(b[key]).getTime() : NaN;
+        aValue = Number.isFinite(aTime) ? aTime : 0;
+        bValue = Number.isFinite(bTime) ? bTime : 0;
         break;
+      }
         
       default:
         aValue = a[key] || '';
@@ -119,3 +124,5 @@ export function useAttendanceFiltering(attendanceData, events) {
     filteredAndSortedData,
   };
 }
+
+export default useAttendanceFiltering;

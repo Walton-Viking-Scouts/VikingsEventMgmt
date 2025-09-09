@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/hooks/useAuth.js';
+import { useAuth } from '../../auth';
 import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
 import { NotificationProvider } from '../../../shared/adapters';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';

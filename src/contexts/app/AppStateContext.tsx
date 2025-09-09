@@ -149,9 +149,19 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
 
   // Sync state with URL parameters on location changes
   useEffect(() => {
-    // Extract view from pathname
+    // Extract view from pathname - use top-level segment instead of last
     const pathSegments = location.pathname.split('/').filter(Boolean);
-    const view = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : 'dashboard';
+    const topLevelSegment = pathSegments[0] || 'dashboard';
+    
+    // Map known root segments to canonical view names
+    const viewMapping: Record<string, string> = {
+      events: 'events',
+      movers: 'movers',
+      sections: 'sections',
+      auth: 'auth',
+    };
+    
+    const view = viewMapping[topLevelSegment] || 'dashboard';
     
     // Sync URL state with application state
     dispatch({

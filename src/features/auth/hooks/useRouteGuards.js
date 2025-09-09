@@ -94,7 +94,7 @@ export function usePermissionGuard(requiredPermission) {
   }, [user, authState, isLoading, requiredPermission, navigate, location]);
 
   return {
-    hasPermission: user?.permissions?.includes(requiredPermission) ?? false,
+    hasPermission: requiredPermission ? (user?.permissions?.includes(requiredPermission) ?? false) : true,
     user,
     authState,
     isLoading,
