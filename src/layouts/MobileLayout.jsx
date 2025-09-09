@@ -1,5 +1,6 @@
 import React from 'react';
 import VikingHeader from '../shared/components/VikingHeader.jsx';
+import Footer from '../shared/components/Footer.jsx';
 
 function MobileLayout({
   children,
@@ -40,6 +41,8 @@ function MobileLayout({
           {children}
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 }

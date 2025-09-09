@@ -60,8 +60,8 @@ export default defineConfig({
     // Inject actual deployed version from git tags
     'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
       try {
-        // Get version from git tags (matches CI deployment logic)
-        const gitVersion = execSync('git describe --tags --abbrev=0', { encoding: 'utf8', stdio: 'pipe' }).trim();
+        // Get version from git tags (use latest tag available)
+        const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
         return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
       } catch {
         // Fallback to package.json if git command fails

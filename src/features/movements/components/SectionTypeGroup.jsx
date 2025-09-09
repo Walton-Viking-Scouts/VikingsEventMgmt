@@ -27,22 +27,22 @@ function SectionTypeGroup({
   availableTerms = [],
   assignments = new Map(),
   currentTerm,
+  sectionTypeTotals,
   onAssignmentChange,
   onTermOverrideChange,
   onSaveAssignments,
   onResetAssignments,
   isSaving = false,
 }) {
-  const incomingMovers = movers.filter(mover => {
-    const targetSectionType = mapSectionType(mover.targetSection?.toLowerCase());
-    return targetSectionType === sectionType;
-  });
+  const typeKey = mapSectionType(sectionType);
+  const incomingMovers = movers.filter(mover => 
+    mapSectionType(mover.targetSection) === typeKey,
+  );
 
   const availableSectionsForType = allSections.filter(section => {
-    const sectionSectionType = mapSectionType(section.sectionType?.toLowerCase() || '');
-    const nameBasedTypeRaw = getSectionTypeFromName(section.sectionName);
-    const nameBasedType = mapSectionType(nameBasedTypeRaw);
-    return sectionSectionType === sectionType || nameBasedType === sectionType;
+    const sectionTypeKey = mapSectionType(section.sectionType);
+    const nameBasedTypeKey = mapSectionType(getSectionTypeFromName(section.sectionName));
+    return sectionTypeKey === typeKey || nameBasedTypeKey === typeKey;
   });
 
 
@@ -51,26 +51,42 @@ function SectionTypeGroup({
     assignments.has(mover.memberId),
   );
 
+  // Use passed section type totals or fallback to calculation
+  const sectionTotals = sectionTypeTotals?.get(sectionType) ?? sectionTypeTotals?.get(typeKey);
+  const startingCount = sectionTotals?.startingCount ?? group.sections.reduce((total, section) => {
+    return total + (section.cumulativeCurrentCount ?? (Array.isArray(section.currentMembers) ? section.currentMembers.length : 0));
+  }, 0);
+  const incomingCount = sectionTotals?.incomingCount ?? incomingMovers.length;
+  const outgoingCount = sectionTotals?.outgoingCount ?? group.totalOutgoing;
+  const plannedCount = sectionTotals?.plannedCount ?? (startingCount + incomingCount - outgoingCount);
 
   return (
     <div className="mb-6">
-      <div className="bg-gray-100 p-3 rounded-t-lg border-b">
+      <div className="bg-white p-3 rounded-t-lg border-b">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">
               {sectionType}
             </h3>
             <div className="text-sm text-gray-600 mt-1">
-              {incomingMovers.length > 0 && (
-                <span className="mr-4">
-                  ↑ {incomingMovers.length} incoming
-                </span>
-              )}
-              {group.totalOutgoing > 0 && (
+              <div className="flex flex-wrap gap-4">
                 <span>
-                  ↓ {group.totalOutgoing} moving up
+                  Starting: {startingCount}
                 </span>
-              )}
+                {incomingCount > 0 && (
+                  <span>
+                    ↑ {incomingCount} incoming
+                  </span>
+                )}
+                {outgoingCount > 0 && (
+                  <span>
+                    ↓ {outgoingCount} moving up
+                  </span>
+                )}
+                <span className="font-medium">
+                  Planned: {plannedCount}
+                </span>
+              </div>
             </div>
           </div>
           
@@ -98,8 +114,8 @@ function SectionTypeGroup({
       </div>
       
       <div className="bg-white rounded-b-lg border border-t-0 p-4">
-        {/* Section cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+        {/* Section cards grid including the assignment interface card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
           {group.sections.map(summary => {
             const sectionData = allSections.find(s => s.sectionId === summary.sectionId);
             const incomingCount = sectionData?.incomingCount || 0;
@@ -114,44 +130,44 @@ function SectionTypeGroup({
               />
             );
           })}
-        </div>
-        
-        {/* Assignment interface - separate from grid to allow natural sizing */}
-        {showAssignmentInterface && incomingMovers.length > 0 && (
-          <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 w-fit max-w-4xl">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-amber-900">
-                Moving to {sectionType}
-              </h4>
-              <div className="text-sm text-amber-700">
-                {incomingMovers.filter(m => assignments.has(m.memberId)).length}/{incomingMovers.length} assigned
+          
+          {/* Assignment interface card - stable width to prevent layout shifts */}
+          {showAssignmentInterface && incomingMovers.length > 0 && (
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 w-[400px] max-w-full">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-amber-900">
+                  Moving to {sectionType}
+                </h4>
+                <div className="text-sm text-amber-700">
+                  {incomingMovers.filter(m => assignments.has(m.memberId)).length}/{incomingMovers.length} assigned
+                </div>
+              </div>
+              
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {incomingMovers.map(mover => (
+                  <MoverAssignmentRow
+                    key={mover.memberId}
+                    mover={{
+                      ...mover,
+                      assignedSectionId: assignments.get(mover.memberId)?.sectionId || null,
+                      assignedTerm: assignments.get(mover.memberId)?.term || mover.flexiRecordTerm || `${currentTerm?.type}-${currentTerm?.year}`,
+                    }}
+                    availableSections={availableSectionsForType}
+                    availableTerms={availableTerms}
+                    onAssignmentChange={onAssignmentChange}
+                    onTermOverrideChange={onTermOverrideChange}
+                  />
+                ))}
+                
+                {incomingMovers.length === 0 && (
+                  <div className="text-center py-4 text-amber-600">
+                    No movers to {sectionType} this term
+                  </div>
+                )}
               </div>
             </div>
-            
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {incomingMovers.map(mover => (
-                <MoverAssignmentRow
-                  key={mover.memberId}
-                  mover={{
-                    ...mover,
-                    assignedSectionId: assignments.get(mover.memberId)?.sectionId || null,
-                    assignedTerm: assignments.get(mover.memberId)?.term || mover.flexiRecordTerm || `${currentTerm?.type}-${currentTerm?.year}`,
-                  }}
-                  availableSections={availableSectionsForType}
-                  availableTerms={availableTerms}
-                  onAssignmentChange={onAssignmentChange}
-                  onTermOverrideChange={onTermOverrideChange}
-                />
-              ))}
-              
-              {incomingMovers.length === 0 && (
-                <div className="text-center py-4 text-amber-600">
-                  No movers to {sectionType} this term
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

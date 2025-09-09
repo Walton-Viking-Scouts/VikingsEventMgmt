@@ -195,7 +195,7 @@ export function generateOAuthUrl(storeCurrentPath = false) {
     
   // Determine environment based on hostname
   const hostname = window.location.hostname;
-  const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikings-eventmgmt-mobile.onrender.com';
+  const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikingeventmgmt.onrender.com';
     
   // Embed frontend URL in query parameter for backend detection
   const baseState = isDeployedServer ? 'prod' : 'dev';
