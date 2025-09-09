@@ -12,7 +12,7 @@ import EventCard from './EventCard.jsx';
 import { SectionsList } from '../../sections';
 import databaseService from '../../../shared/services/storage/database.js';
 import { Button, Card } from '../../../shared/components/ui';
-import AlertAdapter from '../../../shared/components/ui/AlertAdapter.jsx';
+import { Alert } from '../../../shared/components/ui';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import {
@@ -845,10 +845,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   if (error) {
     return (
-      <AlertAdapter variant="error" className="m-4" data-oid="3oq.x.h">
-        <AlertAdapter.Title data-oid="d:fjt2d">Error Loading Dashboard</AlertAdapter.Title>
-        <AlertAdapter.Description data-oid="4uunsvb">{error}</AlertAdapter.Description>
-        <AlertAdapter.Actions data-oid="bd0v.w-">
+      <Alert variant="error" className="m-4" data-oid="3oq.x.h">
+        <Alert.Title data-oid="d:fjt2d">Error Loading Dashboard</Alert.Title>
+        <Alert.Description data-oid="4uunsvb">{error}</Alert.Description>
+        <Alert.Actions data-oid="bd0v.w-">
           <Button
             variant="scout-blue"
             onClick={loadInitialData}
@@ -857,8 +857,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           >
             Retry
           </Button>
-        </AlertAdapter.Actions>
-      </AlertAdapter>
+        </Alert.Actions>
+      </Alert>
     );
   }
 

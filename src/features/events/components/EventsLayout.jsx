@@ -2,9 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth';
 import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
-import { NotificationProvider } from '../../../shared/adapters';
 import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
-import ToastContainer from '../../../shared/components/notifications/ToastContainer';
 import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.jsx';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -24,7 +22,7 @@ function EventsLayoutContent() {
     logout,
   } = useAuth();
   
-  const { notifications, notifyInfo, notifyError, remove } = useNotification();
+  const { notifyInfo, notifyError } = useNotification();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
@@ -51,7 +49,6 @@ function EventsLayoutContent() {
 
   return (
     <div className="events-layout">
-      <ToastContainer toasts={notifications} onDismiss={remove} />
       <ResponsiveLayout
         user={user}
         onLogout={logout}
@@ -80,11 +77,7 @@ function EventsLayoutContent() {
 }
 
 function EventsLayout() {
-  return (
-    <NotificationProvider>
-      <EventsLayoutContent />
-    </NotificationProvider>
-  );
+  return <EventsLayoutContent />;
 }
 
 export default EventsLayout;

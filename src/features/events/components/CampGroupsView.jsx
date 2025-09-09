@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Badge } from '../../../shared/components/ui';
-import { AlertAdapter } from '../../../shared/adapters';
+import { Alert } from '../../../shared/components/ui';
 import CampGroupCard from './CampGroupCard.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -459,13 +459,13 @@ function CampGroupsView({
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <AlertAdapter variant="warning" className="mb-4">
-            <AlertAdapter.Title>No Viking Event Management Data</AlertAdapter.Title>
-            <AlertAdapter.Description>
+          <Alert variant="warning" className="mb-4">
+            <Alert.Title>No Viking Event Management Data</Alert.Title>
+            <Alert.Description>
               No &quot;Viking Event Mgmt&quot; flexirecord found for the sections involved in these events. 
               All members will be shown in the &quot;Unassigned&quot; group.
-            </AlertAdapter.Description>
-          </AlertAdapter>
+            </Alert.Description>
+          </Alert>
         )}
       </div>
 

@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppStateProvider } from '../contexts/app';
-import { NotificationProvider } from '../shared/adapters';
+import { NotificationProvider } from '../shared/contexts/notifications';
 import LoadingScreen from '../shared/components/LoadingScreen.jsx';
 import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
