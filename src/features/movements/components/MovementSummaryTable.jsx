@@ -92,16 +92,11 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
 }
 
 function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
-  
-  if (!termCalculations || termCalculations.length === 0) {
-    return null;
-  }
-
-  const allSectionTypes = ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'];
+  const allSectionTypes = useMemo(() => ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'], []);
   
   // Pre-calculate unassigned counts for performance (avoid repeated filtering in render)
   const unassignedCounts = useMemo(() => {
-    if (!assignments) return new Map();
+    if (!termCalculations || termCalculations.length === 0 || !assignments) return new Map();
     
     const counts = new Map();
     
@@ -136,7 +131,11 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
     });
     
     return counts;
-  }, [termCalculations, assignments, sectionsData]);
+  }, [termCalculations, assignments, sectionsData, allSectionTypes]);
+
+  if (!termCalculations || termCalculations.length === 0) {
+    return null;
+  }
   
   // Calculate section type totals across all terms to handle cascading
   const sectionTypeTotals = new Map();
