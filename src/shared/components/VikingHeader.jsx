@@ -5,6 +5,9 @@ import ConfirmModal from './ui/ConfirmModal';
 import AuthButton from './AuthButton.jsx';
 import DataFreshness from './DataFreshness.jsx';
 import TokenCountdown from './TokenCountdown.jsx';
+// Notification components
+import NotificationBellButton from './notifications/NotificationBellButton.jsx';
+import NotificationCenter from './notifications/NotificationCenter.jsx';
 
 function VikingHeader({
   user,
@@ -16,7 +19,7 @@ function VikingHeader({
   lastSyncTime = null,
 }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [_notificationCenterOpen, _setNotificationCenterOpen] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -61,6 +64,12 @@ function VikingHeader({
         </div>
 
         <div className="flex items-center space-x-4" data-oid="36ufks8">
+          {/* Notification Center */}
+          <NotificationBellButton
+            onClick={() => setNotificationCenterOpen(true)}
+            size="sm"
+          />
+
           <AuthButton
             authState={authState}
             onLogin={_onLogin}
@@ -105,6 +114,12 @@ function VikingHeader({
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
         data-oid="hx.8rc_"
+      />
+
+      {/* Notification Center */}
+      <NotificationCenter
+        isOpen={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
       />
     </header>
   );

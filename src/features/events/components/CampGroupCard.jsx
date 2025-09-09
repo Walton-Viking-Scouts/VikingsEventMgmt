@@ -109,41 +109,8 @@ function CampGroupCard({
         return;
       }
 
-      // Check if we can perform the move (network + auth validation)
-      try {
-        const isOnline = await checkNetworkStatus();
-        const token = getToken();
-        
-        if (!isOnline || !token) {
-          const errorMessage = !isOnline 
-            ? `Cannot move ${dragData.memberName}: You are currently offline. Member moves require an internet connection to sync with OSM.`
-            : `Cannot move ${dragData.memberName}: Authentication expired. Please sign in to OSM to move members.`;
-          
-          // Call the error handler if provided, otherwise log to console
-          if (onOfflineError) {
-            onOfflineError(dragData.memberName);
-          } else {
-            logger.warn(errorMessage, { memberName: dragData.memberName }, LOG_CATEGORIES.COMPONENT);
-          }
-          
-          // Don't call onMemberMove - this prevents the optimistic update
-          return;
-        }
-      } catch (networkError) {
-        logger.error('Network status check failed in CampGroupCard drag operation', { 
-          error: networkError,             // include full error object
-          errorMessage: networkError?.message,
-          memberName: dragData.memberName, 
-        }, LOG_CATEGORIES.COMPONENT);
-        if (onOfflineError) {
-          onOfflineError(dragData.memberName);
-        } else {
-          logger.warn('Network status check failed - no error handler provided', {
-            memberName: dragData.memberName,
-          }, LOG_CATEGORIES.COMPONENT);
-        }
-        return;
-      }
+      // Note: We proceed with the move and let the API handler deal with auth/network issues
+      // This allows for proper error handling and user feedback through the onMemberMove callback
       // Since only Young People are displayed and draggable (per DRAGGABLE_MEMBER_TYPES),
       // we can safely create a member object with person_type: 'Young People'
       // Prefer dragData.member when available (complete object from drag source)

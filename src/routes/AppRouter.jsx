@@ -5,7 +5,7 @@ import { NotificationProvider } from '../shared/adapters';
 import LoadingScreen from '../shared/components/LoadingScreen.jsx';
 import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
-import ToastContainer from '../shared/components/notifications/ToastContainer.jsx';
+import ToastDisplay from '../shared/components/notifications/ToastDisplay.jsx';
 import { useAuth } from '../features/auth/hooks';
 import { useNotification } from '../shared/contexts/notifications/NotificationContext';
 
@@ -57,7 +57,7 @@ function AppContent() {
 
   return (
     <>
-      <ToastContainer toasts={notifications} onDismiss={remove} />
+      <ToastDisplay toasts={notifications} onDismiss={remove} />
       <ResponsiveLayout
         user={user}
         onLogout={logout}

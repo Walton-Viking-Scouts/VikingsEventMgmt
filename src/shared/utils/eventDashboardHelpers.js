@@ -256,14 +256,8 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
       return [];
     }
     
-    // Only log when actually making API calls to reduce console spam
-    if (import.meta.env.DEV) {
-      logger.debug('fetchEventAttendance called', {
-        eventId: event.eventid,
-        eventName: event.name,
-        sectionId: event.sectionid,
-      }, LOG_CATEGORIES.COMPONENT);
-    }
+    // Only log API calls, not every cache check
+    // Removed debug log to reduce console spam
     
     // Check for cached attendance first to avoid unnecessary API calls
     const cachedAttendance = await databaseService.getAttendance(event.eventid);
@@ -275,8 +269,8 @@ export const fetchEventAttendance = async (event, token, _allEvents = null) => {
       const maxCacheAge = 60 * 60 * 1000; // 1 hour
       
       if (cacheAge < maxCacheAge) {
-        // Use cached data if it's fresh
-        if (import.meta.env.DEV) {
+        // Use cached data if it's fresh - removed debug log to reduce console spam
+        if (import.meta.env.DEV && false) { // Disabled to reduce spam
           logger.debug('Using cached attendance data', {
             eventId: event.eventid,
             cacheAgeMinutes: Math.floor(cacheAge / (1000 * 60)),

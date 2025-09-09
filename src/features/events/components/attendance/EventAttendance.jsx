@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card } from '../../../../shared/components/ui';
+import { Card, SectionCardsFlexMasonry } from '../../../../shared/components/ui';
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
 import { useNotification } from '../../../../shared/contexts/notifications/NotificationContext';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../../shared/hooks/useSignInOut.js';
+import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
 import AttendanceFilters from './AttendanceFilters.jsx';
@@ -33,6 +34,38 @@ function EventAttendance({ events, members, onBack }) {
 
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const { 
+    sharedAttendanceData, 
+    loadingSharedAttendance, 
+    hasSharedEvents, 
+  } = useSharedAttendance(events, activeTab);
+
+  // Debug the events being passed and shared events detection
+  console.log('🐛 EventAttendance DEBUG:', {
+    eventsCount: events?.length || 0,
+    hasSharedEvents,
+    eventDetails: events?.map(e => ({
+      name: e.eventname,
+      shared: e.shared,
+      sharedType: typeof e.shared,
+      allProperties: Object.keys(e),
+    })) || [],
+  });
+  
+  // Also log the full first event to see all available properties
+  if (events?.length > 0) {
+    console.log('🐛 FIRST EVENT FULL DATA:', events[0]);
+    console.log('🐛 ALL EVENT PROPERTIES:', Object.keys(events[0]));
+    console.log('🐛 LOOKING FOR SHARED PROPERTIES:', {
+      shared: events[0].shared,
+      isShared: events[0].isShared,
+      shared_event: events[0].shared_event,
+      sharedevent: events[0].sharedevent,
+      is_shared: events[0].is_shared,
+      sharedEvent: events[0].sharedEvent,
+    });
+  }
   const [sortConfig, setSortConfig] = useState({
     key: 'attendance',
     direction: 'desc',
@@ -85,9 +118,6 @@ function EventAttendance({ events, members, onBack }) {
     });
   }, [events]);
 
-  const hasSharedEvents = useMemo(() => {
-    return events.some(event => event.eventid?.toString()?.startsWith('shared_'));
-  }, [events]);
 
   const applyFilters = (attendanceData, attendanceFilters, sectionFilters) => {
     if (!attendanceData || !Array.isArray(attendanceData)) return [];
@@ -314,11 +344,131 @@ function EventAttendance({ events, members, onBack }) {
     case 'campGroups':
       return (
         <CampGroupsView 
-          attendanceData={attendanceData}
+          summaryStats={summaryStats}
           events={events}
           members={members}
-          onBack={() => setActiveTab('overview')}
+          onMemberClick={handleMemberClick}
         />
+      );
+      
+    case 'sharedAttendance':
+      if (loadingSharedAttendance) {
+        return <LoadingScreen message="Loading shared attendance data..." />;
+      }
+      
+      return (
+        <div>
+          {sharedAttendanceData && sharedAttendanceData.length > 0 ? (
+            <div>
+              {(() => {
+                // Helper function to determine if member is young person or adult based on age
+                const isYoungPerson = (age) => {
+                  if (!age) return true; // Default to young person if no age
+                  return age !== '25+'; // Adults/leaders have '25+', young people have formats like '06 / 08'
+                };
+
+                // Helper function to get numeric age for sorting (handle years/months format)
+                const getNumericAge = (age) => {
+                  if (!age) return 0;
+                  if (age === '25+') return 999; // Put adults at the end
+
+                  // Handle format like '06 / 08' which is years / months
+                  const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
+                  if (match) {
+                    const years = parseInt(match[1], 10);
+                    const months = parseInt(match[2], 10);
+                    // Convert to total months for accurate sorting
+                    return years * 12 + months;
+                  }
+
+                  // Fallback to just first number
+                  const singleMatch = age.match(/^(\d+)/);
+                  return singleMatch
+                    ? parseInt(singleMatch[1], 10) * 12
+                    : 0; // Convert years to months
+                };
+
+                // Process the data to group by sections
+                const sectionGroups = {};
+                let totalYoungPeople = 0;
+                let totalAdults = 0;
+
+                sharedAttendanceData.forEach((member) => {
+                  const sectionName = member.sectionname;
+                  const isYP = isYoungPerson(member.age);
+
+                  if (isYP) {
+                    totalYoungPeople++;
+                  } else {
+                    totalAdults++;
+                  }
+
+                  if (!sectionGroups[sectionName]) {
+                    sectionGroups[sectionName] = {
+                      sectionid: member.sectionid,
+                      sectionname: sectionName,
+                      members: [],
+                      youngPeopleCount: 0,
+                      adultsCount: 0,
+                    };
+                  }
+
+                  if (isYP) {
+                    sectionGroups[sectionName].youngPeopleCount++;
+                  } else {
+                    sectionGroups[sectionName].adultsCount++;
+                  }
+
+                  sectionGroups[sectionName].members.push(member);
+                });
+
+                // Sort members within each section by age (youngest first, adults last)
+                Object.values(sectionGroups).forEach((section) => {
+                  section.members.sort((a, b) => {
+                    const ageA = getNumericAge(a.age);
+                    const ageB = getNumericAge(b.age);
+                    return ageA - ageB;
+                  });
+                });
+
+                const sections = Object.values(sectionGroups);
+                const totalMembers = totalYoungPeople + totalAdults;
+
+                return (
+                  <>
+                    {/* Overall summary */}
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          All Sections ({sections.length})
+                        </h3>
+                        <div className="flex gap-2 text-sm text-gray-600">
+                          <span>{totalMembers} total</span>
+                          <span>•</span>
+                          <span>{totalYoungPeople} YP</span>
+                          <span>•</span>
+                          <span>{totalAdults} adults</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Scrollable masonry container */}
+                    <div className="max-h-[600px] overflow-y-auto">
+                      <SectionCardsFlexMasonry 
+                        sections={sections} 
+                        isYoungPerson={isYoungPerson}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No shared attendance data available
+            </div>
+          )}
+        </div>
       );
       
     default:

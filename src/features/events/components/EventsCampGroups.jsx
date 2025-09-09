@@ -20,9 +20,10 @@ function EventsCampGroups() {
 
   const {
     attendanceData,
+    vikingEventData,
     loading: attendanceLoading,
     error: attendanceError,
-    _loadVikingEventData,
+    loadVikingEventData,
   } = useAttendanceData(events);
 
   useEffect(() => {
@@ -79,9 +80,12 @@ function EventsCampGroups() {
       return {
         scoutid: memberData.scoutid,
         name: `${memberData.firstname} ${memberData.lastname}`,
+        firstname: memberData.firstname,
+        lastname: memberData.lastname,
         person_type: memberData.person_type,
         patrol_id: memberData.patrol_id,
         patrolid: memberData.patrolid,
+        sectionid: record.sectionid,
         vikingEventData: record.vikingEventData,
         events: memberData.events,
       };
@@ -234,8 +238,9 @@ function EventsCampGroups() {
         <Card className="p-6">
           <CampGroupsView
             events={events}
-            attendees={summaryStats}
+            summaryStats={summaryStats}
             members={members}
+            vikingEventData={vikingEventData}
             onError={(errorMsg) => {
               logger.error('Camp groups error', { error: errorMsg }, LOG_CATEGORIES.ERROR);
               notifyError(`Camp groups error: ${errorMsg}`);

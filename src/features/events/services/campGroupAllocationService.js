@@ -299,6 +299,16 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
  * @returns {Object|null} FlexiRecord context or null if not available
  */
 export function extractFlexiRecordContext(vikingEventData, sectionId, termId, sectionName) {
+  // Debug: Log the actual data being passed
+  logger.info('DEBUG: extractFlexiRecordContext called', {
+    vikingEventData: vikingEventData ? Object.keys(vikingEventData) : 'null',
+    vikingEventDataType: typeof vikingEventData,
+    sectionId,
+    termId,
+    sectionName,
+    fullDataSample: vikingEventData ? JSON.stringify(vikingEventData, null, 2).substring(0, 500) + '...' : 'null',
+  }, LOG_CATEGORIES.APP);
+  
   // Try both _structure and structure properties for compatibility
   const structure = vikingEventData?._structure || vikingEventData?.structure;
   

@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { fetchMostRecentTermId, updateFlexiRecord, getFlexiRecords } from '../services/api/api.js';
+import { fetchMostRecentTermId, updateFlexiRecord } from '../services/api/api.js';
+import { getFlexiRecordsList } from '../../features/events/services/flexiRecordService.js';
 // TODO: Move getFlexiRecordStructure to shared layer to avoid circular dependency
 // import { getFlexiRecordStructure } from '../../features/events/services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
+import { extractFlexiRecordContext } from '../../features/events/services/campGroupAllocationService.js';
 import { getToken } from '../services/auth/tokenService.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';
@@ -68,7 +70,132 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
 
   // Get Viking Event Mgmt flexirecord data for a section
   const getVikingEventFlexiRecord = async (sectionId, termId, token) => {
-    const flexiRecords = await getFlexiRecords(sectionId, token);
+    // Use the same fallback mechanism as camp groups - check localStorage directly
+    try {
+      const structureKeys = Object.keys(localStorage).filter(key => 
+        key.includes('viking_flexi_structure_') && key.includes('offline'),
+      );
+      
+      const dataKeys = Object.keys(localStorage).filter(key => 
+        key.includes('viking_flexi_data_') && key.includes(`_${sectionId}_`) && key.includes('offline'),
+      );
+      
+      console.log('🐛 Sign-in/out: Found cache keys:', {
+        structureKeys,
+        dataKeys,
+        sectionId,
+      });
+
+      if (structureKeys.length > 0 && dataKeys.length > 0) {
+        // Also check the data to see what FlexiRecord ID matches
+        const dataKey = dataKeys[0];
+        const keyParts = dataKey.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
+        const realFlexiRecordId = keyParts[0];
+        
+        console.log('🐛 Sign-in/out: Data key analysis:', {
+          dataKey,
+          realFlexiRecordId,
+          keyParts,
+        });
+        
+        // Try to find a structure that matches this FlexiRecord ID
+        for (const structureKey of structureKeys) {
+          try {
+            const structureData = JSON.parse(localStorage.getItem(structureKey));
+            
+            console.log('🐛 Sign-in/out: Examining structure:', {
+              structureKey,
+              structureFlexiRecordId: structureData?.flexirecordid || structureData?._structure?.flexirecordid,
+              structureExtraid: structureData?.extraid || structureData?._structure?.extraid,
+              expectedFlexiRecordId: realFlexiRecordId,
+              hasFieldMapping: !!structureData?.fieldMapping,
+              hasStructureFieldMapping: !!structureData?._structure?.fieldMapping,
+              actualStructure: structureData, // Show the full structure for debugging
+            });
+            
+            // Check if this structure matches the FlexiRecord ID from the data
+            // In OSM API, flexirecordid is stored as extraid
+            const structureFlexiRecordId = structureData?.extraid || structureData?._structure?.extraid || 
+                                         structureData?.flexirecordid || structureData?._structure?.flexirecordid;
+            if (String(structureFlexiRecordId) !== String(realFlexiRecordId)) {
+              console.log('🐛 Sign-in/out: Structure FlexiRecord ID mismatch, skipping');
+              continue;
+            }
+            
+            // Parse the raw structure to get field mapping (same as flexiRecordService does)
+            const fieldMapping = {};
+            try {
+              const parsedMapping = parseFlexiStructure(structureData);
+              if (parsedMapping && parsedMapping.size > 0) {
+                // Convert fieldMapping Map to object (same format as flexiRecordService)
+                parsedMapping.forEach((fieldInfo, fieldId) => {
+                  fieldMapping[fieldId] = {
+                    columnId: fieldId,
+                    ...fieldInfo,
+                  };
+                });
+                console.log('🐛 Sign-in/out: Parsed structure:', {
+                  structureKey,
+                  parsedFieldCount: parsedMapping.size,
+                });
+              }
+            } catch (error) {
+              console.log('🐛 Sign-in/out: Failed to parse structure:', error);
+            }
+            
+            const fieldNames = Object.values(fieldMapping).map(f => f?.name).filter(Boolean);
+            
+            console.log('🐛 Sign-in/out: Structure field analysis:', {
+              structureKey,
+              fieldMapping: Object.keys(fieldMapping).length > 0 ? fieldMapping : 'empty',
+              fieldNames,
+              rawStructureKeys: Object.keys(structureData || {}),
+              hasStructureProperty: !!structureData?._structure,
+              structureColumns: structureData?.structure?.cols || structureData?.cols || 'none',
+            });
+            
+            // Look for SignedOutBy field (case insensitive)
+            const hasSignedOutByField = Object.values(fieldMapping).some(field => {
+              const name = field.name?.toLowerCase();
+              return name === 'signedoutby' || name === 'signed out by';
+            });
+            
+            if (hasSignedOutByField) {
+              console.log('🐛 Sign-in/out: Found Viking Event structure with SignedOutBy field:', {
+                structureKey,
+                realFlexiRecordId,
+                fieldNames,
+              });
+              
+              return {
+                extraid: realFlexiRecordId,
+                structure: structureData,
+                fieldMapping: parseFlexiStructure(structureData._structure || structureData),
+              };
+            } else {
+              console.log('🐛 Sign-in/out: Structure missing SignedOutBy field:', {
+                structureKey,
+                fieldNames,
+              });
+            }
+          } catch (error) {
+            console.warn('Failed to parse Viking Event structure:', structureKey, error);
+          }
+        }
+      }
+      
+      console.log('🐛 Sign-in/out: No suitable Viking Event structure found in cache', {
+        structureKeys: structureKeys.length,
+        dataKeys: dataKeys.length,
+        sectionId,
+      });
+      
+    } catch (error) {
+      console.warn('Failed to load Viking Event data from cache:', error);
+    }
+    
+    // Fallback to Viking Event FlexiRecords approach (same as camp groups)
+    const flexiRecords = await getFlexiRecordsList(sectionId, token);
     
     const vikingRecord = flexiRecords.items.find(record => 
       record.name && record.name.toLowerCase().includes('viking event'),
@@ -78,14 +205,15 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
       throw new Error('Viking Event Mgmt flexirecord not found for this section');
     }
     
-    // TODO: Replace with shared getFlexiRecordStructure implementation
-    const structure = null; // Temporary mock
-    
-    return {
+    console.log('🐛 Sign-in/out: Found Viking Event flexirecord from API:', {
       extraid: vikingRecord.extraid,
-      structure: structure,
-      fieldMapping: parseFlexiStructure(structure),
-    };
+      name: vikingRecord.name,
+    });
+    
+    // The TODO is that we need to get the structure for this flexirecord
+    // For now, this will cause the "Field 'SignedOutBy' not found" error
+    // because we don't have the structure to parse the field mapping
+    throw new Error('FlexiRecord structure not available - need to implement structure fetching for FlexiRecord ID: ' + vikingRecord.extraid);
   };
 
   // Main sign in/out handler with memory leak prevention
