@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
+import { groupSectionsByType, mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
@@ -104,11 +104,12 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
     
     termCalculations.forEach((termData, termIndex) => {
       allSectionTypes.forEach(sectionType => {
+        const typeKey = mapSectionType(sectionType);
+        
         // Calculate incoming movers for this section type
-        const incomingMovers = termData.movers.filter(mover => {
-          const targetSectionType = mover.targetSection?.toLowerCase();
-          return targetSectionType === sectionType.toLowerCase();
-        });
+        const incomingMovers = termData.movers.filter(mover => 
+          mapSectionType(mover.targetSection) === typeKey,
+        );
         
         // Count how many are assigned to specific sections of this type
         const assignedCount = incomingMovers.filter(mover => {
@@ -123,8 +124,8 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
           
           // Get the section type from the assigned section
           const assignedSectionName = assignedSection.sectionname || assignedSection.name || '';
-          const assignedSectionType = getSectionTypeFromName(assignedSectionName);
-          return assignedSectionType?.toLowerCase() === sectionType.toLowerCase();
+          const assignedTypeKey = mapSectionType(getSectionTypeFromName(assignedSectionName));
+          return assignedTypeKey === typeKey;
         }).length;
         
         const newUnassignedCount = Math.max(0, incomingMovers.length - assignedCount);
@@ -220,7 +221,7 @@ function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
                 Section
               </th>
               {termCalculations.map(termData => (
-                <th key={`${termData.term.type}-${termData.term.year}`} className="text-center py-3 px-4 font-medium text-gray-900 min-w-40">
+                <th key={`${termData.term.type}-${termData.term.year}`} className="text-center py-3 px-4 font-medium text-gray-900 min-w-[10rem]">
                   {termData.term.displayName || `${termData.term.type} ${termData.term.year}`}
                 </th>
               ))}

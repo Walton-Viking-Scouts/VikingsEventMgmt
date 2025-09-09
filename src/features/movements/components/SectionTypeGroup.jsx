@@ -34,16 +34,15 @@ function SectionTypeGroup({
   onResetAssignments,
   isSaving = false,
 }) {
-  const incomingMovers = movers.filter(mover => {
-    const targetSectionType = mapSectionType(mover.targetSection?.toLowerCase());
-    return targetSectionType === sectionType;
-  });
+  const typeKey = mapSectionType(sectionType);
+  const incomingMovers = movers.filter(mover => 
+    mapSectionType(mover.targetSection) === typeKey,
+  );
 
   const availableSectionsForType = allSections.filter(section => {
-    const sectionSectionType = mapSectionType(section.sectionType?.toLowerCase() || '');
-    const nameBasedTypeRaw = getSectionTypeFromName(section.sectionName);
-    const nameBasedType = mapSectionType(nameBasedTypeRaw);
-    return sectionSectionType === sectionType || nameBasedType === sectionType;
+    const sectionTypeKey = mapSectionType(section.sectionType);
+    const nameBasedTypeKey = mapSectionType(getSectionTypeFromName(section.sectionName));
+    return sectionTypeKey === typeKey || nameBasedTypeKey === typeKey;
   });
 
 
@@ -53,7 +52,7 @@ function SectionTypeGroup({
   );
 
   // Use passed section type totals or fallback to calculation
-  const sectionTotals = sectionTypeTotals?.get(sectionType);
+  const sectionTotals = sectionTypeTotals?.get(sectionType) ?? sectionTypeTotals?.get(typeKey);
   const startingCount = sectionTotals?.startingCount || group.sections.reduce((total, section) => {
     return total + (section.cumulativeCurrentCount || section.currentMembers.length);
   }, 0);
