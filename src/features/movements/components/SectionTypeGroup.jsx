@@ -53,12 +53,12 @@ function SectionTypeGroup({
 
   // Use passed section type totals or fallback to calculation
   const sectionTotals = sectionTypeTotals?.get(sectionType) ?? sectionTypeTotals?.get(typeKey);
-  const startingCount = sectionTotals?.startingCount || group.sections.reduce((total, section) => {
-    return total + (section.cumulativeCurrentCount || section.currentMembers.length);
+  const startingCount = sectionTotals?.startingCount ?? group.sections.reduce((total, section) => {
+    return total + (section.cumulativeCurrentCount ?? (Array.isArray(section.currentMembers) ? section.currentMembers.length : 0));
   }, 0);
-  const incomingCount = sectionTotals?.incomingCount || incomingMovers.length;
-  const outgoingCount = sectionTotals?.outgoingCount || group.totalOutgoing;
-  const plannedCount = sectionTotals?.plannedCount || (startingCount + incomingCount - outgoingCount);
+  const incomingCount = sectionTotals?.incomingCount ?? incomingMovers.length;
+  const outgoingCount = sectionTotals?.outgoingCount ?? group.totalOutgoing;
+  const plannedCount = sectionTotals?.plannedCount ?? (startingCount + incomingCount - outgoingCount);
 
   return (
     <div className="mb-6">

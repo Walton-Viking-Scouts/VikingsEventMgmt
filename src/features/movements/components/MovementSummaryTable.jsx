@@ -48,7 +48,7 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
             return assignment && String(assignment.sectionId) === String(section.sectionId);
           }).length : 0;
             
-          const plannedCount = currentCount + sectionAssignments - outgoingCount;
+          const plannedCount = sectionSummary.projectedCount ?? (currentCount + sectionAssignments - outgoingCount);
             
           return (
             <td key={termIndex} className="py-2 px-4 text-center">
