@@ -114,8 +114,8 @@ function SectionTypeGroup({
       </div>
       
       <div className="bg-white rounded-b-lg border border-t-0 p-4">
-        {/* Section cards grid including the assignment interface card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+        {/* Section cards with flexible layout */}
+        <div className="flex flex-wrap gap-3 mb-4">
           {group.sections.map(summary => {
             const sectionData = allSections.find(s => s.sectionId === summary.sectionId);
             const incomingCount = sectionData?.incomingCount || 0;
@@ -131,9 +131,9 @@ function SectionTypeGroup({
             );
           })}
           
-          {/* Assignment interface card - stable width to prevent layout shifts */}
+          {/* Assignment interface card */}
           {showAssignmentInterface && incomingMovers.length > 0 && (
-            <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 w-[400px] max-w-full">
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-4 min-w-[475px]">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium text-amber-900">
                   Moving to {sectionType}

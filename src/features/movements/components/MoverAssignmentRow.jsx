@@ -82,7 +82,7 @@ function MoverAssignmentRow({
       </div>
       
       {/* Desktop Layout */}
-      <div className="hidden md:grid grid-cols-[140px_8px_150px_110px] gap-1 items-center">
+      <div className="hidden md:grid grid-cols-[130px_8px_140px_100px] gap-2 items-center">
         <div className="min-w-0">
           <div className="font-medium text-xs text-gray-900 leading-tight" title={mover.name}>
             {mover.name} <span className="text-xs text-gray-500 font-normal">
@@ -96,7 +96,7 @@ function MoverAssignmentRow({
         <select
           value={currentAssignment}
           onChange={handleSectionChange}
-          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-0"
+          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-[120px]"
         >
           <option value="">Select section...</option>
           {availableSections.map(section => (
@@ -109,7 +109,7 @@ function MoverAssignmentRow({
         <select
           value={currentTermOverride}
           onChange={handleTermChange}
-          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-0"
+          className="text-xs border border-gray-300 rounded px-1 py-1 w-full min-w-[90px]"
           title="Override term assignment"
         >
           {availableTerms.map(term => (
