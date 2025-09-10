@@ -65,48 +65,54 @@ const initialState: AppState = getInitialState();
 // State reducer
 function appStateReducer(state: AppState, action: AppStateAction): AppState {
   switch (action.type) {
-    case 'SET_NAVIGATION_DATA':
+    case 'SET_NAVIGATION_DATA': {
       const newNavigationData = { ...state.navigationData, ...action.payload };
       safeSetItem(STORAGE_KEYS.NAVIGATION_DATA, newNavigationData);
       return {
         ...state,
         navigationData: newNavigationData,
       };
+    }
 
-    case 'SET_CURRENT_VIEW':
+    case 'SET_CURRENT_VIEW': {
       safeSetItem(STORAGE_KEYS.CURRENT_VIEW, action.payload);
       return {
         ...state,
         currentView: action.payload,
       };
+    }
 
-    case 'SET_REFRESHING':
+    case 'SET_REFRESHING': {
       return {
         ...state,
         isRefreshing: action.payload,
       };
+    }
 
-    case 'SET_SYNCING':
+    case 'SET_SYNCING': {
       return {
         ...state,
         isSyncing: action.payload,
       };
+    }
 
-    case 'SET_LAST_SYNC_TIME':
+    case 'SET_LAST_SYNC_TIME': {
       safeSetItem(STORAGE_KEYS.LAST_SYNC_TIME, action.payload);
       return {
         ...state,
         lastSyncTime: action.payload,
       };
+    }
 
-    case 'CLEAR_NAVIGATION_DATA':
+    case 'CLEAR_NAVIGATION_DATA': {
       safeSetItem(STORAGE_KEYS.NAVIGATION_DATA, {});
       return {
         ...state,
         navigationData: {},
       };
+    }
 
-    case 'SYNC_FROM_URL':
+    case 'SYNC_FROM_URL': {
       // Sync state from URL parameters
       const urlState: Partial<AppState> = {
         currentView: action.payload.view,
@@ -128,6 +134,7 @@ function appStateReducer(state: AppState, action: AppStateAction): AppState {
         ...state,
         ...urlState,
       };
+    }
 
     default:
       return state;
@@ -149,9 +156,19 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
 
   // Sync state with URL parameters on location changes
   useEffect(() => {
-    // Extract view from pathname
+    // Extract view from pathname - use top-level segment instead of last
     const pathSegments = location.pathname.split('/').filter(Boolean);
-    const view = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : 'dashboard';
+    const topLevelSegment = pathSegments[0] || 'dashboard';
+    
+    // Map known root segments to canonical view names
+    const viewMapping: Record<string, string> = {
+      events: 'events',
+      movers: 'movers',
+      sections: 'sections',
+      auth: 'auth',
+    };
+    
+    const view = viewMapping[topLevelSegment] || 'dashboard';
     
     // Sync URL state with application state
     dispatch({
@@ -226,3 +243,5 @@ export function useAppState(): AppStateContextType {
 
 // Export the context for advanced use cases
 export { AppStateContext };
+
+export default AppStateProvider;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNotification } from '../../contexts/notifications/NotificationContext';
+import { useNotification } from '../../contexts/notifications';
 import { Button } from '../ui';
 
 function NotificationCenter({ isOpen, onClose }) {

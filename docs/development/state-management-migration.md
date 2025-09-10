@@ -26,7 +26,7 @@ Add the necessary imports to your component:
 
 ```jsx
 // Add these imports
-import { useAppState } from '../../contexts/app';
+import { useAppState } from '../../shared/contexts/app';
 import { useURLSync } from '../../hooks/useURLSync.js';
 ```
 
