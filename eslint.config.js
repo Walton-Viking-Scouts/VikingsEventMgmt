@@ -204,6 +204,7 @@ export default [
       '**/*.skip.js',
       'dist-ssr',
       '*.local',
+      'docs/api',
     ],
   },
 ];
