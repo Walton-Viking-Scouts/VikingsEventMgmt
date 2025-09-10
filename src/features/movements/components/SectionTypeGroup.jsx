@@ -2,7 +2,6 @@ import React from 'react';
 import SectionMovementCard from './SectionMovementCard.jsx';
 import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { Button } from '../../../shared/components/ui';
 
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
@@ -92,22 +91,20 @@ function SectionTypeGroup({
           
           {incomingMovers.length > 0 && (
             <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <button 
                 onClick={onResetAssignments}
                 disabled={assignmentsForThisType.length === 0}
+                className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-300 active:bg-gray-100"
               >
                 Reset
-              </Button>
-              <Button 
-                variant="scout-blue" 
-                size="sm" 
+              </button>
+              <button 
                 onClick={onSaveAssignments}
                 disabled={assignmentsForThisType.length === 0 || isSaving}
+                className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue-light active:bg-scout-blue-dark"
               >
                 {isSaving ? 'Saving...' : `Save (${assignmentsForThisType.length})`}
-              </Button>
+              </button>
             </div>
           )}
         </div>

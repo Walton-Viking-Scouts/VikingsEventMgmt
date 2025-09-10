@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../../contexts/notifications';
-import { Button } from '../ui';
 
 function NotificationCenter({ isOpen, onClose }) {
   const {
@@ -217,21 +216,19 @@ function NotificationCenter({ isOpen, onClose }) {
               {history.length > 0 && (
                 <div className="mt-3 flex space-x-2">
                   {unreadCount > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
+                    <button
                       onClick={markAllAsRead}
+                      className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300"
                     >
                       Mark All Read
-                    </Button>
+                    </button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={clearHistory}
+                    className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300"
                   >
                     Clear All
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
@@ -312,18 +309,17 @@ function NotificationCenter({ isOpen, onClose }) {
                           {notification.actions && notification.actions.length > 0 && (
                             <div className="mt-2 flex space-x-2">
                               {notification.actions.map((action, index) => (
-                                <Button
+                                <button
                                   key={index}
-                                  size="sm"
-                                  variant="outline"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     action.onClick();
                                     markAsRead(notification.id);
                                   }}
+                                  className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300"
                                 >
                                   {action.label}
-                                </Button>
+                                </button>
                               ))}
                             </div>
                           )}

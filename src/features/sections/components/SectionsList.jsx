@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button } from '../../../shared/components/ui';
+import { Card } from '../../../shared/components/ui';
 import { getListOfMembers } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui';
@@ -7,7 +7,7 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 
 function SectionsList({
   sections,
@@ -289,11 +289,10 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-lg font-medium text-gray-900">Members ({members.length})</h4>
         {members.length > 0 && (
-          <Button
-            variant="outline"
+          <button
             onClick={exportToCSV}
             type="button"
-            className="flex items-center"
+            className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300 px-4 py-2 text-base"
           >
             <svg
               className="w-4 h-4 mr-2"
@@ -307,7 +306,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
               <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Export CSV
-          </Button>
+          </button>
         )}
       </div>
 

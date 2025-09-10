@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { Button, Alert } from '../../../shared/components/ui';
+import { Alert } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import useSectionMovements from '../hooks/useSectionMovements.js';
 import { calculateSectionMovements } from '../services/movementCalculator.js';
@@ -8,7 +8,7 @@ import TermMovementCard from './TermMovementCard.jsx';
 import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 
 // User preferences utilities
@@ -284,9 +284,12 @@ function SectionMovementTracker({ onBack }) {
         <Alert variant="error" className="mb-4">
           {error}
         </Alert>
-        <Button onClick={refetch} variant="outline">
+        <button 
+          onClick={refetch}
+          className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-white border-2 border-scout-blue text-scout-blue hover:bg-scout-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           Retry
-        </Button>
+        </button>
       </div>
     );
   }
@@ -297,14 +300,13 @@ function SectionMovementTracker({ onBack }) {
       <div className="bg-white shadow-sm border-b">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center">
-            <Button 
+            <button 
               onClick={onBack}
-              variant="ghost"
-              className="mr-3"
+              className="mr-3 inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 active:bg-gray-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Go back"
             >
               ← Back
-            </Button>
+            </button>
             <h1 className="text-xl font-semibold text-gray-900">
               Section Movers
             </h1>
@@ -334,9 +336,12 @@ function SectionMovementTracker({ onBack }) {
             <p className="text-gray-500 text-lg mb-4">
               No future terms to display
             </p>
-            <Button onClick={refetch} variant="outline">
+            <button 
+              onClick={refetch}
+              className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-white border-2 border-scout-blue text-scout-blue hover:bg-scout-blue hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Refresh Data
-            </Button>
+            </button>
           </div>
         ) : (
           <div className="space-y-6">

@@ -11,11 +11,7 @@
  * 
  * Quick Start:
  * 
- * import { Button, Card, Modal, Alert } from './components/ui';
- * 
- * <Button variant="scout-blue" size="lg">
- *   Scout Blue Button
- * </Button>
+ * import { Card, Modal, Alert } from './components/ui';
  * 
  * <Card>
  *   <Card.Header>
@@ -28,7 +24,6 @@
  */
 
 // Core Components
-export { default as Button } from './Button';
 export { default as Card } from './Card';
 
 // Layout & Navigation

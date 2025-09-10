@@ -398,13 +398,13 @@ const ResponsiveLayout = ({ children }) => {
 
 ```javascript
 // ✅ Good: Focused UI component
-const Button = ({ variant, size, children, ...props }) => {
-  const classes = useButtonStyles({ variant, size });
+const Card = ({ variant, children, className, ...props }) => {
+  const classes = useCardStyles({ variant });
   
   return (
-    <button className={classes} {...props}>
+    <div className={cn(classes, className)} {...props}>
       {children}
-    </button>
+    </div>
   );
 };
 ```

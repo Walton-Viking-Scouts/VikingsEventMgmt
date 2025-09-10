@@ -6,7 +6,7 @@ import CampGroupsView from './CampGroupsView.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelpers.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function EventsCampGroups() {

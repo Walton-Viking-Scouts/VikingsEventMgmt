@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '../../../shared/components/ui';
 import { Alert } from '../../../shared/components/ui';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
@@ -383,18 +382,16 @@ function GroupNamesEditModal({
                   {/* Delete button - don't show for Unassigned group */}
                   {originalGroupName !== 'Group Unassigned' &&
                     memberCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
                       onClick={() => handleDeleteGroup(originalGroupName)}
                       disabled={loading}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      className="px-3 py-1.5 text-sm border border-scout-red-light text-scout-red hover:text-scout-red-dark hover:bg-scout-red-light hover:bg-opacity-10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-red-light focus:ring-opacity-50"
                       type="button"
                       title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned)`}
                       data-oid=":t.ilsz"
                     >
                         Delete
-                    </Button>
+                    </button>
                   )}
                 </div>
               );
@@ -413,24 +410,24 @@ function GroupNamesEditModal({
           className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3"
           data-oid="5st6.ue"
         >
-          <Button
-            variant="outline"
+          <button
             onClick={handleCancel}
             disabled={loading}
+            className="px-4 py-2 border border-gray-300 text-gray-700 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue focus:ring-opacity-50"
             type="button"
             data-oid="qsz0ya4"
           >
             Cancel
-          </Button>
-          <Button
-            variant="scout-blue"
+          </button>
+          <button
             onClick={handleSave}
             disabled={loading || Object.keys(errors).length > 0 || !hasChanges}
+            className="px-4 py-2 bg-scout-blue text-white hover:bg-scout-blue-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue-light focus:ring-opacity-50"
             type="button"
             data-oid="a9cq49p"
           >
             {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

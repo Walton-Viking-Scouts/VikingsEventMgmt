@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card } from '../../../../shared/components/ui';
+import { Card } from '../../../../shared/components/ui';
 
 function AttendanceHeader({ 
   events, 
@@ -29,22 +29,22 @@ function AttendanceHeader({
 
       <div className="flex space-x-2">
         {canRefresh && (
-          <Button
+          <button
             onClick={onRefresh}
             disabled={refreshLoading}
-            variant="outline"
-            size="sm"
+            className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
           >
             {refreshLoading ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          </button>
         )}
-        <Button
+        <button
           onClick={onBack}
-          variant="outline" 
-          size="sm"
+          className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button"
         >
           Back
-        </Button>
+        </button>
       </div>
     </Card.Header>
   );

@@ -11,7 +11,7 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
 import { SectionsList } from '../../sections';
 import databaseService from '../../../shared/services/storage/database.js';
-import { Button, Card } from '../../../shared/components/ui';
+import { Card } from '../../../shared/components/ui';
 import { Alert } from '../../../shared/components/ui';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -849,14 +849,14 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         <Alert.Title data-oid="d:fjt2d">Error Loading Dashboard</Alert.Title>
         <Alert.Description data-oid="4uunsvb">{error}</Alert.Description>
         <Alert.Actions data-oid="bd0v.w-">
-          <Button
-            variant="scout-blue"
+          <button
             onClick={loadInitialData}
             type="button"
+            className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             data-oid="ahnj4wa"
           >
             Retry
-          </Button>
+          </button>
         </Alert.Actions>
       </Alert>
     );
