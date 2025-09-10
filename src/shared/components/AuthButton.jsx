@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from './ui';
 
 /**
  * AuthButton - Context-aware authentication button for header
@@ -108,20 +107,38 @@ function AuthButton({
 
   const config = getButtonConfig();
 
+  const getButtonClasses = (variant, size) => {
+    const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    
+    const sizeClasses = {
+      xs: 'px-2 py-1 text-xs',
+      sm: 'px-3 py-1.5 text-sm',
+      md: 'px-4 py-2 text-sm',
+      lg: 'px-6 py-3 text-base',
+      xl: 'px-8 py-4 text-lg',
+    };
+    
+    const variantClasses = {
+      'scout-purple': 'bg-scout-purple text-white hover:bg-scout-purple-dark focus:ring-scout-purple-light active:bg-scout-purple-dark',
+      'scout-blue': 'bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue-light active:bg-scout-blue-dark',
+      'outline': 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-300 active:bg-gray-100',
+    };
+    
+    return `${baseClasses} ${sizeClasses[size] || sizeClasses.md} ${variantClasses[variant] || variantClasses['scout-blue']}`;
+  };
+
   return (
-    <Button
-      variant={config.variant}
+    <button
       onClick={config.onClick}
       disabled={config.disabled}
-      size={size}
-      className={`auth-button ${className}`}
+      className={`${getButtonClasses(config.variant, size)} auth-button ${className}`}
       aria-label={config.ariaLabel}
       data-testid="auth-button"
       {...rest}
       data-oid="14si21j"
     >
       {config.text}
-    </Button>
+    </button>
   );
 }
 
