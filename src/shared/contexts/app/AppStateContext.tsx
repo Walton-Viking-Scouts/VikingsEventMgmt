@@ -113,12 +113,12 @@ function appStateReducer(state: AppState, action: AppStateAction): AppState {
     }
 
     case 'SYNC_FROM_URL': {
-      // Sync state from URL parameters
       const urlState: Partial<AppState> = {
         currentView: action.payload.view,
       };
       
-      // Extract specific URL parameters into navigation data
+      safeSetItem(STORAGE_KEYS.CURRENT_VIEW, action.payload.view);
+      
       const selectedEvent = action.payload.params.get('event');
       const selectedSection = action.payload.params.get('section');
       
@@ -128,6 +128,7 @@ function appStateReducer(state: AppState, action: AppStateAction): AppState {
           ...(selectedEvent && { selectedEvent }),
           ...(selectedSection && { selectedSection }),
         };
+        safeSetItem(STORAGE_KEYS.NAVIGATION_DATA, urlState.navigationData);
       }
       
       return {
@@ -154,13 +155,10 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Sync state with URL parameters on location changes
   useEffect(() => {
-    // Extract view from pathname - use top-level segment instead of last
     const pathSegments = location.pathname.split('/').filter(Boolean);
     const topLevelSegment = pathSegments[0] || 'dashboard';
     
-    // Map known root segments to canonical view names
     const viewMapping: Record<string, string> = {
       events: 'events',
       movers: 'movers',
@@ -170,7 +168,6 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     
     const view = viewMapping[topLevelSegment] || 'dashboard';
     
-    // Sync URL state with application state
     dispatch({
       type: 'SYNC_FROM_URL',
       payload: {
@@ -185,9 +182,8 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       searchParams: Object.fromEntries(searchParams.entries()),
     }, LOG_CATEGORIES.APP);
 
-  }, [location.pathname, searchParams]);
+  }, [location.pathname, location.search]);
 
-  // Convenience methods
   const setNavigationData = (data: NavigationData) => {
     dispatch({ type: 'SET_NAVIGATION_DATA', payload: data });
   };

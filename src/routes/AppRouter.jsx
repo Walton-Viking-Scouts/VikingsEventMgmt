@@ -7,7 +7,7 @@ import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
 import ToastDisplay from '../shared/components/notifications/ToastDisplay.jsx';
 import { useAuth } from '../features/auth/hooks';
-import { useNotification } from '../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../shared/contexts/notifications';
 
 // URL-based routing is now the only routing system
 
