@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '../../../shared/components/ui';
 
 function SignInOutButton({ 
   member, 
@@ -15,14 +14,17 @@ function SignInOutButton({
   };
 
   return (
-    <Button
+    <button
       onClick={handleClick}
       disabled={disabled || loading}
-      variant={isSignedIn ? 'error' : 'scout-green'}
-      size='sm'
+      className={`inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+        isSignedIn
+          ? 'bg-error text-white hover:bg-red-600 focus:ring-red-300 active:bg-red-700'
+          : 'bg-scout-green text-white hover:bg-scout-green-dark focus:ring-scout-green-light active:bg-scout-green-dark'
+      }`}
     >
       {loading ? 'Processing...' : (isSignedIn ? 'Sign Out' : 'Sign In')}
-    </Button>
+    </button>
   );
 }
 

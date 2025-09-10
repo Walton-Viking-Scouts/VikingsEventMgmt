@@ -22,7 +22,7 @@ const Button = ({
     'scout-blue':
       'bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue-light active:bg-scout-blue-dark',
     'scout-blue-dark':
-      'bg-scout-blue-dark text-white hover:bg-scout-blue-dark-dark focus:ring-scout-blue-light active:bg-scout-blue-dark-dark',
+      'bg-scout-blue-dark text-white hover:bg-scout-navy-dark focus:ring-scout-blue-light active:bg-scout-navy-dark',
     'scout-green':
       'bg-scout-green text-white hover:bg-scout-green-dark focus:ring-scout-green-light active:bg-scout-green-dark',
     'scout-red':

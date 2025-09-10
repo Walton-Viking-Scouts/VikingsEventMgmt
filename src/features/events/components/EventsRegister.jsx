@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Card, Button, Badge } from '../../../shared/components/ui';
+import { Card, Badge } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
 import SignInOutButton from './SignInOutButton.jsx';
@@ -328,8 +328,8 @@ function EventsRegister() {
               <p className="text-gray-600 mb-4">
                 No attendance records match your current filter settings. Try adjusting the filters above.
               </p>
-              <Button
-                variant="scout-blue"
+              <button
+                className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => {
                   setAttendanceFilters({
                     yes: true,
@@ -347,7 +347,7 @@ function EventsRegister() {
                 type="button"
               >
                 Show All Records
-              </Button>
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
