@@ -18,11 +18,8 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
   const [saveError, setSaveError] = useState(null);
   
   // Notification system
-  // Notification handlers are now imported directly
   
-  // Show toast message using NotificationContext
   const showToast = useCallback((type, message) => {
-    // Log error toast messages for debugging
     if (type === 'error') {
       logger.error('Toast Error Message', {
         message,
@@ -31,7 +28,6 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       }, LOG_CATEGORIES.COMPONENT);
     }
     
-    // Use NotificationContext instead of custom toast
     if (type === 'success') {
       notifySuccess(message);
     } else if (type === 'error') {

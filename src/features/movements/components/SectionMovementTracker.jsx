@@ -43,7 +43,6 @@ function SectionMovementTracker({ onBack }) {
   });
   const [_allAssignments, _setAllAssignments] = useState(new Map());
   const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
-  // Notification handlers are now imported directly
   const hasCheckedFlexiRecords = useRef(false);
   
   const futureTerms = getFutureTerms(numberOfTerms);

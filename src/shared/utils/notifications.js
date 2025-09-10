@@ -155,3 +155,14 @@ export const dismissToast = (toastId) => {
 export const dismissAllToasts = () => {
   toast.dismiss();
 };
+
+export default {
+  notifySuccess,
+  notifyError,
+  notifyWarning,
+  notifyInfo,
+  notifyLoading,
+  notifyPromise,
+  dismissToast,
+  dismissAllToasts,
+};

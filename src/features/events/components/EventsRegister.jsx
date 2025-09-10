@@ -38,7 +38,6 @@ function EventsRegister() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ key: 'member', direction: 'asc' });
 
-  // Notification handlers are now imported directly
 
   // Get events data from navigation state or load from database
   useEffect(() => {

@@ -24,7 +24,6 @@ function EventAttendance({ events, members, onBack }) {
   } = useAttendanceData(events);
 
 
-  // Notification handlers are now imported directly
 
   const { buttonLoading, handleSignInOut } = useSignInOut(
     events,

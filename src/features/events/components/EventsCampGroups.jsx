@@ -15,7 +15,6 @@ function EventsCampGroups() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // Notification handlers are now imported directly
 
   const {
     attendanceData,

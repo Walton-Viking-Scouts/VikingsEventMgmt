@@ -133,7 +133,6 @@ function CampGroupsView({
   const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map());
 
   const isMobile = isMobileLayout();
-  // Notification handlers are now imported directly
 
   // Simple data organization like RegisterTab - just group the pre-processed summaryStats
   // Include optimistic updates for immediate UI feedback
@@ -397,7 +396,7 @@ function CampGroupsView({
         return newMap;
       });
 
-      notifyError(`Failed to move member: ${error.message}`);
+      notifyError(`Failed to move member: ${error.message}`, error);
     }
   };
 

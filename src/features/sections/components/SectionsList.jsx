@@ -65,7 +65,6 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
-  // Notification handlers are now imported directly
   
   
   // Data filter state - for controlling which columns to show

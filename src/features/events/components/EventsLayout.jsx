@@ -22,7 +22,6 @@ function EventsLayoutContent() {
     logout,
   } = useAuth();
   
-  // Notification handlers are now imported directly
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
