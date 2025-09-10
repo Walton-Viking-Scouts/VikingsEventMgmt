@@ -362,6 +362,7 @@ function SectionMovementTracker({ onBack }) {
                 movers={termData.movers}
                 sectionTypeTotals={termData.sectionTypeTotals}
                 onDataRefresh={refetch}
+                allTerms={futureTerms}
               />
             ))}
           </div>
