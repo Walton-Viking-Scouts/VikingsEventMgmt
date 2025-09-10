@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from './ui';
 import ConfirmModal from './ui/ConfirmModal';
 // Auth-related components
 import AuthButton from './AuthButton.jsx';
@@ -82,16 +81,15 @@ function VikingHeader({
           />
 
           {user && (
-            <Button
-              variant="outline-scout-red"
-              size="sm"
+            <button
+              className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm bg-white border-2 border-scout-red text-scout-red hover:bg-scout-red hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-red-light transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleLogout}
               type="button"
               aria-label={isOfflineMode ? 'Clear cached data and logout' : 'Logout from application'}
               data-oid="fhg::su"
             >
               {isOfflineMode ? 'Clear Data' : 'Logout'}
-            </Button>
+            </button>
           )}
         </div>
       </div>
