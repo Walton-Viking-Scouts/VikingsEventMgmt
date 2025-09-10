@@ -150,7 +150,8 @@ features/admin/
 ```
 shared/components/
 ├── ui/                 # Basic UI components
-│   ├── Card.jsx
+│   ├── Modal.jsx
+│   ├── Alert.jsx
 │   ├── LoadingSpinner.jsx
 │   ├── ErrorBoundary.jsx
 │   └── index.js
@@ -233,7 +234,7 @@ import { EventsPage, EventsList } from '@/features/events/components';
 import { useEvents } from '@/features/events/hooks';
 
 // Import from shared
-import { Card } from '@/shared/components/ui';
+import { Modal, Alert } from '@/shared/components/ui';
 import { useApi } from '@/shared/hooks';
 ```
 

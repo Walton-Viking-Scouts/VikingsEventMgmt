@@ -3,7 +3,7 @@ import { SectionCardsFlexMasonry } from '../../../../shared/components/ui';
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
-import { useNotification } from '../../../../shared/contexts/notifications';
+import { notifyError, notifyWarning } from '../../../../shared/utils/notifications.js';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../../shared/hooks/useSignInOut.js';
 import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
@@ -24,7 +24,6 @@ function EventAttendance({ events, members, onBack }) {
   } = useAttendanceData(events);
 
 
-  const { notifyError, notifyWarning } = useNotification();
 
   const { buttonLoading, handleSignInOut } = useSignInOut(
     events,

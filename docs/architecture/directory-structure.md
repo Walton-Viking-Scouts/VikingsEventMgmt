@@ -158,9 +158,9 @@ import { useAuth } from '../auth/hooks/useAuth.js';
 
 ### Shared Resource Imports
 ```javascript
-// Shared components
+// Shared components and utilities
 import { Button } from '../../shared/components/ui/Button.jsx';
-import { useNotification } from '../../shared/contexts/notifications';
+import { notifySuccess, notifyError } from '../../shared/utils/notifications.js';
 
 // Utilities
 import { logger } from '../../shared/services/utils/logger.js';

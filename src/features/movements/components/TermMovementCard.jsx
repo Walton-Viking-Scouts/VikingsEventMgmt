@@ -6,7 +6,7 @@ import { multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
 import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversContext } from '../../events/services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
 
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh, allTerms }) {
   
@@ -18,11 +18,8 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
   const [saveError, setSaveError] = useState(null);
   
   // Notification system
-  const { notifySuccess, notifyError } = useNotification();
   
-  // Show toast message using NotificationContext
   const showToast = useCallback((type, message) => {
-    // Log error toast messages for debugging
     if (type === 'error') {
       logger.error('Toast Error Message', {
         message,
@@ -31,13 +28,12 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       }, LOG_CATEGORIES.COMPONENT);
     }
     
-    // Use NotificationContext instead of custom toast
     if (type === 'success') {
       notifySuccess(message);
     } else if (type === 'error') {
       notifyError(message);
     }
-  }, [notifySuccess, notifyError]);
+  }, []);
 
   // Helper function to extract FlexiRecord assignments
   const getFlexiRecordAssignments = useCallback(() => {

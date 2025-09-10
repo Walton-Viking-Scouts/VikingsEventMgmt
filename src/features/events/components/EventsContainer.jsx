@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import EventDashboard from './EventDashboard.jsx';
 import { EventAttendance } from './attendance';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError, notifyWarning } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function EventsContainer() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});
-  const { notifyError, notifyWarning } = useNotification();
+  // Notification handlers are now imported directly
 
   const handleNavigateToAttendance = async (events, members = null) => {
     try {

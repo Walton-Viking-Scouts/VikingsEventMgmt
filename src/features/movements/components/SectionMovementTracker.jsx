@@ -8,7 +8,7 @@ import TermMovementCard from './TermMovementCard.jsx';
 import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError } from '../../../shared/utils/notifications.js';
 import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 
 // User preferences utilities
@@ -43,7 +43,6 @@ function SectionMovementTracker({ onBack }) {
   });
   const [_allAssignments, _setAllAssignments] = useState(new Map());
   const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
-  const { notifyError } = useNotification();
   const hasCheckedFlexiRecords = useRef(false);
   
   const futureTerms = getFutureTerms(numberOfTerms);
@@ -106,7 +105,7 @@ function SectionMovementTracker({ onBack }) {
         `and optional fields: ${optionalFields.join(', ')}.`;
       notifyError(message);
     }
-  }, [notifyError, flexiRecordState.loadedSections]);
+  }, [flexiRecordState.loadedSections]);
 
   // Check for missing FlexiRecords when sections load and FlexiRecord discovery completes (only once per session)
   useEffect(() => {

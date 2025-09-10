@@ -118,12 +118,10 @@ import { Outlet } from 'react-router-dom';
 
 function EventsLayout() {
   return (
-    <NotificationProvider>
-      <ResponsiveLayout>
-        {/* Shared layout elements */}
-        <Outlet /> {/* Nested routes render here */}
-      </ResponsiveLayout>
-    </NotificationProvider>
+    <ResponsiveLayout>
+      {/* Shared layout elements */}
+      <Outlet /> {/* Nested routes render here */}
+    </ResponsiveLayout>
   );
 }
 ```
