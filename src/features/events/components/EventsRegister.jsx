@@ -7,7 +7,7 @@ import SignInOutButton from './SignInOutButton.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../shared/hooks/useSignInOut.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import databaseService from '../../../shared/services/storage/database.js';
 import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelpers.js';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';

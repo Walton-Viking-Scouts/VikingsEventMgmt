@@ -6,7 +6,7 @@ import { multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
 import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversContext } from '../../events/services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh }) {
   

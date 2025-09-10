@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import EventDashboard from './EventDashboard.jsx';
 import { EventAttendance } from './attendance';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 

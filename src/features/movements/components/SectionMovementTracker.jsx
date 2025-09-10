@@ -8,7 +8,7 @@ import TermMovementCard from './TermMovementCard.jsx';
 import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 
 // User preferences utilities
