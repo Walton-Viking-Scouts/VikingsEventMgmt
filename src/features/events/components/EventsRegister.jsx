@@ -384,7 +384,8 @@ function EventsRegister() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortData(filteredSummaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
                     const primaryEvent = member.events[0];
-                    const attendanceStatus = primaryEvent?.attending || 'not invited';
+                    const rawStatus = primaryEvent?.attending ?? '';
+                    const attendanceStatus = String(rawStatus).toLowerCase();
                     
                     return (
                       <tr key={member.scoutid || index} className="hover:bg-gray-50">
@@ -412,18 +413,20 @@ function EventsRegister() {
                           <span
                             className={cn(
                               'inline-flex items-center font-medium rounded-full px-3 py-1 text-sm',
-                              attendanceStatus === 'yes' 
-                                ? 'bg-scout-green text-white'
-                                : attendanceStatus === 'no'
-                                  ? 'bg-scout-red text-white'
-                                  : 'bg-gray-50 text-gray-600 border border-gray-200',
+                              (() => {
+                                if (attendanceStatus === 'yes') return 'bg-scout-green text-white';
+                                if (attendanceStatus === 'no') return 'bg-scout-red text-white';
+                                if (attendanceStatus === 'invited') return 'bg-scout-blue text-white';
+                                return 'bg-gray-50 text-gray-600 border border-gray-200';
+                              })(),
                             )}
                           >
-                            {attendanceStatus === 'yes' 
-                              ? 'Attending'
-                              : attendanceStatus === 'no'
-                                ? 'Not Attending' 
-                                : 'Not Invited'}
+                            {(() => {
+                              if (attendanceStatus === 'yes') return 'Attending';
+                              if (attendanceStatus === 'no') return 'Not Attending';
+                              if (attendanceStatus === 'invited') return 'Invited';
+                              return 'Not Invited';
+                            })()}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">

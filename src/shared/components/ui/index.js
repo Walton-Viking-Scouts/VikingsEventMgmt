@@ -11,16 +11,16 @@
  * 
  * Quick Start:
  * 
- * import { Card, Modal, Alert } from './components/ui';
+ * import { Modal, Alert } from './components/ui';
  * 
- * <Card>
- *   <Card.Header>
- *     <Card.Title>Title</Card.Title>
- *   </Card.Header>
- *   <Card.Body>
+ * <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+ *   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+ *     <h2 className="text-lg font-semibold text-gray-900 m-0">Title</h2>
+ *   </div>
+ *   <div className="p-4">
  *     Content here
- *   </Card.Body>
- * </Card>
+ *   </div>
+ * </div>
  */
 
 // Core Components
