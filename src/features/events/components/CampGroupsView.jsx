@@ -6,7 +6,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import { isMobileLayout } from '../../../shared/utils/platform.js';
 import { assignMemberToCampGroup, extractFlexiRecordContext } from '../services/campGroupAllocationService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { useNotificationUtils } from '../../../shared/contexts/notifications';
+import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**
@@ -133,7 +133,7 @@ function CampGroupsView({
   const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map());
 
   const isMobile = isMobileLayout();
-  const { toast } = useNotificationUtils();
+  // Notification handlers are now imported directly
 
   // Simple data organization like RegisterTab - just group the pre-processed summaryStats
   // Include optimistic updates for immediate UI feedback
@@ -173,7 +173,7 @@ function CampGroupsView({
     try {
       const token = getToken();
       if (!token) {
-        toast.error('Please sign in to OSM to move members between camp groups.');
+        notifyError('Please sign in to OSM to move members between camp groups.');
         return;
       }
 
@@ -347,20 +347,20 @@ function CampGroupsView({
       const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
 
       if (!flexiRecordContext) {
-        toast.error('No Viking Event Management flexi record found for this section.');
+        notifyError('No Viking Event Management flexi record found for this section.');
         return;
       }
 
       const memberName = member.name || `${member.firstname} ${member.lastname}`;
       
       // Show loading notification
-      toast.info(`Moving ${memberName} to ${moveData.toGroupName}...`);
+      notifyInfo(`Moving ${memberName} to ${moveData.toGroupName}...`);
 
       // Call the API service
       const result = await assignMemberToCampGroup(moveData, flexiRecordContext, token);
 
       if (result.success) {
-        toast.success(`${memberName} successfully moved to ${moveData.toGroupName}`);
+        notifySuccess(`${memberName} successfully moved to ${moveData.toGroupName}`);
         
         // Move from pending to recently completed
         setPendingMoves(prev => {
@@ -397,7 +397,7 @@ function CampGroupsView({
         return newMap;
       });
 
-      toast.error(`Failed to move member: ${error.message}`);
+      notifyError(`Failed to move member: ${error.message}`);
     }
   };
 

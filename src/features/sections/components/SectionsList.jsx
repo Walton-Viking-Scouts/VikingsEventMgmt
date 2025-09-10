@@ -6,7 +6,7 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 
 function SectionsList({
   sections,
@@ -65,7 +65,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
-  const { notifyWarning, notifySuccess, notifyError } = useNotification();
+  // Notification handlers are now imported directly
   
   
   // Data filter state - for controlling which columns to show

@@ -7,7 +7,7 @@ import SignInOutButton from './SignInOutButton.jsx';
 import CompactAttendanceFilter from './CompactAttendanceFilter.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../shared/hooks/useSignInOut.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError, notifyWarning } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelpers.js';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
@@ -38,8 +38,7 @@ function EventsRegister() {
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ key: 'member', direction: 'asc' });
 
-  // Get notification handlers for the sign-in/out hook
-  const { notifyError, notifyWarning } = useNotification();
+  // Notification handlers are now imported directly
 
   // Get events data from navigation state or load from database
   useEffect(() => {

@@ -5,7 +5,7 @@ import CampGroupsView from './CampGroupsView.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelpers.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError } from '../../../shared/utils/notifications.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function EventsCampGroups() {
@@ -15,7 +15,7 @@ function EventsCampGroups() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { _notifyInfo, notifyError, _notifyWarning } = useNotification();
+  // Notification handlers are now imported directly
 
   const {
     attendanceData,

@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth';
 import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError, notifyInfo } from '../../../shared/utils/notifications.js';
 import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.jsx';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -22,7 +22,7 @@ function EventsLayoutContent() {
     logout,
   } = useAuth();
   
-  const { notifyInfo, notifyError } = useNotification();
+  // Notification handlers are now imported directly
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
