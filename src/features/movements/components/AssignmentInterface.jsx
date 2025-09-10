@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DraggableMover from './DraggableMover.jsx';
 import SectionDropZone from './SectionDropZone.jsx';
-import { Button } from '../../../shared/components/ui';
 import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
@@ -233,30 +232,27 @@ function AssignmentInterface({
         </h3>
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <button
+              className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 active:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleReset}
               disabled={assignments.size === 0}
             >
               Reset
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 active:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleSaveDraft}
               disabled={assignments.size === 0}
             >
               Save Draft
-            </Button>
-            <Button 
-              variant="scout-blue" 
-              size="sm" 
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleSave}
               disabled={assignments.size === 0}
             >
               Save ({assignments.size})
-            </Button>
+            </button>
           </div>
           {(draftSaved || lastSaveTime) && (
             <div className="flex items-center text-xs text-green-600">
