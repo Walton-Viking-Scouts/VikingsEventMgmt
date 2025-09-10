@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Badge } from '../../../shared/components/ui';
+import { cn } from '../../../shared/utils/cn';
 import DraggableMember from './DraggableMember.jsx';
 
 /**
@@ -190,15 +190,15 @@ function CampGroupCard({
 
 
   return (
-    <Card
+    <div
       ref={cardRef}
-      className={`
-        camp-group-card transition-all duration-200 w-full
-        ${isDragInProgress ? 'drop-zone-available' : ''}
-        ${isDragOver && canDrop ? 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg' : ''}
-        ${isDragOver && !canDrop ? 'bg-red-50 border-red-300 border-2' : ''}
-        ${className}
-      `}
+      className={cn(
+        'bg-white rounded-lg border border-gray-200 shadow-sm camp-group-card transition-all duration-200 w-full',
+        isDragInProgress && 'drop-zone-available',
+        isDragOver && canDrop && 'bg-scout-blue/10 border-scout-blue border-2 shadow-lg',
+        isDragOver && !canDrop && 'bg-red-50 border-red-300 border-2',
+        className,
+      )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -206,7 +206,7 @@ function CampGroupCard({
       data-group-number={group.number}
     >
       {/* Header with group name and leaders */}
-      <Card.Header className="pb-2">
+      <div className={cn('px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg pb-2')}>
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-semibold text-gray-900 break-words whitespace-normal">
@@ -238,17 +238,16 @@ function CampGroupCard({
             <div className="space-y-1">
               {leaders.map((leader) => (
                 <div key={leader.scoutid} className="flex items-center gap-1">
-                  <Badge
-                    variant={
+                  <span
+                    className={cn(
+                      'inline-flex items-center font-medium rounded-full px-2.5 py-0.5 text-xs flex-shrink-0',
                       leader.person_type === 'Leaders'
-                        ? 'scout-purple'
-                        : 'scout-blue'
-                    }
-                    size="sm"
-                    className="flex-shrink-0"
+                        ? 'bg-scout-purple text-white'
+                        : 'bg-scout-blue text-white',
+                    )}
                   >
                     {leader.person_type === 'Leaders' ? 'L' : 'YL'}
-                  </Badge>
+                  </span>
                   <div className="min-w-0 flex-1">
                     <MemberName member={leader} />
                   </div>
@@ -257,10 +256,10 @@ function CampGroupCard({
             </div>
           </div>
         )}
-      </Card.Header>
+      </div>
 
       {/* Body with young people */}
-      <Card.Body className="pt-0">
+      <div className={cn('p-4 pt-0')}>
         {youngPeople.length > 0 ? (
           <div>
             <div className="flex items-center gap-1 mb-2">
@@ -324,15 +323,15 @@ function CampGroupCard({
             </p>
           </div>
         )}
-      </Card.Body>
+      </div>
 
       {/* Footer with additional info if needed */}
       {leaders.length === 0 && youngPeople.length === 0 && (
-        <Card.Footer className="text-center text-gray-500 text-sm">
+        <div className={cn('px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg text-center text-gray-500 text-sm')}>
           No members assigned to this group
-        </Card.Footer>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
 

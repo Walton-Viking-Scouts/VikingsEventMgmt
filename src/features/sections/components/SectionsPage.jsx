@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { SectionsList } from '../components';
 import databaseService from '../../../shared/services/storage/database.js';
@@ -64,7 +63,7 @@ function SectionsPage() {
     return (
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <div className="text-red-600">
               <h2 className="text-lg font-semibold mb-2">Error Loading Sections</h2>
               <p>{error}</p>
@@ -75,7 +74,7 @@ function SectionsPage() {
                 Back to Events Dashboard
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -85,7 +84,7 @@ function SectionsPage() {
     <>
       <MainNavigation onNavigateToSectionMovements={handleNavigateToSectionMovements} />
       {/* Sections Content */}
-      <Card className="p-6">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Sections</h2>
           <p className="text-gray-600 mt-1">
@@ -120,7 +119,7 @@ function SectionsPage() {
             allSections={sections}
           />
         )}
-      </Card>
+      </div>
     </>
   );
 }

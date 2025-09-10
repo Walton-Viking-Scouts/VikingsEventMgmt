@@ -11,7 +11,6 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
 import { SectionsList } from '../../sections';
 import databaseService from '../../../shared/services/storage/database.js';
-import { Card } from '../../../shared/components/ui';
 import { Alert } from '../../../shared/components/ui';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -910,10 +909,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
         {/* Events Card */}
         {currentView === 'events' && (
-          <Card id="events-panel" data-oid="ve3fjt:">
-            <div className="border-b px-4 py-3" data-oid="gycj.jl">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm" id="events-panel" data-oid="ve3fjt:">
+            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="gycj.jl">
               <h2
-                className="text-base font-semibold leading-6 text-gray-900"
+                className="text-lg font-semibold text-gray-900 m-0"
                 data-oid="96:-cg1"
               >
                 Upcoming Events{' '}
@@ -969,7 +968,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         )}
       </div>
 

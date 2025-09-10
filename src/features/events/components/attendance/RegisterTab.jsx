@@ -1,6 +1,5 @@
 import React from 'react';
 import SignInOutButton from '../SignInOutButton.jsx';
-import { Badge } from '../../../../shared/components/ui';
 
 const formatUKDateTime = (dateString) => {
   if (!dateString) return '';
@@ -162,24 +161,24 @@ function RegisterTab({
               <td className="px-3 py-2 whitespace-nowrap">
                 <div className="flex gap-1 flex-wrap">
                   {member.yes > 0 && (
-                    <Badge variant="scout-green" className="text-xs">
+                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">
                       Yes
-                    </Badge>
+                    </span>
                   )}
                   {member.no > 0 && (
-                    <Badge variant="scout-red" className="text-xs">
+                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">
                       No
-                    </Badge>
+                    </span>
                   )}
                   {member.invited > 0 && (
-                    <Badge variant="scout-blue" className="text-xs">
+                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">
                       Invited
-                    </Badge>
+                    </span>
                   )}
                   {member.notInvited > 0 && (
-                    <Badge variant="light" className="text-xs">
+                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">
                       Not Invited
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </td>

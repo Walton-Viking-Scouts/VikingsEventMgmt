@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Card } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import CampGroupsView from './CampGroupsView.jsx';
 import { useAttendanceData } from '../hooks/useAttendanceData.js';
@@ -107,7 +106,7 @@ function EventsCampGroups() {
     return (
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <div className="text-red-600">
               <h2 className="text-lg font-semibold mb-2">Error Loading Camp Groups</h2>
               <p>{error || attendanceError}</p>
@@ -118,7 +117,7 @@ function EventsCampGroups() {
                 Back to Events Dashboard
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -128,7 +127,7 @@ function EventsCampGroups() {
     return (
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <div className="text-center py-12">
               <div className="text-gray-500 mb-4">
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +145,7 @@ function EventsCampGroups() {
                 Back to Dashboard
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -180,7 +179,7 @@ function EventsCampGroups() {
         </div>
 
         {/* Camp Groups Header */}
-        <Card className="p-6 mb-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Camp Groups Management</h2>
@@ -231,10 +230,10 @@ function EventsCampGroups() {
               Note: Leaders and Young Leaders are automatically excluded from camp group assignments.
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Camp Groups Management */}
-        <Card className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <CampGroupsView
             events={events}
             summaryStats={summaryStats}
@@ -245,7 +244,7 @@ function EventsCampGroups() {
               notifyError(`Camp groups error: ${errorMsg}`);
             }}
           />
-        </Card>
+        </div>
       </div>
     </div>
   );

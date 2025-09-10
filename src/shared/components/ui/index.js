@@ -24,7 +24,7 @@
  */
 
 // Core Components
-export { default as Card } from './Card';
+// Card component removed - migrated to direct Tailwind implementation
 
 // Layout & Navigation
 export { default as Modal } from './Modal';
@@ -32,7 +32,7 @@ export { default as ConfirmModal } from './ConfirmModal';
 
 // Feedback & Status
 export { default as Alert } from './Alert';
-export { default as Badge } from './Badge';
+// Badge component removed - migrated to direct Tailwind implementation
 
 // Feature Components - moved from features to shared
 export { default as SectionFilter } from './SectionFilter';
@@ -42,7 +42,7 @@ export { default as MedicalDataDisplay } from './MedicalDataDisplay';
 export { MedicalDataPill, MedicalDataList } from './MedicalDataDisplay';
 
 // Re-export individual components for convenience
-export { CardHeader, CardTitle, CardBody, CardFooter } from './Card';
+// Card components removed - migrated to direct Tailwind implementation
 export { ModalHeader, ModalTitle, ModalBody, ModalFooter } from './Modal';
 export { AlertTitle, AlertDescription, AlertActions } from './Alert';
-export { DotBadge, NumberBadge } from './Badge';
+// Badge components removed - migrated to direct Tailwind implementation
