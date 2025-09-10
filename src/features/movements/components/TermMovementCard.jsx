@@ -8,7 +8,7 @@ import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { useNotification } from '../../../shared/contexts/notifications';
 
-function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh }) {
+function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh, allTerms }) {
   
   const [sectionState, setSectionState] = useState({
     assignments: new Map(),
@@ -136,13 +136,14 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
   }, [sectionSummaries, sectionsData, sectionState.optimisticCounts]);
 
   const availableTerms = useMemo(() => {
-    return [
+    // Use all terms displayed on the page instead of hardcoded list
+    return allTerms || [
       { type: 'Spring', year: term.year },
       { type: 'Summer', year: term.year },
       { type: 'Autumn', year: term.year },
       { type: 'Spring', year: term.year + 1 },
     ];
-  }, [term.year]);
+  }, [allTerms, term.year]);
 
   const handleAssignmentChange = useCallback((memberId, assignment) => {
     setSectionState(prev => {
@@ -483,6 +484,10 @@ TermMovementCard.propTypes = {
   movers: PropTypes.arrayOf(PropTypes.object).isRequired,
   sectionTypeTotals: PropTypes.instanceOf(Map),
   onDataRefresh: PropTypes.func.isRequired,
+  allTerms: PropTypes.arrayOf(PropTypes.shape({
+    type: PropTypes.string.isRequired,
+    year: PropTypes.number.isRequired,
+  })),
 };
 
 export default TermMovementCard;
