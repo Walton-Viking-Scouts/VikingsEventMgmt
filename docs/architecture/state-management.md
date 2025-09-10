@@ -10,7 +10,7 @@ The Viking Event Management mobile application uses a hybrid state management ap
 
 The `AppStateContext` provides centralized state management with automatic persistence and URL synchronization.
 
-**Location**: `src/contexts/app/AppStateContext.tsx`
+**Location**: `src/shared/contexts/app/AppStateContext.tsx`
 
 #### State Structure
 ```typescript
