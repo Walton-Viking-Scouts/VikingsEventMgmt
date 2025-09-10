@@ -40,27 +40,27 @@ import { Badge } from '../components/ui';
 
 ### Implementation (react-hot-toast with Scout Theme) ✅
 ```jsx
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
+
+// App root: Configure Toaster once with Tailwind classes
+// <Toaster
+//   position="top-right"
+//   toastOptions={{
+//     className: 'bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-2',
+//     duration: 4000,
+//   }}
+//   containerClassName="!top-4 !right-4"
+// />
 
 // Success notification with scout-green theme
 toast.success('Action completed successfully', {
-  duration: 4000,
-  position: 'top-right',
-  style: {
-    background: '#ffffff',
-    border: '1px solid #e5e7eb',
-    borderLeft: '4px solid #16a34a', // scout-green
-    borderRadius: '8px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-  },
+  className: 'border-l-4 border-green-600', // scout-green
 });
 
 // Error notification with scout-red theme
 toast.error('Something went wrong', {
   duration: 6000, // Extended duration for errors
-  style: {
-    borderLeft: '4px solid #dc2626', // scout-red
-  },
+  className: 'border-l-4 border-red-600', // scout-red
 });
 ```
 
@@ -104,4 +104,4 @@ toast.error('Something went wrong', {
 - **Better Performance**: Fewer component layers
 
 ---
-*Generated as part of Task 34 comprehensive validation*
+#### Generated as part of Task 34 comprehensive validation
