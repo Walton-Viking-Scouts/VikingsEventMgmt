@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Badge } from '../../../shared/components/ui';
+import { cn } from '../../../shared/utils/cn';
 import AttendanceGrid from './AttendanceGrid.jsx';
 
 function EventCard({ eventCard, onViewAttendees, loading = false }) {
@@ -270,22 +270,22 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
   );
 
   return (
-    <Card 
-      className="h-full flex flex-col break-inside-avoid" 
+    <div 
+      className={cn('bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col break-inside-avoid')}
       role="article"
       aria-labelledby={`event-title-${slug}`}
       data-oid="3kxvx32"
     >
-      <Card.Header className="pb-3" data-oid="20kbjde">
+      <div className={cn('px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg pb-3')} data-oid="20kbjde">
         <div className="flex justify-between items-start" data-oid="oey::ov">
           <div className="flex-1" data-oid="0w-_rn.">
-            <Card.Title
-              className="text-lg font-semibold text-gray-900 mb-1"
+            <h3
+              className={cn('text-lg font-semibold text-gray-900 m-0 mb-1')}
               id={`event-title-${slug}`}
               data-oid="pqa5tp."
             >
               {eventCard.name}
-            </Card.Title>
+            </h3>
             <p 
               className="text-sm text-gray-600 mb-2" 
               id={`event-${slug}-description`}
@@ -296,23 +296,23 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           </div>
           <div className="flex flex-col items-end gap-1" data-oid="--y.h.3">
             {aggregatedStatus === 'ongoing' ? (
-              <Badge variant="scout-green" data-oid="ei1z:j_">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white" data-oid="ei1z:j_">
                 Ongoing
-              </Badge>
+              </span>
             ) : aggregatedStatus === 'upcoming' ? (
-              <Badge variant="scout-blue" data-oid="v1xw_so">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white" data-oid="v1xw_so">
                 Upcoming
-              </Badge>
+              </span>
             ) : aggregatedStatus === 'past' ? (
-              <Badge variant="light" data-oid="qex6lwv">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-gray-50 text-gray-600 border border-gray-200" data-oid="qex6lwv">
                 Past
-              </Badge>
+              </span>
             ) : null}
           </div>
         </div>
-      </Card.Header>
+      </div>
 
-      <Card.Body className="flex-1 pt-0" data-oid="6ll9qi7">
+      <div className={cn('p-4 flex-1 pt-0')} data-oid="6ll9qi7">
         {hasAttendanceData ? (
           <div className="mt-3 -mx-4">
             <AttendanceGrid data={attendanceGrid} data-oid="g_kymnd" />
@@ -341,9 +341,9 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </p>
           </div>
         )}
-      </Card.Body>
+      </div>
 
-      <Card.Footer className="pt-3" data-oid="bfx2bop">
+      <div className={cn('px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg pt-3')} data-oid="bfx2bop">
         <button
           onClick={() => onViewAttendees(eventCard)}
           className="w-full inline-flex items-center justify-center gap-2 rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -401,8 +401,8 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             </>
           )}
         </button>
-      </Card.Footer>
-    </Card>
+      </div>
+    </div>
   );
 }
 

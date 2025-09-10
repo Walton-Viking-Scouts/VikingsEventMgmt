@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Badge } from '../../../shared/components/ui';
 import { Alert } from '../../../shared/components/ui';
 import CampGroupCard from './CampGroupCard.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
@@ -450,12 +449,12 @@ function CampGroupsView({
       {/* Header with summary stats */}
       <div className="mb-6">
         <div className="flex flex-wrap gap-4 mb-4">
-          <Badge variant="scout-blue" size="md">
+          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white">
             {summary.totalGroups || 0} Groups
-          </Badge>
-          <Badge variant="scout-green" size="md">
+          </span>
+          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white">
             {summary.totalMembers || 0} Members
-          </Badge>
+          </span>
         </div>
 
         {!summary.vikingEventDataAvailable && (

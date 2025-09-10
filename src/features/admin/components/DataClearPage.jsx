@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../../shared/components/ui';
 import { useAppState } from '../../../shared/contexts/app';
 import databaseService from '../../../shared/services/storage/database.js';
 import { clearToken } from '../../../shared/services/auth/tokenService.js';
@@ -66,7 +65,7 @@ function DataClearPage() {
   if (cleared) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md p-6 text-center">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full max-w-md p-6 text-center">
           <div className="mb-4">
             <svg className="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -77,14 +76,14 @@ function DataClearPage() {
             All application data has been cleared. You will be redirected to the dashboard.
           </p>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-scout-blue mx-auto"></div>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md p-6">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm w-full max-w-md p-6">
         <div className="text-center mb-6">
           <div className="mb-4">
             <svg className="mx-auto h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +132,7 @@ function DataClearPage() {
             )}
           </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

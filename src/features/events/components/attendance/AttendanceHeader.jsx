@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '../../../../shared/components/ui';
+import { cn } from '../../../../shared/utils/cn';
 
 function AttendanceHeader({ 
   events, 
@@ -19,7 +19,7 @@ function AttendanceHeader({
   const sectionCount = events.length;
 
   return (
-    <Card.Header className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+    <div className={cn('px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0')}>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{eventName}</h1>
         <p className="text-gray-600 mt-1">
@@ -46,7 +46,7 @@ function AttendanceHeader({
           Back
         </button>
       </div>
-    </Card.Header>
+    </div>
   );
 }
 

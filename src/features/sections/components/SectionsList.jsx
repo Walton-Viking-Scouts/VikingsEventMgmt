@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../../../shared/components/ui';
 import { getListOfMembers } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui';
@@ -19,8 +18,8 @@ function SectionsList({
   
   if (!sections || sections.length === 0) {
     return (
-      <Card data-oid="de.aoaz">
-        <Card.Body className="text-center p-8" data-oid="ry9t81c">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="de.aoaz">
+        <div className="text-center p-8" data-oid="ry9t81c">
           <h2
             className="text-xl font-semibold text-gray-900 mb-2"
             data-oid="a4t6f:."
@@ -31,8 +30,8 @@ function SectionsList({
             No sections found for your account. Please check your OSM
             permissions.
           </p>
-        </Card.Body>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -40,23 +39,23 @@ function SectionsList({
 
 
   return (
-    <Card data-oid="2c.s3hh">
-      <Card.Header data-oid="d7c-ou8">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="2c.s3hh">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="d7c-ou8">
         <div className="flex items-center justify-between">
-          <Card.Title data-oid="solgnx_">Select Sections</Card.Title>
+          <h2 className="text-lg font-semibold text-gray-900 m-0" data-oid="solgnx_">Select Sections</h2>
         </div>
-      </Card.Header>
+      </div>
 
       {/* Members Area - Always show the table */}
-      <Card.Body className="border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200">
         <MembersTableContent
           sections={selectedSections}
           onSectionToggle={onSectionToggle}
           allSections={allSections}
           loadingSection={loadingSection}
         />
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 }
 

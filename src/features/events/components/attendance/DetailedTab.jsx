@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Badge } from '../../../../shared/components/ui';
 import { MedicalDataPill } from '../../../../shared/components/ui';
 // import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../../shared/utils/ageUtils.js';
@@ -230,11 +229,11 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                   {/* Event Status */}
                   <td className="px-3 py-2 whitespace-nowrap text-center bg-purple-25">
                     {(() => {
-                      if (attendanceStatus === 'Yes') return <Badge variant="scout-green" className="text-xs">Yes</Badge>;
-                      if (attendanceStatus === 'No') return <Badge variant="scout-red" className="text-xs">No</Badge>;
-                      if (attendanceStatus === 'Invited') return <Badge variant="scout-blue" className="text-xs">Invited</Badge>;
-                      if (attendanceStatus === 'Not Invited') return <Badge variant="light" className="text-xs">Not Invited</Badge>;
-                      return <Badge variant="light" className="text-xs">Unknown</Badge>;
+                      if (attendanceStatus === 'Yes') return <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">Yes</span>;
+                      if (attendanceStatus === 'No') return <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">No</span>;
+                      if (attendanceStatus === 'Invited') return <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">Invited</span>;
+                      if (attendanceStatus === 'Not Invited') return <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">Not Invited</span>;
+                      return <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">Unknown</span>;
                     })()}
                   </td>
                   

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Card, Badge } from '../../../shared/components/ui';
+import { cn } from '../../../shared/utils/cn';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
 import SignInOutButton from './SignInOutButton.jsx';
@@ -234,7 +234,7 @@ function EventsRegister() {
     return (
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6">
+          <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm p-6')}>
             <div className="text-red-600">
               <h2 className="text-lg font-semibold mb-2">Error Loading Register</h2>
               <p>{error || attendanceError}</p>
@@ -245,7 +245,7 @@ function EventsRegister() {
                 Back to Events Dashboard
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -278,7 +278,7 @@ function EventsRegister() {
           </nav>
         </div>
 
-        <Card className="p-6">
+        <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm p-6')}>
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Event Registration</h2>
             <p className="text-gray-600 mt-1">
@@ -384,7 +384,8 @@ function EventsRegister() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortData(filteredSummaryStats, sortConfig.key, sortConfig.direction).map((member, index) => {
                     const primaryEvent = member.events[0];
-                    const attendanceStatus = primaryEvent?.attending || 'not invited';
+                    const rawStatus = primaryEvent?.attending ?? '';
+                    const attendanceStatus = String(rawStatus).toLowerCase();
                     
                     return (
                       <tr key={member.scoutid || index} className="hover:bg-gray-50">
@@ -409,21 +410,24 @@ function EventsRegister() {
                           />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge
-                            variant={
-                              attendanceStatus === 'yes' 
-                                ? 'scout-green'
-                                : attendanceStatus === 'no'
-                                  ? 'scout-red'
-                                  : 'neutral'
-                            }
+                          <span
+                            className={cn(
+                              'inline-flex items-center font-medium rounded-full px-3 py-1 text-sm',
+                              (() => {
+                                if (attendanceStatus === 'yes') return 'bg-scout-green text-white';
+                                if (attendanceStatus === 'no') return 'bg-scout-red text-white';
+                                if (attendanceStatus === 'invited') return 'bg-scout-blue text-white';
+                                return 'bg-gray-50 text-gray-600 border border-gray-200';
+                              })(),
+                            )}
                           >
-                            {attendanceStatus === 'yes' 
-                              ? 'Attending'
-                              : attendanceStatus === 'no'
-                                ? 'Not Attending' 
-                                : 'Not Invited'}
-                          </Badge>
+                            {(() => {
+                              if (attendanceStatus === 'yes') return 'Attending';
+                              if (attendanceStatus === 'no') return 'Not Attending';
+                              if (attendanceStatus === 'invited') return 'Invited';
+                              return 'Not Invited';
+                            })()}
+                          </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                           {member.sectionname}
@@ -438,7 +442,7 @@ function EventsRegister() {
               </table>
             </div>
           )}
-        </Card>
+        </div>
 
         {/* Member Detail Modal */}
         {showMemberModal && selectedMember && (

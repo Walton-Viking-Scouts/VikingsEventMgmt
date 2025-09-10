@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, SectionCardsFlexMasonry } from '../../../../shared/components/ui';
+import { SectionCardsFlexMasonry } from '../../../../shared/components/ui';
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
@@ -297,12 +297,12 @@ function EventAttendance({ events, members, onBack }) {
   if (error) {
     return (
       <div className="p-6">
-        <Card className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <div className="text-red-600">
             <h2 className="text-lg font-semibold mb-2">Error Loading Attendance</h2>
             <p>{error}</p>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -479,13 +479,13 @@ function EventAttendance({ events, members, onBack }) {
   return (
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
-        <Card>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <AttendanceHeader 
             events={events}
             onBack={onBack}
           />
 
-          <Card.Body>
+          <div className="p-4">
             <AttendanceFilters 
               attendanceFilters={attendanceFilters}
               onAttendanceFiltersChange={setAttendanceFilters}
@@ -505,8 +505,8 @@ function EventAttendance({ events, members, onBack }) {
             />
 
             {renderTabContent()}
-          </Card.Body>
-        </Card>
+          </div>
+        </div>
 
         {selectedMember && (
           <MemberDetailModal

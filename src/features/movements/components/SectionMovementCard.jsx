@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Card } from '../../../shared/components/ui';
+import { cn } from '../../../shared/utils/cn';
 
 function SectionMovementCard({ 
   sectionName, 
@@ -9,7 +9,7 @@ function SectionMovementCard({
   incomingCount = 0,
 }) {
   return (
-    <Card className="p-4 mb-4 min-w-fit max-w-sm">
+    <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 min-w-fit max-w-sm')}>
       <div className="flex justify-between items-center gap-4 mb-3">
         <h3 className="text-lg font-semibold text-scout-blue">
           {sectionName}
@@ -53,7 +53,7 @@ function SectionMovementCard({
           No members moving up this term
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Card } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
 import databaseService from '../../../shared/services/storage/database.js';
@@ -183,7 +182,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     return (
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <div className="text-red-600">
               <h2 className="text-lg font-semibold mb-2">Error Loading Overview</h2>
               <p>{error}</p>
@@ -194,7 +193,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
                 Back to Events Dashboard
               </button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     );
@@ -228,7 +227,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
         </div>
 
         {/* Events Overview Content */}
-        <Card className="p-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Events Overview</h2>
             <p className="text-gray-600 mt-1">
@@ -266,7 +265,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
               ))}
             </div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );
