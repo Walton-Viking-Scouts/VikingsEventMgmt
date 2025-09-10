@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: features/movements/services/vikingSectionMoversValidation.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: features/movements/services/vikingSectionMoversValidation.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// Viking Section Movers FlexiRecord Validation Service
+// Provides validation and user-friendly error messages for Viking Section Movers FlexiRecord setup
+
+import { getVikingSectionMoversData, extractVikingSectionMoversContext } from '../../events/services/flexiRecordService.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+
+/**
+ * Required fields for Viking Section Movers FlexiRecord functionality
+ * These fields must exist in the FlexiRecord structure for the assignment interface to work
+ */
+export const REQUIRED_VIKING_SECTION_MOVERS_FIELDS = [
+  {
+    fieldName: 'AssignedSection',
+    displayName: 'Assigned Section',
+    description: 'Stores which section a member will be assigned to',
+    isCore: true,
+  },
+  {
+    fieldName: 'AssignedTerm', 
+    displayName: 'Assigned Term',
+    description: 'Stores which term the assignment is effective from',
+    isCore: true,
+  },
+  {
+    fieldName: 'AssignmentOverride',
+    displayName: 'Assignment Override',
+    description: 'Indicates if assignment overrides age-based logic (Yes/No)',
+    isCore: true,
+  },
+  {
+    fieldName: 'AssignmentDate',
+    displayName: 'Assignment Date',
+    description: 'Timestamp when the assignment was made',
+    isCore: false,
+  },
+  {
+    fieldName: 'AssignedBy',
+    displayName: 'Assigned By',
+    description: 'User who made the assignment',
+    isCore: false,
+  },
+];
+
+/**
+ * Comprehensive validation of Viking Section Movers FlexiRecord
+ * 
+ * @param {string|number} sectionId - Section ID to validate
+ * @param {string|number} termId - Term ID for the validation
+ * @param {string} token - Authentication token
+ * @param {boolean} forceRefresh - Force refresh of data cache
+ * @returns {Promise&lt;Object>} Detailed validation result with user-friendly messages
+ */
+export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, token, forceRefresh = false) {
+  const validation = {
+    isValid: false,
+    hasFlexiRecord: false,
+    hasRequiredFields: false,
+    missingFields: [],
+    availableFields: [],
+    errors: [],
+    warnings: [],
+    guidance: [],
+    sectionId: String(sectionId),
+    termId: String(termId),
+  };
+
+  try {
+    // Step 1: Check if Viking Section Movers FlexiRecord exists
+    logger.info('Validating Viking Section Movers FlexiRecord', {
+      sectionId,
+      termId,
+    }, LOG_CATEGORIES.APP);
+
+    const vikingSectionMoversData = await getVikingSectionMoversData(sectionId, termId, token, forceRefresh);
+    
+    if (!vikingSectionMoversData) {
+      validation.hasFlexiRecord = false;
+      validation.errors.push('Viking Section Movers FlexiRecord not found for this section');
+      validation.guidance.push(
+        'Create a FlexiRecord named "Viking Section Movers" in OSM with the required fields',
+        'Go to OSM > Programme > Extra Records > Add Record',
+        'Set Name to "Viking Section Movers" and add the required fields listed below',
+      );
+      
+      // Add all required fields as missing
+      validation.missingFields = REQUIRED_VIKING_SECTION_MOVERS_FIELDS.map(field => ({
+        fieldName: field.fieldName,
+        displayName: field.displayName,
+        description: field.description,
+        isCore: field.isCore,
+      }));
+      
+      return validation;
+    }
+
+    validation.hasFlexiRecord = true;
+
+    // Step 2: Extract field context and check field structure
+    const fieldContext = extractVikingSectionMoversContext(vikingSectionMoversData, sectionId, termId, 'Current Section');
+    
+    if (!fieldContext) {
+      validation.errors.push('Failed to extract field structure from Viking Section Movers FlexiRecord');
+      validation.guidance.push(
+        'Check that the Viking Section Movers FlexiRecord has proper field definitions',
+        'Verify the FlexiRecord structure is not corrupted in OSM',
+      );
+      return validation;
+    }
+
+    // Step 3: Check for required fields
+    const { fields: _fields, fieldMapping } = fieldContext;
+    validation.availableFields = Object.keys(fieldMapping).map(fieldId => ({
+      fieldId,
+      fieldName: fieldMapping[fieldId].name,
+      fieldType: fieldMapping[fieldId].type,
+    }));
+
+    // Check each required field
+    const missingFields = [];
+    const presentFields = [];
+
+    REQUIRED_VIKING_SECTION_MOVERS_FIELDS.forEach(requiredField => {
+      const fieldExists = Object.values(fieldMapping).some(field => 
+        field.name === requiredField.fieldName,
+      );
+
+      if (fieldExists) {
+        presentFields.push(requiredField);
+      } else {
+        missingFields.push({
+          fieldName: requiredField.fieldName,
+          displayName: requiredField.displayName,
+          description: requiredField.description,
+          isCore: requiredField.isCore,
+        });
+      }
+    });
+
+    validation.missingFields = missingFields;
+
+    // Check if core fields are present
+    const missingCoreFields = missingFields.filter(field => field.isCore);
+    const missingOptionalFields = missingFields.filter(field => !field.isCore);
+
+    validation.hasRequiredFields = missingCoreFields.length === 0;
+
+    // Step 4: Generate appropriate messages
+    if (missingCoreFields.length > 0) {
+      validation.errors.push(
+        `Missing ${missingCoreFields.length} required field${missingCoreFields.length > 1 ? 's' : ''}: ${missingCoreFields.map(f => f.displayName).join(', ')}`,
+      );
+      validation.guidance.push(
+        'Add the missing required fields to your Viking Section Movers FlexiRecord in OSM',
+        'Go to OSM > Programme > Extra Records > Edit "Viking Section Movers"',
+        'Add the missing fields with appropriate field types (Text for most fields)',
+      );
+    }
+
+    if (missingOptionalFields.length > 0) {
+      validation.warnings.push(
+        `Missing ${missingOptionalFields.length} optional field${missingOptionalFields.length > 1 ? 's' : ''}: ${missingOptionalFields.map(f => f.displayName).join(', ')}. These fields provide additional functionality but are not required.`,
+      );
+    }
+
+    // Step 5: Overall validation status
+    validation.isValid = validation.hasFlexiRecord &amp;&amp; validation.hasRequiredFields;
+
+    if (validation.isValid) {
+      logger.info('Viking Section Movers FlexiRecord validation passed', {
+        sectionId,
+        termId,
+        presentFields: presentFields.length,
+        missingOptionalFields: missingOptionalFields.length,
+      }, LOG_CATEGORIES.APP);
+    } else {
+      logger.warn('Viking Section Movers FlexiRecord validation failed', {
+        sectionId,
+        termId,
+        missingCoreFields: missingCoreFields.length,
+        errors: validation.errors,
+      }, LOG_CATEGORIES.APP);
+    }
+
+    return validation;
+
+  } catch (error) {
+    logger.error('Error validating Viking Section Movers FlexiRecord', {
+      sectionId,
+      termId,
+      error: error.message,
+      stack: error.stack,
+    }, LOG_CATEGORIES.ERROR);
+
+    validation.errors.push(`Validation failed: ${error.message}`);
+    validation.guidance.push(
+      'Check your internet connection and try again',
+      'Verify you have access to the section in OSM',
+      'Contact support if the issue persists',
+    );
+
+    return validation;
+  }
+}
+
+/**
+ * Generate user-friendly error messages for Viking Section Movers validation
+ * 
+ * @param {Object} validation - Validation result from validateVikingSectionMoversFlexiRecord
+ * @returns {Object} User-friendly messages for different scenarios
+ */
+export function generateVikingSectionMoversErrorMessages(validation) {
+  const messages = {
+    title: '',
+    message: '',
+    details: [],
+    actionRequired: false,
+    severity: 'error', // 'error', 'warning', 'info'
+  };
+
+  if (!validation.hasFlexiRecord) {
+    messages.title = 'Viking Section Movers FlexiRecord Missing';
+    messages.message = 'This section needs a "Viking Section Movers" FlexiRecord to use the assignment interface.';
+    messages.details = [
+      'Go to OSM → Programme → Extra Records',
+      'Click "Add Record"',
+      'Name: "Viking Section Movers"',
+      'Add fields: AssignedSection, AssignedTerm, AssignmentOverride',
+    ];
+    messages.actionRequired = true;
+    messages.severity = 'error';
+    
+  } else if (!validation.hasRequiredFields) {
+    const coreFields = validation.missingFields.filter(f => f.isCore);
+    messages.title = 'Missing Required Fields';
+    messages.message = `The Viking Section Movers FlexiRecord is missing ${coreFields.length} required field${coreFields.length > 1 ? 's' : ''}.`;
+    messages.details = [
+      'Go to OSM → Programme → Extra Records',
+      'Edit "Viking Section Movers"',
+      ...coreFields.map(field => `Add field: "${field.displayName}" (${field.description})`),
+    ];
+    messages.actionRequired = true;
+    messages.severity = 'error';
+    
+  } else if (validation.warnings.length > 0) {
+    const optionalFields = validation.missingFields.filter(f => !f.isCore);
+    messages.title = 'Optional Fields Missing';
+    messages.message = `The assignment interface will work, but ${optionalFields.length} optional field${optionalFields.length > 1 ? 's are' : ' is'} missing.`;
+    messages.details = [
+      'These fields provide additional functionality:',
+      ...optionalFields.map(field => `• ${field.displayName}: ${field.description}`),
+    ];
+    messages.actionRequired = false;
+    messages.severity = 'warning';
+    
+  } else {
+    messages.title = 'FlexiRecord Ready';
+    messages.message = 'The Viking Section Movers FlexiRecord is properly configured for assignment tracking.';
+    messages.details = [];
+    messages.actionRequired = false;
+    messages.severity = 'info';
+  }
+
+  return messages;
+}
+
+/**
+ * Quick validation check for component use
+ * Returns simple boolean with basic error info
+ * 
+ * @param {string|number} sectionId - Section ID to validate
+ * @param {string|number} termId - Term ID for the validation
+ * @param {string} token - Authentication token
+ * @returns {Promise&lt;Object>} Simple validation result
+ */
+export async function quickValidateVikingSectionMovers(sectionId, termId, token) {
+  try {
+    const validation = await validateVikingSectionMoversFlexiRecord(sectionId, termId, token, false);
+    
+    return {
+      isValid: validation.isValid,
+      hasFlexiRecord: validation.hasFlexiRecord,
+      hasRequiredFields: validation.hasRequiredFields,
+      errorMessage: validation.errors[0] || null,
+      missingFieldsCount: validation.missingFields.filter(f => f.isCore).length,
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      hasFlexiRecord: false,
+      hasRequiredFields: false,
+      errorMessage: `Validation failed: ${error.message}`,
+      missingFieldsCount: 0,
+    };
+  }
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-notifications.html">notifications</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#calculateActualAge">calculateActualAge</a></li><li><a href="global.html#calculateAge">calculateAge</a></li><li><a href="global.html#checkForDemoData">checkForDemoData</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#cleanupDemoCache">cleanupDemoCache</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#createAssignmentTrackingData">createAssignmentTrackingData</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#discoverVikingSectionMoversFlexiRecords">discoverVikingSectionMoversFlexiRecords</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#extractVikingEventFields">extractVikingEventFields</a></li><li><a href="global.html#extractVikingSectionMoversContext">extractVikingSectionMoversContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#findMemberSectionName">findMemberSectionName</a></li><li><a href="global.html#findMemberSectionType">findMemberSectionType</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getConsolidatedFlexiRecord">getConsolidatedFlexiRecord</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecordData">getFlexiRecordData</a></li><li><a href="global.html#getFlexiRecordStructure">getFlexiRecordStructure</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiRecordsList">getFlexiRecordsList</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUniqueSectionsFromEvents">getUniqueSectionsFromEvents</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#getVikingEventData">getVikingEventData</a></li><li><a href="global.html#getVikingEventDataForEvents">getVikingEventDataForEvents</a></li><li><a href="global.html#getVikingSectionMoversData">getVikingSectionMoversData</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#organizeMembersByCampGroups">organizeMembersByCampGroups</a></li><li><a href="global.html#parseFlexiStructure">parseFlexiStructure</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#transformFlexiRecordData">transformFlexiRecordData</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateAssignmentTrackingData">validateAssignmentTrackingData</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversCollection">validateVikingSectionMoversCollection</a></li><li><a href="global.html#validateVikingSectionMoversFields">validateVikingSectionMoversFields</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Sep 10 2025 22:00:52 GMT+0100 (British Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

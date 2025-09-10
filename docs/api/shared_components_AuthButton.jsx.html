@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: shared/components/AuthButton.jsx</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: shared/components/AuthButton.jsx</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React from 'react';
+
+/**
+ * AuthButton - Context-aware authentication button for header
+ *
+ * Displays different button text and behavior based on authentication state:
+ * - No data: "Sign in to OSM"
+ * - Has cached data: "Refresh data"
+ * - Token expired: "Sign in to refresh"
+ * - Syncing: "Syncing..." (disabled)
+ *
+ * @param {Object} props - Component props
+ * @param {string} props.authState - Current authentication state
+ * @param {Function} props.onLogin - Login handler function
+ * @param {Function} props.onRefresh - Refresh handler function
+ * @param {boolean} props.isLoading - Whether sync is in progress
+ * @param {boolean} props.isOfflineMode - Whether the app is in offline mode
+ * @param {string} props.className - Additional CSS classes
+ * @param {string} props.size - Button size (xs, sm, md, lg, xl)
+ */
+function AuthButton({
+  authState,
+  onLogin,
+  onRefresh,
+  isLoading = false,
+  isOfflineMode = false,
+  className = '',
+  size,
+  ...rest
+}) {
+  const getButtonConfig = () => {
+    if (isLoading) {
+      return {
+        text: 'Syncing...',
+        onClick: null,
+        disabled: true,
+        variant: 'outline',
+        ariaLabel: 'Currently syncing data with OSM',
+      };
+    }
+
+    switch (authState) {
+    case 'no_data':
+      return {
+        text: 'Sign in to OSM',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-purple',
+        ariaLabel: 'Sign in to Online Scout Manager to access data',
+      };
+
+    case 'cached_only':
+      if (isOfflineMode) {
+        return {
+          text: 'Offline - Sign in to refresh',
+          onClick: onLogin,
+          disabled: false,
+          variant: 'outline',
+          ariaLabel: 'You are offline with cached data - sign in to refresh data from OSM',
+        };
+      }
+      return {
+        text: 'Sign in to refresh',
+        onClick: onLogin, // Need to login first to get token for refresh
+        disabled: false,
+        variant: 'scout-purple',
+        ariaLabel: 'Sign in to OSM to refresh data - currently using cached data',
+      };
+
+    case 'token_expired':
+      return {
+        text: 'Sign in to refresh',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-purple',
+        ariaLabel: 'Session expired - sign in again to refresh data',
+      };
+
+    case 'authenticated':
+      return {
+        text: 'Refresh',
+        onClick: onRefresh || onLogin,
+        disabled: false,
+        variant: 'outline',
+        ariaLabel: 'Refresh data from OSM',
+      };
+
+    case 'syncing':
+      return {
+        text: 'Syncing...',
+        onClick: null,
+        disabled: true,
+        variant: 'outline',
+        ariaLabel: 'Currently syncing data with OSM',
+      };
+
+    default:
+      return {
+        text: 'Sign in',
+        onClick: onLogin,
+        disabled: false,
+        variant: 'scout-blue',
+        ariaLabel: 'Sign in to Online Scout Manager',
+      };
+    }
+  };
+
+  const config = getButtonConfig();
+
+  const getButtonClasses = (variant, size) => {
+    const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    
+    const sizeClasses = {
+      xs: 'px-2 py-1 text-xs',
+      sm: 'px-3 py-1.5 text-sm',
+      md: 'px-4 py-2 text-sm',
+      lg: 'px-6 py-3 text-base',
+      xl: 'px-8 py-4 text-lg',
+    };
+    
+    const variantClasses = {
+      'scout-purple': 'bg-scout-purple text-white hover:bg-scout-purple-dark focus:ring-scout-purple-light active:bg-scout-purple-dark',
+      'scout-blue': 'bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue-light active:bg-scout-blue-dark',
+      'outline': 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-300 active:bg-gray-100',
+    };
+    
+    return `${baseClasses} ${sizeClasses[size] || sizeClasses.md} ${variantClasses[variant] || variantClasses['scout-blue']}`;
+  };
+
+  return (
+    &lt;button
+      onClick={config.onClick}
+      disabled={config.disabled}
+      className={`${getButtonClasses(config.variant, size)} auth-button ${className}`}
+      aria-label={config.ariaLabel}
+      data-testid="auth-button"
+      {...rest}
+      data-oid="14si21j"
+    >
+      {config.text}
+    &lt;/button>
+  );
+}
+
+export default AuthButton;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-notifications.html">notifications</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#calculateActualAge">calculateActualAge</a></li><li><a href="global.html#calculateAge">calculateAge</a></li><li><a href="global.html#checkForDemoData">checkForDemoData</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#cleanupDemoCache">cleanupDemoCache</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#createAssignmentTrackingData">createAssignmentTrackingData</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#discoverVikingSectionMoversFlexiRecords">discoverVikingSectionMoversFlexiRecords</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#extractVikingEventFields">extractVikingEventFields</a></li><li><a href="global.html#extractVikingSectionMoversContext">extractVikingSectionMoversContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#findMemberSectionName">findMemberSectionName</a></li><li><a href="global.html#findMemberSectionType">findMemberSectionType</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getConsolidatedFlexiRecord">getConsolidatedFlexiRecord</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecordData">getFlexiRecordData</a></li><li><a href="global.html#getFlexiRecordStructure">getFlexiRecordStructure</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiRecordsList">getFlexiRecordsList</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUniqueSectionsFromEvents">getUniqueSectionsFromEvents</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#getVikingEventData">getVikingEventData</a></li><li><a href="global.html#getVikingEventDataForEvents">getVikingEventDataForEvents</a></li><li><a href="global.html#getVikingSectionMoversData">getVikingSectionMoversData</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#organizeMembersByCampGroups">organizeMembersByCampGroups</a></li><li><a href="global.html#parseFlexiStructure">parseFlexiStructure</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#transformFlexiRecordData">transformFlexiRecordData</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateAssignmentTrackingData">validateAssignmentTrackingData</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversCollection">validateVikingSectionMoversCollection</a></li><li><a href="global.html#validateVikingSectionMoversFields">validateVikingSectionMoversFields</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Sep 10 2025 22:00:52 GMT+0100 (British Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
