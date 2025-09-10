@@ -7,7 +7,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import { isMobileLayout } from '../../../shared/utils/platform.js';
 import { assignMemberToCampGroup, extractFlexiRecordContext } from '../services/campGroupAllocationService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { useNotificationUtils } from '../../../shared/contexts/notifications/notificationUtils.js';
+import { useNotificationUtils } from '../../../shared/contexts/notifications';
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**

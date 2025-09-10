@@ -3,7 +3,7 @@ import { Card, SectionCardsFlexMasonry } from '../../../../shared/components/ui'
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
-import { useNotification } from '../../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../../shared/contexts/notifications';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../../shared/hooks/useSignInOut.js';
 import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';

@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth';
 import ResponsiveLayout from '../../../shared/components/layout/ResponsiveLayout.jsx';
-import { useNotification } from '../../../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../../../shared/contexts/notifications';
 import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.jsx';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
