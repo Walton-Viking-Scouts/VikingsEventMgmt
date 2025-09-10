@@ -151,7 +151,6 @@ features/admin/
 shared/components/
 ├── ui/                 # Basic UI components
 │   ├── Card.jsx
-│   ├── Button.jsx
 │   ├── LoadingSpinner.jsx
 │   ├── ErrorBoundary.jsx
 │   └── index.js
@@ -234,7 +233,7 @@ import { EventsPage, EventsList } from '@/features/events/components';
 import { useEvents } from '@/features/events/hooks';
 
 // Import from shared
-import { Card, Button } from '@/shared/components/ui';
+import { Card } from '@/shared/components/ui';
 import { useApi } from '@/shared/hooks';
 ```
 
