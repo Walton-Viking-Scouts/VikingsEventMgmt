@@ -1,9 +1,95 @@
+/**
+ * @fileoverview Cache cleanup utilities for Viking Event Management
+ * 
+ * This module provides specialized cache cleanup functions to maintain data
+ * integrity across different application modes. Prevents demo data contamination
+ * in production environments and ensures clean separation between demo and
+ * production cached data.
+ * 
+ * The cleanup system is essential for the offline-first architecture, ensuring
+ * that cached data remains consistent and relevant to the current application
+ * mode. Demo data cleanup prevents confusion and maintains professional
+ * presentation in production Scout environments.
+ * 
+ * @module cacheCleanup
+ * @version 2.3.7
+ * @since 2.2.0 - Demo/production separation
+ * @author Vikings Event Management Team
+ */
+
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
 
 /**
- * Clean up demo cache data when not in demo mode
- * This prevents demo events from appearing in production
+ * Cleans up demo cache data when application is not in demo mode
+ * 
+ * Performs comprehensive cleanup of localStorage to remove demo data that
+ * might contaminate production Scout environments. Scans for both explicitly
+ * demo-prefixed keys and regular cache keys that contain demo event data.
+ * 
+ * This function is critical for maintaining data integrity when switching
+ * between demo mode (for training and demonstrations) and production mode
+ * (for actual Scout events). Demo data includes synthetic events, members,
+ * and attendance records that should never appear in real Scout operations.
+ * 
+ * The cleanup process is safe and selective - it only removes data when
+ * NOT in demo mode, preserving demo data when demonstrations are intentional.
+ * 
+ * @returns {void} No return value - operates by side effect on localStorage
+ * 
+ * @example
+ * // Clean up demo data on production application startup
+ * import { cleanupDemoCache } from './cacheCleanup.js';
+ * 
+ * // During app initialization in production
+ * if (!isDemoMode()) {
+ *   cleanupDemoCache(); // Removes any leftover demo data
+ *   logger.info('Demo cache cleanup completed');
+ * }
+ * 
+ * @example
+ * // Integration with application mode switching
+ * const switchToProductionMode = () => {
+ *   // Update mode configuration
+ *   setProductionMode(true);
+ *   
+ *   // Clean up any demo data from localStorage
+ *   cleanupDemoCache();
+ *   
+ *   // Reload Scout data from OSM
+ *   await reloadProductionData();
+ * };
+ * 
+ * @example
+ * // Cache keys that would be cleaned up in production
+ * // Direct demo keys:
+ * localStorage.setItem('demo_viking_events_123', JSON.stringify(demoEvents));
+ * localStorage.setItem('demo_event_attendance_456', JSON.stringify(demoAttendance));
+ * 
+ * // Contaminated regular keys:
+ * localStorage.setItem('viking_events_offline', JSON.stringify([
+ *   { eventid: 'demo_event_123', sectionname: 'Demo Beavers' }, // Demo event
+ *   { eventid: 'real_123', sectionname: '1st Walton Beavers' }   // Real event
+ * ]));
+ * 
+ * // After cleanupDemoCache():
+ * // - All demo_* keys removed
+ * // - viking_events_offline removed (contained demo data)
+ * // - Real-only cache keys remain untouched
+ * 
+ * @example
+ * // Monitor cleanup operation results
+ * const beforeKeys = Object.keys(localStorage).length;
+ * cleanupDemoCache();
+ * const afterKeys = Object.keys(localStorage).length;
+ * 
+ * if (beforeKeys > afterKeys) {
+ *   console.log(`Cleanup removed ${beforeKeys - afterKeys} contaminated cache entries`);
+ * } else {
+ *   console.log('No demo data found - cache already clean');
+ * }
+ * 
+ * @since 2.2.0
  */
 export function cleanupDemoCache() {
   // Only clean up if we're NOT in demo mode
@@ -67,7 +153,60 @@ export function cleanupDemoCache() {
 }
 
 /**
- * Check if data contains demo events or references
+ * Recursively checks if data structure contains demo events or references
+ * 
+ * Performs deep inspection of data structures to identify demo content
+ * that should not appear in production Scout environments. Checks for
+ * demo event IDs, demo section names, and nested demo references.
+ * 
+ * This function supports the cache cleanup process by accurately identifying
+ * contaminated cache entries that mix demo and production data, ensuring
+ * complete removal of demo content from production environments.
+ * 
+ * @param {*} data - Data structure to inspect for demo content
+ * @returns {boolean} True if demo content is found, false if data is clean
+ * 
+ * @example
+ * // Check individual event objects
+ * const cleanEvent = { eventid: 'evt_123', sectionname: '1st Walton Beavers' };
+ * const demoEvent = { eventid: 'demo_event_456', sectionname: 'Demo Scouts' };
+ * 
+ * console.log(checkForDemoData(cleanEvent)); // false
+ * console.log(checkForDemoData(demoEvent));  // true
+ * 
+ * @example
+ * // Check array of mixed data
+ * const mixedEvents = [
+ *   { eventid: 'real_123', sectionname: '1st Walton Cubs' },
+ *   { eventid: 'demo_event_789', sectionname: 'Demo Beavers' },
+ *   { eventid: 'real_456', sectionname: '2nd Walton Scouts' }
+ * ];
+ * 
+ * console.log(checkForDemoData(mixedEvents)); // true (contains demo event)
+ * 
+ * @example
+ * // Check nested object structures
+ * const nestedData = {
+ *   events: {
+ *     items: [
+ *       { eventid: 'demo_event_123' } // Deep demo reference
+ *     ]
+ *   },
+ *   metadata: { source: 'production' }
+ * };
+ * 
+ * console.log(checkForDemoData(nestedData)); // true (found nested demo)
+ * 
+ * @example
+ * // Check for demo section names
+ * const sectionData = { sectionname: 'Demo Beavers Colony' };
+ * console.log(checkForDemoData(sectionData)); // true (demo section)
+ * 
+ * const realSection = { sectionname: '1st Walton Beavers Colony' };
+ * console.log(checkForDemoData(realSection)); // false (real section)
+ * 
+ * @since 2.2.0
+ * @private
  */
 function checkForDemoData(data) {
   if (!data) return false;
