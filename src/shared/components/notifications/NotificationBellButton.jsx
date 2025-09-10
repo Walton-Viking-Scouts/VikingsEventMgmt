@@ -1,6 +1,6 @@
 import React from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
-import { useNotification } from '../../contexts/notifications/NotificationContext';
+import { useNotification } from '../../contexts/notifications';
 
 const NotificationBellButton = ({ 
   onClick, 

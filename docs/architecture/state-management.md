@@ -10,7 +10,7 @@ The Viking Event Management mobile application uses a hybrid state management ap
 
 The `AppStateContext` provides centralized state management with automatic persistence and URL synchronization.
 
-**Location**: `src/contexts/app/AppStateContext.tsx`
+**Location**: `src/shared/contexts/app/AppStateContext.tsx`
 
 #### State Structure
 ```typescript
@@ -93,7 +93,7 @@ graph LR
 ### Component Integration
 
 ```jsx
-import { useAppState } from '../../contexts/app';
+import { useAppState } from '../../shared/contexts/app';
 import { useURLSync } from '../../hooks/useURLSync.js';
 
 function EventsDetail() {
@@ -179,7 +179,7 @@ When updating components to use the new state management:
 
 1. **Add Context Hooks**:
 ```jsx
-import { useAppState } from '../../contexts/app';
+import { useAppState } from '../../shared/contexts/app';
 import { useURLSync } from '../../hooks/useURLSync.js';
 ```
 

@@ -7,4 +7,4 @@ export {
   type AppStateAction,
   type AppStateContextType,
   type AppStateProviderProps,
-} from './AppStateContext.tsx';
+} from './AppStateContext';

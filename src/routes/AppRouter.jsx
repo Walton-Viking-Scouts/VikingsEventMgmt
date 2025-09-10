@@ -1,13 +1,13 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppStateProvider } from '../contexts/app';
+import { AppStateProvider } from '../shared/contexts/app';
 import { NotificationProvider } from '../shared/contexts/notifications';
 import LoadingScreen from '../shared/components/LoadingScreen.jsx';
 import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
 import ToastDisplay from '../shared/components/notifications/ToastDisplay.jsx';
 import { useAuth } from '../features/auth/hooks';
-import { useNotification } from '../shared/contexts/notifications/NotificationContext';
+import { useNotification } from '../shared/contexts/notifications';
 
 // URL-based routing is now the only routing system
 
