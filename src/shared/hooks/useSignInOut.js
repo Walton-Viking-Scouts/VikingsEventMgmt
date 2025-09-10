@@ -17,7 +17,7 @@ const STEP_DELAY_MS = 150;
  * 
  * @param {Array} events - Array of event data
  * @param {Function} onDataRefresh - Callback to refresh Viking Event data after operations
- * @param {Object} notificationHandlers - Optional notification handlers from NotificationContext
+ * @param {Object} notificationHandlers - Optional notification handlers from toast utilities
  * @param {Function} notificationHandlers.notifyError - Function to display error notifications
  * @param {Function} notificationHandlers.notifyWarning - Function to display warning notifications
  * @returns {Object} Hook state and functions

@@ -54,7 +54,7 @@ Can import from all lower layers
 // ✅ CORRECT: Pages can import from features and shared
 // pages/events/EventsPage.jsx
 import { EventDashboard } from '../../features/events';
-import { useNotification } from '../../shared/contexts/notifications';
+import { notifySuccess, notifyError } from '../../shared/utils/notifications.js';
 
 // ❌ INCORRECT: Features importing from pages
 // features/events/components/EventList.jsx
@@ -162,12 +162,11 @@ export default Button;
 // features/events/hooks/useEventData.js
 import { useState, useEffect } from 'react';
 import { eventService } from '../services/eventService.js';
-import { useNotification } from '../../../shared/contexts/notifications';
+import { notifyError } from '../../../shared/utils/notifications.js';
 
 export function useEventData(eventId) {
   const [event, setEvent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { notifyError } = useNotification();
   
   useEffect(() => {
     const loadEvent = async () => {
@@ -363,10 +362,14 @@ import EventCard from './EventCard.jsx';
 
 // Mock shared dependencies
 vi.mock('../../../shared/contexts/notifications', () => ({
-  useNotification: () => ({
-    notifyError: vi.fn(),
-    notifySuccess: vi.fn(),
-  }),
+}));
+
+// Mock notification utilities
+vi.mock('../../shared/utils/notifications.js', () => ({
+  notifyError: vi.fn(),
+  notifySuccess: vi.fn(),
+  notifyWarning: vi.fn(),
+  notifyInfo: vi.fn(),
 }));
 
 test('renders event card with event data', () => {

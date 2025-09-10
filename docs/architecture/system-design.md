@@ -90,7 +90,7 @@ Complex state logic is encapsulated in custom hooks:
 
 - `useAuth()` - Authentication state and token management
 - `useAttendanceData()` - Event attendance data management
-- `useNotificationPreferences()` - User notification settings
+- **Notifications**: Global react-hot-toast via `src/shared/utils/notifications.js`
 
 ### 5. **Error Boundary Pattern**
 Comprehensive error handling with nested error boundaries:
