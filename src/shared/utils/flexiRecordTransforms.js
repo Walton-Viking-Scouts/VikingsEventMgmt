@@ -1,20 +1,88 @@
-// FlexiRecord transformation utilities for Vikings Event Management Mobile
-// Pure functions for data transformation and field mapping
+/**
+ * @fileoverview FlexiRecord transformation utilities for Viking Event Management
+ * 
+ * This module provides pure functions for transforming OSM FlexiRecord data into
+ * meaningful, structured formats for the Viking Event Management system. Handles
+ * field mapping, data transformation, and specialized Viking Event data extraction.
+ * 
+ * FlexiRecords are OSM's flexible record system that allows custom data fields.
+ * For Viking Events, these are used to track camp groups, sign-in/out times, and
+ * other event-specific data that supplements the standard member information.
+ * 
+ * All functions are pure and focused on data transformation without side effects,
+ * following functional programming principles for better testability and reliability.
+ * 
+ * @module flexiRecordTransforms
+ * @version 2.3.7
+ * @since 2.0.0 - Initial FlexiRecord support
+ * @author Vikings Event Management Team
+ */
+
 import { sentryUtils } from '../services/utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 
 /**
- * Parse flexirecord structure configuration to create field mapping
- * Converts the config JSON string to a map of field IDs to actual column names
+ * Parses FlexiRecord structure configuration to create field mapping
  * 
- * @param {Object} structureData - Structure data from getFlexiStructure API
- * @returns {Map<string, Object>} Map of field ID to field metadata
- * @throws {Error} If structure data is invalid
+ * Converts OSM FlexiRecord structure configuration into a standardized Map
+ * that maps generic field IDs (f_1, f_2, etc.) to meaningful field metadata
+ * including names, widths, and display properties. This enables transformation
+ * of raw FlexiRecord data into human-readable formats.
+ * 
+ * The structure data comes from OSM's getFlexiStructure API and contains both
+ * a config JSON string with field definitions and a structure array with
+ * additional metadata for each field.
+ * 
+ * @param {Object} structureData - Structure data from OSM getFlexiStructure API
+ * @param {string} [structureData.config] - JSON string containing field mappings
+ * @param {Array} [structureData.structure] - Array of structure sections with field details
+ * @param {string} [structureData.extraid] - FlexiRecord type identifier
+ * @returns {Map<string, Object>} Map of field ID to comprehensive field metadata
+ * @throws {Error} If structure data is invalid or parsing fails
  * 
  * @example
- * // Parse structure configuration
+ * // Parse Viking Event FlexiRecord structure
+ * const structureData = {
+ *   config: '[{"id":"f_1","name":"CampGroup","width":"100"},{"id":"f_2","name":"SignedInBy","width":"150"}]',
+ *   structure: [
+ *     {
+ *       rows: [
+ *         { field: 'f_1', name: 'CampGroup', width: '100px', editable: true },
+ *         { field: 'f_2', name: 'SignedInBy', width: '150px', editable: false }
+ *       ]
+ *     }
+ *   ]
+ * };
+ * 
  * const fieldMapping = parseFlexiStructure(structureData);
- * console.log(fieldMapping.get('f_1')); // { name: 'CampGroup', width: '150' }
+ * console.log(fieldMapping.get('f_1')); 
+ * // Output: { name: 'CampGroup', width: '100px', fieldId: 'f_1', editable: true }
+ * 
+ * @example
+ * // Handle multiple structure sections
+ * const complexStructure = {
+ *   config: '[{"id":"f_1","name":"CampGroup"},{"id":"f_3","name":"SignedInWhen"}]',
+ *   structure: [
+ *     { rows: [{ field: 'f_1', name: 'Camp Group', formatter: 'number' }] },
+ *     { rows: [{ field: 'f_3', name: 'Sign In Time', formatter: 'datetime' }] }
+ *   ]
+ * };
+ * 
+ * const mapping = parseFlexiStructure(complexStructure);
+ * mapping.forEach((fieldInfo, fieldId) => {
+ *   console.log(`${fieldId}: ${fieldInfo.name} (${fieldInfo.formatter || 'text'})`);
+ * });
+ * 
+ * @example
+ * // Error handling for invalid structure
+ * try {
+ *   const mapping = parseFlexiStructure(null);
+ * } catch (error) {
+ *   console.error('Structure parsing failed:', error.message);
+ *   // Handle gracefully - perhaps show default columns
+ * }
+ * 
+ * @since 2.0.0
  */
 export function parseFlexiStructure(structureData) {
   try {
@@ -97,18 +165,80 @@ export function parseFlexiStructure(structureData) {
 }
 
 /**
- * Transform flexirecord data by mapping generic field names to actual column names
- * Converts f_1, f_2, etc. to their meaningful names like CampGroup, SignedInBy, etc.
+ * Transforms FlexiRecord data by mapping generic field names to meaningful column names
  * 
- * @param {Object} flexiData - Data from getSingleFlexiRecord API
+ * Converts raw OSM FlexiRecord data with generic field identifiers (f_1, f_2, etc.)
+ * into structured data with meaningful property names (CampGroup, SignedInBy, etc.).
+ * This transformation makes the data much easier to work with in components and
+ * provides better type safety and developer experience.
+ * 
+ * The transformation process preserves all original data while adding new properties
+ * with meaningful names. Original field references are retained with _original_ prefix
+ * for debugging and fallback purposes.
+ * 
+ * @param {Object} flexiData - Raw data from OSM getSingleFlexiRecord API
+ * @param {Array} flexiData.items - Array of member records with generic field names
+ * @param {string} [flexiData.extraid] - FlexiRecord type identifier
+ * @param {Object} [flexiData.meta] - Metadata about the FlexiRecord
  * @param {Map<string, Object>} fieldMapping - Field mapping from parseFlexiStructure
- * @returns {Object} Transformed data with meaningful field names
- * @throws {Error} If data is invalid
+ * @returns {Object} Transformed data with meaningful field names and metadata
+ * @throws {Error} If data is invalid or transformation fails
  * 
  * @example
- * // Transform flexirecord data
+ * // Transform Viking Event FlexiRecord data
+ * const flexiData = {
+ *   items: [
+ *     {
+ *       scoutid: '12345',
+ *       firstname: 'Alice',
+ *       lastname: 'Smith',
+ *       f_1: '3',           // Camp Group
+ *       f_2: 'Leader Bob',  // Signed In By
+ *       f_3: '2024-07-15 09:30:00' // Signed In When
+ *     },
+ *     {
+ *       scoutid: '67890', 
+ *       firstname: 'Charlie',
+ *       lastname: 'Brown',
+ *       f_1: '1',
+ *       f_2: 'Leader Alice',
+ *       f_3: '2024-07-15 09:45:00'
+ *     }
+ *   ]
+ * };
+ * 
  * const transformedData = transformFlexiRecordData(flexiData, fieldMapping);
- * // Now access data.items[0].CampGroup instead of data.items[0].f_1
+ * 
+ * // Access data with meaningful names
+ * transformedData.items.forEach(scout => {
+ *   console.log(`${scout.firstname} is in Camp Group ${scout.CampGroup}`);
+ *   console.log(`Signed in by ${scout.SignedInBy} at ${scout.SignedInWhen}`);
+ *   
+ *   // Original data still available for debugging
+ *   console.log(`Original f_1 value: ${scout._original_f_1}`);
+ * });
+ * 
+ * @example
+ * // Handle missing or invalid data gracefully
+ * const incompleteData = {
+ *   items: [
+ *     { scoutid: '111', firstname: 'Dave', f_1: '2' }, // Missing some fields
+ *     { scoutid: '222', firstname: 'Eve' }             // No FlexiRecord data
+ *   ]
+ * };
+ * 
+ * const result = transformFlexiRecordData(incompleteData, fieldMapping);
+ * // Transformation handles missing fields gracefully
+ * console.log(result.items[1].CampGroup); // undefined (not an error)
+ * 
+ * @example
+ * // Access transformation metadata
+ * const transformed = transformFlexiRecordData(flexiData, fieldMapping);
+ * console.log(`Transformed ${transformed._metadata.totalItems} items`);
+ * console.log(`Used ${transformed._metadata.originalFieldCount} field mappings`);
+ * console.log(`Transformation completed at ${transformed._metadata.transformedAt}`);
+ * 
+ * @since 2.0.0
  */
 export function transformFlexiRecordData(flexiData, fieldMapping) {
   try {
@@ -191,18 +321,96 @@ export function transformFlexiRecordData(flexiData, fieldMapping) {
 }
 
 /**
- * Extract expected Viking Event Management fields from flexirecord data
- * Specifically looks for CampGroup, SignedInBy, SignedInWhen, SignedOutBy, SignedOutWhen
+ * Extracts Viking Event Management specific fields from transformed FlexiRecord data
  * 
- * @param {Object} consolidatedData - Consolidated flexirecord data
- * @returns {Array} Array of scout data with Viking Event Management fields
+ * Filters and organizes FlexiRecord data to focus specifically on Viking Event
+ * Management fields: CampGroup, SignedInBy, SignedInWhen, SignedOutBy, SignedOutWhen.
+ * This creates a clean data structure containing only the core scout information
+ * plus Viking Event specific tracking data, perfect for event management interfaces.
+ * 
+ * The function preserves essential scout identification and demographic data while
+ * adding the Viking Event Management tracking fields that support camp group
+ * organization, attendance tracking, and sign-in/out workflows.
+ * 
+ * @param {Object} consolidatedData - Consolidated and transformed FlexiRecord data
+ * @param {Array} consolidatedData.items - Array of scout records with transformed field names
+ * @param {Object} [consolidatedData.fieldMapping] - Field mapping for reference
+ * @returns {Array<Object>} Array of scout data containing core info plus Viking Event fields
  * 
  * @example
- * // Extract Viking-specific fields
+ * // Extract Viking Event fields for camp group management
+ * const consolidatedData = {
+ *   items: [
+ *     {
+ *       scoutid: '12345',
+ *       firstname: 'Alice',
+ *       lastname: 'Smith',
+ *       dob: '2010-03-15',
+ *       age: 14,
+ *       patrol: 'Eagles',
+ *       patrolid: 'P001',
+ *       photo_guid: 'photo123',
+ *       CampGroup: '3',
+ *       SignedInBy: 'Leader Bob',
+ *       SignedInWhen: '2024-07-15 09:30:00',
+ *       SignedOutBy: null,
+ *       SignedOutWhen: null,
+ *       // ... other non-Viking fields excluded
+ *     }
+ *   ]
+ * };
+ * 
  * const vikingData = extractVikingEventFields(consolidatedData);
+ * 
  * vikingData.forEach(scout => {
- *   console.log(`${scout.firstname}: Camp Group ${scout.CampGroup}, Signed In: ${scout.SignedInWhen}`);
+ *   console.log(`${scout.firstname} ${scout.lastname} (Age ${scout.age})`);
+ *   console.log(`Camp Group: ${scout.CampGroup || 'Unassigned'}`);
+ *   console.log(`Status: ${scout.SignedInWhen ? 'Signed In' : 'Not Arrived'}`);
+ *   
+ *   if (scout.SignedInWhen) {
+ *     console.log(`Signed in by ${scout.SignedInBy} at ${scout.SignedInWhen}`);
+ *   }
+ *   
+ *   if (scout.SignedOutWhen) {
+ *     console.log(`Signed out by ${scout.SignedOutBy} at ${scout.SignedOutWhen}`);
+ *   }
  * });
+ * 
+ * @example
+ * // Generate camp group attendance report
+ * const vikingScouts = extractVikingEventFields(transformedData);
+ * const campGroups = {};
+ * 
+ * vikingScouts.forEach(scout => {
+ *   const group = scout.CampGroup || 'Unassigned';
+ *   if (!campGroups[group]) {
+ *     campGroups[group] = { signedIn: [], notArrived: [] };
+ *   }
+ *   
+ *   if (scout.SignedInWhen) {
+ *     campGroups[group].signedIn.push(scout);
+ *   } else {
+ *     campGroups[group].notArrived.push(scout);
+ *   }
+ * });
+ * 
+ * Object.entries(campGroups).forEach(([groupName, members]) => {
+ *   console.log(`${groupName}: ${members.signedIn.length} present, ${members.notArrived.length} expected`);
+ * });
+ * 
+ * @example
+ * // Handle missing or incomplete Viking Event data
+ * const partialData = { items: [
+ *   { scoutid: '111', firstname: 'Bob' }, // No Viking Event data
+ *   { scoutid: '222', firstname: 'Sue', CampGroup: '1' } // Partial data
+ * ]};
+ * 
+ * const extracted = extractVikingEventFields(partialData);
+ * // Returns scout objects with available fields, undefined for missing ones
+ * console.log(extracted[0].CampGroup); // undefined
+ * console.log(extracted[1].CampGroup); // '1'
+ * 
+ * @since 2.0.0
  */
 export function extractVikingEventFields(consolidatedData) {
   try {
@@ -247,16 +455,113 @@ export function extractVikingEventFields(consolidatedData) {
 // Helper function removed - now using person_type directly from getSummaryStats data
 
 /**
- * Organize members by their camp groups
- * Since Register and Camp Groups use the same data, just process the attendees array
- * which already has vikingEventData attached from getSummaryStats()
+ * Organizes members by their assigned camp groups for Viking Event management
  * 
- * @param {Array} processedMembers - Members with vikingEventData from getSummaryStats()
- * @returns {Object} Organized camp groups with leaders and young people
+ * Processes member data from getSummaryStats() to create organized camp groups
+ * structure. Automatically filters out leaders (who supervise rather than participate
+ * in camp groups) and organizes young people by their assigned camp group numbers.
+ * 
+ * This function is essential for the camp group management interface, providing
+ * structured data that enables group-based attendance tracking, activity organization,
+ * and leadership supervision during Viking Events.
+ * 
+ * The function maintains proper separation between leaders and young people,
+ * ensures consistent sorting by name within each group, and provides comprehensive
+ * metadata about group organization and Viking Event data availability.
+ * 
+ * @param {Array<Object>} processedMembers - Members with attached vikingEventData from getSummaryStats()
+ * @param {string} processedMembers[].scoutid - Unique member identifier
+ * @param {string} processedMembers[].name - Member full name
+ * @param {string} processedMembers[].firstname - Member first name
+ * @param {string} processedMembers[].lastname - Member last name
+ * @param {string} processedMembers[].person_type - Member type ('Leaders', 'Young Leaders', 'Young People', etc.)
+ * @param {Object} [processedMembers[].vikingEventData] - Viking Event specific data from FlexiRecord
+ * @param {string} [processedMembers[].vikingEventData.CampGroup] - Assigned camp group number
+ * @returns {Object} Organized camp groups with metadata
+ * @returns {Object} returns.groups - Camp groups organized by group name
+ * @returns {Object} returns.summary - Summary statistics and metadata
  * 
  * @example
- * const organized = organizeMembersByCampGroups(getSummaryStatsArray);
- * console.log(organized.groups['Group 1'].youngPeople); // Young people in group 1
+ * // Organize members from getSummaryStats into camp groups
+ * const processedMembers = [
+ *   {
+ *     scoutid: '12345',
+ *     name: 'Alice Smith',
+ *     firstname: 'Alice',
+ *     lastname: 'Smith',
+ *     person_type: 'Young People',
+ *     vikingEventData: { CampGroup: '3' }
+ *   },
+ *   {
+ *     scoutid: '67890',
+ *     name: 'Bob Johnson',
+ *     firstname: 'Bob',
+ *     lastname: 'Johnson',
+ *     person_type: 'Leaders',
+ *     vikingEventData: { CampGroup: '1' } // Leaders filtered out
+ *   },
+ *   {
+ *     scoutid: '11111',
+ *     name: 'Charlie Brown',
+ *     firstname: 'Charlie',
+ *     lastname: 'Brown',
+ *     person_type: 'Young People',
+ *     vikingEventData: { CampGroup: '3' }
+ *   }
+ * ];
+ * 
+ * const organized = organizeMembersByCampGroups(processedMembers);
+ * 
+ * // Access organized groups
+ * console.log('Camp Groups:', Object.keys(organized.groups));
+ * // Output: ['Group 3'] (Group 1 not included - only had leaders)
+ * 
+ * organized.groups['Group 3'].youngPeople.forEach(member => {
+ *   console.log(`${member.firstname} ${member.lastname} - Group ${member.campGroup}`);
+ * });
+ * // Output: 
+ * // Charlie Brown - Group 3
+ * // Alice Smith - Group 3 (sorted by lastname)
+ * 
+ * @example
+ * // Access summary statistics
+ * const result = organizeMembersByCampGroups(members);
+ * 
+ * console.log(`Total Groups: ${result.summary.totalGroups}`);
+ * console.log(`Total Young People: ${result.summary.totalYoungPeople}`);
+ * console.log(`Has Unassigned: ${result.summary.hasUnassigned}`);
+ * console.log(`Viking Data Available: ${result.summary.vikingEventDataAvailable}`);
+ * 
+ * // Check for members without camp group assignments
+ * if (result.summary.hasUnassigned) {
+ *   const unassigned = result.groups['Group Unassigned'];
+ *   console.log(`${unassigned.youngPeople.length} members need group assignment`);
+ * }
+ * 
+ * @example
+ * // Generate camp group attendance report
+ * const campGroupData = organizeMembersByCampGroups(members);
+ * 
+ * Object.entries(campGroupData.groups).forEach(([groupName, group]) => {
+ *   console.log(`\n${groupName} (${group.totalMembers} members):`);
+ *   
+ *   group.youngPeople.forEach(member => {
+ *     const status = member.vikingEventData?.SignedInWhen ? '✓ Present' : '○ Expected';
+ *     console.log(`  ${member.firstname} ${member.lastname} - ${status}`);
+ *   });
+ * });
+ * 
+ * @example
+ * // Handle missing Viking Event data gracefully
+ * const membersWithoutFlexiData = [
+ *   { scoutid: '999', name: 'Dave Wilson', person_type: 'Young People' }
+ * ];
+ * 
+ * const result = organizeMembersByCampGroups(membersWithoutFlexiData);
+ * // Members without vikingEventData go to 'Group Unassigned'
+ * console.log(result.groups['Group Unassigned'].youngPeople.length); // 1
+ * 
+ * @since 2.1.0
  */
 export function organizeMembersByCampGroups(processedMembers) {
   try {
