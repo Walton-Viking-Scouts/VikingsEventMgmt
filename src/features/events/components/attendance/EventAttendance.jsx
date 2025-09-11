@@ -15,6 +15,24 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
+/**
+ * Render the event attendance management UI with filters, tabs and member detail modal.
+ *
+ * Displays attendance data for one or more events, providing overview, register,
+ * detailed and camp-groups views, plus optional shared-attendance display. Handles
+ * loading and error states, derives per-member and per-section summaries, applies
+ * user-controlled filters and delegates sign-in / sign-out actions to the sign-in hook.
+ *
+ * Props:
+ * @param {Object[]} events - Array of event objects. Each event should include at least
+ *   sectionid and sectionname and may include attendance and shared-event metadata used
+ *   by the component and its hooks.
+ * @param {Object[]} members - Array of member objects (e.g. from the membership store).
+ *   Members are expected to include scoutid and person_type to allow role-based grouping.
+ * @param {Function} onBack - Callback invoked when the header/back action is triggered.
+ *
+ * @return {JSX.Element} The attendance management React component tree.
+ */
 function EventAttendance({ events, members, onBack }) {
   const {
     attendanceData,

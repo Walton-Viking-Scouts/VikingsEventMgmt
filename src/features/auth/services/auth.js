@@ -27,43 +27,12 @@ import { isDemoMode } from '../../../config/demoMode.js';
 // OAuth configuration now handled server-side for security
 
 /**
- * Retrieves the current authentication token from session storage
- * 
- * Returns the OSM access token if valid, or a demo token in demo mode.
- * Checks for token expiration flags and returns null if token is expired.
- * This function is the primary interface for checking authentication status.
- * 
- * @returns {string|null} Access token if available and valid, null if expired or missing
- * 
- * @example
- * // Check if user has valid token
- * const token = getToken();
- * if (token) {
- *   // Make authenticated API calls
- *   const response = await api.getData(token);
- * } else {
- *   // Redirect to login
- *   window.location.href = generateOAuthUrl();
- * }
- * 
- * @example
- * // Demo mode usage
- * if (isDemoMode()) {
- *   const demoToken = getToken(); // Returns 'demo-mode-token'
- *   // Use demo token for offline functionality
- * }
- * 
- * @example
- * // Token expiration check
- * const checkAuth = () => {
- *   const token = getToken();
- *   if (!token && sessionStorage.getItem('token_expired') === 'true') {
- *     notifyWarning('Session expired. Please log in again.');
- *     handleTokenExpiration();
- *   }
- * };
- * 
- * @since 2.3.7
+ * Get the current access token.
+ *
+ * Returns the stored OSM access token unless the session is marked expired,
+ * in which case it returns null. In demo mode returns the fixed 'demo-mode-token'.
+ *
+ * @returns {string|null} The access token, or null if missing or expired.
  */
 export function getToken() {
   // In demo mode, return a dummy token to enable offline functionality
@@ -81,44 +50,14 @@ export function getToken() {
 }
 
 /**
- * Stores an authentication token and initializes user session
- * 
- * Sets the OSM access token in session storage and performs initialization
- * tasks including resetting auth error state and setting Sentry user context.
- * This function should be called after successful OAuth authentication.
- * 
- * @param {string} token - OSM access token from successful OAuth flow
- * 
- * @example
- * // After OAuth callback with token
- * const urlParams = new URLSearchParams(window.location.search);
- * const token = urlParams.get('access_token');
- * if (token) {
- *   setToken(token);
- *   // User is now authenticated
- *   navigate('/dashboard');
- * }
- * 
- * @example
- * // Manual token setting for testing
- * if (process.env.NODE_ENV === 'development') {
- *   setToken('test-token-12345');
- *   notifySuccess('Development token set for testing');
- * }
- * 
- * @example
- * // Token refresh scenario
- * const refreshAuthToken = async () => {
- *   try {
- *     const newToken = await api.refreshToken();
- *     setToken(newToken);
- *     notifySuccess('Session refreshed successfully');
- *   } catch (error) {
- *     notifyError('Failed to refresh session', error);
- *     handleTokenExpiration();
- *   }
- * };
- * 
+ * Store the OSM access token and initialise authentication state.
+ *
+ * Stores the token in sessionStorage under "access_token", resets any authentication
+ * error state, and attempts to set a Sentry user context (best-effort — failures are
+ * logged but do not interrupt authentication). Call after a successful OAuth flow
+ * or when refreshing a token.
+ *
+ * @param {string} token - OSM access token to store.
  * @since 2.3.7
  */
 export function setToken(token) {
@@ -354,7 +293,19 @@ export function getAndClearReturnPath() {
   return returnPath || '/';
 }
 
-// Check if token is expired (for API call prevention)
+/**
+ * Determine whether the current access token is expired.
+ *
+ * Reads the stored 'token_expires_at' timestamp from sessionStorage and compares it to the current time.
+ * If no timestamp is present the function falls back to the 'token_expired' flag. If the stored timestamp
+ * cannot be parsed as a finite number it is treated as expired.
+ *
+ * Side effects:
+ * - If the timestamp is corrupt or the token is found to be expired, the function sets 'token_expired' to 'true'
+ *   in sessionStorage to keep legacy flags consistent.
+ *
+ * @return {boolean} True if the token is considered expired, otherwise false.
+ */
 export function isTokenExpired() {
   const expiresAt = sessionStorage.getItem('token_expires_at');
   if (!expiresAt) {
@@ -393,55 +344,14 @@ export function isTokenExpired() {
 }
 
 /**
- * Generates OAuth URL for OSM authentication
- * 
- * Creates a secure OAuth authentication URL that redirects to the backend
- * OAuth handler. Automatically detects environment (dev/prod) and embeds
- * frontend URL for proper callback handling. Optionally stores current path
- * for return after authentication.
- * 
- * @param {boolean} [storeCurrentPath=false] - Whether to store current path for post-auth redirect
- * @returns {string} Complete OAuth URL for redirect to authentication
- * 
- * @example
- * // Basic login redirect
- * const handleLogin = () => {
- *   const authUrl = generateOAuthUrl(true); // Store current path
- *   window.location.href = authUrl;
- * };
- * 
- * @example
- * // Login button component
- * const LoginButton = () => (
- *   <button 
- *     onClick={() => window.location.href = generateOAuthUrl(true)}
- *     className="bg-scout-blue text-white px-4 py-2 rounded"
- *   >
- *     Login with OSM
- *   </button>
- * );
- * 
- * @example
- * // Conditional authentication
- * const requireAuth = (callback) => {
- *   if (!isAuthenticated()) {
- *     const authUrl = generateOAuthUrl(true);
- *     notifyInfo('Authentication required');
- *     setTimeout(() => window.location.href = authUrl, 1500);
- *     return;
- *   }
- *   callback();
- * };
- * 
- * @example
- * // Environment-aware authentication
- * const getAuthUrl = () => {
- *   const url = generateOAuthUrl();
- *   console.log('Environment:', url.includes('prod') ? 'Production' : 'Development');
- *   return url;
- * };
- * 
- * @since 2.3.7
+ * Build the OAuth redirect URL for OSM authentication.
+ *
+ * Detects environment (production vs development), embeds the frontend origin so the backend can
+ * return the user to the correct callback, and optionally saves the current client path for
+ * post-auth redirection.
+ *
+ * @param {boolean} [storeCurrentPath=false] - If true, persist the current location so the user can be returned there after authentication.
+ * @returns {string} The full backend OAuth URL to redirect the browser to.
  */
 export function generateOAuthUrl(storeCurrentPath = false) {
   if (storeCurrentPath) {

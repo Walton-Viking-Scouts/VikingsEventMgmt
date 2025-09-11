@@ -4,6 +4,18 @@ import { MedicalDataPill } from '../../../../shared/components/ui';
 import { calculateAge } from '../../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 
+/**
+ * Render a detailed tabular view of members including attendance, camp group, contacts, essential medical information and consents.
+ *
+ * Renders a responsive table driven by `summaryStats` where each row aggregates a member's identity (from `members`), attendance status, viking event camp group, optional contact details, expanded essential information (allergies, medical details, dietary requirements, tetanus year, swimmer status, other info, confirmed by parents) and consent flags (photos, sensitive info, paracetamol, ibuprofen, suncream). If `summaryStats` is missing, not an array, or empty the component renders a "No Members Found" placeholder.
+ *
+ * Props:
+ * @param {Array} summaryStats - Attendance/summary entries used to drive rows; each entry is expected to contain `scoutid`, attendance counts (`yes`, `no`, `invited`, `notInvited`) and optional `vikingEventData`.
+ * @param {Array} members - Full members list used to enrich rows; members are matched to `summaryStats` by `scoutid`.
+ * @param {Function} onMemberClick - Callback invoked with the member object when a member name is clicked.
+ * @param {boolean} [showContacts=false] - When true, includes Primary and Emergency contact columns in the table.
+ * @returns {JSX.Element} The rendered table or a placeholder when no members are available.
+ */
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);
   const [_showMemberModal, _setShowMemberModal] = useState(false);

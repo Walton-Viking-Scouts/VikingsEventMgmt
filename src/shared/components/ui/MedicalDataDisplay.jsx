@@ -2,6 +2,22 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { formatMedicalDataForDisplay, getMedicalFieldsFromMember } from '../../utils/medicalDataUtils.js';
 
+/**
+ * Render a small badge ("pill") summarising a piece of medical data.
+ *
+ * If `value` and `fieldName` are provided the function uses the new structured format:
+ * it calls `formatMedicalDataForDisplay(value, fieldName)` and either renders a coloured pill
+ * using the returned `indicator.pillColor` or, when `indicator.showPill` is false, a plain text span.
+ * Otherwise it falls back to the legacy `data`/`type` inputs and maps `type` to a set of fallback styles.
+ * If there is no displayable data (except the explicit placeholder `'---'`) the component returns `null`.
+ *
+ * @param {string|Array} [value] - New-format medical value(s). When present together with `fieldName` the value is formatted via utilities.
+ * @param {string} [fieldName] - Field identifier for new-format values; used by the formatter to derive display text and indicator.
+ * @param {string} [data] - Legacy plain text value used when `value`/`fieldName` are not supplied.
+ * @param {'info'|'warning'|'danger'|'success'} [type='info'] - Legacy type hint used to pick fallback pill styling.
+ * @param {string} [className=''] - Additional CSS classes appended to the rendered element.
+ * @returns {JSX.Element|null} A styled <span> containing the display text, or `null` when there is nothing to show.
+ */
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   
   // If using the new format with value/fieldName, process the data
@@ -108,6 +124,18 @@ MedicalDataDisplay.propTypes = {
   className: PropTypes.string,
 };
 
+/**
+ * Render a labelled row containing a single medical-data pill.
+ *
+ * Renders a label and a MedicalDataPill for the given field value. The pill uses
+ * the `fieldName` to determine formatting when `value` follows the newer data
+ * shape; otherwise `value` may be a legacy string/array.
+ *
+ * @param {string} label - Visible label text for the field.
+ * @param {string|Array} [value] - The field value to display (string or array); may be the new-format value expected by formatMedicalDataForDisplay.
+ * @param {string} fieldName - Key identifying the medical field (used by formatting helpers).
+ * @returns {JSX.Element} A labelled container with the rendered medical pill.
+ */
 export function MedicalDataField({ label, value, fieldName }) {
   return (
     <div>
@@ -125,6 +153,17 @@ export function MedicalDataField({ label, value, fieldName }) {
   );
 }
 
+/**
+ * Render a compact summary pill describing whether a member has medical information.
+ *
+ * Uses getMedicalFieldsFromMember(member) to derive allergies, medical_details and
+ * dietary_requirements. If none have values, renders a green "No medical data" pill;
+ * otherwise renders an orange pill showing the number of present medical conditions
+ * (pluralised).
+ *
+ * @param {Object} member - Member object from which medical fields are derived.
+ * @returns {JSX.Element} A styled summary pill element.
+ */
 export function MedicalDataSummary({ member }) {
   const medical = getMedicalFieldsFromMember(member);
   
