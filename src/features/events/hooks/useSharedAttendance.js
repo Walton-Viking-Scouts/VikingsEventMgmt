@@ -288,6 +288,7 @@ export function useSharedAttendance(events, viewMode) {
 
       loadSharedAttendance();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, hasSharedEvents, events]);
 
   return {
