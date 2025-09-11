@@ -59,7 +59,20 @@ function SectionsList({
   );
 }
 
-// Members Table Content - Integrated into main card
+/**
+ * Render the members table and related controls for a set of sections.
+ *
+ * Loads member records when the selected sections change, presents filters
+ * (section toggles and a contacts column toggle), displays members in a table
+ * with essential medical/consent columns, supports exporting the visible
+ * members to CSV and showing a member detail modal.
+ *
+ * @param {Object[]} sections - Array of currently selected section objects (used to load members).
+ * @param {function(Object):void} onSectionToggle - Callback invoked when a section toggle button is clicked; receives the section object.
+ * @param {Object[]} allSections - Full list of available section objects used to render section toggle buttons (sorted for display).
+ * @param {(string|number|null)} loadingSection - Section id currently in a loading/transition state (disables its toggle).
+ * @returns {JSX.Element} The rendered MembersTableContent component.
+ */
 function MembersTableContent({ sections, onSectionToggle, allSections, loadingSection }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);

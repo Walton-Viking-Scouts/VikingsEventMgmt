@@ -3,6 +3,24 @@ import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
+/**
+ * React hook that loads and exposes shared attendance data for given events.
+ *
+ * Loads shared attendance from localStorage (demo and production cache keys), attempts
+ * an API fetch when authenticated, and can generate shared data by aggregating per-section
+ * attendance as a fallback. Caches generated or fetched shared attendance to localStorage.
+ *
+ * Note: the hook reads and writes localStorage, may call getToken() and getSharedEventAttendance(),
+ * and logs diagnostic messages. Errors during parsing or network calls are handled internally;
+ * the hook does not throw.
+ *
+ * @param {Array<object>} events - Array of event objects; each should include at least `eventid` and `sectionid` (used to locate cached/section data) and may include `eventname` (used for debug logging).
+ * @param {string} viewMode - Current view mode; shared attendance is loaded when this equals `'sharedAttendance'`.
+ * @returns {{ sharedAttendanceData: Array<object>|null, loadingSharedAttendance: boolean, hasSharedEvents: boolean }} An object containing:
+ *  - `sharedAttendanceData`: array of shared attendance records (or null before initial load),
+ *  - `loadingSharedAttendance`: boolean loading flag,
+ *  - `hasSharedEvents`: boolean indicating whether any input event is marked as a shared event in localStorage.
+ */
 export function useSharedAttendance(events, viewMode) {
   const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
   const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);

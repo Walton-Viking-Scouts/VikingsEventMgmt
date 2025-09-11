@@ -71,6 +71,21 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
   );
 };
 
+/**
+ * Render a register table showing member attendance, actions and sign‑in/out details.
+ *
+ * Renders an empty-state message when no summary statistics are provided. The table supports
+ * sorting by member name or attendance via the supplied `sortConfig` and `onSort` handler.
+ *
+ * @param {Object[]} summaryStats - Array of member summary rows (each row contains at least `scoutid`, `name`, attendance counts and optional `vikingEventData`).
+ * @param {Object[]} members - Full member objects; used to look up and pass the complete member to `onMemberClick`.
+ * @param {function(Object,string=):void} onSignInOut - Callback invoked by the SignInOutButton when a sign-in/out action occurs.
+ * @param {Object<string,boolean>} buttonLoading - Map of scoutid to loading state for action buttons.
+ * @param {function(Object):void} onMemberClick - Called with the full member object when a member name is clicked.
+ * @param {{key:string, direction:string}} sortConfig - Current sort configuration (key and 'asc'|'desc' direction).
+ * @param {function({key:string, direction:string}):void} onSort - Called to update the sort configuration.
+ * @returns {JSX.Element} The rendered register tab (table or empty-state message).
+ */
 function RegisterTab({ 
   summaryStats,
   members,
