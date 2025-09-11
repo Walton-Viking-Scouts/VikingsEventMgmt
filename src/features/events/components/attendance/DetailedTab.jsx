@@ -100,10 +100,15 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
         return contacts;
       })(),
       
-      // Essential Information
-      allergies: getField(['essential_information'], ['allergies']) || '',
-      medical_details: getField(['essential_information'], ['medical_details']) || '',
-      dietary_requirements: getField(['essential_information'], ['dietary_requirements']) || '',
+      // Essential Information (comprehensive approach)
+      essential_information: contactGroups.essential_information || {},
+      allergies: contactGroups.essential_information?.allergies || '',
+      medical_details: contactGroups.essential_information?.medical_details || '',
+      dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
+      tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
+      swimmer: contactGroups.essential_information?.swimmer || '',
+      other_useful_information: contactGroups.essential_information?.other_useful_information || '',
+      confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
       
       // Consents
       consent_photos: getField(['consents'], ['photographs', 'photos']) || '',
@@ -177,7 +182,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                 </th>
               )}
             
-              {/* Medical Info Headers */}
+              {/* Essential Information Headers */}
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
                 Allergies
               </th>
@@ -186,6 +191,18 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
                 Dietary
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                Tetanus
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                Swimmer
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                Other Info
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+                Confirmed By
               </th>
             
               {/* Consent Headers */}
@@ -289,7 +306,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                     </td>
                   )}
                 
-                  {/* Medical Info Cells - Three separate columns */}
+                  {/* Essential Information Cells - Six comprehensive columns */}
                   <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
                     <div className="max-w-[8rem] break-words">
                       <MedicalDataPill 
@@ -313,6 +330,42 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                       <MedicalDataPill 
                         value={memberData.dietary_requirements} 
                         fieldName="dietary_requirements"
+                        className="text-xs"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                    <div className="max-w-[8rem] break-words">
+                      <MedicalDataPill 
+                        value={memberData.tetanus_year_of_last_jab} 
+                        fieldName="tetanus_year_of_last_jab"
+                        className="text-xs"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                    <div className="max-w-[8rem] break-words">
+                      <MedicalDataPill 
+                        value={memberData.swimmer} 
+                        fieldName="swimmer"
+                        className="text-xs"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                    <div className="max-w-[8rem] break-words">
+                      <MedicalDataPill 
+                        value={memberData.other_useful_information} 
+                        fieldName="other_useful_information"
+                        className="text-xs"
+                      />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-900 bg-orange-25 w-32">
+                    <div className="max-w-[8rem] break-words">
+                      <MedicalDataPill 
+                        value={memberData.confirmed_by_parents} 
+                        fieldName="confirmed_by_parents"
                         className="text-xs"
                       />
                     </div>

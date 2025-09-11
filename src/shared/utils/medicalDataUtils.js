@@ -54,7 +54,62 @@ const SYSTEM_DEFAULTS = [
   'n/a', 'not applicable', 'default', 'system',
 ];
 
-export function categorizeMedicalData(value, _fieldName = '') {
+function isDateOverOneYearOld(dateString) {
+  if (!dateString || typeof dateString !== 'string') return false;
+  
+  // Extract date from start of string (format like "2025-08-26 12:24:57:Simon Clark")
+  const dateMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!dateMatch) return false;
+  
+  const confirmDate = new Date(dateMatch[1]);
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  
+  return confirmDate < oneYearAgo;
+}
+
+export function categorizeMedicalData(value, fieldName = '') {
+  // Special handling for non-medical fields that shouldn't be colored
+  const nonMedicalFields = ['tetanus_year_of_last_jab', 'other_useful_information'];
+  if (nonMedicalFields.includes(fieldName.toLowerCase())) {
+    // These fields show data without coloring (just plain text)
+    if (!value || value === null || value === undefined || String(value).trim() === '') {
+      return MEDICAL_DATA_STATES.MISSING; // Will show yellow "---"
+    }
+    return MEDICAL_DATA_STATES.CONFIRMED_NONE; // Will show plain text without pill
+  }
+  
+  // Special handling for swimmer field - treat as safety indicator
+  if (fieldName.toLowerCase() === 'swimmer') {
+    if (!value || value === null || value === undefined || String(value).trim() === '') {
+      return MEDICAL_DATA_STATES.MISSING; // Yellow "---" for missing swimming ability
+    }
+    
+    const normalizedValue = String(value).toLowerCase().trim();
+    if (normalizedValue === 'yes') {
+      return MEDICAL_DATA_STATES.CONFIRMED_NONE; // No color for "Yes" - good swimming ability
+    }
+    if (normalizedValue === 'no') {
+      return MEDICAL_DATA_STATES.HAS_DATA; // Red for "No" - cannot swim, safety concern
+    }
+    
+    return MEDICAL_DATA_STATES.CONFIRMED_NONE; // Default to no color for other values
+  }
+  
+  // Special handling for confirmed_by_parents - check date age
+  if (fieldName.toLowerCase() === 'confirmed_by_parents') {
+    if (!value || value === null || value === undefined || String(value).trim() === '') {
+      return MEDICAL_DATA_STATES.MISSING; // Yellow "---"
+    }
+    
+    if (isDateOverOneYearOld(String(value))) {
+      return MEDICAL_DATA_STATES.HAS_DATA; // Red - confirmation is over a year old
+    }
+    
+    return MEDICAL_DATA_STATES.CONFIRMED_NONE; // No color - recent confirmation
+  }
+  
+  // Standard medical field handling (allergies, medical_details, dietary_requirements)
   if (!value || value === null || value === undefined) {
     return MEDICAL_DATA_STATES.MISSING;
   }
@@ -95,6 +150,22 @@ export function formatMedicalDataForDisplay(value, fieldName = '') {
   }
 
   if (state === MEDICAL_DATA_STATES.CONFIRMED_NONE) {
+    // For non-medical fields like swimmer, show actual value instead of "None"
+    const nonMedicalFields = ['tetanus_year_of_last_jab', 'other_useful_information', 'swimmer', 'confirmed_by_parents'];
+    const actualValue = Array.isArray(value)
+      ? value.filter(Boolean).join('; ')
+      : (value ?? '').toString().trim();
+    
+    if (nonMedicalFields.includes(fieldName.toLowerCase()) && actualValue) {
+      return {
+        display: actualValue,
+        value: actualValue,
+        indicator,
+        csvValue: actualValue,
+      };
+    }
+    
+    // For actual medical fields, show "None" when confirmed as no issues
     return {
       display: 'None',
       value: 'None',

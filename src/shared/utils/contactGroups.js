@@ -33,25 +33,7 @@ export function groupContactInfo(member) {
     if (hasPhone) groups.member_contact.phone = member.phone;
   }
 
-  // Also process nested contact_groups data if available
-  if (member.contact_groups) {
-    Object.entries(member.contact_groups).forEach(([groupName, groupData]) => {
-      if (groupData && typeof groupData === 'object') {
-        const normalizedGroupName = groupName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        if (!groups[normalizedGroupName]) {
-          groups[normalizedGroupName] = {};
-        }
-        // Merge nested data with flattened data (nested takes precedence)
-        Object.entries(groupData).forEach(([fieldName, fieldValue]) => {
-          const normalizedFieldName = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-          const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim() === '';
-          if (fieldValue !== undefined && fieldValue !== null && !isEmptyString) {
-            groups[normalizedGroupName][normalizedFieldName] = fieldValue;
-          }
-        });
-      }
-    });
-  }
+  // Note: Backend now only creates flattened fields, no nested contact_groups processing needed
 
   return groups;
 }
