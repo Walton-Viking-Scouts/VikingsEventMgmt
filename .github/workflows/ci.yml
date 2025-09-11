@@ -29,6 +29,68 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+  # Documentation Quality Check
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JSDoc syntax
+        run: npm run docs:validate
+
+      - name: Generate documentation
+        run: npm run docs:generate
+
+      - name: Check documentation coverage
+        run: |
+          echo "🔍 Checking JSDoc documentation coverage..."
+          
+          # Count total JavaScript/JSX files
+          TOTAL_FILES=$(find src -name "*.js" -o -name "*.jsx" | wc -l)
+          
+          # Count files with JSDoc comments (simple heuristic)
+          FILES_WITH_JSDOC=$(find src -name "*.js" -o -name "*.jsx" | xargs grep -l "/\*\*" | wc -l)
+          
+          # Calculate coverage percentage
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            COVERAGE=$((FILES_WITH_JSDOC * 100 / TOTAL_FILES))
+          else
+            COVERAGE=0
+          fi
+          
+          echo "📊 Documentation Coverage Report:"
+          echo "   Total files: $TOTAL_FILES"
+          echo "   Files with JSDoc: $FILES_WITH_JSDOC"
+          echo "   Coverage: $COVERAGE%"
+          
+          # Set minimum coverage threshold
+          MIN_COVERAGE=20
+          
+          if [ "$COVERAGE" -lt "$MIN_COVERAGE" ]; then
+            echo "❌ Documentation coverage ($COVERAGE%) is below minimum threshold ($MIN_COVERAGE%)"
+            echo "💡 Please add JSDoc comments to more functions and components"
+            exit 1
+          else
+            echo "✅ Documentation coverage ($COVERAGE%) meets minimum threshold ($MIN_COVERAGE%)"
+          fi
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/api/
+          retention-days: 7
+
   # Build Test
   build:
     runs-on: ubuntu-latest

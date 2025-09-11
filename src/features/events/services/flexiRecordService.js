@@ -1,6 +1,40 @@
-// FlexiRecord Service for Viking Event Management
-// Handles flexirecord data operations with caching following existing patterns
+/**
+ * @fileoverview FlexiRecord Service for Viking Event Management
+ * 
+ * Comprehensive service for managing OSM FlexiRecord operations with offline-first
+ * architecture and intelligent caching. Handles Scout attendance data, section
+ * movement tracking, and custom data fields with automatic fallback mechanisms.
+ * 
+ * Key features:
+ * - Offline-first with localStorage caching and TTL management
+ * - Specialized support for Viking Event Management and Section Movers FlexiRecords
+ * - Network-aware operations with automatic fallback to cached data
+ * - Demo mode data segregation and comprehensive error handling
+ * - Field mapping and data transformation for meaningful FlexiRecord usage
+ * - Multi-section FlexiRecord discovery and validation
+ * 
+ * @module FlexiRecordService
+ * @requires ../../../shared/utils/storageUtils
+ * @requires ../../../shared/utils/networkUtils
+ * @requires ../../../shared/services/utils/logger
+ * @requires ../../../shared/services/utils/sentry
+ */
 
+/**
+ * Validates if authentication token is usable for API calls
+ * 
+ * @private
+ * @param {string} token - Authentication token to validate
+ * @returns {boolean} True if token is usable for API requests
+ * 
+ * @example
+ * // Check token before API call
+ * if (hasUsableToken(authToken)) {
+ *   // Proceed with API request
+ * } else {
+ *   // Use cached data only
+ * }
+ */
 function hasUsableToken(token) {
   if (typeof token !== 'string') {
     return false;
@@ -8,6 +42,20 @@ function hasUsableToken(token) {
   return token.trim().length > 0;
 }
 
+/**
+ * Normalizes ID values to strings with validation
+ * 
+ * @private
+ * @param {string|number} id - ID to normalize
+ * @param {string} name - Name of the ID for error messages
+ * @returns {string} Normalized string ID
+ * @throws {Error} If ID is invalid or empty
+ * 
+ * @example
+ * // Normalize section ID
+ * const sectionId = normalizeId(123, 'sectionId'); // Returns "123"
+ * const termId = normalizeId('term_456', 'termId'); // Returns "term_456"
+ */
 function normalizeId(id, name) {
   if (typeof id === 'number') return String(id);
   if (typeof id === 'string' && id.trim() !== '' && id !== 'undefined' && id !== 'null') return id;
@@ -25,12 +73,43 @@ import {
   getSingleFlexiRecord,
 } from '../../../shared/services/api/api.js';
 
-// Cache TTL constants - localStorage only for persistence
+/**
+ * Cache TTL constants for different types of FlexiRecord data
+ * 
+ * Optimized for different data change frequencies:
+ * - Structures change rarely (field definitions are static)
+ * - Data changes frequently (attendance is live during events)
+ * - Lists change occasionally (new FlexiRecords added periodically)
+ */
+
+/** @constant {number} Cache TTL for FlexiRecord structures (1 hour) */
 const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000; // 1 hour - field definitions are static
+
+/** @constant {number} Cache TTL for FlexiRecord data (5 minutes) */
 const FLEXI_DATA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - attendance changes frequently
+
+/** @constant {number} Cache TTL for FlexiRecord lists (30 minutes) */
 const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - available flexirecords per section
 
-// Helper function to check if localStorage cache is valid
+/**
+ * Checks if localStorage cache is still valid based on TTL
+ * 
+ * @private
+ * @param {string} cacheKey - Cache key to check
+ * @param {number} ttl - Time-to-live in milliseconds
+ * @returns {Object} Cache validity result with data and age information
+ * @returns {boolean} returns.valid - Whether cache is still valid
+ * @returns {*} returns.data - Cached data if available
+ * @returns {number} returns.cacheAgeMinutes - Age of cache in minutes
+ * 
+ * @example
+ * // Check if events cache is valid
+ * const cacheCheck = isCacheValid('viking_events_1_offline', FLEXI_LISTS_CACHE_TTL);
+ * if (cacheCheck.valid) {
+ *   console.log(`Using cache from ${cacheCheck.cacheAgeMinutes} minutes ago`);
+ *   return cacheCheck.data;
+ * }
+ */
 function isCacheValid(cacheKey, ttl) {
   const cached = safeGetItem(cacheKey, null);
   if (!cached || !cached._cacheTimestamp) {
@@ -43,7 +122,19 @@ function isCacheValid(cacheKey, ttl) {
   return { valid: isValid, data: cached, cacheAgeMinutes: Math.round(cacheAge / 60000) };
 }
 
-// Helper function to cache data with timestamp
+/**
+ * Caches data with timestamp and comprehensive error handling
+ * 
+ * @private
+ * @param {string} cacheKey - Cache key for localStorage
+ * @param {*} data - Data to cache (will be JSON serialized)
+ * @returns {*} Original data without timestamp (for chaining)
+ * 
+ * @example
+ * // Cache FlexiRecord data with automatic timestamp
+ * const cachedData = cacheData('viking_flexi_data_123_offline', flexiData);
+ * return cachedData; // Returns original data for immediate use
+ */
 function cacheData(cacheKey, data) {
   const cachedData = {
     ...data,
@@ -97,11 +188,36 @@ function cacheData(cacheKey, data) {
 }
 
 /**
- * Get available flexirecords for a section (follows getTerms pattern)
- * @param {string|number} sectionId - Section ID
- * @param {string} token - Authentication token  
- * @param {boolean} forceRefresh - Force API call ignoring cache
- * @returns {Promise<Object>} Flexirecords list
+ * Gets available FlexiRecords for a Scout section with intelligent caching
+ * 
+ * Retrieves list of FlexiRecords available for a section with offline-first
+ * approach and demo mode support. Uses localStorage caching with configurable
+ * TTL and automatically falls back to cached data when offline or on API failure.
+ * 
+ * @async
+ * @param {string|number} sectionId - Section identifier
+ * @param {string} token - OSM authentication token (null for offline mode)
+ * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
+ * @returns {Promise<Object>} FlexiRecords list with metadata
+ * @returns {Array} returns.items - Array of available FlexiRecord objects
+ * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * 
+ * @example
+ * // Get FlexiRecords for Beavers section
+ * const flexiRecords = await getFlexiRecordsList(1, authToken);
+ * 
+ * console.log(`Found ${flexiRecords.items.length} FlexiRecords:`);
+ * flexiRecords.items.forEach(record => {
+ *   console.log(`- ${record.name} (ID: ${record.extraid})`);
+ * });
+ * 
+ * @example
+ * // Force refresh for up-to-date data
+ * const freshRecords = await getFlexiRecordsList(sectionId, token, true);
+ * 
+ * @example
+ * // Offline usage with cached data
+ * const cachedRecords = await getFlexiRecordsList(sectionId, null);
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');
@@ -178,13 +294,43 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
 }
 
 /**
- * Get flexirecord structure (field definitions) - cached longer as they don't change often
- * @param {string|number} flexirecordId - FlexiRecord ID
- * @param {string|number} sectionId - Section ID
- * @param {string|number} termId - Term ID
- * @param {string} token - Authentication token
- * @param {boolean} forceRefresh - Force API call ignoring cache
- * @returns {Promise<Object>} FlexiRecord structure
+ * Gets FlexiRecord structure with field definitions and metadata
+ * 
+ * Retrieves the structure/schema for a specific FlexiRecord including field
+ * definitions, types, and configuration. Cached longer than data as field
+ * definitions rarely change. Essential for understanding FlexiRecord layout
+ * and mapping field IDs to meaningful names.
+ * 
+ * @async
+ * @param {string|number} flexirecordId - FlexiRecord identifier
+ * @param {string|number} sectionId - Section identifier
+ * @param {string|number} termId - Term identifier
+ * @param {string} token - OSM authentication token (null for offline mode)
+ * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
+ * @returns {Promise<Object|null>} FlexiRecord structure or null if not found
+ * @returns {string} returns.name - FlexiRecord name
+ * @returns {string} returns.extraid - FlexiRecord external ID
+ * @returns {Object} returns.structure - Field definitions and configuration
+ * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * 
+ * @example
+ * // Get structure for Viking Event Management FlexiRecord
+ * const structure = await getFlexiRecordStructure('flexi_123', 1, 'term_456', token);
+ * 
+ * if (structure) {
+ *   console.log(`FlexiRecord: ${structure.name}`);
+ *   console.log('Available fields:', Object.keys(structure.structure.columns));
+ * }
+ * 
+ * @example
+ * // Use structure to understand field mappings
+ * const structure = await getFlexiRecordStructure(flexiId, sectionId, termId, token);
+ * const fieldMapping = parseFlexiStructure(structure);
+ * 
+ * // Map field IDs to human-readable names
+ * fieldMapping.forEach((fieldInfo, fieldId) => {
+ *   console.log(`Field ${fieldId}: ${fieldInfo.name} (${fieldInfo.type})`);
+ * });
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
   flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
@@ -369,16 +515,58 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
 }
 
 /**
- * Get consolidated flexirecord data with meaningful field names
- * This is the main function that combines structure and data retrieval with caching
+ * Gets consolidated FlexiRecord data with meaningful field names and structure
  * 
- * @param {string} sectionId - Section ID
- * @param {string} flexirecordId - FlexiRecord ID (extraid)
- * @param {string} termId - Term ID
- * @param {string} token - Authentication token (null for offline-only)
- * @param {boolean} forceRefresh - Force refresh of data cache
- * @returns {Promise<Object>} Consolidated flexirecord data with meaningful field names
- * @throws {Error} If any API call fails or data is invalid
+ * Main function that combines FlexiRecord structure and data retrieval with
+ * intelligent caching and field mapping. Transforms raw FlexiRecord data into
+ * a usable format with human-readable field names and proper data types.
+ * This is the primary function for working with FlexiRecord data.
+ * 
+ * @async
+ * @param {string|number} sectionId - Section identifier
+ * @param {string|number} flexirecordId - FlexiRecord identifier (extraid)
+ * @param {string|number} termId - Term identifier
+ * @param {string} token - OSM authentication token (null for offline mode)
+ * @param {boolean} [forceRefresh=false] - Force refresh of data cache
+ * @returns {Promise<Object>} Consolidated FlexiRecord with structure and data
+ * @returns {Object} returns.items - Array of data records with meaningful field names
+ * @returns {Object} returns._structure - FlexiRecord metadata and field mapping
+ * @returns {string} returns._structure.name - FlexiRecord name
+ * @returns {string} returns._structure.extraid - FlexiRecord external ID
+ * @returns {boolean} returns._structure.archived - Whether FlexiRecord is archived
+ * @returns {Object} returns._structure.fieldMapping - Field ID to name/type mapping
+ * @throws {Error} If required parameters missing or API calls fail
+ * 
+ * @example
+ * // Get consolidated Viking Event Management data
+ * const eventData = await getConsolidatedFlexiRecord(
+ *   sectionId, 
+ *   'viking_event_flexi_123', 
+ *   termId, 
+ *   authToken
+ * );
+ * 
+ * // Access data with meaningful field names
+ * eventData.items.forEach(record => {
+ *   console.log(`Scout: ${record.scoutName}`);
+ *   console.log(`Attendance: ${record.eventAttendance}`);
+ *   console.log(`Notes: ${record.attendanceNotes}`);
+ * });
+ * 
+ * // Use field mapping for dynamic field access
+ * const fieldMapping = eventData._structure.fieldMapping;
+ * Object.values(fieldMapping).forEach(field => {
+ *   console.log(`Field: ${field.name} - Type: ${field.type}`);
+ * });
+ * 
+ * @example
+ * // Handle offline mode gracefully
+ * try {
+ *   const data = await getConsolidatedFlexiRecord(sectionId, flexiId, termId, null);
+ *   // Use cached data
+ * } catch (error) {
+ *   console.log('No cached data available - need internet connection');
+ * }
  */
 export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termId, token, forceRefresh = false) {
   try {
@@ -461,14 +649,55 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
 }
 
 /**
- * Get Viking Event Management flexirecord for a section
- * Looks for flexirecord with name="Viking Event Mgmt"
+ * Gets Viking Event Management FlexiRecord data for a Scout section
  * 
- * @param {string|number} sectionId - Section ID
- * @param {string|number} termId - Term ID
- * @param {string} token - Authentication token (null for offline)
- * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
- * @returns {Promise<Object|null>} Viking Event Mgmt flexirecord data or null if not found
+ * Specialized function that looks for the "Viking Event Mgmt" FlexiRecord
+ * within a section and returns consolidated data with meaningful field names.
+ * This is the primary function for accessing Scout event attendance data
+ * in the Vikings Event Management system.
+ * 
+ * @async
+ * @param {string|number} sectionId - Section identifier
+ * @param {string|number} termId - Term identifier
+ * @param {string} token - OSM authentication token (null for offline mode)
+ * @param {boolean} [forceRefresh=false] - Force refresh of data cache
+ * @returns {Promise<Object|null>} Viking Event Mgmt FlexiRecord data or null if not found
+ * @returns {Array} returns.items - Event attendance records with scout details
+ * @returns {Object} returns._structure - FlexiRecord structure and field mapping
+ * @returns {string} returns._structure.name - Always "Viking Event Mgmt"
+ * @returns {Object} returns._structure.fieldMapping - Field mappings for attendance data
+ * 
+ * @example
+ * // Get Viking Event data for Beavers section
+ * const eventData = await getVikingEventData(1, 'term_2024_spring', authToken);
+ * 
+ * if (eventData) {
+ *   console.log(`Found ${eventData.items.length} attendance records`);
+ *   
+ *   // Process attendance data
+ *   eventData.items.forEach(record => {
+ *     console.log(`${record.scoutName}: ${record.eventAttendance}`);
+ *     if (record.attendanceNotes) {
+ *       console.log(`  Notes: ${record.attendanceNotes}`);
+ *     }
+ *   });
+ * } else {
+ *   console.log('No Viking Event Management FlexiRecord found for this section');
+ * }
+ * 
+ * @example
+ * // Use for event dashboard display
+ * const sections = await getSections();
+ * 
+ * for (const section of sections) {
+ *   const eventData = await getVikingEventData(section.sectionid, termId, token);
+ *   if (eventData) {
+ *     const attendingCount = eventData.items.filter(
+ *       record => record.eventAttendance === 'Yes'
+ *     ).length;
+ *     console.log(`${section.sectionname}: ${attendingCount} attending`);
+ *   }
+ * }
  */
 export async function getVikingEventData(sectionId, termId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');

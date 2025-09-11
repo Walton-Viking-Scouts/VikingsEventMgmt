@@ -73,6 +73,7 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
 
 function RegisterTab({ 
   summaryStats,
+  members,
   onSignInOut,
   buttonLoading,
   onMemberClick,
@@ -139,12 +140,10 @@ function RegisterTab({
               <td className="px-3 py-2">
                 <button
                   onClick={() => {
-                    onMemberClick({
-                      scoutid: member.scoutid,
-                      firstname: member.name.split(' ')[0],
-                      lastname: member.name.split(' ').slice(1).join(' '),
-                      sectionname: member.events[0]?.sectionname,
-                    });
+                    const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
+                    if (fullMember) {
+                      onMemberClick(fullMember);
+                    }
                   }}
                   className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block text-xs"
                 >

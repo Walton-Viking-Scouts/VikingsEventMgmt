@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: shared/utils/termUtils.js</title>
+    <title>JSDoc: Module: DatabaseService</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,224 +17,263 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: shared/utils/termUtils.js</h1>
+    <h1 class="page-title">Module: DatabaseService</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>// Term utility functions for Vikings Event Management Mobile
-import { sentryUtils } from '../services/utils/sentry.js';
-import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-
-/**
- * Find the most recent term from a list of terms based on end date
- * Compares term end dates to determine which is the most recent/current
- * 
- * @param {TermObject[]} terms - Array of term objects with enddate property
- * @returns {TermObject|null} Most recent term object or null if no valid terms
- * @throws {Error} If terms parameter is invalid
- * 
- * @typedef {Object} TermObject
- * @property {string} termid - Unique term identifier
- * @property {string} enddate - Term end date in ISO format or parseable date string
- * @property {string} [name] - Optional term name
- * @property {string} [startdate] - Optional term start date
- * 
- * @example
- * // Find current/most recent term from API response
- * const terms = [
- *   { termid: '1', enddate: '2023-07-31', name: 'Summer 2023' },
- *   { termid: '2', enddate: '2023-12-15', name: 'Autumn 2023' },
- *   { termid: '3', enddate: '2024-03-31', name: 'Spring 2024' }
- * ];
- * const currentTerm = findMostRecentTerm(terms); // Returns Spring 2024 term
- */
-export function findMostRecentTerm(terms) {
-  // Input validation
-  if (!Array.isArray(terms)) {
-    const error = new Error(`Invalid terms parameter: expected array, got ${typeof terms}`);
+        
+            
+        
+            
+        
     
-    logger.error('Invalid terms parameter for findMostRecentTerm', {
-      providedType: typeof terms,
-      isArray: Array.isArray(terms),
-      isNull: terms === null,
-      isUndefined: terms === undefined,
-    }, LOG_CATEGORIES.ERROR);
+</header>
+
+<article>
+    <div class="container-overview">
     
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'find_most_recent_term',
-        validation_error: true,
-      },
-      contexts: {
-        input: {
-          type: typeof terms,
-          isArray: Array.isArray(terms),
-          isNull: terms === null,
-        },
-      },
-    });
+        
+            <div class="description"><p>SQLite Database Service for Vikings Event Management</p>
+<p>Provides comprehensive offline-first data persistence for Scout sections, events,
+attendance records, and member information. Uses Capacitor SQLite on native
+platforms with localStorage fallback for web browsers. Supports demo mode
+data segregation and comprehensive member caching across multiple sections.</p>
+<p>Key features:</p>
+<ul>
+<li>Offline-first architecture with automatic fallback</li>
+<li>Cross-platform compatibility (iOS, Android, Web)</li>
+<li>Demo mode data isolation</li>
+<li>Comprehensive member caching to handle multi-section members</li>
+<li>Sync status tracking for data consistency</li>
+<li>Structured data schema with foreign key relationships</li>
+</ul></div>
+        
+
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
     
-    throw error;
-  }
 
-  if (terms.length === 0) {
-    // No terms provided - this is a normal condition, not worth logging
-    return null;
-  }
-
-  try {
-    const mostRecentTerm = terms.reduce((latest, term) => {
-      // Validate term object structure
-      if (!term || typeof term !== 'object' || !term.enddate) {
-        logger.warn('Invalid term object found', {
-          term: term,
-          hasEnddate: !!(term &amp;&amp; term.enddate),
-        }, LOG_CATEGORIES.APP);
-        return latest; // Skip invalid terms
-      }
-
-      const termEndDate = new Date(term.enddate);
-      const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
-      
-      // Check for invalid dates
-      if (isNaN(termEndDate.getTime())) {
-        logger.warn('Invalid enddate in term', {
-          termid: term.termid,
-          enddate: term.enddate,
-        }, LOG_CATEGORIES.APP);
-        return latest; // Skip terms with invalid dates
-      }
-      
-      return termEndDate > latestEndDate ? term : latest;
-    }, null);
-
-    // Successfully found most recent term - no need to log routine operations
-
-    return mostRecentTerm;
-  } catch (error) {
-    logger.error('Error finding most recent term', {
-      error: error.message,
-      termsCount: terms.length,
-      stack: error.stack,
-    }, LOG_CATEGORIES.ERROR);
-
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'find_most_recent_term',
-      },
-      contexts: {
-        terms: {
-          count: terms.length,
-          hasValidStructure: terms.every(t => t &amp;&amp; typeof t === 'object'),
-        },
-      },
-    });
-
-    throw error;
-  }
-}
-
-/**
- * Get the most recent term ID for a specific section from pre-loaded terms data
- * Convenience function that combines section lookup with most recent term finding
- * 
- * @param {number|string} sectionId - Section ID to find terms for (will be converted to string for lookup)
- * @param {Object} allTerms - Terms object keyed by section ID, values are arrays of term objects
- * @returns {string|null} Most recent term ID or null if not found
- * @throws {Error} If parameters are invalid
- * 
- * @example
- * // Get current term ID for a specific section
- * const allTerms = {
- *   '101': [
- *     { termid: 'term1', enddate: '2023-12-31' },
- *     { termid: 'term2', enddate: '2024-06-30' }
- *   ],
- *   '102': [
- *     { termid: 'term3', enddate: '2024-03-31' }
- *   ]
- * };
- * 
- * const currentTermId = getMostRecentTermId(101, allTerms); // Returns 'term2'
- * const unknownSectionTerm = getMostRecentTermId(999, allTerms); // Returns null
- */
-export function getMostRecentTermId(sectionId, allTerms) {
-  // Input validation
-  if (sectionId === null || sectionId === undefined) {
-    const error = new Error('Section ID is required');
     
-    logger.error('Missing section ID for getMostRecentTermId', {
-      sectionId,
-      hasAllTerms: !!allTerms,
-    }, LOG_CATEGORIES.ERROR);
+
     
-    throw error;
-  }
 
-  if (!allTerms || typeof allTerms !== 'object') {
-    const error = new Error(`Invalid allTerms parameter: expected object, got ${typeof allTerms}`);
     
-    logger.error('Invalid allTerms parameter', {
-      sectionId,
-      allTermsType: typeof allTerms,
-      isNull: allTerms === null,
-    }, LOG_CATEGORIES.ERROR);
+
     
-    throw error;
-  }
 
-  // Convert sectionId to string for consistent lookup
-  const sectionKey = String(sectionId);
-  
-  if (!allTerms[sectionKey]) {
-    // No terms for this section - expected for some sections
-    return null;
-  }
-
-  try {
-    const mostRecentTerm = findMostRecentTerm(allTerms[sectionKey]);
     
-    if (!mostRecentTerm) {
-      logger.warn('No valid terms found for section', {
-        sectionId: sectionKey,
-        termsCount: allTerms[sectionKey].length,
-      }, LOG_CATEGORIES.APP);
-      return null;
-    }
 
-    // Successfully retrieved term ID - routine operation, no logging needed
+    
 
-    return mostRecentTerm.termid;
-  } catch (error) {
-    logger.error('Error getting most recent term ID', {
-      sectionId: sectionKey,
-      error: error.message,
-      stack: error.stack,
-    }, LOG_CATEGORIES.ERROR);
+    
 
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'get_most_recent_term_id',
-      },
-      contexts: {
-        section: {
-          sectionId: sectionKey,
-          hasTerms: !!(allTerms[sectionKey]),
-          termsCount: allTerms[sectionKey]?.length || 0,
-        },
-      },
-    });
+    
 
-    throw error;
-  }
-}</code></pre>
-        </article>
-    </section>
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="module:DatabaseService"><span class="type-signature"></span>module:DatabaseService<span class="type-signature"> :DatabaseService</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Singleton instance of DatabaseService for global application use</p>
+<p>Pre-instantiated service ready for immediate use across the application.
+Provides consistent data access patterns and maintains single connection
+state. Import and use directly without instantiation.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1103">line 1103</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Import and use immediately
+import databaseService from './storage/database.js';
+
+// Initialize and start using
+await databaseService.initialize();
+const sections = await databaseService.getSections();</code></pre>
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+        <h3 class="subsection-title">Requires</h3>
+
+        <ul>
+            <li>module:@capacitor-community/sqlite</li>
+        
+            <li>module:@capacitor/core</li>
+        </ul>
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

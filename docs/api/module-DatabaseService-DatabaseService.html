@@ -1,0 +1,4146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: DatabaseService</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: DatabaseService</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>
+            <span class="ancestors"><a href="module-DatabaseService.html">DatabaseService</a>~</span>DatabaseService<span class="signature">()</span><span class="type-signature"></span></h2>
+        
+            <div class="class-description"><p>SQLite Database Service for offline data persistence</p>
+<p>Manages all local data storage for the Vikings Event Management application.
+Automatically detects platform capabilities and falls back to localStorage
+when SQLite is not available. Provides consistent API across all platforms
+with support for Scout sections, events, attendance, and member data.</p></div>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+    <h2>Constructor</h2>
+    
+
+    
+    <h4 class="name" id="DatabaseService"><span class="type-signature"></span>new DatabaseService<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Creates a new DatabaseService instance</p>
+<p>Initializes the service with platform detection and default state.
+Does not establish database connection - call initialize() for that.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line65">line 65</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Initialize and save sections
+import databaseService from './storage/database.js';
+
+await databaseService.initialize();
+await databaseService.saveSections([
+  { sectionid: 1, sectionname: 'Beavers', sectiontype: 'beavers' },
+  { sectionid: 2, sectionname: 'Cubs', sectiontype: 'cubs' }
+]);
+
+// Retrieve sections
+const sections = await databaseService.getSections();
+console.log('Available sections:', sections);</code></pre>
+
+    <pre class="prettyprint"><code>// Save and retrieve events for a section
+const events = [
+  {
+    eventid: 'event_1',
+    name: 'Weekend Camp',
+    startdate: '2024-06-15',
+    enddate: '2024-06-16',
+    location: 'Scout Camp'
+  }
+];
+
+await databaseService.saveEvents(1, events);
+const sectionEvents = await databaseService.getEvents(1);</code></pre>
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="db"><span class="type-signature"></span>db<span class="type-signature"> :SQLiteDBConnection|null</span></h4>
+
+
+
+
+<div class="description">
+    <p>Database connection instance</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">SQLiteDBConnection</span>
+|
+
+<span class="param-type">null</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line78">line 78</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="isInitialized"><span class="type-signature"></span>isInitialized<span class="type-signature"> :boolean</span></h4>
+
+
+
+
+<div class="description">
+    <p>Whether service has been initialized</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">boolean</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line80">line 80</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="isNative"><span class="type-signature"></span>isNative<span class="type-signature"> :boolean</span></h4>
+
+
+
+
+<div class="description">
+    <p>Whether running on native platform (iOS/Android)</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">boolean</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line82">line 82</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="sqlite"><span class="type-signature"></span>sqlite<span class="type-signature"> :SQLiteConnection|null</span></h4>
+
+
+
+
+<div class="description">
+    <p>SQLite connection instance</p>
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">SQLiteConnection</span>
+|
+
+<span class="param-type">null</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line76">line 76</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="close"><span class="type-signature">(async) </span>close<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Closes database connections and cleans up resources</p>
+<p>Properly closes SQLite connections and resets service state.
+Should be called when the application is shutting down or
+when database access is no longer needed. Safe to call
+multiple times or when no connection exists.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1077">line 1077</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when cleanup is complete</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Clean shutdown
+await databaseService.close();
+console.log('Database connections closed');</code></pre>
+
+    <pre class="prettyprint"><code>// In component cleanup
+useEffect(() => {
+  return async () => {
+    await databaseService.close();
+  };
+}, []);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getAttendance"><span class="type-signature">(async) </span>getAttendance<span class="signature">(eventId)</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;Object>>|number|string|string|string|string|string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Retrieves attendance records for a specific event</p>
+<p>Loads attendance information with proper name ordering for easy review.
+Returns all scouts registered for the event with their attendance status.
+Critical for event check-in/check-out and attendance reporting.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>eventId</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Event identifier to get attendance for</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line688">line 688</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+<ul>
+        <li>
+<div class="param-desc">
+    <p>Array of attendance records</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;Object>></span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].scoutid - Scout member identifier</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">number</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].firstname - Scout's first name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].lastname - Scout's last name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].attending - Attendance status</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].patrol] - Scout's patrol name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].notes] - Attendance notes</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    </ul>
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Get attendance for event check-in
+const attendance = await databaseService.getAttendance('camp_456');
+
+const attending = attendance.filter(scout => scout.attending === 'Yes');
+console.log(`${attending.length} scouts attending the camp`);
+
+// Display attendance list
+attendance.forEach(scout => {
+  console.log(`${scout.firstname} ${scout.lastname}: ${scout.attending}`);
+});</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getEvents"><span class="type-signature">(async) </span>getEvents<span class="signature">(sectionId)</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;Object>>|string|number|string|string|string|string|string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Retrieves Scout events for a specific section</p>
+<p>Loads event information with automatic demo mode filtering and proper
+date ordering. On native platforms, queries SQLite with section filtering.
+On web platforms, retrieves from localStorage with data validation.
+Returns events sorted by start date (most recent first).</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionId</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Section identifier to get events for</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line549">line 549</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+<ul>
+        <li>
+<div class="param-desc">
+    <p>Array of event objects for the section</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;Object>></span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].eventid - Unique event identifier</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].name - Event name/title</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].startdate - Event start date</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].enddate] - Event end date</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].location] - Event location</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].notes] - Event notes</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    </ul>
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Get events for Beavers section
+const beaverEvents = await databaseService.getEvents(1);
+
+console.log(`Found ${beaverEvents.length} events for Beavers:`);
+beaverEvents.forEach(event => {
+  console.log(`- ${event.name} on ${event.startdate}`);
+});</code></pre>
+
+    <pre class="prettyprint"><code>// Display upcoming events
+const events = await databaseService.getEvents(sectionId);
+const today = new Date().toISOString().split('T')[0];
+
+const upcomingEvents = events.filter(event => 
+  event.startdate >= today
+);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getMembers"><span class="type-signature">(async) </span>getMembers<span class="signature">(sectionIds)</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;Object>>|number|string|string|number|string|string|Array.&lt;string>|Object}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Retrieves Scout members for specified sections</p>
+<p>Loads member information with section filtering and proper data
+reconstruction. Handles comprehensive member cache and ensures
+backward compatibility. Returns members with all custom fields
+and section associations intact.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionIds</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;number></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Section identifiers to get members for</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line948">line 948</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+<ul>
+        <li>
+<div class="param-desc">
+    <p>Array of member objects</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;Object>></span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].scoutid - Scout identifier</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">number</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].firstname - Scout's first name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].lastname - Scout's last name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].age_years] - Age in years</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">number</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].sectionname - Section name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].patrol] - Patrol/lodge name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].sections] - All sections member belongs to</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Array.&lt;string></span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].custom_data] - Custom field data from OSM</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Object</span>
+
+
+    </dd>
+</dl>
+</li>
+    </ul>
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Get all Beaver members
+const beaverMembers = await databaseService.getMembers([1]);
+
+console.log(`Found ${beaverMembers.length} Beaver scouts:`);
+beaverMembers.forEach(member => {
+  console.log(`- ${member.firstname} ${member.lastname} (${member.age_years} years)`);
+});</code></pre>
+
+    <pre class="prettyprint"><code>// Get members for multiple sections
+const allMembers = await databaseService.getMembers([1, 2, 3]);
+const leaders = allMembers.filter(member => 
+  member.person_type === 'Leaders'
+);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getSections"><span class="type-signature">(async) </span>getSections<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;Object>>|number|string|string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Retrieves all Scout sections from local storage</p>
+<p>Loads section information with automatic demo mode filtering.
+On native platforms, queries SQLite database with proper ordering.
+On web platforms, retrieves from localStorage with data validation.
+Automatically filters out demo sections when not in demo mode.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line394">line 394</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+<ul>
+        <li>
+<div class="param-desc">
+    <p>Array of section objects</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;Object>></span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].sectionid - Unique section identifier</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">number</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>returns[].sectionname - Display name</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    
+        <li>
+<div class="param-desc">
+    <p>[returns[].sectiontype] - Section type</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+</li>
+    </ul>
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Get all available sections
+const sections = await databaseService.getSections();
+
+sections.forEach(section => {
+  console.log(`Section: ${section.sectionname} (ID: ${section.sectionid})`);
+});</code></pre>
+
+    <pre class="prettyprint"><code>// Use sections to populate dropdown
+const sections = await databaseService.getSections();
+const sectionOptions = sections.map(section => ({
+  value: section.sectionid,
+  label: section.sectionname
+}));</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="hasOfflineData"><span class="type-signature">(async) </span>hasOfflineData<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;boolean>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Checks if offline data is available</p>
+<p>Determines whether the application has any cached data available
+for offline operation. Used to decide whether to show cached
+content or force an online data fetch.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1036">line 1036</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>True if offline data is available</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;boolean></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Check data availability before rendering
+const hasData = await databaseService.hasOfflineData();
+
+if (hasData) {
+  console.log('Offline data available - can work offline');
+  // Load cached sections and events
+} else {
+  console.log('No offline data - need internet connection');
+  // Force online data fetch
+}</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="initialize"><span class="type-signature">(async) </span>initialize<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Initializes the database service and creates necessary tables</p>
+<p>Detects platform capabilities and establishes appropriate storage mechanism.
+On native platforms, initializes SQLite with proper connections and creates
+database schema. On web platforms, validates localStorage availability and
+sets up fallback mode. Safe to call multiple times - subsequent calls are ignored.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line109">line 109</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Throws:</h5>
+
+        
+
+<dl>
+    <dt>
+        <div class="param-desc">
+        <p>Only logs errors, never throws - gracefully falls back to localStorage</p>
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl>
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">Error</span>
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+
+    
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when initialization is complete</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Initialize before any database operations
+import databaseService from './storage/database.js';
+
+try {
+  await databaseService.initialize();
+  console.log('Database ready for use');
+} catch (error) {
+  // Service automatically falls back to localStorage
+  console.log('Using localStorage fallback');
+}</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="needsSync"><span class="type-signature">(async) </span>needsSync<span class="signature">(tableName)</span><span class="type-signature"> &rarr; {Promise.&lt;boolean>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Checks if a data table needs synchronization</p>
+<p>Determines whether data has been modified locally and requires
+synchronization with the server. Used to optimize sync operations
+and avoid unnecessary network requests.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>tableName</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Name of table to check sync status for</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line748">line 748</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>True if table needs synchronization</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;boolean></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Check if sections need syncing before API call
+if (await databaseService.needsSync('sections')) {
+  console.log('Sections data needs synchronization');
+  // Perform sync operation
+}</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="saveAttendance"><span class="type-signature">(async) </span>saveAttendance<span class="signature">(eventId, attendanceData)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Saves attendance records for a specific event</p>
+<p>Stores individual scout attendance information for event tracking.
+Replaces all existing attendance records for the specified event.
+Critical for offline functionality during events when internet may
+be unreliable but attendance needs to be recorded.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>eventId</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Event identifier to save attendance for</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>attendanceData</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Object></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Array of attendance records</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>scoutid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout member identifier</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>firstname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout's first name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>lastname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout's last name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>attending</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Attendance status (&quot;Yes&quot;/&quot;No&quot;/&quot;Maybe&quot;)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>patrol</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout's patrol name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>notes</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Additional attendance notes</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line626">line 626</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when attendance is saved</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Record attendance for weekend camp
+const campAttendance = [
+  {
+    scoutid: 12345,
+    firstname: 'Alice',
+    lastname: 'Smith',
+    attending: 'Yes',
+    patrol: 'Red Patrol',
+    notes: 'Dietary requirements: vegetarian'
+  },
+  {
+    scoutid: 67890,
+    firstname: 'Bob',
+    lastname: 'Jones',
+    attending: 'No',
+    patrol: 'Blue Patrol',
+    notes: 'Family holiday'
+  }
+];
+
+await databaseService.saveAttendance('camp_456', campAttendance);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="saveEvents"><span class="type-signature">(async) </span>saveEvents<span class="signature">(sectionId, events)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Saves Scout events for a specific section</p>
+<p>Stores event information with section-specific data isolation.
+Replaces all existing events for the specified section. On native
+platforms, uses SQLite with foreign key relationships. On web platforms,
+uses localStorage with section-specific keys and demo mode support.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionId</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Section identifier to save events for</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>events</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Object></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Array of event objects to save</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>eventid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Unique event identifier</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Event name/title</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>date</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Legacy date field</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>startdate</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Event start date (YYYY-MM-DD)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>startdate_g</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Start date in different format</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>enddate</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Event end date (YYYY-MM-DD)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>enddate_g</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>End date in different format</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>location</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Event location/venue</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>notes</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Additional event notes</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>termid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Associated term identifier</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line474">line 474</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when events are saved</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Save events for Beavers section
+const beaverEvents = [
+  {
+    eventid: 'event_123',
+    name: 'Beaver Colony Meeting',
+    startdate: '2024-06-15',
+    enddate: '2024-06-15',
+    location: 'Scout Hut',
+    notes: 'Weekly meeting with badge work'
+  },
+  {
+    eventid: 'camp_456',
+    name: 'Weekend Camp',
+    startdate: '2024-07-20',
+    enddate: '2024-07-21',
+    location: 'Phasels Wood Scout Camp'
+  }
+];
+
+await databaseService.saveEvents(1, beaverEvents);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="saveMembers"><span class="type-signature">(async) </span>saveMembers<span class="signature">(sectionIds, members)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Saves Scout member information with comprehensive caching</p>
+<p>Stores member data using a single comprehensive cache that handles
+multi-section members efficiently. Deduplicates members by scout ID
+while preserving section associations. Critical for offline member
+lookup during events and meetings.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionIds</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;number></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Section identifiers members belong to</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>members</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Object></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Array of member objects to save</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>scoutid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Unique scout identifier</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>firstname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout's first name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>lastname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Scout's last name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>date_of_birth</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Date of birth (YYYY-MM-DD)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>age_years</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Age in years</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Primary section ID</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Primary section name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sections</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>All sections member belongs to</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>patrol</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Patrol/lodge name</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>person_type</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Member type (Young People/Leaders)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>active</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Whether member is currently active</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>custom_data</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Additional OSM custom field data</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line798">line 798</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when members are saved</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Save members for multiple sections
+const members = [
+  {
+    scoutid: 12345,
+    firstname: 'Alice',
+    lastname: 'Smith',
+    age_years: 8,
+    sectionid: 1,
+    sectionname: 'Beavers',
+    patrol: 'Red Lodge',
+    active: true
+  }
+];
+
+await databaseService.saveMembers([1, 2], members);</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="saveSections"><span class="type-signature">(async) </span>saveSections<span class="signature">(sections)</span><span class="type-signature"> &rarr; {Promise.&lt;void>}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Saves Scout sections to local storage</p>
+<p>Stores section information with complete replacement of existing data.
+On native platforms, uses SQLite with proper transaction handling.
+On web platforms, uses localStorage with demo mode data segregation.
+Automatically updates sync status after successful save.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sections</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;Object></span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Array of section objects to save</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionid</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Unique section identifier</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sectionname</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Display name (e.g., &quot;1st Walton Beavers&quot;)</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sectiontype</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Section type (e.g., &quot;beavers&quot;, &quot;cubs&quot;)</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line338">line 338</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Resolves when sections are saved</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;void></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Save sections for a Scout group
+const sections = [
+  { sectionid: 1, sectionname: '1st Walton Beavers', sectiontype: 'beavers' },
+  { sectionid: 2, sectionname: '1st Walton Cubs', sectiontype: 'cubs' },
+  { sectionid: 3, sectionname: '1st Walton Scouts', sectiontype: 'scouts' }
+];
+
+await databaseService.saveSections(sections);
+console.log('Sections saved successfully');</code></pre>
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-ageUtils.html">ageUtils</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-cacheCleanup.html">cacheCleanup</a></li><li><a href="module-flexiRecordTransforms.html">flexiRecordTransforms</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li><li><a href="module-sectionHelpers.html">sectionHelpers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#formatPhoneForCall">formatPhoneForCall</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#handlePhoneCall">handlePhoneCall</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#isValidPhoneNumber">isValidPhoneNumber</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 11 2025 21:43:53 GMT+0100 (British Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

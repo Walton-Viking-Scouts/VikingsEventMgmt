@@ -83,18 +83,6 @@ function EventAttendance({ events, members, onBack }) {
     contacts: false,
   });
 
-  const sectionsCache = useMemo(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem('viking_sections_offline') || '[]',
-      );
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('Failed to parse cached sections data:', error);
-      }
-      return [];
-    }
-  }, []);
 
   const [sectionFilters, setSectionFilters] = useState(() => {
     const filters = {};
@@ -322,6 +310,7 @@ function EventAttendance({ events, members, onBack }) {
       return (
         <RegisterTab 
           summaryStats={summaryStats}
+          members={members}
           onSignInOut={handleSignInOut}
           buttonLoading={buttonLoading}
           onMemberClick={handleMemberClick}
@@ -512,7 +501,6 @@ function EventAttendance({ events, members, onBack }) {
             isOpen={showMemberModal}
             onClose={() => setShowMemberModal(false)}
             member={selectedMember}
-            sectionsCache={sectionsCache}
           />
         )}
       </div>

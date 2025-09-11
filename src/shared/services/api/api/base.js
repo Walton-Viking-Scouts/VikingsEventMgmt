@@ -323,7 +323,7 @@ export function clearFlexiRecordCaches() {
  * Tests connectivity to the backend API server
  * @returns {Promise<Object>} Connection test result with status
  * @returns {Promise<{status: 'ok'}>} When connection successful
- * @returns {Promise<{status: 'error', httpStatus?: number, error?: string}>} When connection fails
+ * @returns {Promise<{status: 'error', httpStatus: number, error: string}>} When connection fails
  * 
  * @example
  * const result = await testBackendConnection();
