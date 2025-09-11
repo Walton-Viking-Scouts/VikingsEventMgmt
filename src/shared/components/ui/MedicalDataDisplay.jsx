@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { formatMedicalDataForDisplay } from '../../utils/medicalDataUtils.js';
+import { formatMedicalDataForDisplay, getMedicalFieldsFromMember } from '../../utils/medicalDataUtils.js';
 
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   
@@ -106,6 +106,61 @@ MedicalDataDisplay.propTypes = {
     medicalData: PropTypes.array,
   }),
   className: PropTypes.string,
+};
+
+export function MedicalDataField({ label, value, fieldName }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex items-start gap-2">
+        <MedicalDataPill 
+          value={value} 
+          fieldName={fieldName}
+          className="text-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function MedicalDataSummary({ member }) {
+  const medical = getMedicalFieldsFromMember(member);
+  
+  const hasData = medical.allergies.value || 
+                  medical.medical_details.value || 
+                  medical.dietary_requirements.value;
+  
+  if (!hasData) {
+    return (
+      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 border-green-200">
+        No medical data
+      </span>
+    );
+  }
+
+  const pillCount = [
+    medical.allergies.value,
+    medical.medical_details.value,
+    medical.dietary_requirements.value,
+  ].filter(Boolean).length;
+
+  return (
+    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800 border-orange-200">
+      {pillCount} medical condition{pillCount !== 1 ? 's' : ''}
+    </span>
+  );
+}
+
+MedicalDataField.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
+  fieldName: PropTypes.string.isRequired,
+};
+
+MedicalDataSummary.propTypes = {
+  member: PropTypes.object.isRequired,
 };
 
 export default MedicalDataDisplay;

@@ -1,4 +1,32 @@
-/**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: shared/services/storage/database.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: shared/services/storage/database.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
  * @fileoverview SQLite Database Service for Vikings Event Management
  * 
  * Provides comprehensive offline-first data persistence for Scout sections, events,
@@ -91,7 +119,7 @@ class DatabaseService {
    * sets up fallback mode. Safe to call multiple times - subsequent calls are ignored.
    * 
    * @async
-   * @returns {Promise<void>} Resolves when initialization is complete
+   * @returns {Promise&lt;void>} Resolves when initialization is complete
    * @throws {Error} Only logs errors, never throws - gracefully falls back to localStorage
    * 
    * @example
@@ -126,7 +154,7 @@ class DatabaseService {
       const ret = await this.sqlite.checkConnectionsConsistency();
       const isConn = (await this.sqlite.isConnection('vikings_db', false)).result;
       
-      if (ret.result && isConn) {
+      if (ret.result &amp;&amp; isConn) {
         this.db = await this.sqlite.retrieveConnection('vikings_db', false);
       } else {
         this.db = await this.sqlite.createConnection('vikings_db', false, 'no-encryption', 1, false);
@@ -163,7 +191,7 @@ class DatabaseService {
    * 
    * @async
    * @private
-   * @returns {Promise<void>} Resolves when all tables are created
+   * @returns {Promise&lt;void>} Resolves when all tables are created
    * @throws {Error} If table creation fails
    * 
    * @example
@@ -318,11 +346,11 @@ class DatabaseService {
    * Automatically updates sync status after successful save.
    * 
    * @async
-   * @param {Array<Object>} sections - Array of section objects to save
+   * @param {Array&lt;Object>} sections - Array of section objects to save
    * @param {number} sections[].sectionid - Unique section identifier
    * @param {string} sections[].sectionname - Display name (e.g., "1st Walton Beavers")
    * @param {string} [sections[].sectiontype] - Section type (e.g., "beavers", "cubs")
-   * @returns {Promise<void>} Resolves when sections are saved
+   * @returns {Promise&lt;void>} Resolves when sections are saved
    * 
    * @example
    * // Save sections for a Scout group
@@ -370,7 +398,7 @@ class DatabaseService {
    * Automatically filters out demo sections when not in demo mode.
    * 
    * @async
-   * @returns {Promise<Array<Object>>} Array of section objects
+   * @returns {Promise&lt;Array&lt;Object>>} Array of section objects
    * @returns {number} returns[].sectionid - Unique section identifier
    * @returns {string} returns[].sectionname - Display name
    * @returns {string} [returns[].sectiontype] - Section type
@@ -406,7 +434,7 @@ class DatabaseService {
       let sections = [];
       if (Array.isArray(sectionsData)) {
         sections = sectionsData;
-      } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+      } else if (sectionsData &amp;&amp; typeof sectionsData === 'object' &amp;&amp; sectionsData.items) {
         sections = sectionsData.items;
       }
       
@@ -414,7 +442,7 @@ class DatabaseService {
       if (!isDemoMode()) {
         sections = sections.filter((section) => {
           const name = section?.sectionname;
-          return !(typeof name === 'string' && name.startsWith('Demo '));
+          return !(typeof name === 'string' &amp;&amp; name.startsWith('Demo '));
         });
       }
       
@@ -436,7 +464,7 @@ class DatabaseService {
    * 
    * @async
    * @param {number} sectionId - Section identifier to save events for
-   * @param {Array<Object>} events - Array of event objects to save
+   * @param {Array&lt;Object>} events - Array of event objects to save
    * @param {string|number} events[].eventid - Unique event identifier
    * @param {string} events[].name - Event name/title
    * @param {string} [events[].date] - Legacy date field
@@ -447,7 +475,7 @@ class DatabaseService {
    * @param {string} [events[].location] - Event location/venue
    * @param {string} [events[].notes] - Additional event notes
    * @param {string} [events[].termid] - Associated term identifier
-   * @returns {Promise<void>} Resolves when events are saved
+   * @returns {Promise&lt;void>} Resolves when events are saved
    * 
    * @example
    * // Save events for Beavers section
@@ -520,7 +548,7 @@ class DatabaseService {
    * 
    * @async
    * @param {number} sectionId - Section identifier to get events for
-   * @returns {Promise<Array<Object>>} Array of event objects for the section
+   * @returns {Promise&lt;Array&lt;Object>>} Array of event objects for the section
    * @returns {string|number} returns[].eventid - Unique event identifier
    * @returns {string} returns[].name - Event name/title
    * @returns {string} returns[].startdate - Event start date
@@ -561,7 +589,7 @@ class DatabaseService {
       let events = [];
       if (Array.isArray(eventsData)) {
         events = eventsData;
-      } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
+      } else if (eventsData &amp;&amp; typeof eventsData === 'object' &amp;&amp; eventsData.items) {
         events = eventsData.items;
       }
       
@@ -569,7 +597,7 @@ class DatabaseService {
       if (!isDemoMode()) {
         events = events.filter((event) => {
           const eid = event?.eventid;
-          return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+          return !(typeof eid === 'string' &amp;&amp; eid.startsWith('demo_event_'));
         });
       }
       
@@ -591,14 +619,14 @@ class DatabaseService {
    * 
    * @async
    * @param {string|number} eventId - Event identifier to save attendance for
-   * @param {Array<Object>} attendanceData - Array of attendance records
+   * @param {Array&lt;Object>} attendanceData - Array of attendance records
    * @param {number} attendanceData[].scoutid - Scout member identifier
    * @param {string} attendanceData[].firstname - Scout's first name
    * @param {string} attendanceData[].lastname - Scout's last name
    * @param {string} attendanceData[].attending - Attendance status ("Yes"/"No"/"Maybe")
    * @param {string} [attendanceData[].patrol] - Scout's patrol name
    * @param {string} [attendanceData[].notes] - Additional attendance notes
-   * @returns {Promise<void>} Resolves when attendance is saved
+   * @returns {Promise&lt;void>} Resolves when attendance is saved
    * 
    * @example
    * // Record attendance for weekend camp
@@ -665,7 +693,7 @@ class DatabaseService {
    * 
    * @async
    * @param {string|number} eventId - Event identifier to get attendance for
-   * @returns {Promise<Array<Object>>} Array of attendance records
+   * @returns {Promise&lt;Array&lt;Object>>} Array of attendance records
    * @returns {number} returns[].scoutid - Scout member identifier
    * @returns {string} returns[].firstname - Scout's first name
    * @returns {string} returns[].lastname - Scout's last name
@@ -710,7 +738,7 @@ class DatabaseService {
    * @async
    * @private
    * @param {string} tableName - Name of table to update sync status for
-   * @returns {Promise<void>} Resolves when sync status is updated
+   * @returns {Promise&lt;void>} Resolves when sync status is updated
    * 
    * @example
    * // Called automatically after successful data saves
@@ -736,7 +764,7 @@ class DatabaseService {
    * 
    * @async
    * @param {string} tableName - Name of table to check sync status for
-   * @returns {Promise<boolean>} True if table needs synchronization
+   * @returns {Promise&lt;boolean>} True if table needs synchronization
    * 
    * @example
    * // Check if sections need syncing before API call
@@ -762,8 +790,8 @@ class DatabaseService {
    * lookup during events and meetings.
    * 
    * @async
-   * @param {Array<number>} sectionIds - Section identifiers members belong to
-   * @param {Array<Object>} members - Array of member objects to save
+   * @param {Array&lt;number>} sectionIds - Section identifiers members belong to
+   * @param {Array&lt;Object>} members - Array of member objects to save
    * @param {number} members[].scoutid - Unique scout identifier
    * @param {string} members[].firstname - Scout's first name
    * @param {string} members[].lastname - Scout's last name
@@ -771,12 +799,12 @@ class DatabaseService {
    * @param {number} [members[].age_years] - Age in years
    * @param {number} members[].sectionid - Primary section ID
    * @param {string} members[].sectionname - Primary section name
-   * @param {Array<string>} [members[].sections] - All sections member belongs to
+   * @param {Array&lt;string>} [members[].sections] - All sections member belongs to
    * @param {string} [members[].patrol] - Patrol/lodge name
    * @param {string} [members[].person_type] - Member type (Young People/Leaders)
    * @param {boolean} [members[].active] - Whether member is currently active
    * @param {Object} [members[].custom_data] - Additional OSM custom field data
-   * @returns {Promise<void>} Resolves when members are saved
+   * @returns {Promise&lt;void>} Resolves when members are saved
    * 
    * @example
    * // Save members for multiple sections
@@ -918,15 +946,15 @@ class DatabaseService {
    * and section associations intact.
    * 
    * @async
-   * @param {Array<number>} sectionIds - Section identifiers to get members for
-   * @returns {Promise<Array<Object>>} Array of member objects
+   * @param {Array&lt;number>} sectionIds - Section identifiers to get members for
+   * @returns {Promise&lt;Array&lt;Object>>} Array of member objects
    * @returns {number} returns[].scoutid - Scout identifier
    * @returns {string} returns[].firstname - Scout's first name
    * @returns {string} returns[].lastname - Scout's last name
    * @returns {number} [returns[].age_years] - Age in years
    * @returns {string} returns[].sectionname - Section name
    * @returns {string} [returns[].patrol] - Patrol/lodge name
-   * @returns {Array<string>} [returns[].sections] - All sections member belongs to
+   * @returns {Array&lt;string>} [returns[].sections] - All sections member belongs to
    * @returns {Object} [returns[].custom_data] - Custom field data from OSM
    * 
    * @example
@@ -963,7 +991,7 @@ class DatabaseService {
         // Now that section IDs are standardized as numbers, filtering is simple
         const filteredMembers = members.filter(member => {
           const memberSectionId = member.section_id || member.sectionid;
-          return memberSectionId && sectionIds.includes(memberSectionId);
+          return memberSectionId &amp;&amp; sectionIds.includes(memberSectionId);
         });
         
         return filteredMembers;
@@ -1000,10 +1028,10 @@ class DatabaseService {
       }
       
       // Ensure backward compatibility field mappings
-      if (!member.member_id && member.scoutid) {
+      if (!member.member_id &amp;&amp; member.scoutid) {
         member.member_id = member.scoutid;
       }
-      if (!member.dateofbirth && member.date_of_birth) {
+      if (!member.dateofbirth &amp;&amp; member.date_of_birth) {
         member.dateofbirth = member.date_of_birth;
       }
       
@@ -1019,7 +1047,7 @@ class DatabaseService {
    * content or force an online data fetch.
    * 
    * @async
-   * @returns {Promise<boolean>} True if offline data is available
+   * @returns {Promise&lt;boolean>} True if offline data is available
    * 
    * @example
    * // Check data availability before rendering
@@ -1059,7 +1087,7 @@ class DatabaseService {
    * multiple times or when no connection exists.
    * 
    * @async
-   * @returns {Promise<void>} Resolves when cleanup is complete
+   * @returns {Promise&lt;void>} Resolves when cleanup is complete
    * 
    * @example
    * // Clean shutdown
@@ -1101,3 +1129,26 @@ class DatabaseService {
  * const sections = await databaseService.getSections();
  */
 export default new DatabaseService();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#calculateActualAge">calculateActualAge</a></li><li><a href="global.html#calculateAge">calculateAge</a></li><li><a href="global.html#checkForDemoData">checkForDemoData</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#cleanupDemoCache">cleanupDemoCache</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#extractVikingEventFields">extractVikingEventFields</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#findMemberSectionName">findMemberSectionName</a></li><li><a href="global.html#findMemberSectionType">findMemberSectionType</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUniqueSectionsFromEvents">getUniqueSectionsFromEvents</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#organizeMembersByCampGroups">organizeMembersByCampGroups</a></li><li><a href="global.html#parseFlexiStructure">parseFlexiStructure</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#transformFlexiRecordData">transformFlexiRecordData</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Sep 10 2025 22:12:57 GMT+0100 (British Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

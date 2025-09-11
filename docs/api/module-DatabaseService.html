@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: shared/services/api/api/terms.js</title>
+    <title>JSDoc: Module: DatabaseService</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,187 +17,263 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: shared/services/api/api/terms.js</h1>
+    <h1 class="page-title">Module: DatabaseService</h1>
 
     
 
 
 
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>// Terms API service
-// Extracted from monolithic api.js for better modularity
 
-import {
-  BACKEND_URL,
-  validateTokenBeforeAPICall,
-  handleAPIResponseWithRateLimit,
-  apiQueue,
-} from './base.js';
-import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
-import { checkNetworkStatus } from '../../../utils/networkUtils.js';
-import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
-import { isDemoMode } from '../../../../config/demoMode.js';
-import { getMostRecentTermId } from '../../../utils/termUtils.js';
-import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
+<section>
 
-// Terms cache TTL - localStorage only for persistence
-const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+<header>
+    
+        
+            
+        
+            
+        
+    
+</header>
 
-/**
- * Retrieves OSM terms data with caching and offline support
- * @param {string} token - OSM authentication token
- * @param {boolean} [forceRefresh=false] - Force refresh from API instead of using cache
- * @returns {Promise&lt;Object>} Terms data from OSM API
- * @throws {Error} When token is missing or API request fails
- * 
- * @example
- * const terms = await getTerms(userToken);
- * const freshTerms = await getTerms(userToken, true);
- */
-export async function getTerms(token, forceRefresh = false) {
-  try {
-    // Skip API calls in demo mode - use cached data only
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      const cacheKey = 'demo_viking_terms_offline';
-      const cached = safeGetItem(cacheKey, { items: [] });
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached terms data', {
-          termsCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.API);
-      }
-      return cached;
-    }
+<article>
+    <div class="container-overview">
     
-    const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-    
-    // Check network status first
-    const isOnline = await checkNetworkStatus();
-    
-    // Check if we have valid cached data (unless force refresh)
-    if (!forceRefresh &amp;&amp; isOnline) {
-      const cached = safeGetItem(cacheKey, null);
-      if (cached &amp;&amp; cached._cacheTimestamp) {
-        const cacheAge = Date.now() - cached._cacheTimestamp;
-        if (cacheAge &lt; TERMS_CACHE_TTL) {
-          logger.info('Using cached terms data', { 
-            cacheAgeMinutes: Math.round(cacheAge / 60000),
-          }, LOG_CATEGORIES.API);
-          return cached;
-        }
-      }
-    }
-    
-    // If offline, get from localStorage regardless of age
-    if (!isOnline) {
-      const cached = safeGetItem(cacheKey, {});
-      logger.info('Retrieved terms from localStorage while offline', {}, LOG_CATEGORIES.API);
-      return cached;
-    }
+        
+            <div class="description"><p>SQLite Database Service for Vikings Event Management</p>
+<p>Provides comprehensive offline-first data persistence for Scout sections, events,
+attendance records, and member information. Uses Capacitor SQLite on native
+platforms with localStorage fallback for web browsers. Supports demo mode
+data segregation and comprehensive member caching across multiple sections.</p>
+<p>Key features:</p>
+<ul>
+<li>Offline-first architecture with automatic fallback</li>
+<li>Cross-platform compatibility (iOS, Android, Web)</li>
+<li>Demo mode data isolation</li>
+<li>Comprehensive member caching to handle multi-section members</li>
+<li>Sync status tracking for data consistency</li>
+<li>Structured data schema with foreign key relationships</li>
+</ul></div>
+        
 
-    // Validate token before making API call
-    validateTokenBeforeAPICall(token, 'getTerms');
+        
+            
 
-    const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-terms`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
 
-      return await handleAPIResponseWithRateLimit(response, 'getTerms');
-    });
-    const terms = data || {};
-    
-    // Cache terms data with timestamp - enhanced error handling for visibility  
-    try {
-      const cachedTerms = {
-        ...terms,
-        _cacheTimestamp: Date.now(),
-      };
-      const success = safeSetItem(cacheKey, cachedTerms);
-      if (success) {
-        logger.info('Terms successfully cached', {
-          cacheKey,
-          termCount: Array.isArray(terms) 
-            ? terms.length 
-            : (terms?.items?.length ?? Object.keys(terms || {}).length),
-          dataSize: JSON.stringify(cachedTerms).length,
-        }, LOG_CATEGORIES.API);
-      } else {
-        logger.error('Terms caching failed - safeSetItem returned false', {
-          cacheKey,
-          termCount: Array.isArray(terms) 
-            ? terms.length 
-            : (terms?.items?.length ?? Object.keys(terms || {}).length),
-          dataSize: JSON.stringify(cachedTerms).length,
-        }, LOG_CATEGORIES.ERROR);
-      }
-    } catch (cacheError) {
-      logger.error('Terms caching error', {
-        cacheKey,
-        error: cacheError.message,
-        termCount: Array.isArray(terms) 
-          ? terms.length 
-          : (terms?.items?.length ?? Object.keys(terms || {}).length),
-      }, LOG_CATEGORIES.ERROR);
-    }
-    
-    return terms; // Return original data without timestamp
-    
-  } catch (error) {
-    logger.error('Error fetching terms', {
-      error: error.message,
-      stack: error.stack,
-    }, LOG_CATEGORIES.ERROR);
-    
-    // If online request fails, try localStorage as fallback
-    const isOnline = await checkNetworkStatus();
-    if (isOnline) {
-      try {
-        const demoMode = isDemoMode();
-        const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-        const cached = safeGetItem(cacheKey, {});
-        logger.warn('Using cached terms after API failure', {}, LOG_CATEGORIES.API);
-        return cached;
-      } catch (cacheError) {
-        logger.error('Cache fallback also failed', {
-          error: cacheError.message,
-        }, LOG_CATEGORIES.ERROR);
-      }
-    }
-    
-    throw error;
-  }
-}
 
-/**
- * Fetches the most recent term ID for a specific section
- * @param {number|string} sectionId - OSM section identifier
- * @param {string} token - OSM authentication token
- * @returns {Promise&lt;string|null>} Most recent term ID or null if not found
- * @throws {Error} When API request fails or term cannot be determined
- * 
- * @example
- * const termId = await fetchMostRecentTermId(123, userToken);
- */
-export async function fetchMostRecentTermId(sectionId, token) {
-  return apiQueue.add(async () => {
-    try {
-      const terms = await getTerms(token);
-      return getMostRecentTermId(sectionId, terms);
-    } catch (error) {
-      logger.error('Error fetching most recent term ID', { sectionId, error: error.message }, LOG_CATEGORIES.API);
-      throw error;
-    }
-  });
-}</code></pre>
-        </article>
-    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="module:DatabaseService"><span class="type-signature"></span>module:DatabaseService<span class="type-signature"> :DatabaseService</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Singleton instance of DatabaseService for global application use</p>
+<p>Pre-instantiated service ready for immediate use across the application.
+Provides consistent data access patterns and maintains single connection
+state. Import and use directly without instantiation.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_services_storage_database.js.html">shared/services/storage/database.js</a>, <a href="shared_services_storage_database.js.html#line1103">line 1103</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Import and use immediately
+import databaseService from './storage/database.js';
+
+// Initialize and start using
+await databaseService.initialize();
+const sections = await databaseService.getSections();</code></pre>
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+        <h3 class="subsection-title">Requires</h3>
+
+        <ul>
+            <li>module:@capacitor-community/sqlite</li>
+        
+            <li>module:@capacitor/core</li>
+        </ul>
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></dt>
+            <dd></dd>
+        </dl>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 
