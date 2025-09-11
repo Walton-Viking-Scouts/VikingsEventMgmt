@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Module: EventCard</title>
+    <title>JSDoc: Module: ageUtils</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Module: EventCard</h1>
+    <h1 class="page-title">Module: ageUtils</h1>
 
     
 
@@ -38,10 +38,14 @@
     <div class="container-overview">
     
         
-            <div class="description"><p>EventCard component for displaying Scout event information</p>
-<p>Responsive card component that displays event details including name, dates,
-location, and attendance information. Features Scout-themed styling with
-Tailwind classes and supports both single and multi-date events.</p></div>
+            <div class="description"><p>Age calculation utilities for Viking Event Management</p>
+<p>This module provides age calculation functions with privacy-conscious formatting
+for Scout environments. Implements leader privacy protection by showing &quot;&gt;25&quot;
+for adults over 25, while displaying actual ages for young people.</p>
+<p>Age calculations are essential for Scout programs which have strict age-based
+section requirements and safeguarding policies. The privacy features protect
+adult leader information while maintaining operational transparency for youth
+members where age verification is needed for activities and badges.</p></div>
         
 
         
@@ -70,7 +74,7 @@ Tailwind classes and supports both single and multi-date events.</p></div>
 
     
     <dt class="tag-since">Since:</dt>
-    <dd class="tag-since"><ul class="dummy"><li>2.3.7 - Created as part of Tailwind-first component redesign</li></ul></dd>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0 - Initial age calculation support</li></ul></dd>
     
 
     
@@ -103,7 +107,7 @@ Tailwind classes and supports both single and multi-date events.</p></div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="features_events_components_EventCard.jsx.html">features/events/components/EventCard.jsx</a>, <a href="features_events_components_EventCard.jsx.html#line1">line 1</a>
+        <a href="shared_utils_ageUtils.js.html">shared/utils/ageUtils.js</a>, <a href="shared_utils_ageUtils.js.html#line1">line 1</a>
     </li></ul></dd>
     
 
@@ -160,7 +164,7 @@ Tailwind classes and supports both single and multi-date events.</p></div>
     
 
     
-    <h4 class="name" id="~EventCard"><span class="type-signature">(inner) </span>EventCard<span class="signature">(props)</span><span class="type-signature"> &rarr; {JSX.Element}</span></h4>
+    <h4 class="name" id=".calculateActualAge"><span class="type-signature">(static) </span>calculateActualAge<span class="signature">(dateOfBirth)</span><span class="type-signature"> &rarr; {number}</span></h4>
     
 
     
@@ -168,11 +172,14 @@ Tailwind classes and supports both single and multi-date events.</p></div>
 
 
 <div class="description">
-    <p>EventCard component displays Scout event information in a card layout</p>
-<p>Renders event details including name, date range, location, and attendance
-information in a responsive card format. Automatically handles date formatting
-for both single and multi-date events. Uses Scout theme colors and supports
-loading states for async data operations.</p>
+    <p>Calculates actual numeric age in years for internal calculations and logic</p>
+<p>Computes the precise age in years without privacy formatting, returning
+the actual numeric value. This function is intended for internal calculations,
+age-based logic, section transitions, and other programmatic uses where
+the exact age is needed regardless of privacy considerations.</p>
+<p>Unlike calculateAge(), this function always returns the real numeric age
+without any privacy masking. Use this for business logic and calculations,
+but use calculateAge() for user-facing displays.</p>
 </div>
 
 
@@ -208,227 +215,16 @@ loading states for async data operations.</p>
 
         <tr>
             
-                <td class="name"><code>props</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Component props</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>eventCard</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last"><p>Event data object containing event details</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
+                <td class="name"><code>dateOfBirth</code></td>
             
 
             <td class="type">
             
                 
 <span class="param-type">string</span>
+|
 
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Unique event identifier</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Event name/title</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>events</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Array of event date objects</p>
-                <h6>Properties</h6>
-                
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>startdate</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
+<span class="param-type">Date</span>
 
 
             
@@ -438,193 +234,7 @@ loading states for async data operations.</p>
 
             
 
-            <td class="description last"><p>Event start date (ISO string)</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>enddate</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Event end date (ISO string)</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>location</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Event location/venue</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>attendanceData</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"><p>Attendance records for the event</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>onViewAttendees</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last"><p>Callback when &quot;View Attendees&quot; is clicked</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>loading</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    false
-                
-                </td>
-            
-
-            <td class="description last"><p>Loading state indicator</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-            </td>
+            <td class="description last"><p>Date of birth in any format parseable by Date constructor</p></td>
         </tr>
 
     
@@ -642,7 +252,7 @@ loading states for async data operations.</p>
 
     
     <dt class="tag-since">Since:</dt>
-    <dd class="tag-since"><ul class="dummy"><li>2.3.7</li></ul></dd>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0</li></ul></dd>
     
 
     
@@ -668,7 +278,7 @@ loading states for async data operations.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="features_events_components_EventCard.jsx.html">features/events/components/EventCard.jsx</a>, <a href="features_events_components_EventCard.jsx.html#line98">line 98</a>
+        <a href="shared_utils_ageUtils.js.html">shared/utils/ageUtils.js</a>, <a href="shared_utils_ageUtils.js.html#line206">line 206</a>
     </li></ul></dd>
     
 
@@ -697,7 +307,7 @@ loading states for async data operations.</p>
 
         
 <div class="param-desc">
-    <p>Rendered event card component</p>
+    <p>Actual age in years as a number (0 if invalid input)</p>
 </div>
 
 
@@ -708,7 +318,7 @@ loading states for async data operations.</p>
     </dt>
     <dd>
         
-<span class="param-type">JSX.Element</span>
+<span class="param-type">number</span>
 
 
     </dd>
@@ -721,56 +331,307 @@ loading states for async data operations.</p>
 
     <h5>Examples</h5>
     
-    <pre class="prettyprint"><code>// Basic event card
-&lt;EventCard 
-  eventCard={{
-    id: 'summer-camp-2024',
-    name: 'Summer Camp 2024',
-    events: [{
-      startdate: '2024-07-15',
-      enddate: '2024-07-20'
-    }],
-    location: 'Camp Wohelo',
-    attendanceData: attendanceRecords
-  }}
-  onViewAttendees={handleViewAttendees}
-/></code></pre>
+    <pre class="prettyprint"><code>// Use for section transition calculations
+const checkSectionTransition = (member) => {
+  const actualAge = calculateActualAge(member.dob);
+  
+  if (member.currentSection === 'Cubs' &amp;&amp; actualAge >= 10.5) {
+    return {
+      shouldTransition: true,
+      targetSection: 'Scouts',
+      message: `${member.firstname} is ready to move up to Scouts`
+    };
+  }
+  
+  if (member.currentSection === 'Scouts' &amp;&amp; actualAge >= 14) {
+    return {
+      shouldTransition: true,
+      targetSection: 'Explorers', 
+      message: `${member.firstname} can now join Explorers`
+    };
+  }
+  
+  return { shouldTransition: false };
+};</code></pre>
 
-    <pre class="prettyprint"><code>// Multi-date event card
-&lt;EventCard 
-  eventCard={{
-    id: 'weekly-meetings',
-    name: 'Scout Meetings',
-    events: [
-      { startdate: '2024-07-01', enddate: '2024-07-01' },
-      { startdate: '2024-07-08', enddate: '2024-07-08' },
-      { startdate: '2024-07-15', enddate: '2024-07-15' }
-    ],
-    location: 'Scout Hall'
-  }}
-/></code></pre>
+    <pre class="prettyprint"><code>// Age-based activity restrictions
+const canParticipateInActivity = (member, activity) => {
+  const age = calculateActualAge(member.dob);
+  
+  const activityRequirements = {
+    'Rock Climbing': { minAge: 8, maxAge: 100 },
+    'Pioneering': { minAge: 10, maxAge: 100 },
+    'Night Hike': { minAge: 10, maxAge: 25 }, // Young people only
+    'Archery': { minAge: 8, maxAge: 100 }
+  };
+  
+  const requirements = activityRequirements[activity.name];
+  if (!requirements) return true; // No age restrictions
+  
+  return age >= requirements.minAge &amp;&amp; age &lt;= requirements.maxAge;
+};</code></pre>
 
-    <pre class="prettyprint"><code>// Loading state
-&lt;EventCard 
-  eventCard={eventData}
-  loading={true}
-  onViewAttendees={handleViewAttendees}
-/></code></pre>
+    <pre class="prettyprint"><code>// Statistical analysis without privacy concerns
+const analyzeAgeDistribution = (members) => {
+  const ages = members.map(member => calculateActualAge(member.dob));
+  
+  return {
+    averageAge: ages.reduce((sum, age) => sum + age, 0) / ages.length,
+    youngestMember: Math.min(...ages),
+    oldestMember: Math.max(...ages),
+    ageGroups: {
+      under10: ages.filter(age => age &lt; 10).length,
+      teens: ages.filter(age => age >= 10 &amp;&amp; age &lt; 20).length,
+      adults: ages.filter(age => age >= 20).length
+    }
+  };
+};</code></pre>
 
-    <pre class="prettyprint"><code>// Event card with attendance grid
-const handleViewAttendees = (eventId) => {
-  navigate(`/events/${eventId}/attendance`);
-};
+    <pre class="prettyprint"><code>// Compare with display function
+const member = { dob: '1985-06-15' }; // 39 years old
 
-&lt;EventCard 
-  eventCard={{
-    id: 'badge-ceremony',
-    name: 'Badge Ceremony',
-    events: [{ startdate: '2024-08-01', enddate: '2024-08-01' }],
-    attendanceData: memberAttendance
-  }}
-  onViewAttendees={handleViewAttendees}
-/></code></pre>
+const displayAge = calculateAge(member.dob);    // ">25" (privacy protected)
+const actualAge = calculateActualAge(member.dob); // 39 (exact for calculations)
+
+console.log(`Display: ${displayAge}, Actual: ${actualAge}`);
+// Output: "Display: >25, Actual: 39"</code></pre>
+
+    <pre class="prettyprint"><code>// Error handling for invalid dates
+console.log(calculateActualAge('')); // 0
+console.log(calculateActualAge('invalid')); // 0
+console.log(calculateActualAge(null)); // 0
+console.log(calculateActualAge(undefined)); // 0</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".calculateAge"><span class="type-signature">(static) </span>calculateAge<span class="signature">(dateOfBirth)</span><span class="type-signature"> &rarr; {string}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Calculates age from date of birth with privacy-conscious formatting for display</p>
+<p>Computes age in years and applies Scout-appropriate privacy formatting.
+For young people (25 and under), displays the actual age for section
+placement and activity suitability verification. For adults over 25
+(typically leaders), shows &quot;&gt;25&quot; to protect privacy while confirming
+adult status for safeguarding compliance.</p>
+<p>This privacy approach balances operational needs (knowing young people's
+exact ages for activities) with leader privacy (adults don't need exact
+ages displayed to other members).</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>dateOfBirth</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">Date</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Date of birth in any format parseable by Date constructor</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0</li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_utils_ageUtils.js.html">shared/utils/ageUtils.js</a>, <a href="shared_utils_ageUtils.js.html#line97">line 97</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>Formatted age display - actual age for ≤25, &quot;&gt;25&quot; for adults over 25</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Young person ages (shown exactly for section/activity verification)
+const scoutAge = calculateAge('2010-05-15'); // Scout born in 2010
+console.log(scoutAge); // "14" (actual age for activity planning)
+
+const beaverAge = calculateAge('2018-11-20'); // Beaver born in 2018  
+console.log(beaverAge); // "6" (exact age for section suitability)</code></pre>
+
+    <pre class="prettyprint"><code>// Adult leader ages (privacy protected)
+const youngLeader = calculateAge('1999-08-10'); // 25-year-old leader
+console.log(youngLeader); // "25" (still shows exact age)
+
+const seniorLeader = calculateAge('1985-03-22'); // 39-year-old leader
+console.log(seniorLeader); // ">25" (privacy protected)</code></pre>
+
+    <pre class="prettyprint"><code>// Handle various date formats and edge cases
+console.log(calculateAge('1995-12-31')); // ">25" (adult leader)
+console.log(calculateAge('2012/06/18')); // "12" (young scout)
+console.log(calculateAge(new Date('2008-09-03'))); // "16" (accepts Date objects)
+console.log(calculateAge('')); // "" (handles empty input)
+console.log(calculateAge('invalid-date')); // "" (handles invalid input)</code></pre>
+
+    <pre class="prettyprint"><code>// Usage in Scout member displays
+const renderMemberAge = (member) => {
+  const ageDisplay = calculateAge(member.dob);
+  const ageLabel = ageDisplay === '>25' ? 'Adult Leader' : `Age ${ageDisplay}`;
+  
+  return (
+    &lt;div className="member-info">
+      &lt;span className="name">{member.firstname} {member.lastname}&lt;/span>
+      &lt;span className="age">{ageLabel}&lt;/span>
+    &lt;/div>
+  );
+};</code></pre>
+
+    <pre class="prettyprint"><code>// Age-based section validation
+const validateSectionAge = (member, targetSection) => {
+  const age = calculateAge(member.dob);
+  
+  if (age === '>25') {
+    return true; // Adults can lead any section
+  }
+  
+  const numericAge = parseInt(age);
+  const sectionAgeRanges = {
+    'Beavers': [6, 8],
+    'Cubs': [8, 10.5],
+    'Scouts': [10.5, 14],
+    'Explorers': [14, 18],
+    'Network': [18, 25]
+  };
+  
+  const [minAge, maxAge] = sectionAgeRanges[targetSection] || [0, 100];
+  return numericAge >= minAge &amp;&amp; numericAge &lt;= maxAge;
+};</code></pre>
 
 
 

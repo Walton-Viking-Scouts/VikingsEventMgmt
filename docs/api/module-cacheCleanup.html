@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: shared/utils/termUtils.js</title>
+    <title>JSDoc: Module: cacheCleanup</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,224 +17,330 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: shared/utils/termUtils.js</h1>
+    <h1 class="page-title">Module: cacheCleanup</h1>
 
     
 
 
 
+
+<section>
+
+<header>
     
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>// Term utility functions for Vikings Event Management Mobile
-import { sentryUtils } from '../services/utils/sentry.js';
-import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-
-/**
- * Find the most recent term from a list of terms based on end date
- * Compares term end dates to determine which is the most recent/current
- * 
- * @param {TermObject[]} terms - Array of term objects with enddate property
- * @returns {TermObject|null} Most recent term object or null if no valid terms
- * @throws {Error} If terms parameter is invalid
- * 
- * @typedef {Object} TermObject
- * @property {string} termid - Unique term identifier
- * @property {string} enddate - Term end date in ISO format or parseable date string
- * @property {string} [name] - Optional term name
- * @property {string} [startdate] - Optional term start date
- * 
- * @example
- * // Find current/most recent term from API response
- * const terms = [
- *   { termid: '1', enddate: '2023-07-31', name: 'Summer 2023' },
- *   { termid: '2', enddate: '2023-12-15', name: 'Autumn 2023' },
- *   { termid: '3', enddate: '2024-03-31', name: 'Spring 2024' }
- * ];
- * const currentTerm = findMostRecentTerm(terms); // Returns Spring 2024 term
- */
-export function findMostRecentTerm(terms) {
-  // Input validation
-  if (!Array.isArray(terms)) {
-    const error = new Error(`Invalid terms parameter: expected array, got ${typeof terms}`);
+        
+            
+        
     
-    logger.error('Invalid terms parameter for findMostRecentTerm', {
-      providedType: typeof terms,
-      isArray: Array.isArray(terms),
-      isNull: terms === null,
-      isUndefined: terms === undefined,
-    }, LOG_CATEGORIES.ERROR);
+</header>
+
+<article>
+    <div class="container-overview">
     
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'find_most_recent_term',
-        validation_error: true,
-      },
-      contexts: {
-        input: {
-          type: typeof terms,
-          isArray: Array.isArray(terms),
-          isNull: terms === null,
-        },
-      },
-    });
+        
+            <div class="description"><p>Cache cleanup utilities for Viking Event Management</p>
+<p>This module provides specialized cache cleanup functions to maintain data
+integrity across different application modes. Prevents demo data contamination
+in production environments and ensures clean separation between demo and
+production cached data.</p>
+<p>The cleanup system is essential for the offline-first architecture, ensuring
+that cached data remains consistent and relevant to the current application
+mode. Demo data cleanup prevents confusion and maintains professional
+presentation in production Scout environments.</p></div>
+        
+
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
     
-    throw error;
-  }
-
-  if (terms.length === 0) {
-    // No terms provided - this is a normal condition, not worth logging
-    return null;
-  }
-
-  try {
-    const mostRecentTerm = terms.reduce((latest, term) => {
-      // Validate term object structure
-      if (!term || typeof term !== 'object' || !term.enddate) {
-        logger.warn('Invalid term object found', {
-          term: term,
-          hasEnddate: !!(term &amp;&amp; term.enddate),
-        }, LOG_CATEGORIES.APP);
-        return latest; // Skip invalid terms
-      }
-
-      const termEndDate = new Date(term.enddate);
-      const latestEndDate = latest ? new Date(latest.enddate) : new Date(0);
-      
-      // Check for invalid dates
-      if (isNaN(termEndDate.getTime())) {
-        logger.warn('Invalid enddate in term', {
-          termid: term.termid,
-          enddate: term.enddate,
-        }, LOG_CATEGORIES.APP);
-        return latest; // Skip terms with invalid dates
-      }
-      
-      return termEndDate > latestEndDate ? term : latest;
-    }, null);
-
-    // Successfully found most recent term - no need to log routine operations
-
-    return mostRecentTerm;
-  } catch (error) {
-    logger.error('Error finding most recent term', {
-      error: error.message,
-      termsCount: terms.length,
-      stack: error.stack,
-    }, LOG_CATEGORIES.ERROR);
-
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'find_most_recent_term',
-      },
-      contexts: {
-        terms: {
-          count: terms.length,
-          hasValidStructure: terms.every(t => t &amp;&amp; typeof t === 'object'),
-        },
-      },
-    });
-
-    throw error;
-  }
-}
-
-/**
- * Get the most recent term ID for a specific section from pre-loaded terms data
- * Convenience function that combines section lookup with most recent term finding
- * 
- * @param {number|string} sectionId - Section ID to find terms for (will be converted to string for lookup)
- * @param {Object} allTerms - Terms object keyed by section ID, values are arrays of term objects
- * @returns {string|null} Most recent term ID or null if not found
- * @throws {Error} If parameters are invalid
- * 
- * @example
- * // Get current term ID for a specific section
- * const allTerms = {
- *   '101': [
- *     { termid: 'term1', enddate: '2023-12-31' },
- *     { termid: 'term2', enddate: '2024-06-30' }
- *   ],
- *   '102': [
- *     { termid: 'term3', enddate: '2024-03-31' }
- *   ]
- * };
- * 
- * const currentTermId = getMostRecentTermId(101, allTerms); // Returns 'term2'
- * const unknownSectionTerm = getMostRecentTermId(999, allTerms); // Returns null
- */
-export function getMostRecentTermId(sectionId, allTerms) {
-  // Input validation
-  if (sectionId === null || sectionId === undefined) {
-    const error = new Error('Section ID is required');
+    <dt class="tag-version">Version:</dt>
+    <dd class="tag-version"><ul class="dummy"><li>2.3.7</li></ul></dd>
     
-    logger.error('Missing section ID for getMostRecentTermId', {
-      sectionId,
-      hasAllTerms: !!allTerms,
-    }, LOG_CATEGORIES.ERROR);
+
     
-    throw error;
-  }
-
-  if (!allTerms || typeof allTerms !== 'object') {
-    const error = new Error(`Invalid allTerms parameter: expected object, got ${typeof allTerms}`);
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>2.2.0 - Demo/production separation</li></ul></dd>
     
-    logger.error('Invalid allTerms parameter', {
-      sectionId,
-      allTermsType: typeof allTerms,
-      isNull: allTerms === null,
-    }, LOG_CATEGORIES.ERROR);
+
     
-    throw error;
-  }
 
-  // Convert sectionId to string for consistent lookup
-  const sectionKey = String(sectionId);
-  
-  if (!allTerms[sectionKey]) {
-    // No terms for this section - expected for some sections
-    return null;
-  }
-
-  try {
-    const mostRecentTerm = findMostRecentTerm(allTerms[sectionKey]);
     
-    if (!mostRecentTerm) {
-      logger.warn('No valid terms found for section', {
-        sectionId: sectionKey,
-        termsCount: allTerms[sectionKey].length,
-      }, LOG_CATEGORIES.APP);
-      return null;
-    }
 
-    // Successfully retrieved term ID - routine operation, no logging needed
+    
 
-    return mostRecentTerm.termid;
-  } catch (error) {
-    logger.error('Error getting most recent term ID', {
-      sectionId: sectionKey,
-      error: error.message,
-      stack: error.stack,
-    }, LOG_CATEGORIES.ERROR);
+    
 
-    sentryUtils.captureException(error, {
-      tags: {
-        operation: 'get_most_recent_term_id',
-      },
-      contexts: {
-        section: {
-          sectionId: sectionKey,
-          hasTerms: !!(allTerms[sectionKey]),
-          termsCount: allTerms[sectionKey]?.length || 0,
-        },
-      },
-    });
+    
 
-    throw error;
-  }
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li>Vikings Event Management Team</li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_utils_cacheCleanup.js.html">shared/utils/cacheCleanup.js</a>, <a href="shared_utils_cacheCleanup.js.html#line1">line 1</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".cleanupDemoCache"><span class="type-signature">(static) </span>cleanupDemoCache<span class="signature">()</span><span class="type-signature"> &rarr; {void}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Cleans up demo cache data when application is not in demo mode</p>
+<p>Performs comprehensive cleanup of localStorage to remove demo data that
+might contaminate production Scout environments. Scans for both explicitly
+demo-prefixed keys and regular cache keys that contain demo event data.</p>
+<p>This function is critical for maintaining data integrity when switching
+between demo mode (for training and demonstrations) and production mode
+(for actual Scout events). Demo data includes synthetic events, members,
+and attendance records that should never appear in real Scout operations.</p>
+<p>The cleanup process is safe and selective - it only removes data when
+NOT in demo mode, preserving demo data when demonstrations are intentional.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>2.2.0</li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="shared_utils_cacheCleanup.js.html">shared/utils/cacheCleanup.js</a>, <a href="shared_utils_cacheCleanup.js.html#line94">line 94</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>No return value - operates by side effect on localStorage</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">void</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Clean up demo data on production application startup
+import { cleanupDemoCache } from './cacheCleanup.js';
+
+// During app initialization in production
+if (!isDemoMode()) {
+  cleanupDemoCache(); // Removes any leftover demo data
+  logger.info('Demo cache cleanup completed');
 }</code></pre>
-        </article>
-    </section>
+
+    <pre class="prettyprint"><code>// Integration with application mode switching
+const switchToProductionMode = () => {
+  // Update mode configuration
+  setProductionMode(true);
+  
+  // Clean up any demo data from localStorage
+  cleanupDemoCache();
+  
+  // Reload Scout data from OSM
+  await reloadProductionData();
+};</code></pre>
+
+    <pre class="prettyprint"><code>// Cache keys that would be cleaned up in production
+// Direct demo keys:
+localStorage.setItem('demo_viking_events_123', JSON.stringify(demoEvents));
+localStorage.setItem('demo_event_attendance_456', JSON.stringify(demoAttendance));
+
+// Contaminated regular keys:
+localStorage.setItem('viking_events_offline', JSON.stringify([
+  { eventid: 'demo_event_123', sectionname: 'Demo Beavers' }, // Demo event
+  { eventid: 'real_123', sectionname: '1st Walton Beavers' }   // Real event
+]));
+
+// After cleanupDemoCache():
+// - All demo_* keys removed
+// - viking_events_offline removed (contained demo data)
+// - Real-only cache keys remain untouched</code></pre>
+
+    <pre class="prettyprint"><code>// Monitor cleanup operation results
+const beforeKeys = Object.keys(localStorage).length;
+cleanupDemoCache();
+const afterKeys = Object.keys(localStorage).length;
+
+if (beforeKeys > afterKeys) {
+  console.log(`Cleanup removed ${beforeKeys - afterKeys} contaminated cache entries`);
+} else {
+  console.log('No demo data found - cache already clean');
+}</code></pre>
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 

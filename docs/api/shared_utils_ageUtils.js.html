@@ -27,9 +27,100 @@
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>/**
- * Calculate age from date of birth and format for display
- * @param {string|Date} dateOfBirth - Date of birth
- * @returns {string} Formatted age display (">25" for adults over 25, actual age otherwise)
+ * @fileoverview Age calculation utilities for Viking Event Management
+ * 
+ * This module provides age calculation functions with privacy-conscious formatting
+ * for Scout environments. Implements leader privacy protection by showing ">25"
+ * for adults over 25, while displaying actual ages for young people.
+ * 
+ * Age calculations are essential for Scout programs which have strict age-based
+ * section requirements and safeguarding policies. The privacy features protect
+ * adult leader information while maintaining operational transparency for youth
+ * members where age verification is needed for activities and badges.
+ * 
+ * @module ageUtils
+ * @version 2.3.7
+ * @since 1.0.0 - Initial age calculation support
+ * @author Vikings Event Management Team
+ */
+
+/**
+ * Calculates age from date of birth with privacy-conscious formatting for display
+ * 
+ * Computes age in years and applies Scout-appropriate privacy formatting.
+ * For young people (25 and under), displays the actual age for section
+ * placement and activity suitability verification. For adults over 25
+ * (typically leaders), shows ">25" to protect privacy while confirming
+ * adult status for safeguarding compliance.
+ * 
+ * This privacy approach balances operational needs (knowing young people's
+ * exact ages for activities) with leader privacy (adults don't need exact
+ * ages displayed to other members).
+ * 
+ * @param {string|Date} dateOfBirth - Date of birth in any format parseable by Date constructor
+ * @returns {string} Formatted age display - actual age for ≤25, ">25" for adults over 25
+ * 
+ * @example
+ * // Young person ages (shown exactly for section/activity verification)
+ * const scoutAge = calculateAge('2010-05-15'); // Scout born in 2010
+ * console.log(scoutAge); // "14" (actual age for activity planning)
+ * 
+ * const beaverAge = calculateAge('2018-11-20'); // Beaver born in 2018  
+ * console.log(beaverAge); // "6" (exact age for section suitability)
+ * 
+ * @example
+ * // Adult leader ages (privacy protected)
+ * const youngLeader = calculateAge('1999-08-10'); // 25-year-old leader
+ * console.log(youngLeader); // "25" (still shows exact age)
+ * 
+ * const seniorLeader = calculateAge('1985-03-22'); // 39-year-old leader
+ * console.log(seniorLeader); // ">25" (privacy protected)
+ * 
+ * @example
+ * // Handle various date formats and edge cases
+ * console.log(calculateAge('1995-12-31')); // ">25" (adult leader)
+ * console.log(calculateAge('2012/06/18')); // "12" (young scout)
+ * console.log(calculateAge(new Date('2008-09-03'))); // "16" (accepts Date objects)
+ * console.log(calculateAge('')); // "" (handles empty input)
+ * console.log(calculateAge('invalid-date')); // "" (handles invalid input)
+ * 
+ * @example
+ * // Usage in Scout member displays
+ * const renderMemberAge = (member) => {
+ *   const ageDisplay = calculateAge(member.dob);
+ *   const ageLabel = ageDisplay === '>25' ? 'Adult Leader' : `Age ${ageDisplay}`;
+ *   
+ *   return (
+ *     &lt;div className="member-info">
+ *       &lt;span className="name">{member.firstname} {member.lastname}&lt;/span>
+ *       &lt;span className="age">{ageLabel}&lt;/span>
+ *     &lt;/div>
+ *   );
+ * };
+ * 
+ * @example
+ * // Age-based section validation
+ * const validateSectionAge = (member, targetSection) => {
+ *   const age = calculateAge(member.dob);
+ *   
+ *   if (age === '>25') {
+ *     return true; // Adults can lead any section
+ *   }
+ *   
+ *   const numericAge = parseInt(age);
+ *   const sectionAgeRanges = {
+ *     'Beavers': [6, 8],
+ *     'Cubs': [8, 10.5],
+ *     'Scouts': [10.5, 14],
+ *     'Explorers': [14, 18],
+ *     'Network': [18, 25]
+ *   };
+ *   
+ *   const [minAge, maxAge] = sectionAgeRanges[targetSection] || [0, 100];
+ *   return numericAge >= minAge &amp;&amp; numericAge &lt;= maxAge;
+ * };
+ * 
+ * @since 1.0.0
  */
 export function calculateAge(dateOfBirth) {
   if (!dateOfBirth) return '';
@@ -48,9 +139,97 @@ export function calculateAge(dateOfBirth) {
 }
 
 /**
- * Calculate actual numeric age (for calculations, not display)
- * @param {string|Date} dateOfBirth - Date of birth  
- * @returns {number} Actual age in years
+ * Calculates actual numeric age in years for internal calculations and logic
+ * 
+ * Computes the precise age in years without privacy formatting, returning
+ * the actual numeric value. This function is intended for internal calculations,
+ * age-based logic, section transitions, and other programmatic uses where
+ * the exact age is needed regardless of privacy considerations.
+ * 
+ * Unlike calculateAge(), this function always returns the real numeric age
+ * without any privacy masking. Use this for business logic and calculations,
+ * but use calculateAge() for user-facing displays.
+ * 
+ * @param {string|Date} dateOfBirth - Date of birth in any format parseable by Date constructor
+ * @returns {number} Actual age in years as a number (0 if invalid input)
+ * 
+ * @example
+ * // Use for section transition calculations
+ * const checkSectionTransition = (member) => {
+ *   const actualAge = calculateActualAge(member.dob);
+ *   
+ *   if (member.currentSection === 'Cubs' &amp;&amp; actualAge >= 10.5) {
+ *     return {
+ *       shouldTransition: true,
+ *       targetSection: 'Scouts',
+ *       message: `${member.firstname} is ready to move up to Scouts`
+ *     };
+ *   }
+ *   
+ *   if (member.currentSection === 'Scouts' &amp;&amp; actualAge >= 14) {
+ *     return {
+ *       shouldTransition: true,
+ *       targetSection: 'Explorers', 
+ *       message: `${member.firstname} can now join Explorers`
+ *     };
+ *   }
+ *   
+ *   return { shouldTransition: false };
+ * };
+ * 
+ * @example
+ * // Age-based activity restrictions
+ * const canParticipateInActivity = (member, activity) => {
+ *   const age = calculateActualAge(member.dob);
+ *   
+ *   const activityRequirements = {
+ *     'Rock Climbing': { minAge: 8, maxAge: 100 },
+ *     'Pioneering': { minAge: 10, maxAge: 100 },
+ *     'Night Hike': { minAge: 10, maxAge: 25 }, // Young people only
+ *     'Archery': { minAge: 8, maxAge: 100 }
+ *   };
+ *   
+ *   const requirements = activityRequirements[activity.name];
+ *   if (!requirements) return true; // No age restrictions
+ *   
+ *   return age >= requirements.minAge &amp;&amp; age &lt;= requirements.maxAge;
+ * };
+ * 
+ * @example
+ * // Statistical analysis without privacy concerns
+ * const analyzeAgeDistribution = (members) => {
+ *   const ages = members.map(member => calculateActualAge(member.dob));
+ *   
+ *   return {
+ *     averageAge: ages.reduce((sum, age) => sum + age, 0) / ages.length,
+ *     youngestMember: Math.min(...ages),
+ *     oldestMember: Math.max(...ages),
+ *     ageGroups: {
+ *       under10: ages.filter(age => age &lt; 10).length,
+ *       teens: ages.filter(age => age >= 10 &amp;&amp; age &lt; 20).length,
+ *       adults: ages.filter(age => age >= 20).length
+ *     }
+ *   };
+ * };
+ * 
+ * @example
+ * // Compare with display function
+ * const member = { dob: '1985-06-15' }; // 39 years old
+ * 
+ * const displayAge = calculateAge(member.dob);    // ">25" (privacy protected)
+ * const actualAge = calculateActualAge(member.dob); // 39 (exact for calculations)
+ * 
+ * console.log(`Display: ${displayAge}, Actual: ${actualAge}`);
+ * // Output: "Display: >25, Actual: 39"
+ * 
+ * @example
+ * // Error handling for invalid dates
+ * console.log(calculateActualAge('')); // 0
+ * console.log(calculateActualAge('invalid')); // 0
+ * console.log(calculateActualAge(null)); // 0
+ * console.log(calculateActualAge(undefined)); // 0
+ * 
+ * @since 1.0.0
  */
 export function calculateActualAge(dateOfBirth) {
   if (!dateOfBirth) return 0;
@@ -73,13 +252,13 @@ export function calculateActualAge(dateOfBirth) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#calculateActualAge">calculateActualAge</a></li><li><a href="global.html#calculateAge">calculateAge</a></li><li><a href="global.html#checkForDemoData">checkForDemoData</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#cleanupDemoCache">cleanupDemoCache</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#extractVikingEventFields">extractVikingEventFields</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#findMemberSectionName">findMemberSectionName</a></li><li><a href="global.html#findMemberSectionType">findMemberSectionType</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUniqueSectionsFromEvents">getUniqueSectionsFromEvents</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#organizeMembersByCampGroups">organizeMembersByCampGroups</a></li><li><a href="global.html#parseFlexiStructure">parseFlexiStructure</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#transformFlexiRecordData">transformFlexiRecordData</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-ageUtils.html">ageUtils</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-cacheCleanup.html">cacheCleanup</a></li><li><a href="module-flexiRecordTransforms.html">flexiRecordTransforms</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li><li><a href="module-sectionHelpers.html">sectionHelpers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#formatPhoneForCall">formatPhoneForCall</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#handlePhoneCall">handlePhoneCall</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#isValidPhoneNumber">isValidPhoneNumber</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Sep 10 2025 22:12:57 GMT+0100 (British Summer Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Sep 11 2025 21:43:53 GMT+0100 (British Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>
