@@ -1,6 +1,9 @@
 // Simple Authentication Error Handler
 // Minimal solution to prevent multiple 403 errors and provide clear UX
 
+/**
+ *
+ */
 class SimpleAuthHandler {
   constructor() {
     this.hasShownAuthError = false;
@@ -11,6 +14,7 @@ class SimpleAuthHandler {
    * Handle API response and track authentication failures
    * @param {Response} response - Fetch response object
    * @param {string} apiName - Name of the API call for logging
+   * @param _apiName
    * @returns {boolean} - true if auth is OK, false if auth failed
    */
   handleAPIResponse(response, _apiName) {

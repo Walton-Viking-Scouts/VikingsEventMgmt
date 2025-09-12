@@ -14,6 +14,11 @@ import {
 } from '../../../shared/utils/eventDashboardHelpers.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.onNavigateToAttendance
+ */
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();
   const navigate = useNavigate();

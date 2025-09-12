@@ -1306,6 +1306,451 @@ Used for important messages, notifications, and feedback</p>
     
 
     
+    <h4 class="name" id="App"><span class="type-signature"></span>App<span class="signature">()</span><span class="type-signature"> &rarr; {ReactElement}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Main App component for the Viking Event Management mobile application.</p>
+<p>This is the root component that orchestrates the Scout event management system.
+It integrates the main routing system with global notification toasts, providing
+the foundation for offline-first Scout event management and member tracking.</p>
+<p>The component combines the AppRouter for handling all navigation and the Toaster
+for displaying user feedback throughout the Scout management workflows.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0</li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="App.jsx.html">App.jsx</a>, <a href="App.jsx.html#line47">line 47</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The complete Scout application with routing and notifications</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">ReactElement</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Basic usage as the root component
+import App from './App.jsx';
+
+createRoot(document.getElementById('root')).render(
+  &lt;StrictMode>
+    &lt;App />
+  &lt;/StrictMode>
+);</code></pre>
+
+    <pre class="prettyprint"><code>// Integration with native platforms using Capacitor
+// The App component automatically handles:
+// - Offline data synchronization for Scout events
+// - Member movement tracking between sections
+// - OSM API integration with rate limiting
+// - Authentication state management
+
+npx cap sync  // Sync to native platforms</code></pre>
+
+    <pre class="prettyprint"><code>// Scout management workflow supported:
+// 1. View and manage Scout sections (Beavers, Cubs, Scouts, etc.)
+// 2. Track member movements between sections
+// 3. Manage Scout events and attendance
+// 4. Handle offline scenarios with cached data
+// 5. Sync with OSM (Online Scout Manager) when online</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="AppContent"><span class="type-signature"></span>AppContent<span class="signature">()</span><span class="type-signature"> &rarr; {ReactElement}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Internal routing component that handles authenticated Scout management interface.</p>
+<p>This component manages the core Scout application interface with authentication,
+offline capabilities, and responsive layout. It provides the main navigation
+structure for Scout leaders to manage sections, events, and member movements
+while handling both online and offline operational modes.</p>
+<p>The component integrates authentication state, data synchronization, token
+management, and responsive layout to deliver a seamless Scout management
+experience across different devices and network conditions.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0</li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="routes_AppRouter.jsx.html">routes/AppRouter.jsx</a>, <a href="routes_AppRouter.jsx.html#line58">line 58</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The authenticated Scout management interface with routing</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">ReactElement</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Used internally by AppRouter - not directly imported
+// Handles authenticated routes like:
+// /movers - Member movement tracking
+// /sections - Scout section management  
+// /events/* - Event management and attendance
+// /clear - Administrative data management</code></pre>
+
+    <pre class="prettyprint"><code>// Authentication states handled:
+// - Loading: Shows authentication check screen
+// - Authenticated: Shows full Scout interface
+// - Offline: Shows cached data with sync options
+// - Token expired: Shows re-authentication dialog</code></pre>
+
+    <pre class="prettyprint"><code>// Scout workflow integration:
+// 1. Section management (Beavers, Cubs, Scouts, Venturers, Rovers)
+// 2. Member movement tracking between sections
+// 3. Event creation and attendance management
+// 4. Offline data synchronization with OSM API
+// 5. Administrative tools for Scout leaders</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="AppRouter"><span class="type-signature"></span>AppRouter<span class="signature">()</span><span class="type-signature"> &rarr; {ReactElement}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Main application router for the Viking Event Management Scout application.</p>
+<p>This is the primary routing component that establishes the browser-based navigation
+system for Scout event management. It wraps the application in essential providers
+for state management and routing, creating the foundation for offline-first
+Scout operations and OSM API integration.</p>
+<p>The router handles all URL-based navigation, OAuth authentication flows, and
+provides the context infrastructure needed for Scout section management,
+member movements, and event coordination across the entire application.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+    <dt class="tag-since">Since:</dt>
+    <dd class="tag-since"><ul class="dummy"><li>1.0.0</li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="routes_AppRouter.jsx.html">routes/AppRouter.jsx</a>, <a href="routes_AppRouter.jsx.html#line208">line 208</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The complete Scout application routing system with providers</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">ReactElement</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+    <h5>Examples</h5>
+    
+    <pre class="prettyprint"><code>// Primary usage as the main routing component
+import AppRouter from './routes/AppRouter.jsx';
+
+function App() {
+  return (
+    &lt;>
+      &lt;AppRouter />
+      &lt;Toaster />
+    &lt;/>
+  );
+}</code></pre>
+
+    <pre class="prettyprint"><code>// Supported Scout management routes:
+// /events - Main Scout event management dashboard
+// /events/create - Create new Scout events  
+// /events/:id - View/edit specific Scout event
+// /movers - Member movement tracking between sections
+// /sections - Scout section overview (Beavers, Cubs, etc.)
+// /clear - Administrative data management tools</code></pre>
+
+    <pre class="prettyprint"><code>// OAuth and authentication flow handling:
+// 1. Automatic OSM OAuth callback processing
+// 2. Token storage and refresh management
+// 3. Offline mode with cached Scout data
+// 4. Token expiration and re-authentication
+// 5. Scout group context and permissions</code></pre>
+
+    <pre class="prettyprint"><code>// Context providers enabled:
+// - AppStateProvider: Global Scout application state
+// - BrowserRouter: URL-based navigation
+// - Authentication context: User and session management
+// - Offline capabilities: Cached data and sync status</code></pre>
+
+
+
+        
+            
+
+    
+
+    
     <h4 class="name" id="AuthButton"><span class="type-signature"></span>AuthButton<span class="signature">(props)</span><span class="type-signature"></span></h4>
     
 
@@ -13523,13 +13968,13 @@ const currentTerm = findMostRecentTerm(terms); // Returns Spring 2024 term</code
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-ageUtils.html">ageUtils</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-cacheCleanup.html">cacheCleanup</a></li><li><a href="module-flexiRecordTransforms.html">flexiRecordTransforms</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li><li><a href="module-sectionHelpers.html">sectionHelpers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="ErrorBoundary.html">ErrorBoundary</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="SyncService.html">SyncService</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#formatPhoneForCall">formatPhoneForCall</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#handlePhoneCall">handlePhoneCall</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#isValidPhoneNumber">isValidPhoneNumber</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-DatabaseService.html">DatabaseService</a></li><li><a href="module-EventCard.html">EventCard</a></li><li><a href="module-FlexiRecordService.html">FlexiRecordService</a></li><li><a href="module-ageUtils.html">ageUtils</a></li><li><a href="module-auth.html">auth</a></li><li><a href="module-cacheCleanup.html">cacheCleanup</a></li><li><a href="module-flexiRecordTransforms.html">flexiRecordTransforms</a></li><li><a href="module-logger.html">logger</a></li><li><a href="module-notifications.html">notifications</a></li><li><a href="module-sectionHelpers.html">sectionHelpers</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-logger-logger.html">logger</a></li></ul><h3>Classes</h3><ul><li><a href="APIQueue.html">APIQueue</a></li><li><a href="ErrorBoundary.html">ErrorBoundary</a></li><li><a href="RateLimitQueue.html">RateLimitQueue</a></li><li><a href="SyncService.html">SyncService</a></li><li><a href="module-DatabaseService-DatabaseService.html">DatabaseService</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Alert">Alert</a></li><li><a href="global.html#App">App</a></li><li><a href="global.html#AppContent">AppContent</a></li><li><a href="global.html#AppRouter">AppRouter</a></li><li><a href="global.html#AuthButton">AuthButton</a></li><li><a href="global.html#CampGroupCard">CampGroupCard</a></li><li><a href="global.html#CampGroupsView">CampGroupsView</a></li><li><a href="global.html#ConfirmModal">ConfirmModal</a></li><li><a href="global.html#DEMO_CACHE_DATA">DEMO_CACHE_DATA</a></li><li><a href="global.html#GroupNamesEditModal">GroupNamesEditModal</a></li><li><a href="global.html#Modal">Modal</a></li><li><a href="global.html#REQUIRED_VIKING_SECTION_MOVERS_FIELDS">REQUIRED_VIKING_SECTION_MOVERS_FIELDS</a></li><li><a href="global.html#SectionFilter">SectionFilter</a></li><li><a href="global.html#_generateProductionFormatAttendance">_generateProductionFormatAttendance</a></li><li><a href="global.html#assignMemberToCampGroupDemo">assignMemberToCampGroupDemo</a></li><li><a href="global.html#batchAssignMembers">batchAssignMembers</a></li><li><a href="global.html#buildEventCard">buildEventCard</a></li><li><a href="global.html#checkNetworkStatus">checkNetworkStatus</a></li><li><a href="global.html#clearFlexiRecordCaches">clearFlexiRecordCaches</a></li><li><a href="global.html#cn">cn</a></li><li><a href="global.html#convertSharedEventToAttendanceFormat">convertSharedEventToAttendanceFormat</a></li><li><a href="global.html#demoConfig">demoConfig</a></li><li><a href="global.html#expandSharedEvents">expandSharedEvents</a></li><li><a href="global.html#extractFlexiRecordContext">extractFlexiRecordContext</a></li><li><a href="global.html#fetchAllSectionEvents">fetchAllSectionEvents</a></li><li><a href="global.html#fetchEventAttendance">fetchEventAttendance</a></li><li><a href="global.html#fetchMostRecentTermId">fetchMostRecentTermId</a></li><li><a href="global.html#fetchSectionEvents">fetchSectionEvents</a></li><li><a href="global.html#filterEventsByDateRange">filterEventsByDateRange</a></li><li><a href="global.html#formatPhoneForCall">formatPhoneForCall</a></li><li><a href="global.html#generateDemoSharedAttendance">generateDemoSharedAttendance</a></li><li><a href="global.html#generateVikingSectionMoversErrorMessages">generateVikingSectionMoversErrorMessages</a></li><li><a href="global.html#getEventAttendance">getEventAttendance</a></li><li><a href="global.html#getEventSharingStatus">getEventSharingStatus</a></li><li><a href="global.html#getEventSummary">getEventSummary</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFlexiRecords">getFlexiRecords</a></li><li><a href="global.html#getFlexiStructure">getFlexiStructure</a></li><li><a href="global.html#getListOfMembers">getListOfMembers</a></li><li><a href="global.html#getMembersGrid">getMembersGrid</a></li><li><a href="global.html#getMostRecentTermId">getMostRecentTermId</a></li><li><a href="global.html#getSharedEventAttendance">getSharedEventAttendance</a></li><li><a href="global.html#getSingleFlexiRecord">getSingleFlexiRecord</a></li><li><a href="global.html#getStartupData">getStartupData</a></li><li><a href="global.html#getTerms">getTerms</a></li><li><a href="global.html#getUserAccessibleSections">getUserAccessibleSections</a></li><li><a href="global.html#getUserRoles">getUserRoles</a></li><li><a href="global.html#groupContactInfo">groupContactInfo</a></li><li><a href="global.html#groupEventsByName">groupEventsByName</a></li><li><a href="global.html#handleAPIResponseWithRateLimit">handleAPIResponseWithRateLimit</a></li><li><a href="global.html#handlePhoneCall">handlePhoneCall</a></li><li><a href="global.html#initializeDemoMode">initializeDemoMode</a></li><li><a href="global.html#isDemoMode">isDemoMode</a></li><li><a href="global.html#isSharedEventOwner">isSharedEventOwner</a></li><li><a href="global.html#isValidPhoneNumber">isValidPhoneNumber</a></li><li><a href="global.html#logRateLimitInfo">logRateLimitInfo</a></li><li><a href="global.html#mergeSharedAndSectionAttendance">mergeSharedAndSectionAttendance</a></li><li><a href="global.html#multiUpdateFlexiRecord">multiUpdateFlexiRecord</a></li><li><a href="global.html#organizeByCampGroups">organizeByCampGroups</a></li><li><a href="global.html#parseTimestamp">parseTimestamp</a></li><li><a href="global.html#quickValidateVikingSectionMovers">quickValidateVikingSectionMovers</a></li><li><a href="global.html#retrieveUserInfo">retrieveUserInfo</a></li><li><a href="global.html#safeCacheWithLogging">safeCacheWithLogging</a></li><li><a href="global.html#safeGetItem">safeGetItem</a></li><li><a href="global.html#safeGetSessionItem">safeGetSessionItem</a></li><li><a href="global.html#safeSetItem">safeSetItem</a></li><li><a href="global.html#safeSetSessionItem">safeSetSessionItem</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#sleepWithAbort">sleepWithAbort</a></li><li><a href="global.html#testBackendConnection">testBackendConnection</a></li><li><a href="global.html#updateFlexiRecord">updateFlexiRecord</a></li><li><a href="global.html#useAttendanceData">useAttendanceData</a></li><li><a href="global.html#useSignInOut">useSignInOut</a></li><li><a href="global.html#validateMemberMove">validateMemberMove</a></li><li><a href="global.html#validateTokenBeforeAPICall">validateTokenBeforeAPICall</a></li><li><a href="global.html#validateVikingSectionMoversFlexiRecord">validateVikingSectionMoversFlexiRecord</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Fri Sep 12 2025 15:24:48 GMT+0100 (British Summer Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Fri Sep 12 2025 17:57:38 GMT+0100 (British Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>

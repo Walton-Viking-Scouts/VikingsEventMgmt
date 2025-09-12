@@ -2,6 +2,19 @@ import React from 'react';
 import CompactAttendanceFilter from '../CompactAttendanceFilter.jsx';
 import { SectionFilter } from '../../../../shared/components/ui';
 
+/**
+ *
+ * @param root0
+ * @param root0.attendanceFilters
+ * @param root0.onAttendanceFiltersChange
+ * @param root0.sectionFilters
+ * @param root0.onSectionFiltersChange
+ * @param root0.sections
+ * @param root0.showDataFilters
+ * @param root0.dataFilters
+ * @param root0.onDataFiltersChange
+ * @param root0.attendanceData
+ */
 function AttendanceFilters({
   attendanceFilters,
   onAttendanceFiltersChange,

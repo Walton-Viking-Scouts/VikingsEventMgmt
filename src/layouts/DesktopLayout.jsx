@@ -2,6 +2,20 @@ import React from 'react';
 import VikingHeader from '../shared/components/VikingHeader.jsx';
 import Footer from '../shared/components/Footer.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.children
+ * @param root0.user
+ * @param root0.onLogout
+ * @param root0.onLogin
+ * @param root0.onRefresh
+ * @param root0.isOfflineMode
+ * @param root0.authState
+ * @param root0.lastSyncTime
+ * @param root0.currentView
+ * @param root0.isRefreshing
+ */
 function DesktopLayout({
   children,
   user,

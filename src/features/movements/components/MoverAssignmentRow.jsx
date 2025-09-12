@@ -1,5 +1,14 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.mover
+ * @param root0.availableSections
+ * @param root0.availableTerms
+ * @param root0.onAssignmentChange
+ * @param root0.onTermOverrideChange
+ */
 function MoverAssignmentRow({
   mover,
   availableSections,

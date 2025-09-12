@@ -1,6 +1,15 @@
 import React, { memo } from 'react';
 import { cn } from '../../../shared/utils/cn';
 
+/**
+ *
+ * @param root0
+ * @param root0.sectionName
+ * @param root0.currentCount
+ * @param root0.outgoingMovers
+ * @param root0.remainingCount
+ * @param root0.incomingCount
+ */
 function SectionMovementCard({ 
   sectionName, 
   currentCount, 

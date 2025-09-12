@@ -13,6 +13,9 @@ import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelper
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 function EventsRegister() {
   const location = useLocation();
   const navigate = useNavigate();

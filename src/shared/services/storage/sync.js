@@ -6,6 +6,9 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
 
+/**
+ *
+ */
 class SyncService {
   constructor() {
     this.isSyncing = false;
@@ -14,31 +17,54 @@ class SyncService {
   }
 
   // Add listener for sync status changes
+  /**
+   *
+   * @param callback
+   */
   addSyncListener(callback) {
     this.syncListeners.push(callback);
   }
 
   // Remove sync listener
+  /**
+   *
+   * @param callback
+   */
   removeSyncListener(callback) {
     this.syncListeners = this.syncListeners.filter(cb => cb !== callback);
   }
 
   // Add listener for login prompt requests
+  /**
+   *
+   * @param callback
+   */
   addLoginPromptListener(callback) {
     this.loginPromptCallbacks.push(callback);
   }
 
   // Remove login prompt listener
+  /**
+   *
+   * @param callback
+   */
   removeLoginPromptListener(callback) {
     this.loginPromptCallbacks = this.loginPromptCallbacks.filter(cb => cb !== callback);
   }
 
   // Notify listeners of sync status
+  /**
+   *
+   * @param status
+   */
   notifyListeners(status) {
     this.syncListeners.forEach(callback => callback(status));
   }
 
   // Notify listeners to show login prompt
+  /**
+   *
+   */
   showLoginPrompt() {
     return new Promise((resolve) => {
       this.loginPromptCallbacks.forEach(callback => {
@@ -59,6 +85,9 @@ class SyncService {
   }
 
   // Check if we're online
+  /**
+   *
+   */
   async isOnline() {
     if (Capacitor.isNativePlatform()) {
       const status = await Network.getStatus();
@@ -69,6 +98,9 @@ class SyncService {
   }
 
   // Check if we have a valid token before syncing
+  /**
+   *
+   */
   async checkTokenAndPromptLogin() {
     // Check network status first - no point prompting for login if offline
     const isOnline = await checkNetworkStatus();
@@ -99,6 +131,10 @@ class SyncService {
   }
 
   // Handle 401/403 errors by prompting for login
+  /**
+   *
+   * @param error
+   */
   async handleAuthError(error) {
     if (error.status === 401 || error.status === 403 || 
         error.message.includes('Invalid access token') || 
@@ -115,6 +151,11 @@ class SyncService {
   }
 
   // Wrapper method to handle auth errors consistently
+  /**
+   *
+   * @param operation
+   * @param options
+   */
   async withAuthErrorHandling(operation, options = {}) {
     const { continueOnError = false, contextMessage = '' } = options;
     
@@ -264,6 +305,10 @@ class SyncService {
   }
 
   // Sync terms (core data needed for all section operations)
+  /**
+   *
+   * @param token
+   */
   async syncTerms(token) {
     try {
       await this.withAuthErrorHandling(async () => {
@@ -283,6 +328,10 @@ class SyncService {
   }
 
   // Sync sections
+  /**
+   *
+   * @param token
+   */
   async syncSections(token) {
     try {
       await this.withAuthErrorHandling(async () => {
@@ -301,6 +350,11 @@ class SyncService {
   }
 
   // Sync events for a section
+  /**
+   *
+   * @param sectionId
+   * @param token
+   */
   async syncEvents(sectionId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing events for section ${sectionId}...` });
@@ -323,6 +377,13 @@ class SyncService {
   }
 
   // Sync attendance for an event
+  /**
+   *
+   * @param sectionId
+   * @param eventId
+   * @param termId
+   * @param token
+   */
   async syncAttendance(sectionId, eventId, termId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing attendance for event ${eventId}...` });
@@ -349,6 +410,11 @@ class SyncService {
   }
 
   // Sync members data for a section (includes medical information)
+  /**
+   *
+   * @param sectionId
+   * @param token
+   */
   async syncMembers(sectionId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing members for section ${sectionId}...` });
@@ -377,6 +443,9 @@ class SyncService {
 
 
   // Get sync status
+  /**
+   *
+   */
   async getSyncStatus() {
     try {
       const hasOfflineData = await databaseService.hasOfflineData();
@@ -398,6 +467,11 @@ class SyncService {
   }
 
   // Preload static flexirecord data (lists and structures) for faster access later
+  /**
+   *
+   * @param sections
+   * @param token
+   */
   async preloadStaticFlexiRecordData(sections, token) {
     try {
       if (!sections || !Array.isArray(sections) || sections.length === 0) {

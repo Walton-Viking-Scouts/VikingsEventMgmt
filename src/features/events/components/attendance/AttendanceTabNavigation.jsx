@@ -1,5 +1,12 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.activeTab
+ * @param root0.onTabChange
+ * @param root0.hasSharedEvents
+ */
 function AttendanceTabNavigation({ 
   activeTab, 
   onTabChange, 

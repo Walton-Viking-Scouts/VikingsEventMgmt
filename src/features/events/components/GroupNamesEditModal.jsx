@@ -6,10 +6,10 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  * Modal for editing camp group names
  * Allows bulk renaming of groups with validation and multi-section support
  *
- * @param {Object} props - Component props
+ * @param {object} props - Component props
  * @param {boolean} props.isOpen - Whether modal is open
  * @param {Function} props.onClose - Close modal callback
- * @param {Object} props.groups - Current groups object from organizedGroups.groups
+ * @param {object} props.groups - Current groups object from organizedGroups.groups
  * @param {Function} props.onRename - Rename callback with (oldName, newName, membersBySection)
  * @param {Function} props.onDelete - Delete callback with (groupName, membersBySection)
  * @param {boolean} props.loading - Whether rename operation is in progress

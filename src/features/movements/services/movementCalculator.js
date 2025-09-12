@@ -2,6 +2,11 @@ import { calculateAgeAtDate, willMemberMoveUp } from '../../../shared/utils/sect
 
 const ageCalculationCache = new Map();
 
+/**
+ *
+ * @param birthdate
+ * @param termStartDate
+ */
 function getCachedAge(birthdate, termStartDate) {
   const key = `${birthdate}-${termStartDate}`;
   if (ageCalculationCache.has(key)) {
@@ -13,6 +18,13 @@ function getCachedAge(birthdate, termStartDate) {
   return age;
 }
 
+/**
+ *
+ * @param members
+ * @param termStartDate
+ * @param sections
+ * @param termObject
+ */
 export function calculateSectionMovements(members, termStartDate, sections = [], termObject = null) {
   if (!Array.isArray(members)) {
     throw new Error('Members must be an array');
@@ -146,6 +158,10 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
   return movementResults;
 }
 
+/**
+ *
+ * @param currentSectionName
+ */
 function getTargetSection(currentSectionName) {
   if (!currentSectionName || typeof currentSectionName !== 'string') {
     return null;
@@ -161,6 +177,10 @@ function getTargetSection(currentSectionName) {
   return null;
 }
 
+/**
+ *
+ * @param movers
+ */
 export function groupMoversByTargetSection(movers) {
   if (!Array.isArray(movers)) {
     return new Map();

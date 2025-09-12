@@ -2,6 +2,10 @@ import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { groupSectionsByType, mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
+/**
+ *
+ * @param sectionName
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
   
@@ -16,6 +20,14 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
+/**
+ *
+ * @param sectionType
+ * @param termCalculations
+ * @param sectionsData
+ * @param assignments
+ * @param unassignedData
+ */
 function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedData) {
   const firstTermGrouped = groupSectionsByType(termCalculations[0]?.sectionSummaries, sectionsData || []);
   const firstTermGroup = firstTermGrouped.get(sectionType);
@@ -95,6 +107,13 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
   return rows;
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.termCalculations
+ * @param root0.assignments
+ * @param root0.sectionsData
+ */
 function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
   const allSectionTypes = useMemo(() => ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'], []);
   

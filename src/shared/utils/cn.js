@@ -9,6 +9,10 @@ import clsx from 'clsx';
  * cn(['base', 'other'], { 'variant': true })
  */
 
+/**
+ *
+ * @param {...any} classes
+ */
 export function cn(...classes) {
   return clsx(classes);
 }

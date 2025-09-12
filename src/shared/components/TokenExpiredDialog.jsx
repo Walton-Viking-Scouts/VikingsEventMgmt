@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.isOpen
+ * @param root0.onRefresh
+ * @param root0.onLogout
+ * @param root0.onReLogin
+ * @param root0.onStayOffline
+ * @param root0.hasCachedData
+ * @param root0.message
+ */
 function TokenExpiredDialog({ 
   isOpen = false, 
   onRefresh = () => {}, 

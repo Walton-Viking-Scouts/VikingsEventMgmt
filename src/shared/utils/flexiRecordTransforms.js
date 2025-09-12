@@ -1,5 +1,5 @@
 /**
- * @fileoverview FlexiRecord transformation utilities for Viking Event Management
+ * @file FlexiRecord transformation utilities for Viking Event Management
  * 
  * This module provides pure functions for transforming OSM FlexiRecord data into
  * meaningful, structured formats for the Viking Event Management system. Handles
@@ -33,11 +33,11 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
  * a config JSON string with field definitions and a structure array with
  * additional metadata for each field.
  * 
- * @param {Object} structureData - Structure data from OSM getFlexiStructure API
+ * @param {object} structureData - Structure data from OSM getFlexiStructure API
  * @param {string} [structureData.config] - JSON string containing field mappings
  * @param {Array} [structureData.structure] - Array of structure sections with field details
  * @param {string} [structureData.extraid] - FlexiRecord type identifier
- * @returns {Map<string, Object>} Map of field ID to comprehensive field metadata
+ * @returns {Map<string, object>} Map of field ID to comprehensive field metadata
  * @throws {Error} If structure data is invalid or parsing fails
  * 
  * @example
@@ -176,12 +176,12 @@ export function parseFlexiStructure(structureData) {
  * with meaningful names. Original field references are retained with _original_ prefix
  * for debugging and fallback purposes.
  * 
- * @param {Object} flexiData - Raw data from OSM getSingleFlexiRecord API
+ * @param {object} flexiData - Raw data from OSM getSingleFlexiRecord API
  * @param {Array} flexiData.items - Array of member records with generic field names
  * @param {string} [flexiData.extraid] - FlexiRecord type identifier
- * @param {Object} [flexiData.meta] - Metadata about the FlexiRecord
- * @param {Map<string, Object>} fieldMapping - Field mapping from parseFlexiStructure
- * @returns {Object} Transformed data with meaningful field names and metadata
+ * @param {object} [flexiData.meta] - Metadata about the FlexiRecord
+ * @param {Map<string, object>} fieldMapping - Field mapping from parseFlexiStructure
+ * @returns {object} Transformed data with meaningful field names and metadata
  * @throws {Error} If data is invalid or transformation fails
  * 
  * @example
@@ -332,10 +332,10 @@ export function transformFlexiRecordData(flexiData, fieldMapping) {
  * adding the Viking Event Management tracking fields that support camp group
  * organization, attendance tracking, and sign-in/out workflows.
  * 
- * @param {Object} consolidatedData - Consolidated and transformed FlexiRecord data
+ * @param {object} consolidatedData - Consolidated and transformed FlexiRecord data
  * @param {Array} consolidatedData.items - Array of scout records with transformed field names
- * @param {Object} [consolidatedData.fieldMapping] - Field mapping for reference
- * @returns {Array<Object>} Array of scout data containing core info plus Viking Event fields
+ * @param {object} [consolidatedData.fieldMapping] - Field mapping for reference
+ * @returns {Array<object>} Array of scout data containing core info plus Viking Event fields
  * 
  * @example
  * // Extract Viking Event fields for camp group management
@@ -469,17 +469,17 @@ export function extractVikingEventFields(consolidatedData) {
  * ensures consistent sorting by name within each group, and provides comprehensive
  * metadata about group organization and Viking Event data availability.
  * 
- * @param {Array<Object>} processedMembers - Members with attached vikingEventData from getSummaryStats()
+ * @param {Array<object>} processedMembers - Members with attached vikingEventData from getSummaryStats()
  * @param {string} processedMembers[].scoutid - Unique member identifier
  * @param {string} processedMembers[].name - Member full name
  * @param {string} processedMembers[].firstname - Member first name
  * @param {string} processedMembers[].lastname - Member last name
  * @param {string} processedMembers[].person_type - Member type ('Leaders', 'Young Leaders', 'Young People', etc.)
- * @param {Object} [processedMembers[].vikingEventData] - Viking Event specific data from FlexiRecord
+ * @param {object} [processedMembers[].vikingEventData] - Viking Event specific data from FlexiRecord
  * @param {string} [processedMembers[].vikingEventData.CampGroup] - Assigned camp group number
- * @returns {Object} Organized camp groups with metadata
- * @returns {Object} returns.groups - Camp groups organized by group name
- * @returns {Object} returns.summary - Summary statistics and metadata
+ * @returns {object} Organized camp groups with metadata
+ * @returns {object} returns.groups - Camp groups organized by group name
+ * @returns {object} returns.summary - Summary statistics and metadata
  * 
  * @example
  * // Organize members from getSummaryStats into camp groups

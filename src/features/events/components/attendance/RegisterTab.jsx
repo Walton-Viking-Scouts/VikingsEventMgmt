@@ -71,6 +71,17 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
   );
 };
 
+/**
+ *
+ * @param root0
+ * @param root0.summaryStats
+ * @param root0.members
+ * @param root0.onSignInOut
+ * @param root0.buttonLoading
+ * @param root0.onMemberClick
+ * @param root0.sortConfig
+ * @param root0.onSort
+ */
 function RegisterTab({ 
   summaryStats,
   members,

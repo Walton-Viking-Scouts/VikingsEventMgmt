@@ -15,6 +15,13 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.events
+ * @param root0.members
+ * @param root0.onBack
+ */
 function EventAttendance({ events, members, onBack }) {
   const {
     attendanceData,

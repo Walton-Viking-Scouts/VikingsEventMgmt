@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
+/**
+ *
+ * @param root0
+ * @param root0.authState
+ * @param root0.className
+ * @param root0.compact
+ */
 function TokenCountdown({ authState, className = '', compact = false }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [displayText, setDisplayText] = useState('');

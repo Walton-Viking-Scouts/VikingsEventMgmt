@@ -1,5 +1,5 @@
 /**
- * @fileoverview Section utility functions for Viking Event Management
+ * @file Section utility functions for Viking Event Management
  * 
  * This module provides utility functions for working with Scout sections data,
  * including lookups, filtering, and data organization. Supports the multi-section
@@ -32,7 +32,7 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
  * provides reliable section identification with comprehensive error handling.
  * 
  * @param {string|number} memberSectionId - Section ID to lookup (from member data)
- * @param {Array<Object>} sectionsCache - Cached sections data from OSM API
+ * @param {Array<object>} sectionsCache - Cached sections data from OSM API
  * @param {string|number} sectionsCache[].sectionid - Unique section identifier
  * @param {string} sectionsCache[].section - Section type (Beavers, Cubs, Scouts, etc.)
  * @param {string} sectionsCache[].sectionname - Full section name (e.g. "1st Walton Beavers")
@@ -137,7 +137,7 @@ export function findMemberSectionType(memberSectionId, sectionsCache) {
  * needs to be clearly displayed rather than just the section type.
  * 
  * @param {string|number} memberSectionId - Section ID to lookup (from member data)
- * @param {Array<Object>} sectionsCache - Cached sections data from OSM API
+ * @param {Array<object>} sectionsCache - Cached sections data from OSM API
  * @param {string|number} sectionsCache[].sectionid - Unique section identifier
  * @param {string} sectionsCache[].section - Section type (Beavers, Cubs, Scouts, etc.)
  * @param {string} sectionsCache[].sectionname - Full section name with group details
@@ -251,12 +251,12 @@ export function findMemberSectionName(memberSectionId, sectionsCache) {
  * are only listed once, providing a clean reference list for UI components,
  * filters, and organizational purposes.
  * 
- * @param {Array<Object>} events - Array of event objects containing section information
+ * @param {Array<object>} events - Array of event objects containing section information
  * @param {string|number} events[].sectionid - Unique section identifier
  * @param {string} events[].sectionname - Full section name
  * @param {string} [events[].eventname] - Event name (not used in extraction)
  * @param {string} [events[].eventdate] - Event date (not used in extraction)
- * @returns {Array<Object>} Array of unique section objects with sectionid and sectionname
+ * @returns {Array<object>} Array of unique section objects with sectionid and sectionname
  * 
  * @example
  * // Extract sections from multi-section event calendar

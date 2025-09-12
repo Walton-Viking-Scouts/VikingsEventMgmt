@@ -14,7 +14,14 @@ import { isTokenExpired } from '../../auth/tokenService.js';
 export const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://vikings-osm-backend.onrender.com';
 
 // Custom error class for expired tokens
+/**
+ *
+ */
 export class TokenExpiredError extends Error {
+  /**
+   *
+   * @param message
+   */
   constructor(message = 'Authentication token has expired') {
     super(message);
     this.name = 'TokenExpiredError';
@@ -66,6 +73,10 @@ class APIQueue {
     this.requestCount = 0;
   }
 
+  /**
+   *
+   * @param apiCall
+   */
   async add(apiCall) {
     return new Promise((resolve, reject) => {
       this.queue.push({ apiCall, resolve, reject });
@@ -101,6 +112,9 @@ class APIQueue {
     this.processing = false;
   }
 
+  /**
+   *
+   */
   getStats() {
     return {
       queueLength: this.queue.length,
@@ -114,12 +128,15 @@ class APIQueue {
 export const apiQueue = new APIQueue();
 
 // Export queue stats for debugging
-export const getAPIQueueStats = () => apiQueue.getStats();
+export const /**
+ *
+ */
+  getAPIQueueStats = () => apiQueue.getStats();
 
 /**
  * Enhanced rate limit monitoring for OSM API responses
  * Logs warnings when rate limits are approaching critical thresholds
- * @param {Object} responseData - API response data containing rate limit info
+ * @param {object} responseData - API response data containing rate limit info
  * @param {string} apiName - Name of the API call for logging context
  */
 export function logRateLimitInfo(responseData, apiName) {
@@ -158,7 +175,7 @@ export function logRateLimitInfo(responseData, apiName) {
  * Manages rate limiting, authentication, and Sentry monitoring
  * @param {Response} response - Fetch API response object
  * @param {string} apiName - Name of the API call for logging and monitoring
- * @returns {Promise<Object>} Parsed JSON response data
+ * @returns {Promise<object>} Parsed JSON response data
  * @throws {Error} For rate limits, auth failures, or API errors
  */
 export async function handleAPIResponseWithRateLimit(response, apiName) {
@@ -285,7 +302,7 @@ export { isOnline };
 /**
  * Clear all FlexiRecord-related caches from localStorage
  * Useful after fixing authentication issues or when data becomes stale
- * @returns {Object} Summary of cleared cache entries
+ * @returns {object} Summary of cleared cache entries
  * 
  * @example
  * const result = clearFlexiRecordCaches();
@@ -321,7 +338,7 @@ export function clearFlexiRecordCaches() {
 
 /**
  * Tests connectivity to the backend API server
- * @returns {Promise<Object>} Connection test result with status
+ * @returns {Promise<object>} Connection test result with status
  * @returns {Promise<{status: 'ok'}>} When connection successful
  * @returns {Promise<{status: 'error', httpStatus: number, error: string}>} When connection fails
  * 

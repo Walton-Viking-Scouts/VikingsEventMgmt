@@ -5,6 +5,15 @@ import { cn } from '../../utils/cn';
 /**
  * Tailwind-based Modal component with Scout theming
  * Supports different sizes and accessibility features
+ * @param root0
+ * @param root0.isOpen
+ * @param root0.onClose
+ * @param root0.size
+ * @param root0.showCloseButton
+ * @param root0.closeOnOverlayClick
+ * @param root0.closeOnEscape
+ * @param root0.className
+ * @param root0.children
  */
 const Modal = ({
   isOpen = false,

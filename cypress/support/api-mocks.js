@@ -61,6 +61,7 @@ export function initializeAPIMocks() {
 
 /**
  * Mock authentication endpoints
+ * @param req
  */
 function mockAuthEndpoints(req) {
   console.log('🔐 Mocking auth endpoint:', req.url);
@@ -98,6 +99,7 @@ function mockAuthEndpoints(req) {
 
 /**
  * Mock user roles endpoint (sections data)
+ * @param req
  */
 function mockUserRoles(req) {
   console.log('👤 Mocking user roles endpoint:', req.url);
@@ -139,6 +141,7 @@ function mockUserRoles(req) {
 
 /**
  * Mock events endpoint
+ * @param req
  */
 function mockEvents(req) {
   console.log('📅 Mocking events endpoint:', req.url);
@@ -179,6 +182,7 @@ function mockEvents(req) {
 
 /**
  * Mock sections endpoint
+ * @param req
  */
 function mockSections(req) {
   console.log('🏛️ Mocking sections endpoint:', req.url);
@@ -205,6 +209,7 @@ function mockSections(req) {
 
 /**
  * Generic API mock for any unhandled endpoints
+ * @param req
  */
 function mockGenericAPI(req) {
   console.log('🔧 Mocking generic API endpoint:', req.url);
@@ -222,6 +227,7 @@ function mockGenericAPI(req) {
 
 /**
  * Block direct OSM API calls (should never happen)
+ * @param req
  */
 function blockDirectOSMCalls(req) {
   console.error('🚨 BLOCKED DIRECT OSM API CALL:', req.url);
@@ -239,6 +245,7 @@ function blockDirectOSMCalls(req) {
 
 /**
  * Rate limiting mock responses
+ * @param req
  */
 export function mockRateLimitedResponse(req) {
   return req.reply({
@@ -256,6 +263,7 @@ export function mockRateLimitedResponse(req) {
 
 /**
  * Mock offline responses
+ * @param req
  */
 export function mockOfflineResponse(req) {
   return req.reply({

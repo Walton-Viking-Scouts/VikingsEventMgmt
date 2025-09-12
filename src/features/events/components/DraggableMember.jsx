@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
+/**
+ *
+ * @param root0
+ * @param root0.member
+ * @param root0.group
+ * @param root0.onMemberClick
+ * @param root0.onDragStart
+ * @param root0.onDragEnd
+ * @param root0.isDragging
+ * @param root0.disabled
+ * @param root0.className
+ */
 function DraggableMember({ 
   member, 
   group,

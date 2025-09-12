@@ -1,5 +1,11 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.filters
+ * @param root0.onFiltersChange
+ */
 function CompactAttendanceFilter({ filters, onFiltersChange }) {
   const handleFilterToggle = (status) => {
     const newFilters = {

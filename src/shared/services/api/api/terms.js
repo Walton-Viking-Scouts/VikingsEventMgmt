@@ -21,7 +21,7 @@ const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
  * Retrieves OSM terms data with caching and offline support
  * @param {string} token - OSM authentication token
  * @param {boolean} [forceRefresh=false] - Force refresh from API instead of using cache
- * @returns {Promise<Object>} Terms data from OSM API
+ * @returns {Promise<object>} Terms data from OSM API
  * @throws {Error} When token is missing or API request fails
  * 
  * @example

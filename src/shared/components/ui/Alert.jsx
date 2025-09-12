@@ -4,6 +4,14 @@ import { cn } from '../../utils/cn';
 /**
  * Tailwind-based Alert component with Scout theming
  * Used for important messages, notifications, and feedback
+ * @param root0
+ * @param root0.children
+ * @param root0.variant
+ * @param root0.size
+ * @param root0.dismissible
+ * @param root0.onDismiss
+ * @param root0.icon
+ * @param root0.className
  */
 const Alert = ({
   children,

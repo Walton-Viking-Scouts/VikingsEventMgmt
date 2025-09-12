@@ -25,6 +25,9 @@ const broadcastAuthSync = () => {
   }
 };
 
+/**
+ *
+ */
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

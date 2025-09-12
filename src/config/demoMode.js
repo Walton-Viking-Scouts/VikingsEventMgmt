@@ -377,6 +377,15 @@ export async function initializeDemoMode() {
     });
     
     // Inline function to generate attendance records during initialization
+    /**
+     *
+     * @param sectionid
+     * @param sectionname
+     * @param groupname
+     * @param eventid
+     * @param attendingCount
+     * @param notAttendingCount
+     */
     function generateProductionFormatAttendanceInline(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
       const members = [];
       
@@ -478,6 +487,10 @@ export async function initializeDemoMode() {
   }
 }
 
+/**
+ *
+ * @param section
+ */
 function generateEventsForSection(section) {
   const baseEvents = [
     { name: 'Annual Camp Weekend', location: 'Camp Wilderness', cost: '35.00' },
@@ -511,6 +524,10 @@ function generateEventsForSection(section) {
   });
 }
 
+/**
+ *
+ * @param section
+ */
 function generateMembersForSection(section) {
   // Generate random member count between 18-24 per section
   const memberCount = Math.floor(Math.random() * (24 - 18 + 1)) + 18;
@@ -623,6 +640,11 @@ function generateMembersForSection(section) {
   return members;
 }
 
+/**
+ *
+ * @param section
+ * @param _eventId
+ */
 function generateAttendanceForEvent(section, _eventId) {
   // Use cached members to maintain identity consistency
   const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || generateMembersForSection(section);
@@ -657,6 +679,10 @@ function generateAttendanceForEvent(section, _eventId) {
   });
 }
 
+/**
+ *
+ * @param offset
+ */
 function getFutureDate(offset) {
   const date = new Date();
   // Create events spanning recent past to near future (dashboard shows events >= 1 week ago)
@@ -667,6 +693,11 @@ function getFutureDate(offset) {
   return date.toISOString().split('T')[0];
 }
 
+/**
+ *
+ * @param sectionType
+ * @param personType
+ */
 function getRandomBirthDate(sectionType, personType = 'Young People') {
   let ageRange;
   
@@ -697,6 +728,10 @@ function getRandomBirthDate(sectionType, personType = 'Young People') {
   return `${birthYear}-${birthMonth.toString().padStart(2, '0')}-${birthDay.toString().padStart(2, '0')}`;
 }
 
+/**
+ *
+ * @param section
+ */
 function generateFlexiListsForSection(section) {
   return [
     {
@@ -706,6 +741,10 @@ function generateFlexiListsForSection(section) {
   ];
 }
 
+/**
+ *
+ * @param flexiRecord
+ */
 function generateFlexiStructure(flexiRecord) {
   if (flexiRecord.name === 'Viking Event Mgmt') {
     return {
@@ -751,6 +790,11 @@ function generateFlexiStructure(flexiRecord) {
   };
 }
 
+/**
+ *
+ * @param section
+ * @param flexiRecord
+ */
 function generateFlexiData(section, flexiRecord) {
   // Use cached members to maintain identity consistency
   const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || generateMembersForSection(section);
@@ -793,6 +837,9 @@ function generateFlexiData(section, flexiRecord) {
   return [];
 }
 
+/**
+ *
+ */
 function generateSwimmingGalaSharedMetadata() {
   // Find the Swimming Gala event from our demo sections (should be event index 1)
   const swimmingGalaEvents = DEMO_CACHE_DATA.viking_sections_offline.map(section => {
@@ -930,6 +977,12 @@ function generateSwimmingGalaSharedMetadata() {
 
 /**
  * Generate attendance records matching exact production shared attendance format
+ * @param sectionid
+ * @param sectionname
+ * @param groupname
+ * @param eventid
+ * @param attendingCount
+ * @param notAttendingCount
  */
 function _generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
   const members = [];

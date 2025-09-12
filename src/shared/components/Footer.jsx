@@ -1,5 +1,8 @@
 import React from 'react';
 
+/**
+ *
+ */
 function Footer() {
   const version = import.meta.env.VITE_APP_VERSION || '2.0.0';
   

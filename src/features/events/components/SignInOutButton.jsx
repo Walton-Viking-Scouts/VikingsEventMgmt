@@ -1,5 +1,13 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.member
+ * @param root0.onSignInOut
+ * @param root0.loading
+ * @param root0.disabled
+ */
 function SignInOutButton({ 
   member, 
   onSignInOut, 

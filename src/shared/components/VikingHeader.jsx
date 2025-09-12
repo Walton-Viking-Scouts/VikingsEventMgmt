@@ -5,6 +5,17 @@ import AuthButton from './AuthButton.jsx';
 import DataFreshness from './DataFreshness.jsx';
 import TokenCountdown from './TokenCountdown.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.user
+ * @param root0.onLogout
+ * @param root0.onLogin
+ * @param root0.onRefresh
+ * @param root0.isOfflineMode
+ * @param root0.authState
+ * @param root0.lastSyncTime
+ */
 function VikingHeader({
   user,
   onLogout,

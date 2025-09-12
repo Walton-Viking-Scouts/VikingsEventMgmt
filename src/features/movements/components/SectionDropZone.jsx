@@ -1,5 +1,17 @@
 import React, { useState, useRef, useCallback } from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.sectionData
+ * @param root0.currentCount
+ * @param root0.incomingCount
+ * @param root0.maxCapacity
+ * @param root0.onMoverDrop
+ * @param root0.isDragInProgress
+ * @param root0.canAcceptDrop
+ * @param root0.className
+ */
 function SectionDropZone({
   sectionData,
   currentCount,

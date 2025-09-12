@@ -38,6 +38,11 @@ export const MOVEMENT_TRANSITIONS = [
   },
 ];
 
+/**
+ *
+ * @param birthdate
+ * @param targetDate
+ */
 export function calculateAgeAtDate(birthdate, targetDate) {
   if (!birthdate || !targetDate) {
     throw new Error('Both birthdate and targetDate are required');
@@ -67,6 +72,11 @@ export function calculateAgeAtDate(birthdate, targetDate) {
   return years + (months / 12);
 }
 
+/**
+ *
+ * @param member
+ * @param termStartDate
+ */
 export function willMemberMoveUp(member, termStartDate) {
   const birthdate = member.date_of_birth || member.dob;
   if (!birthdate) {
@@ -97,6 +107,10 @@ export function willMemberMoveUp(member, termStartDate) {
   return shouldMove;
 }
 
+/**
+ *
+ * @param sectionName
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
   

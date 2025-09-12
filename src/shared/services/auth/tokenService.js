@@ -7,6 +7,9 @@ import { isDemoMode } from '../../../config/demoMode.js';
 import { config } from '../../../config/env.js';
 import { authHandler } from './authHandler.js';
 
+/**
+ *
+ */
 export function getToken() {
   if (isDemoMode()) {
     return 'demo-mode-token';
@@ -20,6 +23,10 @@ export function getToken() {
   return sessionStorage.getItem('access_token');
 }
 
+/**
+ *
+ * @param token
+ */
 export function setToken(token) {
   sessionStorage.setItem('access_token', token);
   
@@ -40,6 +47,9 @@ export function setToken(token) {
   logger.info('User authenticated successfully', {}, LOG_CATEGORIES.AUTH);
 }
 
+/**
+ *
+ */
 export function clearToken() {
   sessionStorage.removeItem('access_token');
   sessionStorage.removeItem('token_invalid');
@@ -60,18 +70,31 @@ export function clearToken() {
   logger.info('User logged out - token cleared', {}, LOG_CATEGORIES.AUTH);
 }
 
+/**
+ *
+ */
 export function isTokenExpired() {
   return sessionStorage.getItem('token_expired') === 'true';
 }
 
+/**
+ *
+ */
 export function markTokenAsExpired() {
   sessionStorage.setItem('token_expired', 'true');
 }
 
+/**
+ *
+ */
 export function markTokenAsValid() {
   sessionStorage.removeItem('token_expired');
 }
 
+/**
+ *
+ * @param storeCurrentPath
+ */
 export function generateOAuthUrl(storeCurrentPath = false) {
   if (storeCurrentPath) {
     storeReturnPath();
@@ -97,12 +120,18 @@ export function generateOAuthUrl(storeCurrentPath = false) {
   return authUrl;
 }
 
+/**
+ *
+ */
 export function checkWritePermission() {
   if (sessionStorage.getItem('token_expired') === 'true') {
     throw new Error('Write operations are not allowed while in offline mode with expired token');
   }
 }
 
+/**
+ *
+ */
 export async function validateToken() {
   try {
     const token = getToken();

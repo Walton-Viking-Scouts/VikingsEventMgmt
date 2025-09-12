@@ -1,5 +1,10 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.message
+ */
 function BlockedScreen({ message = 'Access blocked' }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">

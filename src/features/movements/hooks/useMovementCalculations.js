@@ -1,6 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
 import { calculateSectionMovements, groupMoversByTargetSection } from '../../services/sectionMovements/movementCalculator.js';
 
+/**
+ *
+ * @param members
+ * @param termStartDate
+ * @param sections
+ */
 export default function useMovementCalculations(members, termStartDate, sections = []) {
   const [assignments, setAssignments] = useState(new Map());
 

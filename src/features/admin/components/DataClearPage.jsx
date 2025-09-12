@@ -5,6 +5,9 @@ import databaseService from '../../../shared/services/storage/database.js';
 import { clearToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 function DataClearPage() {
   const navigate = useNavigate();
   const { clearNavigationData: _clearNavigationData } = useAppState();

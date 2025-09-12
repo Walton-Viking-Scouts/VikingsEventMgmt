@@ -8,6 +8,9 @@ import { getUniqueSectionsFromEvents } from '../../../shared/utils/sectionHelper
 import { notifyError } from '../../../shared/utils/notifications.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 function EventsCampGroups() {
   const location = useLocation();
   const navigate = useNavigate();

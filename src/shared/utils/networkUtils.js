@@ -71,7 +71,7 @@ export async function checkNetworkStatus() {
  * @returns {Promise<NetworkStatus>} Network status object with detailed information
  * @throws {Error} If network information cannot be retrieved
  * 
- * @typedef {Object} NetworkStatus
+ * @typedef {object} NetworkStatus
  * @property {boolean} connected - Whether device is connected to network
  * @property {string} connectionType - Type of connection ('wifi', 'cellular', 'ethernet', 'unknown')
  * @property {string} [ssid] - WiFi network name (native only, if available)

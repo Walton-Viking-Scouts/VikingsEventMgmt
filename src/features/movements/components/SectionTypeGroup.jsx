@@ -3,6 +3,10 @@ import SectionMovementCard from './SectionMovementCard.jsx';
 import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
+/**
+ *
+ * @param sectionName
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
   
@@ -17,6 +21,24 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.sectionType
+ * @param root0.group
+ * @param root0.movers
+ * @param root0.showAssignmentInterface
+ * @param root0.allSections
+ * @param root0.availableTerms
+ * @param root0.assignments
+ * @param root0.currentTerm
+ * @param root0.sectionTypeTotals
+ * @param root0.onAssignmentChange
+ * @param root0.onTermOverrideChange
+ * @param root0.onSaveAssignments
+ * @param root0.onResetAssignments
+ * @param root0.isSaving
+ */
 function SectionTypeGroup({ 
   sectionType, 
   group, 

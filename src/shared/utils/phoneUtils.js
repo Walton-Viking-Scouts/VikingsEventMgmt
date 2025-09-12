@@ -67,7 +67,7 @@ export function isValidPhoneNumber(input) {
 /**
  * Handle phone call with error handling
  * @param {string} phone - Phone number to call
- * @param {function} onError - Error callback function
+ * @param {Function} onError - Error callback function
  */
 export function handlePhoneCall(phone, onError) {
   if (!phone) return;

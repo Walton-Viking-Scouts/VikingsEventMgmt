@@ -13,8 +13,8 @@ import DraggableMember from './DraggableMember.jsx';
  * - Implements optimistic UI updates with rollback on failure
  * - Uses toast notifications for consistent error UX across the application
  * 
- * @param {Object} props - Component props
- * @param {Object} props.group - Group data with name, leaders, youngPeople arrays
+ * @param {object} props - Component props
+ * @param {object} props.group - Group data with name, leaders, youngPeople arrays
  * @param {Function} props.onMemberClick - Optional callback when member is clicked
  * @param {Function} props.onMemberMove - Callback when a member is dropped into this group
  *   Expected to handle failures gracefully with user notifications and state rollback

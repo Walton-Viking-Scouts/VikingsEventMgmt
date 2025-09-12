@@ -9,7 +9,7 @@ import React from 'react';
  * - Token expired: "Sign in to refresh"
  * - Syncing: "Syncing..." (disabled)
  *
- * @param {Object} props - Component props
+ * @param {object} props - Component props
  * @param {string} props.authState - Current authentication state
  * @param {Function} props.onLogin - Login handler function
  * @param {Function} props.onRefresh - Refresh handler function

@@ -9,7 +9,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  * Custom hook for loading and managing attendance data
  * 
  * @param {Array} events - Array of event data
- * @returns {Object} Hook state and functions
+ * @returns {object} Hook state and functions
  */
 export function useAttendanceData(events) {
   const [attendanceData, setAttendanceData] = useState([]);

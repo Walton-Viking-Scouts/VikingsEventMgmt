@@ -6,6 +6,9 @@ import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 
+/**
+ *
+ */
 function SectionsPage() {
   const navigate = useNavigate();
   const [sections, setSections] = useState([]);

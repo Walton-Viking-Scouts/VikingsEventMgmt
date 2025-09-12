@@ -54,6 +54,10 @@ const SYSTEM_DEFAULTS = [
   'n/a', 'not applicable', 'default', 'system',
 ];
 
+/**
+ *
+ * @param dateString
+ */
 function isDateOverOneYearOld(dateString) {
   if (!dateString || typeof dateString !== 'string') return false;
   
@@ -68,6 +72,11 @@ function isDateOverOneYearOld(dateString) {
   return confirmDate < oneYearAgo;
 }
 
+/**
+ *
+ * @param value
+ * @param fieldName
+ */
 export function categorizeMedicalData(value, fieldName = '') {
   // Special handling for non-medical fields that shouldn't be colored
   const nonMedicalFields = ['tetanus_year_of_last_jab', 'other_useful_information'];
@@ -131,11 +140,21 @@ export function categorizeMedicalData(value, fieldName = '') {
   return MEDICAL_DATA_STATES.HAS_DATA;
 }
 
+/**
+ *
+ * @param value
+ * @param fieldName
+ */
 export function getMedicalDataIndicator(value, fieldName = '') {
   const state = categorizeMedicalData(value, fieldName);
   return MEDICAL_DATA_INDICATORS[state];
 }
 
+/**
+ *
+ * @param value
+ * @param fieldName
+ */
 export function formatMedicalDataForDisplay(value, fieldName = '') {
   const indicator = getMedicalDataIndicator(value, fieldName);
   const state = categorizeMedicalData(value, fieldName);
@@ -190,6 +209,10 @@ export function formatMedicalDataForDisplay(value, fieldName = '') {
   };
 }
 
+/**
+ *
+ * @param member
+ */
 export function getMedicalFieldsFromMember(member) {
   const fields = {
     allergies: member.allergies || 

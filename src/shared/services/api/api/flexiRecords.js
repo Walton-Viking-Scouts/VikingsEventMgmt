@@ -20,7 +20,7 @@ import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
  * @param {string} token - OSM authentication token
  * @param {string} [archived='n'] - Include archived records ('y' or 'n')
  * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
- * @returns {Promise<Object>} FlexiRecord list with items array
+ * @returns {Promise<object>} FlexiRecord list with items array
  * @throws {Error} When API request fails and no cached data available
  * 
  * @example
@@ -146,7 +146,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
  * @param {number|string} sectionid - OSM section identifier
  * @param {number|string} termid - OSM term identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} FlexiRecord data with member values
+ * @returns {Promise<object>} FlexiRecord data with member values
  * @throws {Error} When API request fails or authentication fails
  * 
  * @example
@@ -203,7 +203,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
  * @param {number|string} termid - OSM term identifier
  * @param {string} token - OSM authentication token
  * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
- * @returns {Promise<Object|null>} Structure definition with field mappings or null
+ * @returns {Promise<object | null>} Structure definition with field mappings or null
  * @throws {Error} When API request fails
  * 
  * @example
@@ -338,7 +338,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
  * @param {number|string} termid - OSM term identifier
  * @param {string} section - Section name for context
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object|null>} Update response data
+ * @returns {Promise<object | null>} Update response data
  * @throws {Error} When write permissions denied or API request fails
  * 
  * @example
@@ -410,7 +410,7 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
  * @param {string} column - Field column ID (e.g., "f_1", "f_2")
  * @param {number|string} flexirecordid - FlexiRecord identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object|null>} Update response with success status and updated count
+ * @returns {Promise<object | null>} Update response with success status and updated count
  * @throws {Error} When write permissions denied or API request fails
  * 
  * @example

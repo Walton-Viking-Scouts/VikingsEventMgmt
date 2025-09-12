@@ -1,6 +1,15 @@
 import React from 'react';
 import { cn } from '../../../../shared/utils/cn';
 
+/**
+ *
+ * @param root0
+ * @param root0.events
+ * @param root0.onBack
+ * @param root0.onRefresh
+ * @param root0.canRefresh
+ * @param root0.refreshLoading
+ */
 function AttendanceHeader({ 
   events, 
   onBack, 

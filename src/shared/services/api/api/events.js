@@ -19,7 +19,7 @@ import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
  * @param {number|string} sectionId - OSM section identifier
  * @param {number|string} termId - OSM term identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Array<Object>>} Array of events with attendance data
+ * @returns {Promise<Array<object>>} Array of events with attendance data
  * @throws {Error} When API request fails and no cached data available
  * 
  * @example
@@ -104,7 +104,7 @@ export async function getEvents(sectionId, termId, token) {
  * @param {number|string} eventId - OSM event identifier
  * @param {number|string} termId - OSM term identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Array<Object>>} Array of attendance records
+ * @returns {Promise<Array<object>>} Array of attendance records
  * @throws {Error} When API request fails and no cached data available
  * 
  * @example
@@ -192,7 +192,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
  * Gets event summary including sharing information
  * @param {number|string} eventId - OSM event identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} Event summary with sharing data
+ * @returns {Promise<object>} Event summary with sharing data
  * @throws {Error} When API request fails
  * 
  * @example
@@ -266,7 +266,7 @@ export async function getEventSummary(eventId, token) {
  * @param {number|string} eventId - OSM event identifier  
  * @param {number|string} sectionId - OSM section identifier (owner section)
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} Sharing status data with shared sections list
+ * @returns {Promise<object>} Sharing status data with shared sections list
  * @throws {Error} When API request fails
  * 
  * @example
@@ -342,7 +342,7 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  * @param {number|string} eventId - OSM event identifier
  * @param {number|string} sectionId - OSM section identifier (owner section)  
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} Combined attendance data from all shared sections
+ * @returns {Promise<object>} Combined attendance data from all shared sections
  * @throws {Error} When API request fails
  * 
  * @example
@@ -494,6 +494,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
 /**
  * Get cached shared attendance data for demo mode
+ * @param eventId
+ * @param sectionId
  */
 function generateDemoSharedAttendance(eventId, sectionId) {
   // Simply fetch the cached shared attendance data - use demo prefix

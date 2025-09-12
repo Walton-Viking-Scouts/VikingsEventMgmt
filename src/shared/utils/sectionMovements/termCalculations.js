@@ -12,6 +12,10 @@ export const TERM_START_DATES = {
   SUMMER: { month: 4, day: 15 },   // April 15th
 };
 
+/**
+ *
+ * @param currentDate
+ */
 export function getCurrentTerm(currentDate = new Date()) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -42,6 +46,10 @@ export function getCurrentTerm(currentDate = new Date()) {
   }
 }
 
+/**
+ *
+ * @param currentTerm
+ */
 export function getNextTerm(currentTerm) {
   const { type, year } = currentTerm;
   
@@ -69,6 +77,11 @@ export function getNextTerm(currentTerm) {
   }
 }
 
+/**
+ *
+ * @param numberOfTerms
+ * @param currentDate
+ */
 export function getFutureTerms(numberOfTerms = 2, currentDate = new Date()) {
   const terms = [];
   let currentTerm = getCurrentTerm(currentDate);
@@ -84,6 +97,10 @@ export function getFutureTerms(numberOfTerms = 2, currentDate = new Date()) {
   return terms;
 }
 
+/**
+ *
+ * @param term
+ */
 export function getTermDisplayName(term) {
   return `${term.type} ${term.year}`;
 }

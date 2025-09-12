@@ -5,6 +5,9 @@ import { notifyError, notifyWarning } from '../../../shared/utils/notifications.
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 function EventsContainer() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [navigationData, setNavigationData] = useState({});

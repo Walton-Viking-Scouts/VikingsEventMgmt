@@ -3,6 +3,19 @@ import { isMobileLayout } from '../../utils/platform.js';
 import MobileLayout from '../../../layouts/MobileLayout.jsx';
 import DesktopLayout from '../../../layouts/DesktopLayout.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.children
+ * @param root0.user
+ * @param root0.onLogout
+ * @param root0.onLogin
+ * @param root0.onRefresh
+ * @param root0.currentView
+ * @param root0.isOfflineMode
+ * @param root0.authState
+ * @param root0.lastSyncTime
+ */
 function ResponsiveLayout({
   children,
   user,

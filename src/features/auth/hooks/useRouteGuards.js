@@ -2,6 +2,10 @@ import { useAuth } from './useAuth.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 
+/**
+ *
+ * @param redirectTo
+ */
 export function useRequireAuth(redirectTo = '/') {
   const { authState, isLoading, user } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +32,9 @@ export function useRequireAuth(redirectTo = '/') {
   };
 }
 
+/**
+ *
+ */
 export function useRequireOfflineAccess() {
   const { authState, isLoading, hasCachedData } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +70,10 @@ export function useRequireOfflineAccess() {
   };
 }
 
+/**
+ *
+ * @param requiredPermission
+ */
 export function usePermissionGuard(requiredPermission) {
   const { user, authState, isLoading } = useAuth();
   const navigate = useNavigate();

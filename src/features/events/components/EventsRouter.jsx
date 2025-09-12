@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import EventsContainer from './EventsContainer.jsx';
 
+/**
+ *
+ */
 function EventsRouter() {
   const navigate = useNavigate();
 

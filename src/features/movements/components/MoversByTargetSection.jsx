@@ -2,6 +2,16 @@ import React, { useMemo, useCallback, memo } from 'react';
 import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.movers
+ * @param root0.allSections
+ * @param root0.availableTerms
+ * @param root0.assignments
+ * @param root0.onAssignmentChange
+ * @param root0.onTermOverrideChange
+ */
 function MoversByTargetSection({
   movers,
   allSections,

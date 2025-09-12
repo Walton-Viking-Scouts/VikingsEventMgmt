@@ -1,5 +1,5 @@
 /**
- * @fileoverview SQLite Database Service for Vikings Event Management
+ * @file SQLite Database Service for Vikings Event Management
  * 
  * Provides comprehensive offline-first data persistence for Scout sections, events,
  * attendance records, and member information. Uses Capacitor SQLite on native
@@ -69,7 +69,7 @@ class DatabaseService {
    * Initializes the service with platform detection and default state.
    * Does not establish database connection - call initialize() for that.
    * 
-   * @constructor
+   * @class
    */
   constructor() {
     /** @type {SQLiteConnection|null} SQLite connection instance */
@@ -318,7 +318,7 @@ class DatabaseService {
    * Automatically updates sync status after successful save.
    * 
    * @async
-   * @param {Array<Object>} sections - Array of section objects to save
+   * @param {Array<object>} sections - Array of section objects to save
    * @param {number} sections[].sectionid - Unique section identifier
    * @param {string} sections[].sectionname - Display name (e.g., "1st Walton Beavers")
    * @param {string} [sections[].sectiontype] - Section type (e.g., "beavers", "cubs")
@@ -370,7 +370,7 @@ class DatabaseService {
    * Automatically filters out demo sections when not in demo mode.
    * 
    * @async
-   * @returns {Promise<Array<Object>>} Array of section objects
+   * @returns {Promise<Array<object>>} Array of section objects
    * @returns {number} returns[].sectionid - Unique section identifier
    * @returns {string} returns[].sectionname - Display name
    * @returns {string} [returns[].sectiontype] - Section type
@@ -436,7 +436,7 @@ class DatabaseService {
    * 
    * @async
    * @param {number} sectionId - Section identifier to save events for
-   * @param {Array<Object>} events - Array of event objects to save
+   * @param {Array<object>} events - Array of event objects to save
    * @param {string|number} events[].eventid - Unique event identifier
    * @param {string} events[].name - Event name/title
    * @param {string} [events[].date] - Legacy date field
@@ -520,7 +520,7 @@ class DatabaseService {
    * 
    * @async
    * @param {number} sectionId - Section identifier to get events for
-   * @returns {Promise<Array<Object>>} Array of event objects for the section
+   * @returns {Promise<Array<object>>} Array of event objects for the section
    * @returns {string|number} returns[].eventid - Unique event identifier
    * @returns {string} returns[].name - Event name/title
    * @returns {string} returns[].startdate - Event start date
@@ -591,7 +591,7 @@ class DatabaseService {
    * 
    * @async
    * @param {string|number} eventId - Event identifier to save attendance for
-   * @param {Array<Object>} attendanceData - Array of attendance records
+   * @param {Array<object>} attendanceData - Array of attendance records
    * @param {number} attendanceData[].scoutid - Scout member identifier
    * @param {string} attendanceData[].firstname - Scout's first name
    * @param {string} attendanceData[].lastname - Scout's last name
@@ -665,7 +665,7 @@ class DatabaseService {
    * 
    * @async
    * @param {string|number} eventId - Event identifier to get attendance for
-   * @returns {Promise<Array<Object>>} Array of attendance records
+   * @returns {Promise<Array<object>>} Array of attendance records
    * @returns {number} returns[].scoutid - Scout member identifier
    * @returns {string} returns[].firstname - Scout's first name
    * @returns {string} returns[].lastname - Scout's last name
@@ -763,7 +763,7 @@ class DatabaseService {
    * 
    * @async
    * @param {Array<number>} sectionIds - Section identifiers members belong to
-   * @param {Array<Object>} members - Array of member objects to save
+   * @param {Array<object>} members - Array of member objects to save
    * @param {number} members[].scoutid - Unique scout identifier
    * @param {string} members[].firstname - Scout's first name
    * @param {string} members[].lastname - Scout's last name
@@ -775,7 +775,7 @@ class DatabaseService {
    * @param {string} [members[].patrol] - Patrol/lodge name
    * @param {string} [members[].person_type] - Member type (Young People/Leaders)
    * @param {boolean} [members[].active] - Whether member is currently active
-   * @param {Object} [members[].custom_data] - Additional OSM custom field data
+   * @param {object} [members[].custom_data] - Additional OSM custom field data
    * @returns {Promise<void>} Resolves when members are saved
    * 
    * @example
@@ -919,7 +919,7 @@ class DatabaseService {
    * 
    * @async
    * @param {Array<number>} sectionIds - Section identifiers to get members for
-   * @returns {Promise<Array<Object>>} Array of member objects
+   * @returns {Promise<Array<object>>} Array of member objects
    * @returns {number} returns[].scoutid - Scout identifier
    * @returns {string} returns[].firstname - Scout's first name
    * @returns {string} returns[].lastname - Scout's last name
@@ -927,7 +927,7 @@ class DatabaseService {
    * @returns {string} returns[].sectionname - Section name
    * @returns {string} [returns[].patrol] - Patrol/lodge name
    * @returns {Array<string>} [returns[].sections] - All sections member belongs to
-   * @returns {Object} [returns[].custom_data] - Custom field data from OSM
+   * @returns {object} [returns[].custom_data] - Custom field data from OSM
    * 
    * @example
    * // Get all Beaver members

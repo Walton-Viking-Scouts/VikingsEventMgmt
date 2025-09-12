@@ -4,6 +4,14 @@ import { MedicalDataPill } from '../../../../shared/components/ui';
 import { calculateAge } from '../../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.summaryStats
+ * @param root0.members
+ * @param root0.onMemberClick
+ * @param root0.showContacts
+ */
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);
   const [_showMemberModal, _setShowMemberModal] = useState(false);

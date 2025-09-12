@@ -4,6 +4,16 @@ import SectionDropZone from './SectionDropZone.jsx';
 import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.term
+ * @param root0.movers
+ * @param root0.availableSections
+ * @param root0.onAssignmentChange
+ * @param root0.onSaveAssignments
+ * @param root0.onResetAssignments
+ */
 function AssignmentInterface({
   term,
   movers,

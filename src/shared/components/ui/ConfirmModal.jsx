@@ -4,6 +4,16 @@ import Modal from './Modal';
 /**
  * ConfirmModal - A reusable confirmation modal component
  * Uses the existing Modal infrastructure for consistent styling
+ * @param root0
+ * @param root0.isOpen
+ * @param root0.title
+ * @param root0.message
+ * @param root0.confirmText
+ * @param root0.cancelText
+ * @param root0.onConfirm
+ * @param root0.onCancel
+ * @param root0.confirmVariant
+ * @param root0.cancelVariant
  */
 const ConfirmModal = ({
   isOpen = false,

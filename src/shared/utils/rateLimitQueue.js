@@ -8,6 +8,10 @@ import { sentryUtils } from '../services/utils/sentry.js';
  * Provides user feedback and queuing for rate-limited requests
  */
 export class RateLimitQueue {
+  /**
+   *
+   * @param options
+   */
   constructor(options = {}) {
     this.queue = [];
     this.processing = false;
@@ -47,7 +51,7 @@ export class RateLimitQueue {
 
   /**
    * Notify all listeners of status changes
-   * @param {Object} status - Current queue status
+   * @param {object} status - Current queue status
    */
   notifyListeners(status) {
     this.listeners.forEach(listener => {
@@ -61,7 +65,7 @@ export class RateLimitQueue {
 
   /**
    * Get current queue status for UI display
-   * @returns {Object} Queue status information
+   * @returns {object} Queue status information
    */
   getStatus() {
     const now = Date.now();
@@ -82,7 +86,7 @@ export class RateLimitQueue {
   /**
    * Add a request to the queue with intelligent retry handling
    * @param {Function} apiCall - Function that makes the API call
-   * @param {Object} options - Request options (priority, timeout, etc.)
+   * @param {object} options - Request options (priority, timeout, etc.)
    * @returns {Promise} Promise that resolves when request completes
    */
   enqueue(apiCall, options = {}) {
@@ -130,7 +134,7 @@ export class RateLimitQueue {
   /**
    * Clear request timeout to prevent memory leaks
    * @private
-   * @param {Object} request - Request to clear timeout for
+   * @param {object} request - Request to clear timeout for
    */
   _clearRequestTimeout(request) {
     if (Object.prototype.hasOwnProperty.call(request, '_timeoutId')) {
@@ -141,7 +145,7 @@ export class RateLimitQueue {
 
   /**
    * Remove a request from the queue
-   * @param {Object} request - Request to remove
+   * @param {object} request - Request to remove
    */
   removeFromQueue(request) {
     const index = this.queue.indexOf(request);
@@ -245,7 +249,7 @@ export class RateLimitQueue {
 
   /**
    * Handle rate limit error with intelligent backoff
-   * @param {Object} request - The failed request
+   * @param {object} request - The failed request
    * @param {Error} error - The rate limit error
    */
   async handleRateLimit(request, error) {
@@ -341,7 +345,7 @@ export class RateLimitQueue {
 
   /**
    * Get statistics for monitoring and debugging
-   * @returns {Object} Detailed statistics
+   * @returns {object} Detailed statistics
    */
   getDetailedStats() {
     return {
@@ -364,10 +368,18 @@ export const globalRateLimitQueue = new RateLimitQueue({
 });
 
 // Helper function to wrap API calls with rate limit queue
-export const withRateLimitQueue = (apiCall, options = {}) => {
+export const /**
+ *
+ * @param apiCall
+ * @param options
+ */
+  withRateLimitQueue = (apiCall, options = {}) => {
   // Rate limit queue wrapping API call
-  return globalRateLimitQueue.enqueue(apiCall, options);
-};
+    return globalRateLimitQueue.enqueue(apiCall, options);
+  };
 
 // Export queue stats for dashboard display
-export const getRateLimitQueueStats = () => globalRateLimitQueue.getStatus();
+export const /**
+ *
+ */
+  getRateLimitQueueStats = () => globalRateLimitQueue.getStatus();

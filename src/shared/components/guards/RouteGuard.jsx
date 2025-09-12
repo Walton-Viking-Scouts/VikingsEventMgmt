@@ -3,6 +3,15 @@ import React from 'react';
 // import { useAuth } from '../../../features/auth/hooks/useAuth.js';
 import LoginScreen from '../LoginScreen.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.children
+ * @param root0.authLevel
+ * @param root0.showLoginScreen
+ * @param root0.requiredPermissions
+ * @param root0.fallbackComponent
+ */
 function RouteGuard({ 
   children, 
   authLevel = 'none',

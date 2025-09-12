@@ -17,7 +17,44 @@ const DataClearPage = React.lazy(() => import('../features/admin/components').th
 // Import route guards (keep synchronous for security)
 import { RouteGuard } from '../shared/components/guards';
 
-// Internal component that uses auth and notifications
+/**
+ * Internal routing component that handles authenticated Scout management interface.
+ *
+ * This component manages the core Scout application interface with authentication,
+ * offline capabilities, and responsive layout. It provides the main navigation
+ * structure for Scout leaders to manage sections, events, and member movements
+ * while handling both online and offline operational modes.
+ *
+ * The component integrates authentication state, data synchronization, token
+ * management, and responsive layout to deliver a seamless Scout management
+ * experience across different devices and network conditions.
+ *
+ * @component
+ * @returns {ReactElement} The authenticated Scout management interface with routing
+ * @scout-themed
+ * @offline-aware
+ * @since 1.0.0
+ * @example
+ * // Used internally by AppRouter - not directly imported
+ * // Handles authenticated routes like:
+ * // /movers - Member movement tracking
+ * // /sections - Scout section management  
+ * // /events/* - Event management and attendance
+ * // /clear - Administrative data management
+ * @example
+ * // Authentication states handled:
+ * // - Loading: Shows authentication check screen
+ * // - Authenticated: Shows full Scout interface
+ * // - Offline: Shows cached data with sync options
+ * // - Token expired: Shows re-authentication dialog
+ * @example
+ * // Scout workflow integration:
+ * // 1. Section management (Beavers, Cubs, Scouts, Venturers, Rovers)
+ * // 2. Member movement tracking between sections
+ * // 3. Event creation and attendance management
+ * // 4. Offline data synchronization with OSM API
+ * // 5. Administrative tools for Scout leaders
+ */
 function AppContent() {
   const {
     isLoading,
@@ -117,6 +154,57 @@ function AppContent() {
   );
 }
 
+/**
+ * Main application router for the Viking Event Management Scout application.
+ *
+ * This is the primary routing component that establishes the browser-based navigation
+ * system for Scout event management. It wraps the application in essential providers
+ * for state management and routing, creating the foundation for offline-first
+ * Scout operations and OSM API integration.
+ *
+ * The router handles all URL-based navigation, OAuth authentication flows, and
+ * provides the context infrastructure needed for Scout section management,
+ * member movements, and event coordination across the entire application.
+ *
+ * @component
+ * @returns {ReactElement} The complete Scout application routing system with providers
+ * @scout-themed
+ * @offline-aware
+ * @since 1.0.0
+ * @example
+ * // Primary usage as the main routing component
+ * import AppRouter from './routes/AppRouter.jsx';
+ * 
+ * function App() {
+ *   return (
+ *     <>
+ *       <AppRouter />
+ *       <Toaster />
+ *     </>
+ *   );
+ * }
+ * @example
+ * // Supported Scout management routes:
+ * // /events - Main Scout event management dashboard
+ * // /events/create - Create new Scout events  
+ * // /events/:id - View/edit specific Scout event
+ * // /movers - Member movement tracking between sections
+ * // /sections - Scout section overview (Beavers, Cubs, etc.)
+ * // /clear - Administrative data management tools
+ * @example
+ * // OAuth and authentication flow handling:
+ * // 1. Automatic OSM OAuth callback processing
+ * // 2. Token storage and refresh management
+ * // 3. Offline mode with cached Scout data
+ * // 4. Token expiration and re-authentication
+ * // 5. Scout group context and permissions
+ * @example
+ * // Context providers enabled:
+ * // - AppStateProvider: Global Scout application state
+ * // - BrowserRouter: URL-based navigation
+ * // - Authentication context: User and session management
+ * // - Offline capabilities: Cached data and sync status
+ */
 function AppRouter() {
   // URL-based routing with OAuth processing
   return (

@@ -4,8 +4,8 @@ import React, { useCallback, memo } from 'react';
  * SectionFilter - Reusable pill-based filter for sections
  * Provides toggle buttons for filtering by section similar to attendance status filters
  *
- * @param {Object} props - Component props
- * @param {Object} props.sectionFilters - Object mapping section IDs to boolean visibility
+ * @param {object} props - Component props
+ * @param {object} props.sectionFilters - Object mapping section IDs to boolean visibility
  * @param {Function} props.onFiltersChange - Callback when filters change
  * @param {Array} props.sections - Array of section objects with sectionid and sectionname
  * @param {string} props.className - Additional CSS classes

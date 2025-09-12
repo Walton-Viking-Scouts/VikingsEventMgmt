@@ -48,7 +48,7 @@ export const REQUIRED_VIKING_SECTION_MOVERS_FIELDS = [
  * @param {string|number} termId - Term ID for the validation
  * @param {string} token - Authentication token
  * @param {boolean} forceRefresh - Force refresh of data cache
- * @returns {Promise<Object>} Detailed validation result with user-friendly messages
+ * @returns {Promise<object>} Detailed validation result with user-friendly messages
  */
 export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, token, forceRefresh = false) {
   const validation = {
@@ -205,8 +205,8 @@ export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, 
 /**
  * Generate user-friendly error messages for Viking Section Movers validation
  * 
- * @param {Object} validation - Validation result from validateVikingSectionMoversFlexiRecord
- * @returns {Object} User-friendly messages for different scenarios
+ * @param {object} validation - Validation result from validateVikingSectionMoversFlexiRecord
+ * @returns {object} User-friendly messages for different scenarios
  */
 export function generateVikingSectionMoversErrorMessages(validation) {
   const messages = {
@@ -270,7 +270,7 @@ export function generateVikingSectionMoversErrorMessages(validation) {
  * @param {string|number} sectionId - Section ID to validate
  * @param {string|number} termId - Term ID for the validation
  * @param {string} token - Authentication token
- * @returns {Promise<Object>} Simple validation result
+ * @returns {Promise<object>} Simple validation result
  */
 export async function quickValidateVikingSectionMovers(sectionId, termId, token) {
   try {

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Centralized logging service for Vikings Event Management Mobile
+ * @file Centralized logging service for Vikings Event Management Mobile
  * 
  * Provides structured logging with automatic Sentry integration, category-based
  * organization, and development console output. Supports template literals,
@@ -29,7 +29,7 @@ const isProduction = import.meta.env.PROD;
 /**
  * Available logging levels in order of severity
  * 
- * @constant {Object} LOG_LEVELS
+ * @constant {object} LOG_LEVELS
  * @property {string} TRACE - Detailed tracing information for debugging
  * @property {string} DEBUG - Debug information for development
  * @property {string} INFO - General informational messages
@@ -57,7 +57,7 @@ export const LOG_LEVELS = {
 /**
  * Log categories for organizing and filtering log entries
  * 
- * @constant {Object} LOG_CATEGORIES
+ * @constant {object} LOG_CATEGORIES
  * @property {string} APP - General application events and lifecycle
  * @property {string} API - API calls, responses, and network operations
  * @property {string} AUTH - Authentication and authorization events
@@ -93,6 +93,13 @@ export const LOG_CATEGORIES = {
 };
 
 // Create structured log entry
+/**
+ *
+ * @param level
+ * @param message
+ * @param data
+ * @param category
+ */
 function createLogEntry(level, message, data = {}, category = LOG_CATEGORIES.APP) {
   return {
     timestamp: new Date().toISOString(),
@@ -109,6 +116,9 @@ function createLogEntry(level, message, data = {}, category = LOG_CATEGORIES.APP
 }
 
 // Get or create session ID
+/**
+ *
+ */
 function getSessionId() {
   let sessionId = sessionStorage.getItem('logging_session_id');
   if (!sessionId) {
@@ -119,12 +129,18 @@ function getSessionId() {
 }
 
 // Get current user ID if available
+/**
+ *
+ */
 function getCurrentUserId() {
   const token = sessionStorage.getItem('access_token');
   return token ? 'authenticated' : 'anonymous';
 }
 
 // Get platform information
+/**
+ *
+ */
 function getPlatformInfo() {
   return {
     isMobile: /Mobi|Android/i.test(navigator.userAgent),
@@ -138,6 +154,11 @@ function getPlatformInfo() {
 }
 
 // Format message with template literal support
+/**
+ *
+ * @param template
+ * @param {...any} args
+ */
 function formatMessage(template, ...args) {
   if (typeof template === 'string' && args.length === 0) {
     return template;
@@ -154,6 +175,10 @@ function formatMessage(template, ...args) {
 }
 
 // Console output with styling for development
+/**
+ *
+ * @param entry
+ */
 function outputToConsole(entry) {
   if (!isDevelopment) return;
   
@@ -188,6 +213,10 @@ function outputToConsole(entry) {
 }
 
 // Send to Sentry with appropriate method
+/**
+ *
+ * @param entry
+ */
 function sendToSentry(entry) {
   const { level, message, category, ...context } = entry;
   
@@ -222,6 +251,14 @@ function sendToSentry(entry) {
 }
 
 // Core logging function
+/**
+ *
+ * @param level
+ * @param messageTemplate
+ * @param data
+ * @param category
+ * @param {...any} args
+ */
 function log(level, messageTemplate, data = {}, category = LOG_CATEGORIES.APP, ...args) {
   const message = formatMessage(messageTemplate, ...args);
   const entry = createLogEntry(level, message, data, category);
@@ -273,98 +310,101 @@ function log(level, messageTemplate, data = {}, category = LOG_CATEGORIES.APP, .
  * 
  * @since 2.3.7
  */
-export const logger = {
+export const /**
+ *
+ */
+  logger = {
   /**
    * Log trace-level messages for detailed debugging
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data
+   * @param {object} [data={}] - Additional context data
    * @param {string} [category=LOG_CATEGORIES.APP] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.trace('Function entry', { params }, LOG_CATEGORIES.COMPONENT);
    */
-  trace: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.TRACE, messageTemplate, data, category, ...args),
+    trace: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.TRACE, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Log debug-level messages for development
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data
+   * @param {object} [data={}] - Additional context data
    * @param {string} [category=LOG_CATEGORIES.APP] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.debug('State updated', { newState }, LOG_CATEGORIES.HOOK);
    */
-  debug: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.DEBUG, messageTemplate, data, category, ...args),
+    debug: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.DEBUG, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Log informational messages for general events
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data
+   * @param {object} [data={}] - Additional context data
    * @param {string} [category=LOG_CATEGORIES.APP] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.info('Data synced successfully', { recordCount: 25 }, LOG_CATEGORIES.SYNC);
    */
-  info: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.INFO, messageTemplate, data, category, ...args),
+    info: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.INFO, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Log warning messages for potential issues
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data
+   * @param {object} [data={}] - Additional context data
    * @param {string} [category=LOG_CATEGORIES.APP] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.warn('API response slow', { duration: 5000 }, LOG_CATEGORIES.PERFORMANCE);
    */
-  warn: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.WARN, messageTemplate, data, category, ...args),
+    warn: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.WARN, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Log error messages that need attention
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data including error object
+   * @param {object} [data={}] - Additional context data including error object
    * @param {string} [category=LOG_CATEGORIES.ERROR] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.error('Network request failed', { error, url }, LOG_CATEGORIES.API);
    */
-  error: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.ERROR, messageTemplate, data, category, ...args),
+    error: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.ERROR, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Log fatal errors that may cause application failure
    * 
    * @param {string|Array} messageTemplate - Log message or template literal
-   * @param {Object} [data={}] - Additional context data including error object
+   * @param {object} [data={}] - Additional context data including error object
    * @param {string} [category=LOG_CATEGORIES.ERROR] - Log category for filtering
    * @param {...*} args - Template literal arguments
-   * @returns {Object} Created log entry
+   * @returns {object} Created log entry
    * 
    * @example
    * logger.fatal('Application crash', { error, stack }, LOG_CATEGORIES.ERROR);
    */
-  fatal: (messageTemplate, data, category, ...args) => 
-    log(LOG_LEVELS.FATAL, messageTemplate, data, category, ...args),
+    fatal: (messageTemplate, data, category, ...args) => 
+      log(LOG_LEVELS.FATAL, messageTemplate, data, category, ...args),
     
-  /**
+    /**
    * Format message template with arguments
    * 
    * @param {string|Array} template - Message template
@@ -374,7 +414,7 @@ export const logger = {
    * @example
    * const msg = logger.fmt`User ${userId} saved event ${eventId}`;
    */
-  fmt: (template, ...args) => formatMessage(template, ...args),
-};
+    fmt: (template, ...args) => formatMessage(template, ...args),
+  };
 
 export default logger;

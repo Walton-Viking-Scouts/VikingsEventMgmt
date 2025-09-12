@@ -5,6 +5,13 @@ import { calculateAge } from '../../utils/ageUtils.js';
 import { handlePhoneCall } from '../../utils/phoneUtils.js';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.member
+ * @param root0.isOpen
+ * @param root0.onClose
+ */
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
   const isMobile = isMobileLayout();

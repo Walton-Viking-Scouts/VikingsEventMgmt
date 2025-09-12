@@ -1,5 +1,10 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.data
+ */
 function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {
     switch (status) {

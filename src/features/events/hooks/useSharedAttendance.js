@@ -3,6 +3,11 @@ import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
+/**
+ *
+ * @param events
+ * @param viewMode
+ */
 export function useSharedAttendance(events, viewMode) {
   const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
   const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);

@@ -2,6 +2,11 @@ import { useMemo } from 'react';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 
+/**
+ *
+ * @param members
+ * @param sectionsCache
+ */
 export function useAttendanceFormatters(members, sectionsCache) {
   const formatUKDateTime = (dateString) => {
     if (!dateString) return '';

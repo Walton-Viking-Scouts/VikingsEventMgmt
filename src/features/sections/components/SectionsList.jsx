@@ -8,6 +8,15 @@ import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.sections
+ * @param root0.selectedSections
+ * @param root0.onSectionToggle
+ * @param root0.loadingSection
+ * @param root0.allSections
+ */
 function SectionsList({
   sections,
   selectedSections = [],
@@ -60,6 +69,14 @@ function SectionsList({
 }
 
 // Members Table Content - Integrated into main card
+/**
+ *
+ * @param root0
+ * @param root0.sections
+ * @param root0.onSectionToggle
+ * @param root0.allSections
+ * @param root0.loadingSection
+ */
 function MembersTableContent({ sections, onSectionToggle, allSections, loadingSection }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,13 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.summaryStats
+ * @param root0.members
+ * @param root0.onResetFilters
+ * @param root0.uniqueSections
+ */
 function OverviewTab({ 
   summaryStats,
   members,

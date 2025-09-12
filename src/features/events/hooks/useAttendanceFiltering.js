@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react';
 
+/**
+ *
+ * @param attendanceData
+ * @param events
+ */
 function useAttendanceFiltering(attendanceData, events) {
   // Attendance filter state - exclude "Not Invited" by default
   const [attendanceFilters, setAttendanceFilters] = useState({

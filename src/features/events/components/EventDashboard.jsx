@@ -23,6 +23,12 @@ import {
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.onNavigateToMembers
+ * @param root0.onNavigateToAttendance
+ */
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useAuth(); // Initialize auth hook
   const [sections, setSections] = useState([]);

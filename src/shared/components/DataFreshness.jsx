@@ -16,6 +16,14 @@ const STALENESS_COLOURS = {
   'very-stale': 'text-red-700',
 };
 
+/**
+ *
+ * @param root0
+ * @param root0.lastSync
+ * @param root0.authState
+ * @param root0.className
+ * @param root0.compact
+ */
 function DataFreshness({ lastSync, authState, className = '', compact = false }) {
   const getDataAge = (timestamp) => {
     const syncTimeMs = parseTimestamp(timestamp);

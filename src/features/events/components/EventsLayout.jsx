@@ -7,6 +7,9 @@ import TokenExpiredDialog from '../../../shared/components/TokenExpiredDialog.js
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 function EventsLayoutContent() {
   const navigate = useNavigate();
   const {
@@ -75,6 +78,9 @@ function EventsLayoutContent() {
   );
 }
 
+/**
+ *
+ */
 function EventsLayout() {
   return <EventsLayoutContent />;
 }
