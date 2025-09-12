@@ -79,9 +79,11 @@ dev-debug.log
 # Environment variables
 # OS specific
 
-# Task files
-tasks.json
-tasks/ 
-
 # Real OSM data examples
 api_examples/
+
+.vscode
+
+# Task files
+# tasks.json
+# tasks/ 
