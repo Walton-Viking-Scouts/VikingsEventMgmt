@@ -7,7 +7,48 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 
 /**
- *
+ * Sections management page component
+ * 
+ * Main page for viewing and managing Scout sections within the Vikings Event Management app.
+ * Loads section data from offline cache, provides section selection functionality, and
+ * handles navigation to related features like section movements.
+ * 
+ * Features:
+ * - Loads sections from offline database cache
+ * - Multi-selection interface for sections
+ * - Error handling with user feedback
+ * - Navigation to section movements feature
+ * - Responsive layout with loading states
+ * - Empty state messaging when no sections available
+ * 
+ * @component
+ * @returns {JSX.Element} Sections page with navigation and section management interface
+ * 
+ * @example
+ * // Route integration
+ * <Route path="/sections" element={<SectionsPage />} />
+ * 
+ * @example
+ * // Navigation from other components
+ * const navigate = useNavigate();
+ * const goToSections = () => navigate('/sections');
+ * 
+ * @example
+ * // Typical rendered structure
+ * return (
+ *   <div>
+ *     <MainNavigation onNavigateToSectionMovements={handleMovers} />
+ *     <div className="sections-content">
+ *       <SectionsList
+ *         sections={sections}
+ *         selectedSections={selectedSections}
+ *         onSectionToggle={handleToggle}
+ *       />
+ *     </div>
+ *   </div>
+ * );
+ * 
+ * @since 2.3.7
  */
 function SectionsPage() {
   const navigate = useNavigate();

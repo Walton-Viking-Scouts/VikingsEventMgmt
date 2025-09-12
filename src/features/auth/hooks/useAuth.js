@@ -1,4 +1,24 @@
-// useAuth hook for managing authentication state in React
+/**
+ * @file useAuth Hook
+ * 
+ * Comprehensive authentication hook managing OAuth, token expiration, offline mode,
+ * and cross-tab synchronization for the Vikings Event Management mobile app.
+ * Handles OSM OAuth flow, token lifecycle, cached data access, and user state management.
+ * 
+ * Features:
+ * - OSM OAuth authentication flow with callback processing
+ * - Proactive token expiration monitoring with user choice dialogs
+ * - Offline mode support with cached data access
+ * - Cross-tab authentication synchronization
+ * - Comprehensive error handling and logging
+ * - Sentry integration for monitoring and debugging
+ * 
+ * @module useAuth
+ * @version 2.3.7
+ * @since 2.3.7
+ * @author Vikings Event Management Team
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
 import authService, { generateOAuthUrl, getAndClearReturnPath, isTokenExpired } from '../services/auth.js';
@@ -26,7 +46,90 @@ const broadcastAuthSync = () => {
 };
 
 /**
- *
+ * Custom authentication hook for Vikings Event Management mobile app
+ * 
+ * Provides comprehensive authentication state management including OAuth flow,
+ * token lifecycle management, offline mode support, and user session handling.
+ * Integrates with OSM OAuth, handles token expiration gracefully, and maintains
+ * cross-tab synchronization for seamless user experience.
+ * 
+ * @returns {Object} Authentication state and methods
+ * @returns {boolean} returns.isAuthenticated - Whether user has valid authentication
+ * @returns {boolean} returns.isLoading - Whether auth check is in progress
+ * @returns {Object|null} returns.user - Current user information object
+ * @returns {boolean} returns.isBlocked - Whether application is blocked by OSM
+ * @returns {boolean} returns.isOfflineMode - Whether operating in offline mode with cached data
+ * @returns {string} returns.authState - Enhanced auth state: 'authenticated'|'token_expired'|'cached_only'|'no_data'
+ * @returns {string|null} returns.lastSyncTime - Timestamp of last successful data sync
+ * @returns {boolean} returns.showTokenExpiredDialog - Whether token expiration dialog should be shown
+ * @returns {boolean} returns.hasCachedData - Whether cached offline data is available
+ * @returns {Function} returns.login - Function to initiate OAuth login flow
+ * @returns {Function} returns.logout - Function to log out and clear all data
+ * @returns {Function} returns.setToken - Function to manually set authentication token
+ * @returns {Function} returns.checkAuth - Function to refresh authentication state
+ * @returns {Function} returns.handleReLogin - Function to handle re-authentication after token expiration
+ * @returns {Function} returns.handleStayOffline - Function to continue in offline mode after token expiration
+ * 
+ * @example
+ * // Basic usage in component
+ * const { isAuthenticated, isLoading, user, login, logout } = useAuth();
+ * 
+ * if (isLoading) {
+ *   return <LoadingSpinner />;
+ * }
+ * 
+ * if (!isAuthenticated) {
+ *   return <LoginButton onClick={login} />;
+ * }
+ * 
+ * return <Dashboard user={user} onLogout={logout} />;
+ * 
+ * @example
+ * // Handle token expiration with user choice
+ * const {
+ *   showTokenExpiredDialog,
+ *   hasCachedData,
+ *   handleReLogin,
+ *   handleStayOffline
+ * } = useAuth();
+ * 
+ * if (showTokenExpiredDialog) {
+ *   return (
+ *     <TokenExpiredDialog
+ *       hasCachedData={hasCachedData}
+ *       onReLogin={handleReLogin}
+ *       onStayOffline={handleStayOffline}
+ *     />
+ *   );
+ * }
+ * 
+ * @example
+ * // Monitor offline mode and sync status
+ * const { isOfflineMode, authState, lastSyncTime } = useAuth();
+ * 
+ * return (
+ *   <StatusBar>
+ *     {isOfflineMode && <OfflineIndicator />}
+ *     {authState === 'cached_only' && <CacheOnlyWarning />}
+ *     {lastSyncTime && <LastSyncDisplay time={lastSyncTime} />}
+ *   </StatusBar>
+ * );
+ * 
+ * @example
+ * // Route protection
+ * const ProtectedRoute = ({ children }) => {
+ *   const { isAuthenticated, isLoading, authState } = useAuth();
+ * 
+ *   if (isLoading) return <LoadingScreen />;
+ *   if (!isAuthenticated && authState === 'no_data') {
+ *     return <Navigate to="/login" />;
+ *   }
+ * 
+ *   return children;
+ * };
+ * 
+ * @hook
+ * @since 2.3.7
  */
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

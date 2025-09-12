@@ -14,6 +14,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "docs:lint": "eslint --config eslint.config.jsdoc.js src/**/*.{js,jsx}",
+    "docs:lint:ci": "eslint --config eslint.config.jsdoc.js src/**/*.{js,jsx} --format json --output-file docs-lint-results.json",
+    "docs:validate": "npm run docs:lint && npm run docs:generate --dry-run",
+    "docs:validate:ci": "npm run docs:lint:ci && npm run docs:generate",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview --port 3001",
@@ -49,7 +52,7 @@
     "docs:generate:fast": "documentation build src/**/*.{js,jsx,ts,tsx} --pe js --pe jsx --pe ts --pe tsx -f html -o docs/api --project-name 'Vikings Event Management Mobile API' --access public protected",
     "docs:serve": "npx http-server docs/api -p 8080",
     "docs:coverage": "documentation build src/**/*.{js,jsx,ts,tsx} --pe js --pe jsx --pe ts --pe tsx -f html -o docs/api --document-exported",
-    "docs:validate": "jsdoc -c jsdoc.config.json --explain > docs/jsdoc-validation.json",
+    "docs:validate:detailed": "jsdoc -c jsdoc.config.json --explain > docs/jsdoc-validation.json",
     "docs:validate:typescript": "documentation lint src/**/*.{js,jsx,ts,tsx}"
   },
   "dependencies": {

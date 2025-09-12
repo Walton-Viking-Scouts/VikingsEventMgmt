@@ -1,4 +1,23 @@
-// Network utility functions for Vikings Event Management Mobile
+/**
+ * @file Network Utility Functions
+ * 
+ * Cross-platform network detection and monitoring utilities for Vikings Event Management Mobile.
+ * Provides consistent network status checking across web and native mobile platforms using
+ * Capacitor Network plugin for native and browser APIs for web environments.
+ * 
+ * Features:
+ * - Cross-platform network status detection
+ * - Detailed network information (connection type, speed, WiFi details)
+ * - Network change monitoring with event listeners
+ * - Comprehensive error handling and Sentry integration
+ * - Support for both online/offline detection and quality assessment
+ * 
+ * @module networkUtils
+ * @version 2.3.7
+ * @since 2.3.7
+ * @author Vikings Event Management Team
+ */
+
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { sentryUtils } from '../services/utils/sentry.js';

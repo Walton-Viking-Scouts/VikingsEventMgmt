@@ -1,11 +1,50 @@
+/**
+ * @file Section Movement Calculator
+ * 
+ * Calculates Scout section movements between terms based on age, FlexiRecord assignments,
+ * and section progression rules. Provides comprehensive movement analysis including
+ * member transfers, section summaries, and projected counts after movements.
+ * 
+ * Features:
+ * - Age-based movement calculation with caching
+ * - FlexiRecord assignment integration
+ * - Section-to-section progression mapping
+ * - Batch movement analysis with summaries
+ * - Support for demo and production data
+ * 
+ * @module movementCalculator
+ * @version 2.3.7
+ * @since 2.3.7
+ * @author Vikings Event Management Team
+ */
+
 import { calculateAgeAtDate, willMemberMoveUp } from '../../../shared/utils/sectionMovements/ageCalculations.js';
 
 const ageCalculationCache = new Map();
 
 /**
- *
- * @param birthdate
- * @param termStartDate
+ * Get cached age calculation with memoization
+ * 
+ * Calculates member age at term start date with caching to improve performance
+ * when processing large member lists. Uses birthdate and term date as cache key.
+ * 
+ * @param {string} birthdate - Member's date of birth in ISO format (YYYY-MM-DD)
+ * @param {string} termStartDate - Term start date in ISO format (YYYY-MM-DD)
+ * @returns {number|null} Age in years at term start date, null if calculation fails
+ * 
+ * @example
+ * // Calculate age for movement analysis
+ * const age = getCachedAge('2010-05-15', '2024-09-01');
+ * console.log(`Member will be ${age} years old at term start`);
+ * 
+ * @example
+ * // Cached calculation for performance
+ * const ages = members.map(member => 
+ *   getCachedAge(member.birthdate, termDate)
+ * );
+ * 
+ * @private
+ * @since 2.3.7
  */
 function getCachedAge(birthdate, termStartDate) {
   const key = `${birthdate}-${termStartDate}`;
@@ -19,11 +58,58 @@ function getCachedAge(birthdate, termStartDate) {
 }
 
 /**
- *
- * @param members
- * @param termStartDate
- * @param sections
- * @param termObject
+ * Calculate comprehensive section movements for a term
+ * 
+ * Analyzes member data to determine who should move between sections based on
+ * age progression and FlexiRecord assignments. Generates movement lists, section
+ * summaries, and projected member counts after movements are completed.
+ * 
+ * @param {Array<Object>} members - Array of member objects with personal and section data
+ * @param {string} termStartDate - Term start date in ISO format (YYYY-MM-DD)
+ * @param {Array<Object>} [sections=[]] - Array of section objects with sectionid and sectionname
+ * @param {Object|null} [termObject=null] - Term object with type and year properties
+ * @returns {Object} Movement results with movers array and sectionSummaries Map
+ * 
+ * @example
+ * // Calculate movements for autumn term
+ * const movements = calculateSectionMovements(
+ *   membersList,
+ *   '2024-09-01',
+ *   sectionsData,
+ *   { type: 'Autumn', year: 2024 }
+ * );
+ * 
+ * console.log(`${movements.movers.length} members will move sections`);
+ * movements.sectionSummaries.forEach(summary => {
+ *   console.log(`${summary.sectionName}: ${summary.outgoingMovers.length} leaving`);
+ * });
+ * 
+ * @example
+ * // Process movements with FlexiRecord assignments
+ * const flexiMembers = await getFlexiRecordData();
+ * const movements = calculateSectionMovements(flexiMembers, termDate, sections);
+ * 
+ * // FlexiRecord assignments override age-based calculations
+ * const assignedMovers = movements.movers.filter(m => m.flexiRecordTerm);
+ * const ageBasedMovers = movements.movers.filter(m => !m.flexiRecordTerm);
+ * 
+ * @example
+ * // Generate section reports
+ * const movements = calculateSectionMovements(members, termDate, sections);
+ * movements.sectionSummaries.forEach((summary, sectionId) => {
+ *   const report = {
+ *     section: summary.sectionName,
+ *     current: summary.currentMembers.length,
+ *     leaving: summary.outgoingMovers.length,
+ *     projected: summary.projectedCount
+ *   };
+ *   console.log(report);
+ * });
+ * 
+ * @throws {Error} When members is not an array
+ * @throws {Error} When termStartDate is invalid or missing
+ * 
+ * @since 2.3.7
  */
 export function calculateSectionMovements(members, termStartDate, sections = [], termObject = null) {
   if (!Array.isArray(members)) {
@@ -159,8 +245,36 @@ export function calculateSectionMovements(members, termStartDate, sections = [],
 }
 
 /**
- *
- * @param currentSectionName
+ * Determine target section based on current section progression
+ * 
+ * Maps current section to next section in Scout progression hierarchy.
+ * Uses section name pattern matching to handle various naming conventions
+ * (e.g., "Monday Cubs", "Thursday Squirrels", etc.).
+ * 
+ * @param {string} currentSectionName - Current section name to map from
+ * @returns {string|null} Target section name or null if no progression available
+ * 
+ * @example
+ * // Standard progression mapping
+ * console.log(getTargetSection('Monday Squirrels')); // "Beavers"
+ * console.log(getTargetSection('Tuesday Beavers')); // "Cubs"
+ * console.log(getTargetSection('Thursday Cubs')); // "Scouts"
+ * console.log(getTargetSection('Friday Scouts')); // "Explorers"
+ * 
+ * @example
+ * // Handle various naming patterns
+ * const sections = ['1st Squirrels', 'Beaver Colony', 'Cub Pack', 'Scout Troop'];
+ * const targets = sections.map(getTargetSection);
+ * // ["Beavers", "Cubs", "Scouts", "Explorers"]
+ * 
+ * @example
+ * // Unknown sections return null
+ * console.log(getTargetSection('Network')); // null
+ * console.log(getTargetSection('')); // null
+ * console.log(getTargetSection(null)); // null
+ * 
+ * @private
+ * @since 2.3.7
  */
 function getTargetSection(currentSectionName) {
   if (!currentSectionName || typeof currentSectionName !== 'string') {
@@ -178,8 +292,45 @@ function getTargetSection(currentSectionName) {
 }
 
 /**
- *
- * @param movers
+ * Group movement candidates by their target section
+ * 
+ * Organizes an array of movers into groups based on their destination section.
+ * Useful for generating section-specific movement reports and managing
+ * intake processes for receiving sections.
+ * 
+ * @param {Array<Object>} movers - Array of mover objects with targetSection property
+ * @returns {Map<string, Array<Object>>} Map with target section names as keys and mover arrays as values
+ * 
+ * @example
+ * // Group movers for intake processing
+ * const movements = calculateSectionMovements(members, termDate, sections);
+ * const grouped = groupMoversByTargetSection(movements.movers);
+ * 
+ * grouped.forEach((memberList, targetSection) => {
+ *   console.log(`${targetSection} will receive ${memberList.length} new members:`);
+ *   memberList.forEach(member => {
+ *     console.log(`- ${member.name} from ${member.currentSection}`);
+ *   });
+ * });
+ * 
+ * @example
+ * // Generate intake reports by section
+ * const grouped = groupMoversByTargetSection(movers);
+ * const intakeReport = Array.from(grouped.entries()).map(([section, members]) => ({
+ *   targetSection: section,
+ *   incomingCount: members.length,
+ *   members: members.map(m => ({ name: m.name, currentSection: m.currentSection }))
+ * }));
+ * 
+ * @example
+ * // Handle empty or invalid input
+ * const emptyGroups = groupMoversByTargetSection([]);
+ * console.log(emptyGroups.size); // 0
+ * 
+ * const nullGroups = groupMoversByTargetSection(null);
+ * console.log(nullGroups.size); // 0
+ * 
+ * @since 2.3.7
  */
 export function groupMoversByTargetSection(movers) {
   if (!Array.isArray(movers)) {

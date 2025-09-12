@@ -17,7 +17,8 @@
   },
   "opts": {
     "destination": "./docs/api/",
-    "recurse": true
+    "recurse": true,
+    "readme": "./README.md"
   },
   "plugins": [
     "plugins/markdown",
@@ -28,6 +29,14 @@
   },
   "templates": {
     "cleverLinks": false,
-    "monospaceLinks": false
+    "monospaceLinks": false,
+    "search": true,
+    "systemName": "Vikings Event Management Mobile",
+    "footer": "Generated with JSDoc for Vikings Event Management v2.3.7",
+    "copyright": "Copyright © 2024 Vikings Event Management Team"
+  },
+  "metadata": {
+    "title": "Vikings Event Management Mobile API Documentation",
+    "description": "Comprehensive API documentation for the Vikings Event Management mobile application built with React and Capacitor"
   }
 }
