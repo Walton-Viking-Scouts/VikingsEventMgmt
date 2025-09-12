@@ -1137,7 +1137,6 @@ function generateSwimmingGalaSharedMetadata() {
  *   'swimming_gala_2025', 8, 3
  * );
  */
-// eslint-disable-next-line no-unused-vars
 function _generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
   const members = [];
   

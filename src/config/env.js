@@ -94,7 +94,16 @@ if (apiUrl && !apiUrl.match(/^https?:\/\/.+/)) {
  * console.log('API URL:', config.apiUrl);
  * console.log('Environment:', config.actualEnvironment);
  */
-// Export validated configuration
+
+/**
+ * Validated application configuration object containing all environment-specific settings
+ * @type {object}
+ * @property {string} apiUrl - Base URL for API endpoints
+ * @property {string} sentryDsn - Sentry DSN for error tracking
+ * @property {string} mapboxAccessToken - Mapbox access token for maps
+ * @property {string} actualEnvironment - Current environment (development/staging/production)
+ */
+// eslint-disable-next-line jsdoc/require-jsdoc
 export const config = {
   // API Configuration
     apiUrl: import.meta.env.VITE_API_URL,

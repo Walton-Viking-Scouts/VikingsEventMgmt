@@ -87,3 +87,4 @@ api_examples/
 # Task files
 # tasks.json
 # tasks/ 
+docs/jsdoc-validation.json

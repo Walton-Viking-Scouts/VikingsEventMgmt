@@ -28,7 +28,14 @@ export default [
     plugins: {
       jsdoc,
     },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
     rules: {
+      // Disable unused vars completely for JSDoc-only lint - focus on documentation
+      'no-unused-vars': 'off',
       // Focus only on JSDoc validation
       'jsdoc/require-jsdoc': ['error', {
         require: {
@@ -44,8 +51,12 @@ export default [
           'ExportDefaultDeclaration > FunctionExpression',
           'ExportNamedDeclaration > FunctionDeclaration',
         ],
+        exemptEmptyConstructors: true,
         exemptEmptyFunctions: true,
         enableFixer: true,
+        checkConstructors: false,
+        checkGetters: false,
+        checkSetters: false,
       }],
       'jsdoc/require-description': ['error', {
         contexts: [

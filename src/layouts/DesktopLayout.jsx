@@ -1,6 +1,4 @@
-// eslint-disable-next-line no-unused-vars
 import VikingHeader from '../shared/components/VikingHeader.jsx';
-// eslint-disable-next-line no-unused-vars
 import Footer from '../shared/components/Footer.jsx';
 
 /**
@@ -64,9 +62,7 @@ function DesktopLayout({
   isOfflineMode,
   authState,
   lastSyncTime,
-  // eslint-disable-next-line no-unused-vars
   currentView: _currentView,
-  // eslint-disable-next-line no-unused-vars
   isRefreshing: _isRefreshing,
   ...props
 }) {
