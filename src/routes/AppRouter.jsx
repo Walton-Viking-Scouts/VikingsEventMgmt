@@ -31,8 +31,8 @@ import { RouteGuard } from '../shared/components/guards';
  *
  * @component
  * @returns {ReactElement} The authenticated Scout management interface with routing
- * @scout-themed
- * @offline-aware
+ * @description Provides Scout-themed UI components and navigation patterns
+ * @description Includes offline-aware functionality with cached data support
  * @since 1.0.0
  * @example
  * // Used internally by AppRouter - not directly imported
@@ -59,7 +59,7 @@ function AppContent() {
   const {
     isLoading,
     user,
-    isBlocked: _isBlocked,
+    // isBlocked, // Currently unused - may be implemented later for blocking UI
     isOfflineMode,
     authState,
     lastSyncTime,
@@ -168,8 +168,8 @@ function AppContent() {
  *
  * @component
  * @returns {ReactElement} The complete Scout application routing system with providers
- * @scout-themed
- * @offline-aware
+ * @description Provides Scout-themed UI components and navigation patterns
+ * @description Includes offline-aware functionality with cached data support
  * @since 1.0.0
  * @example
  * // Primary usage as the main routing component
