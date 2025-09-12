@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import cypress from 'eslint-plugin-cypress';
 import importPlugin from 'eslint-plugin-import';
+import jsdoc from 'eslint-plugin-jsdoc';
 
 export default [
   js.configs.recommended,
@@ -48,6 +49,7 @@ export default [
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'import': importPlugin,
+      jsdoc,
     },
     rules: {
       ...react.configs.recommended.rules,
@@ -84,6 +86,90 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off', // We're using TypeScript-style props without PropTypes
+      
+      // JSDoc validation rules
+      'jsdoc/require-jsdoc': ['error', {
+        require: {
+          FunctionDeclaration: true,
+          MethodDefinition: true,
+          ClassDeclaration: true,
+          ArrowFunctionExpression: false, // Only require for exported functions
+          FunctionExpression: false, // Only require for exported functions
+        },
+        contexts: [
+          'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator:has(ArrowFunctionExpression)', // Named exported arrow functions
+          'ExportDefaultDeclaration > ArrowFunctionExpression', // Default exported arrow functions
+          'ExportDefaultDeclaration > FunctionExpression', // Default exported function expressions
+          'ExportNamedDeclaration > FunctionDeclaration', // Named exported functions
+        ],
+        exemptEmptyFunctions: true,
+        enableFixer: true,
+      }],
+      'jsdoc/require-description': ['error', {
+        contexts: [
+          'FunctionDeclaration', 
+          'MethodDefinition', 
+          'ClassDeclaration',
+          'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator:has(ArrowFunctionExpression)',
+          'ExportDefaultDeclaration > ArrowFunctionExpression',
+          'ExportDefaultDeclaration > FunctionExpression',
+        ],
+        exemptedBy: ['type', 'private', 'internal'],
+      }],
+      'jsdoc/require-param': 'error',
+      'jsdoc/require-param-description': 'error',
+      'jsdoc/require-returns': ['error', {
+        exemptedBy: ['constructor', 'abstract'],
+        contexts: ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration', 'MethodDefinition'],
+        forceRequireReturn: false,
+        forceReturnsWithAsync: false,
+      }],
+      'jsdoc/require-returns-description': 'error',
+      'jsdoc/check-param-names': 'error',
+      'jsdoc/check-tag-names': ['error', {
+        definedTags: ['component', 'hook', 'example', 'since', 'deprecated', 'todo', 'fixme'],
+      }],
+      'jsdoc/check-types': 'error',
+      'jsdoc/no-undefined-types': ['error', {
+        definedTypes: [
+          'React',
+          'ReactNode',
+          'ReactElement',
+          'JSX',
+          'HTMLElement',
+          'Element',
+          'Event',
+          'EventTarget',
+          'Promise',
+          'Array',
+          'Object',
+          'Function',
+          'Date',
+          'RegExp',
+          'Error',
+          'Map',
+          'Set',
+          'WeakMap',
+          'WeakSet',
+          'Symbol',
+          'BigInt',
+          'Component',
+          'FC',
+          'FunctionComponent',
+          'RefObject',
+          'MutableRefObject',
+          'Dispatch',
+          'SetStateAction',
+          'ChangeEvent',
+          'FormEvent',
+          'MouseEvent',
+          'KeyboardEvent',
+          'TouchEvent',
+          'SyntheticEvent',
+        ],
+      }],
+      'jsdoc/valid-types': 'error',
+      'jsdoc/check-syntax': 'error',
       
       // Directory structure enforcement - downgraded to warnings to unblock CI/CD
       'import/no-restricted-paths': ['warn', {
@@ -178,9 +264,18 @@ export default [
         global: 'readonly',
       },
     },
+    rules: {
+      // Disable JSDoc requirements for test files
+      'jsdoc/require-jsdoc': 'off',
+      'jsdoc/require-description': 'off',
+      'jsdoc/require-param': 'off',
+      'jsdoc/require-param-description': 'off',
+      'jsdoc/require-returns': 'off',
+      'jsdoc/require-returns-description': 'off',
+    },
   },
   {
-    files: ['vite.config.js', 'cypress.config.js', 'scripts/**/*.js'],
+    files: ['vite.config.js', 'cypress.config.js', 'scripts/**/*.js', 'eslint.config.js'],
     languageOptions: {
       globals: {
         process: 'readonly',
@@ -189,6 +284,15 @@ export default [
         Buffer: 'readonly',
         global: 'readonly',
       },
+    },
+    rules: {
+      // Disable JSDoc requirements for configuration files
+      'jsdoc/require-jsdoc': 'off',
+      'jsdoc/require-description': 'off',
+      'jsdoc/require-param': 'off',
+      'jsdoc/require-param-description': 'off',
+      'jsdoc/require-returns': 'off',
+      'jsdoc/require-returns-description': 'off',
     },
   },
   {
