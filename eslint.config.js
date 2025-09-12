@@ -127,7 +127,7 @@ export default [
       'jsdoc/require-returns-description': 'error',
       'jsdoc/check-param-names': 'error',
       'jsdoc/check-tag-names': ['error', {
-        definedTags: ['component', 'hook', 'example', 'since', 'deprecated', 'todo', 'fixme'],
+        definedTags: ['component', 'hook', 'example', 'since', 'deprecated', 'todo', 'fixme', 'offline-aware', 'rate-limited', 'scout-themed'],
       }],
       'jsdoc/check-types': 'error',
       'jsdoc/no-undefined-types': ['error', {
@@ -166,6 +166,10 @@ export default [
           'KeyboardEvent',
           'TouchEvent',
           'SyntheticEvent',
+          'ValidationError',
+          'NetworkError',
+          'RateLimitError',
+          'AuthenticationError',
         ],
       }],
       'jsdoc/valid-types': 'error',
