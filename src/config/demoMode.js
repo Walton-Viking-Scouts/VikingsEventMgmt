@@ -4,9 +4,22 @@
 import { safeSetItem } from '../shared/utils/storageUtils.js';
 import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
 
+// Global variable declarations for ESLint
+/* global URLSearchParams */
+
 /**
- * Detect if demo mode should be enabled
- * Checks URL parameters, subdomain, and path
+ * Detects if the application should run in demonstration mode for offline Scout event management.
+ * Checks multiple detection methods including URL parameters, subdomain patterns, and environment variables
+ * to determine if demo mode should be enabled for showcasing features without live OSM data.
+ * 
+ * @returns {boolean} True if demo mode should be enabled, false for production operation
+ * @since 1.0.0
+ * @example
+ * // Check if running in demo mode before initializing data
+ * if (isDemoMode()) {
+ *   console.log('Running in demonstration mode');
+ *   await initializeDemoMode();
+ * }
  */
 export function isDemoMode() {
   // For test environments or SSR, check environment variable only
@@ -50,7 +63,15 @@ export function isDemoMode() {
 const DEMO_MEMBERS_BY_SECTION = new Map();
 
 /**
- * Production-based demo data - anonymized real cache structure
+ * Production-based demo data structure containing anonymized Scout section and event information.
+ * Provides realistic demo data that mirrors actual OSM cache structure for comprehensive testing
+ * and demonstration of Scout event management features across different section types.
+ * 
+ * @type {object} Demo cache data with sections, terms, and startup information
+ * @property {Array<object>} viking_sections_offline - Scout sections (Adults, Squirrels, Beavers, Cubs)
+ * @property {object} viking_terms_offline - Term definitions by section ID
+ * @property {object} viking_startup_data_offline - Global user and system configuration
+ * @since 1.0.0
  */
 const DEMO_CACHE_DATA = {
   viking_sections_offline: [
@@ -176,7 +197,18 @@ const DEMO_CACHE_DATA = {
 };
 
 /**
- * Initialize demo mode with production-based cache structure
+ * Initializes comprehensive demo mode by populating local storage with realistic Scout event data.
+ * Creates complete demonstration environment including sections, members, events, attendance records,
+ * flexi records, and shared event metadata to showcase full Scout event management capabilities.
+ * 
+ * @returns {Promise<boolean>} Promise resolving to true if initialization succeeded, false otherwise
+ * @since 1.0.0
+ * @example
+ * // Initialize demo mode during application startup
+ * const demoInitialized = await initializeDemoMode();
+ * if (demoInitialized) {
+ *   console.log('Demo mode ready with sample Scout data');
+ * }
  */
 export async function initializeDemoMode() {
   if (!isDemoMode()) return false;
@@ -376,15 +408,24 @@ export async function initializeDemoMode() {
       }
     });
     
-    // Inline function to generate attendance records during initialization
     /**
-     *
-     * @param sectionid
-     * @param sectionname
-     * @param groupname
-     * @param eventid
-     * @param attendingCount
-     * @param notAttendingCount
+     * Generates production-format attendance records for shared Scout events during demo initialization.
+     * Creates realistic attendance data including member details, ages, patrol assignments,
+     * and filter strings that match OSM production format for seamless demo operation.
+     * 
+     * @param {string} sectionid - OSM section identifier (e.g., '999904', 'external_scouts_001')
+     * @param {string} sectionname - Display name of the Scout section (e.g., 'Demo Cubs')
+     * @param {string} groupname - Scout group name for organizational context
+     * @param {string} eventid - Event identifier for attendance tracking
+     * @param {number} attendingCount - Number of members marked as attending
+     * @param {number} notAttendingCount - Number of members marked as not attending
+     * @returns {Array<object>} Array of attendance records with full OSM production structure
+     * @since 1.0.0
+     * @example
+     * // Generate shared event attendance for Swimming Gala
+     * const attendance = generateProductionFormatAttendanceInline(
+     *   '999904', 'Demo Cubs', '1st Walton Sea Scouts', 'event123', 5, 2
+     * );
      */
     function generateProductionFormatAttendanceInline(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
       const members = [];
@@ -488,8 +529,20 @@ export async function initializeDemoMode() {
 }
 
 /**
- *
- * @param section
+ * Generates realistic Scout events for a specific section including camps, shared activities,
+ * and regular meetings. Creates events with appropriate costs, locations, and timing
+ * that demonstrate the full range of Scout event management capabilities.
+ * 
+ * @param {object} section - Scout section object with sectionid and sectionname properties
+ * @param {number|string} section.sectionid - Unique section identifier
+ * @param {string} section.sectionname - Display name of the section
+ * @returns {Array<object>} Array of event objects with OSM-compatible structure
+ * @since 1.0.0
+ * @example
+ * // Generate events for Cubs section
+ * const cubsSection = { sectionid: 999904, sectionname: 'Demo Cubs' };
+ * const events = generateEventsForSection(cubsSection);
+ * console.log(`Generated ${events.length} events for ${cubsSection.sectionname}`);
  */
 function generateEventsForSection(section) {
   const baseEvents = [
@@ -525,8 +578,24 @@ function generateEventsForSection(section) {
 }
 
 /**
- *
- * @param section
+ * Generates realistic Scout membership data for a section including leaders, young leaders,
+ * and young people with appropriate names, ages, and patrol assignments that reflect
+ * typical Scout section demographics and organizational structure.
+ * 
+ * @param {object} section - Scout section configuration object
+ * @param {number|string} section.sectionid - Unique section identifier for member ID generation
+ * @param {string} section.sectionname - Display name used in member records
+ * @param {string} section.sectiontype - Section type determining age-appropriate member data
+ * @returns {Array<object>} Array of member objects with Scout-specific demographics
+ * @since 1.0.0
+ * @example
+ * // Generate members for Beavers section
+ * const beaversSection = {
+ *   sectionid: 999903,
+ *   sectionname: 'Demo Beavers',
+ *   sectiontype: 'beavers'
+ * };
+ * const members = generateMembersForSection(beaversSection);
  */
 function generateMembersForSection(section) {
   // Generate random member count between 18-24 per section
@@ -641,11 +710,20 @@ function generateMembersForSection(section) {
 }
 
 /**
- *
- * @param section
- * @param _eventId
+ * Generates realistic attendance records for a Scout event with varied response patterns.
+ * Creates attendance data showing confirmed attendees, invited members, and non-attendees
+ * to demonstrate typical Scout event participation and response management.
+ * 
+ * @param {object} section - Scout section object containing member information
+ * @returns {Array<object>} Array of attendance records with response status and member details
+ * @since 1.0.0
+ * @example
+ * // Generate attendance for annual camp
+ * const cubsSection = { sectionid: 999904, sectionname: 'Demo Cubs' };
+ * const attendance = generateAttendanceForEvent(cubsSection, 'camp_2025');
+ * console.log(`${attendance.filter(a => a.attending === 'Yes').length} members attending`);
  */
-function generateAttendanceForEvent(section, _eventId) {
+function generateAttendanceForEvent(section) {
   // Use cached members to maintain identity consistency
   const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || generateMembersForSection(section);
   return members.map(member => {
@@ -680,8 +758,19 @@ function generateAttendanceForEvent(section, _eventId) {
 }
 
 /**
- *
- * @param offset
+ * Calculates future dates for Scout events based on an offset to create realistic event scheduling.
+ * Generates dates spanning from recent past to near future to demonstrate dashboard functionality
+ * and event timeline management in the Scout event system.
+ * 
+ * @param {number} offset - Zero-based event index for date calculation (0 = 3 days from now)
+ * @returns {string} ISO date string (YYYY-MM-DD) for the calculated event date
+ * @since 1.0.0
+ * @example
+ * // Generate dates for multiple events
+ * const eventDates = [];
+ * for (let i = 0; i < 6; i++) {
+ *   eventDates.push(getFutureDate(i)); // Creates events at weekly intervals
+ * }
  */
 function getFutureDate(offset) {
   const date = new Date();
@@ -694,9 +783,20 @@ function getFutureDate(offset) {
 }
 
 /**
- *
- * @param sectionType
- * @param personType
+ * Generates age-appropriate birth dates for Scout members based on section type and role.
+ * Creates realistic demographics that reflect typical Scout age ranges from Squirrels (4-6)
+ * through to adult leaders, ensuring authentic demonstration data for Scout management.
+ * 
+ * @param {string} sectionType - Scout section type (earlyyears, beavers, cubs, scouts, explorers, adults)
+ * @param {string} [personType='Young People'] - Member role (Leaders, Young Leaders, Young People)
+ * @returns {string} Birth date in ISO format (YYYY-MM-DD)
+ * @since 1.0.0
+ * @example
+ * // Generate birth date for Cubs member
+ * const cubBirthDate = getRandomBirthDate('cubs', 'Young People');
+ * 
+ * // Generate birth date for adult leader
+ * const leaderBirthDate = getRandomBirthDate('cubs', 'Leaders');
  */
 function getRandomBirthDate(sectionType, personType = 'Young People') {
   let ageRange;
@@ -729,8 +829,18 @@ function getRandomBirthDate(sectionType, personType = 'Young People') {
 }
 
 /**
- *
- * @param section
+ * Generates flexible record configuration for Scout event management demonstrations.
+ * Creates flexi record definitions that showcase the Viking Event Management system's
+ * ability to track custom event data like camp groups and sign-in/sign-out procedures.
+ * 
+ * @param {object} section - Scout section object for context-specific flexi records
+ * @param {number|string} section.sectionid - Section identifier for flexi record naming
+ * @returns {Array<object>} Array of flexi record configurations for demonstration
+ * @since 1.0.0
+ * @example
+ * // Generate flexi records for Cubs section
+ * const cubsSection = { sectionid: 999904 };
+ * const flexiRecords = generateFlexiListsForSection(cubsSection);
  */
 function generateFlexiListsForSection(section) {
   return [
@@ -742,8 +852,19 @@ function generateFlexiListsForSection(section) {
 }
 
 /**
- *
- * @param flexiRecord
+ * Generates the structural configuration for flexible Scout event tracking records.
+ * Defines column layouts, field properties, and formatting rules for the Viking Event
+ * Management flexi record system used in Scout camp and event administration.
+ * 
+ * @param {object} flexiRecord - Flexi record configuration object
+ * @param {string} flexiRecord.extraid - Unique identifier for the flexi record
+ * @param {string} flexiRecord.name - Display name of the flexi record type
+ * @returns {object} Complete flexi structure with column definitions and formatting rules
+ * @since 1.0.0
+ * @example
+ * // Generate structure for Viking Event Management flexi record
+ * const flexiRecord = { extraid: 'demo_flexi_999904_1', name: 'Viking Event Mgmt' };
+ * const structure = generateFlexiStructure(flexiRecord);
  */
 function generateFlexiStructure(flexiRecord) {
   if (flexiRecord.name === 'Viking Event Mgmt') {
@@ -791,9 +912,21 @@ function generateFlexiStructure(flexiRecord) {
 }
 
 /**
- *
- * @param section
- * @param flexiRecord
+ * Generates realistic Scout event tracking data for flexible record demonstrations.
+ * Creates sample data showing camp group assignments, sign-in/sign-out procedures,
+ * and member tracking that demonstrates Scout event management workflows.
+ * 
+ * @param {object} section - Scout section object containing member information
+ * @param {object} flexiRecord - Flexi record configuration for data generation
+ * @param {string} flexiRecord.name - Flexi record type determining data structure
+ * @returns {Array<object>} Array of flexi data records with Scout member tracking information
+ * @since 1.0.0
+ * @example
+ * // Generate Viking Event Management data for Cubs section
+ * const flexiData = generateFlexiData(cubsSection, {
+ *   name: 'Viking Event Mgmt',
+ *   extraid: 'demo_flexi_999904_1'
+ * });
  */
 function generateFlexiData(section, flexiRecord) {
   // Use cached members to maintain identity consistency
@@ -838,7 +971,16 @@ function generateFlexiData(section, flexiRecord) {
 }
 
 /**
- *
+ * Generates comprehensive metadata for shared Scout events like Swimming Galas.
+ * Creates realistic multi-section event data including attendance figures, participating
+ * sections, and event details that demonstrate cross-section Scout event coordination.
+ * 
+ * @returns {object} Complete shared event metadata with section participation details
+ * @since 1.0.0
+ * @example
+ * // Generate Swimming Gala shared event metadata
+ * const metadata = generateSwimmingGalaSharedMetadata();
+ * console.log(`Swimming Gala has ${metadata._allSections.length} participating sections`);
  */
 function generateSwimmingGalaSharedMetadata() {
   // Find the Swimming Gala event from our demo sections (should be event index 1)
@@ -976,14 +1118,26 @@ function generateSwimmingGalaSharedMetadata() {
 }
 
 /**
- * Generate attendance records matching exact production shared attendance format
- * @param sectionid
- * @param sectionname
- * @param groupname
- * @param eventid
- * @param attendingCount
- * @param notAttendingCount
+ * Generates attendance records matching exact OSM production shared attendance format.
+ * Creates comprehensive member attendance data including demographics, patrol assignments,
+ * and filter strings that enable seamless integration with Scout event management systems.
+ * 
+ * @param {string} sectionid - OSM section identifier (numeric or external format)
+ * @param {string} sectionname - Display name of the Scout section
+ * @param {string} groupname - Scout group name for organizational context
+ * @param {string} eventid - Unique event identifier for attendance tracking
+ * @param {number} attendingCount - Number of members confirmed as attending
+ * @param {number} notAttendingCount - Number of members confirmed as not attending
+ * @returns {Array<object>} Array of attendance records with full OSM production structure
+ * @since 1.0.0
+ * @example
+ * // Generate shared attendance for Swimming Gala
+ * const attendance = _generateProductionFormatAttendance(
+ *   '999904', 'Demo Cubs', '1st Walton Sea Scouts',
+ *   'swimming_gala_2025', 8, 3
+ * );
  */
+// eslint-disable-next-line no-unused-vars
 function _generateProductionFormatAttendance(sectionid, sectionname, groupname, eventid, attendingCount, notAttendingCount) {
   const members = [];
   
@@ -1074,7 +1228,20 @@ function _generateProductionFormatAttendance(sectionid, sectionname, groupname, 
 }
 
 /**
- * Demo mode configuration object
+ * Demo mode configuration object providing centralized access to demonstration functionality.
+ * Offers methods to detect demo mode status and initialize comprehensive Scout event management
+ * demonstration data for offline showcasing and testing of application features.
+ * 
+ * @type {object} Demo configuration with detection and initialization capabilities
+ * @property {boolean} enabled - Computed property indicating if demo mode is currently active
+ * @property {Function} initialize - Async function to populate demo data in local storage
+ * @since 1.0.0
+ * @example
+ * // Check and initialize demo mode
+ * if (demoConfig.enabled) {
+ *   const initialized = await demoConfig.initialize();
+ *   console.log('Demo mode initialization:', initialized ? 'success' : 'failed');
+ * }
  */
 export const demoConfig = {
   get enabled() { return isDemoMode(); },
