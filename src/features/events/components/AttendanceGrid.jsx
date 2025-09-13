@@ -1,9 +1,10 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.data
+ * Displays attendance data in a structured grid format.
+ * @param {object} props - Component props
+ * @param {Array} props.data - Attendance data to display
+ * @returns {JSX.Element} Rendered attendance grid component
  */
 function AttendanceGrid({ data }) {
   const getStatusColor = (status) => {

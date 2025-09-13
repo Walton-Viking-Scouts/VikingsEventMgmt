@@ -10,7 +10,8 @@ const sentryDsn = config.sentryDsn;
 
 // Initialize Sentry
 /**
- *
+ * Initializes Sentry error tracking and performance monitoring.
+ * @returns {void}
  */
 export function initSentry() {
   // Don't initialize Sentry if DSN is not provided
@@ -108,10 +109,11 @@ export function initSentry() {
 export const logger = Sentry.logger;
 
 // Utility functions for common Sentry operations
-export const /**
- *
+/**
+ * Utility functions for common Sentry operations and error handling.
+ * @type {object}
  */
-  sentryUtils = {
+export const sentryUtils = {
   // Capture exceptions with rich context
     captureException: (error, { tags, contexts, extra, user, level } = {}) => {
       try {

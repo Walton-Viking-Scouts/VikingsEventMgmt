@@ -1,7 +1,6 @@
 // Environment variable configuration and validation
 // This module centralizes environment variable access and validates required variables
 
-/* global URLSearchParams */
 
 // Required environment variables for basic functionality
 // Skip validation in demo mode to allow public access

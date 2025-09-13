@@ -13,12 +13,7 @@ import { isDemoMode } from '../../config/demoMode.js';
  * @param {string|null} token - Authentication token (null for cache-only)
  * @returns {Promise<Array>} Array of all events from all sections
  */
-export const /**
- *
- * @param sections
- * @param token
- */
-  fetchAllSectionEvents = async (sections, token) => {
+export const fetchAllSectionEvents = async (sections, token) => {
     const allEvents = [];
   
     // Load terms once for all sections (major optimization!)
@@ -77,13 +72,7 @@ export const /**
  * @param {object | null} allTerms - Pre-loaded terms data (optional optimization)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const /**
- *
- * @param section
- * @param token
- * @param allTerms
- */
-  fetchSectionEvents = async (section, token, allTerms = null) => {
+export const fetchSectionEvents = async (section, token, allTerms = null) => {
     try {
       let events = [];
     
@@ -180,17 +169,10 @@ export const /**
  * For shared events where user has access to owner section, fetches and merges shared attendance data
  * @param {object} event - Event object with eventid, sectionid, termid
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {Array|null} allEvents - Array of all events (needed for shared event processing)
- * @param _allEvents
+ * @param {Array|null} _allEvents - Array of all events (needed for shared event processing)
  * @returns {Promise<Array|null>} Attendance data (merged for shared events) or null if failed
  */
-export const /**
- *
- * @param event
- * @param token
- * @param _allEvents
- */
-  fetchEventAttendance = async (event, token, _allEvents = null) => {
+export const fetchEventAttendance = async (event, token, _allEvents = null) => {
     try {
     // Skip all API calls in demo mode to prevent rate limiting, but still process shared events
       const demoMode = isDemoMode();
@@ -425,11 +407,7 @@ export const /**
  * @param {Array} events - Array of event objects
  * @returns {Map} Map of event names to arrays of events
  */
-export const /**
- *
- * @param events
- */
-  groupEventsByName = (events) => {
+export const groupEventsByName = (events) => {
     const eventGroups = new Map();
   
     for (const event of events) {
@@ -449,12 +427,7 @@ export const /**
  * @param {Array} events - Array of events with the same name
  * @returns {object} Event card object
  */
-export const /**
- *
- * @param eventName
- * @param events
- */
-  buildEventCard = (eventName, events) => {
+export const buildEventCard = (eventName, events) => {
   // Sort events within group by date
     const sorted = [...events].sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
   
@@ -474,12 +447,7 @@ export const /**
  * @param {Date} oneWeekAgo - Date representing one week ago
  * @returns {Array} Filtered events
  */
-export const /**
- *
- * @param events
- * @param oneWeekAgo
- */
-  filterEventsByDateRange = (events, oneWeekAgo) => {
+export const filterEventsByDateRange = (events, oneWeekAgo) => {
     return events.filter(event => {
       const eventDate = new Date(event.startdate);
       return eventDate >= oneWeekAgo;
@@ -491,11 +459,7 @@ export const /**
  * @param {object} attendanceData - Attendance data response from API
  * @returns {boolean} True if this section owns a shared event
  */
-export const /**
- *
- * @param attendanceData
- */
-  isSharedEventOwner = (attendanceData) => {
+export const isSharedEventOwner = (attendanceData) => {
   // Check if the response has sharing info and is_owner is true
     if (attendanceData && attendanceData.sharing && attendanceData.sharing.is_owner === true) {
       return true;
@@ -508,11 +472,7 @@ export const /**
  * @param {Array} events - Array of event objects with sectionid  
  * @returns {Set} Set of section IDs the user has access to
  */
-export const /**
- *
- * @param events
- */
-  getUserAccessibleSections = (events) => {
+export const getUserAccessibleSections = (events) => {
     return new Set(events.map(event => event.sectionid));
   };
 
@@ -521,11 +481,7 @@ export const /**
  * @param {object} sharedEventData - Response from getEventSharingStatus API with section-level counts
  * @returns {object} Attendance data compatible with EventCard component
  */
-export const /**
- *
- * @param sharedEventData
- */
-  convertSharedEventToAttendanceFormat = (sharedEventData) => {
+export const convertSharedEventToAttendanceFormat = (sharedEventData) => {
     try {
     // Filter out null/empty section entries (these are totals/summaries)
       const sections = (sharedEventData?.items || []).filter(section => 
@@ -613,12 +569,7 @@ export const /**
  * @param {Map} attendanceMap - Map of event IDs to attendance data
  * @returns {Array} Expanded events array including synthetic events for shared event sections
  */
-export const /**
- *
- * @param events
- * @param attendanceMap
- */
-  expandSharedEvents = (events, attendanceMap) => {
+export const expandSharedEvents = (events, attendanceMap) => {
   // For shared events, we DON'T want to create synthetic events for each section
   // Instead, we want the EventCard to handle displaying all sections within a single card
   // So we'll just return the original events array without expansion
@@ -644,13 +595,7 @@ export const /**
  * @param {Set} sectionsToShow - Set of section IDs to include in the output (all shared sections for shared events)
  * @returns {object} Merged attendance data with combined attendees and accurate counts
  */
-export const /**
- *
- * @param sharedAttendanceData
- * @param sectionSpecificAttendanceData
- * @param sectionsToShow
- */
-  mergeSharedAndSectionAttendance = (sharedAttendanceData, sectionSpecificAttendanceData, sectionsToShow) => {
+export const mergeSharedAndSectionAttendance = (sharedAttendanceData, sectionSpecificAttendanceData, sectionsToShow) => {
     try {
     // Get shared attendees (all "Yes" responses from all sections)
     // The shared API returns combined attendance in 'items' property

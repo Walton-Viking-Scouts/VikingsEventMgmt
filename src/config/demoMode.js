@@ -4,8 +4,6 @@
 import { safeSetItem } from '../shared/utils/storageUtils.js';
 import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
 
-/* global URLSearchParams */
-
 // URLSearchParams is a built-in global - no declaration needed
 
 /**

@@ -13,7 +13,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "docs:lint": "eslint --config eslint.config.jsdoc.js src/**/*.{js,jsx}",
+    "docs:lint": "eslint --config eslint.config.jsdoc.js \"src/**/*.{js,jsx}\"",
     "docs:lint:ci": "eslint --config eslint.config.jsdoc.js src/**/*.{js,jsx} --format json --output-file docs-lint-results.json",
     "docs:validate": "npm run docs:lint && npm run docs:generate --dry-run",
     "docs:validate:ci": "npm run docs:lint:ci && npm run docs:generate",
