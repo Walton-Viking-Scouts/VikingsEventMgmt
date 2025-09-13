@@ -3,13 +3,15 @@ import PropTypes from 'prop-types';
 import { formatMedicalDataForDisplay, getMedicalFieldsFromMember } from '../../utils/medicalDataUtils.js';
 
 /**
- *
- * @param root0
- * @param root0.value
- * @param root0.fieldName
- * @param root0.data
- * @param root0.type
- * @param root0.className
+ * Medical data pill component that displays formatted medical information in a styled badge.
+ * Automatically applies appropriate styling based on medical data type and severity.
+ * @param {object} root0 - The component props
+ * @param {string|Array} root0.value - The medical data value to display
+ * @param {string} root0.fieldName - The field name for formatting the display
+ * @param {string} root0.data - Legacy data format for backward compatibility
+ * @param {string} root0.type - The display type ('info'|'warning'|'danger'|'success') for styling
+ * @param {string} root0.className - Additional CSS classes to apply
+ * @returns {JSX.Element|null} Rendered medical data pill or null if no data
  */
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   
@@ -56,10 +58,12 @@ export function MedicalDataPill({ value, fieldName, data, type = 'info', classNa
 }
 
 /**
- *
- * @param root0
- * @param root0.medicalData
- * @param root0.className
+ * List component that displays multiple medical data items in a structured format.
+ * Each medical item is rendered as a MedicalDataPill with appropriate styling.
+ * @param {object} root0 - The component props
+ * @param {Array} root0.medicalData - Array of medical data items to display
+ * @param {string} root0.className - Additional CSS classes to apply to the container
+ * @returns {JSX.Element|null} Rendered list of medical data pills or null if no data
  */
 export function MedicalDataList({ medicalData, className = '' }) {
   if (!medicalData || medicalData.length === 0) {
@@ -83,10 +87,12 @@ export function MedicalDataList({ medicalData, className = '' }) {
 }
 
 /**
- *
- * @param root0
- * @param root0.member
- * @param root0.className
+ * Main medical data display component that shows a Scout's medical information.
+ * Renders medical data using the MedicalDataList component with proper Scout-themed styling.
+ * @param {object} root0 - The component props
+ * @param {object} root0.member - Scout member object containing medical data
+ * @param {string} root0.className - Additional CSS classes to apply to the display
+ * @returns {JSX.Element|null} Rendered medical data display or null if no member data
  */
 function MedicalDataDisplay({ member, className = '' }) {
   if (!member || !member.medicalData) {
@@ -130,11 +136,13 @@ MedicalDataDisplay.propTypes = {
 };
 
 /**
- *
- * @param root0
- * @param root0.label
- * @param root0.value
- * @param root0.fieldName
+ * Individual medical data field component with label and formatted value display.
+ * Used in forms and detailed views to show specific medical information fields.
+ * @param {object} root0 - The component props
+ * @param {string} root0.label - The field label to display above the value
+ * @param {string|Array} root0.value - The medical field value to format and display
+ * @param {string} root0.fieldName - The field name for proper formatting
+ * @returns {JSX.Element} Rendered medical field with label and formatted value
  */
 export function MedicalDataField({ label, value, fieldName }) {
   return (
@@ -154,9 +162,11 @@ export function MedicalDataField({ label, value, fieldName }) {
 }
 
 /**
- *
- * @param root0
- * @param root0.member
+ * Medical data summary component that shows a count-based overview of a Scout's medical conditions.
+ * Displays either "No medical data" or a count of active medical conditions with appropriate styling.
+ * @param {object} root0 - The component props
+ * @param {object} root0.member - Scout member object to analyze for medical data summary
+ * @returns {JSX.Element} Rendered summary pill showing medical data status
  */
 export function MedicalDataSummary({ member }) {
   const medical = getMedicalFieldsFromMember(member);

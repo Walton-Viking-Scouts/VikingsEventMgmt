@@ -55,8 +55,10 @@ const SYSTEM_DEFAULTS = [
 ];
 
 /**
- *
- * @param dateString
+ * Checks if a date string represents a date older than one year from now.
+ * Used to identify stale medical confirmations that need updating.
+ * @param {string} dateString - Date string in format "YYYY-MM-DD" or with additional data
+ * @returns {boolean} True if the date is over one year old, false otherwise
  */
 function isDateOverOneYearOld(dateString) {
   if (!dateString || typeof dateString !== 'string') return false;
@@ -73,9 +75,11 @@ function isDateOverOneYearOld(dateString) {
 }
 
 /**
- *
- * @param value
- * @param fieldName
+ * Categorizes medical data values into standardized states for consistent display.
+ * Handles special cases for non-medical fields, swimming ability, and confirmation dates.
+ * @param {*} value - The medical field value to categorize
+ * @param {string} fieldName - The field name for context-specific handling
+ * @returns {string} Medical data state from MEDICAL_DATA_STATES constants
  */
 export function categorizeMedicalData(value, fieldName = '') {
   // Special handling for non-medical fields that shouldn't be colored
@@ -141,9 +145,11 @@ export function categorizeMedicalData(value, fieldName = '') {
 }
 
 /**
- *
- * @param value
- * @param fieldName
+ * Gets display indicator configuration for medical data based on its state.
+ * Returns styling and display properties for consistent Scout-themed presentation.
+ * @param {*} value - The medical field value to get indicator for
+ * @param {string} fieldName - The field name for context-specific styling
+ * @returns {object} Indicator configuration with color, pill styling, and labels
  */
 export function getMedicalDataIndicator(value, fieldName = '') {
   const state = categorizeMedicalData(value, fieldName);
@@ -151,9 +157,11 @@ export function getMedicalDataIndicator(value, fieldName = '') {
 }
 
 /**
- *
- * @param value
- * @param fieldName
+ * Formats medical data for display with appropriate text and styling indicators.
+ * Handles arrays, special fields, and provides CSV-compatible formatting.
+ * @param {*} value - The medical field value to format for display
+ * @param {string} fieldName - The field name for context-specific formatting
+ * @returns {object} Formatted display object with text, styling, and CSV values
  */
 export function formatMedicalDataForDisplay(value, fieldName = '') {
   const indicator = getMedicalDataIndicator(value, fieldName);
@@ -210,8 +218,10 @@ export function formatMedicalDataForDisplay(value, fieldName = '') {
 }
 
 /**
- *
- * @param member
+ * Extracts and formats all medical fields from a Scout member object.
+ * Handles multiple data source formats and provides formatted display data.
+ * @param {object} member - Scout member object with medical information
+ * @returns {object} Formatted medical fields with display data and styling
  */
 export function getMedicalFieldsFromMember(member) {
   const fields = {

@@ -94,11 +94,13 @@ export const LOG_CATEGORIES = {
 
 // Create structured log entry
 /**
- *
- * @param level
- * @param message
- * @param data
- * @param category
+ * Creates a structured log entry with timestamp, session tracking, and platform information.
+ * Automatically includes Scout session context and user identification for comprehensive logging.
+ * @param {string} level - The logging level from LOG_LEVELS constants
+ * @param {string} message - The log message to record
+ * @param {object} data - Additional contextual data to include in the log entry
+ * @param {string} category - The log category from LOG_CATEGORIES for filtering
+ * @returns {object} Complete structured log entry with all metadata
  */
 function createLogEntry(level, message, data = {}, category = LOG_CATEGORIES.APP) {
   return {
@@ -117,7 +119,9 @@ function createLogEntry(level, message, data = {}, category = LOG_CATEGORIES.APP
 
 // Get or create session ID
 /**
- *
+ * Gets or creates a unique session identifier for log tracking.
+ * Creates a new session ID if one doesn't exist and stores it in sessionStorage.
+ * @returns {string} The current session identifier for log correlation
  */
 function getSessionId() {
   let sessionId = sessionStorage.getItem('logging_session_id');
@@ -130,7 +134,9 @@ function getSessionId() {
 
 // Get current user ID if available
 /**
- *
+ * Determines the current user's authentication status for log context.
+ * Returns 'authenticated' if access token exists, 'anonymous' otherwise.
+ * @returns {string} User authentication status for log filtering
  */
 function getCurrentUserId() {
   const token = sessionStorage.getItem('access_token');
@@ -139,7 +145,9 @@ function getCurrentUserId() {
 
 // Get platform information
 /**
- *
+ * Collects platform and device information for log context.
+ * Detects mobile browsers, Capacitor environment, and viewport dimensions.
+ * @returns {object} Platform information including mobile status and viewport size
  */
 function getPlatformInfo() {
   return {
@@ -155,9 +163,11 @@ function getPlatformInfo() {
 
 // Format message with template literal support
 /**
- *
- * @param template
- * @param {...any} args
+ * Formats log messages with template literal support for dynamic content.
+ * Supports both string messages and template literal arrays for advanced formatting.
+ * @param {string|Array} template - The message template or template literal array
+ * @param {...any} args - Arguments for template literal interpolation
+ * @returns {string} Formatted message string ready for logging
  */
 function formatMessage(template, ...args) {
   if (typeof template === 'string' && args.length === 0) {
@@ -176,8 +186,10 @@ function formatMessage(template, ...args) {
 
 // Console output with styling for development
 /**
- *
- * @param entry
+ * Outputs formatted log entries to the browser console during development.
+ * Applies color styling and emoji indicators based on log level and category.
+ * @param {object} entry - The structured log entry to output to console
+ * @returns {void} No return value, outputs directly to console
  */
 function outputToConsole(entry) {
   if (!isDevelopment) return;
@@ -214,8 +226,10 @@ function outputToConsole(entry) {
 
 // Send to Sentry with appropriate method
 /**
- *
- * @param entry
+ * Sends structured log entries to Sentry for production monitoring.
+ * Applies appropriate Sentry methods based on log level and includes context.
+ * @param {object} entry - The structured log entry to send to Sentry
+ * @returns {void} No return value, sends data to Sentry service
  */
 function sendToSentry(entry) {
   const { level, message, category, ...context } = entry;
@@ -252,12 +266,14 @@ function sendToSentry(entry) {
 
 // Core logging function
 /**
- *
- * @param level
- * @param messageTemplate
- * @param data
- * @param category
- * @param {...any} args
+ * Core logging function that handles message formatting and routing to outputs.
+ * Routes logs to console (development) and Sentry (production/errors) based on configuration.
+ * @param {string} level - The logging level from LOG_LEVELS constants
+ * @param {string|Array} messageTemplate - The message template or template literal
+ * @param {object} data - Additional contextual data for the log entry
+ * @param {string} category - The log category from LOG_CATEGORIES
+ * @param {...any} args - Template literal arguments for message formatting
+ * @returns {object} The created and processed log entry
  */
 function log(level, messageTemplate, data = {}, category = LOG_CATEGORIES.APP, ...args) {
   const message = formatMessage(messageTemplate, ...args);
@@ -311,7 +327,9 @@ function log(level, messageTemplate, data = {}, category = LOG_CATEGORIES.APP, .
  * @since 2.3.7
  */
 export const /**
- *
+ * Logger instance with structured logging methods for Vikings Event Management.
+ * Provides comprehensive logging with Sentry integration and Scout-themed categorization.
+ * @type {object}
  */
   logger = {
   /**

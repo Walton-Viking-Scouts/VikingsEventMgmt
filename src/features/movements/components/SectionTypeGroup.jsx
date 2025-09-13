@@ -4,8 +4,10 @@ import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
 /**
- *
- * @param sectionName
+ * Determines the Scout section type based on the section name.
+ * Maps section names to standardized section type keys for consistent grouping.
+ * @param {string} sectionName - The section name to analyze for type extraction
+ * @returns {string|null} The mapped section type or null if not recognized
  */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
@@ -22,22 +24,24 @@ function getSectionTypeFromName(sectionName) {
 }
 
 /**
- *
- * @param root0
- * @param root0.sectionType
- * @param root0.group
- * @param root0.movers
- * @param root0.showAssignmentInterface
- * @param root0.allSections
- * @param root0.availableTerms
- * @param root0.assignments
- * @param root0.currentTerm
- * @param root0.sectionTypeTotals
- * @param root0.onAssignmentChange
- * @param root0.onTermOverrideChange
- * @param root0.onSaveAssignments
- * @param root0.onResetAssignments
- * @param root0.isSaving
+ * Section type grouping component that displays movement summaries and assignment interface.
+ * Shows starting counts, incoming/outgoing movements, and planned totals with section cards.
+ * @param {object} root0 - The component props
+ * @param {string} root0.sectionType - The Scout section type being displayed
+ * @param {object} root0.group - Section group data with movement summaries
+ * @param {Array} root0.movers - Array of members moving to this section type
+ * @param {boolean} root0.showAssignmentInterface - Whether to show the assignment interface
+ * @param {Array} root0.allSections - All available sections for assignment
+ * @param {Array} root0.availableTerms - Available terms for assignment
+ * @param {Map} root0.assignments - Current assignments map by member ID
+ * @param {object} root0.currentTerm - Current term information
+ * @param {Map} root0.sectionTypeTotals - Pre-calculated totals by section type
+ * @param {Function} root0.onAssignmentChange - Handler for assignment changes
+ * @param {Function} root0.onTermOverrideChange - Handler for term override changes
+ * @param {Function} root0.onSaveAssignments - Handler for saving assignments
+ * @param {Function} root0.onResetAssignments - Handler for resetting assignments
+ * @param {boolean} root0.isSaving - Whether assignments are currently being saved
+ * @returns {JSX.Element} Rendered section type group with movement summaries and assignment interface
  */
 function SectionTypeGroup({ 
   sectionType, 

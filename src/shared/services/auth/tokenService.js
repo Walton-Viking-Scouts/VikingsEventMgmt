@@ -8,7 +8,9 @@ import { config } from '../../../config/env.js';
 import { authHandler } from './authHandler.js';
 
 /**
- *
+ * Retrieves the current authentication token from session storage.
+ * Returns demo token in demo mode, null if expired, otherwise the stored token.
+ * @returns {string|null} The authentication token or null if not available
  */
 export function getToken() {
   if (isDemoMode()) {
@@ -24,8 +26,10 @@ export function getToken() {
 }
 
 /**
- *
- * @param token
+ * Stores authentication token and initializes user session context.
+ * Sets Sentry user context and resets authentication error states.
+ * @param {string} token - The authentication token to store
+ * @returns {void} No return value, updates session storage and logging context
  */
 export function setToken(token) {
   sessionStorage.setItem('access_token', token);
@@ -48,7 +52,9 @@ export function setToken(token) {
 }
 
 /**
- *
+ * Removes authentication token and clears all related session data.
+ * Resets authentication handlers and clears Sentry user context.
+ * @returns {void} No return value, clears session storage and resets auth state
  */
 export function clearToken() {
   sessionStorage.removeItem('access_token');
@@ -71,29 +77,37 @@ export function clearToken() {
 }
 
 /**
- *
+ * Checks if the current authentication token has been marked as expired.
+ * Used to determine if Scout needs to re-authenticate before API calls.
+ * @returns {boolean} True if token is expired, false otherwise
  */
 export function isTokenExpired() {
   return sessionStorage.getItem('token_expired') === 'true';
 }
 
 /**
- *
+ * Marks the current authentication token as expired in session storage.
+ * Used when API calls return authentication failures to prevent further attempts.
+ * @returns {void} No return value, updates session storage with expired flag
  */
 export function markTokenAsExpired() {
   sessionStorage.setItem('token_expired', 'true');
 }
 
 /**
- *
+ * Clears the token expiration flag from session storage.
+ * Used when successful API calls confirm the token is still valid.
+ * @returns {void} No return value, removes expired flag from session storage
  */
 export function markTokenAsValid() {
   sessionStorage.removeItem('token_expired');
 }
 
 /**
- *
- * @param storeCurrentPath
+ * Generates OAuth authentication URL for Scout login with environment detection.
+ * Determines production vs development environment and optionally stores return path.
+ * @param {boolean} storeCurrentPath - Whether to store current path for post-auth redirect
+ * @returns {string} Complete OAuth URL for backend authentication
  */
 export function generateOAuthUrl(storeCurrentPath = false) {
   if (storeCurrentPath) {
@@ -121,7 +135,10 @@ export function generateOAuthUrl(storeCurrentPath = false) {
 }
 
 /**
- *
+ * Validates that write operations are allowed with current authentication state.
+ * Throws error if token is expired to prevent data corruption in offline mode.
+ * @throws {Error} When write operations are not allowed due to expired token
+ * @returns {void} No return value if write operations are permitted
  */
 export function checkWritePermission() {
   if (sessionStorage.getItem('token_expired') === 'true') {
@@ -130,7 +147,9 @@ export function checkWritePermission() {
 }
 
 /**
- *
+ * Validates current authentication token without backend verification.
+ * Performs local checks and assumes token validity until API calls prove otherwise.
+ * @returns {Promise<boolean>} Promise resolving to true if token appears valid, false otherwise
  */
 export async function validateToken() {
   try {
@@ -161,6 +180,11 @@ export async function validateToken() {
   }
 }
 
+/**
+ * Stores the current URL path for post-authentication redirect.
+ * Used to return users to their original location after OAuth login.
+ * @returns {void} No return value, stores path in session storage
+ */
 function storeReturnPath() {
   try {
     const currentPath = window.location.pathname + window.location.search;

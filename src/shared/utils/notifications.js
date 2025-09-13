@@ -85,8 +85,10 @@ const defaultToastOptions = {
  * @since 2.3.7
  */
 export const /**
- *
- * @param message
+ * Displays a success notification with Scout green theme and check icon.
+ * Used for positive user actions and successful operations.
+ * @param {string} message - Success message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
  */
   notifySuccess = (message) => {
     return toast.success(message, {
@@ -153,9 +155,11 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param message
- * @param error
+ * Displays an error notification with Scout red theme and extended duration.
+ * Automatically logs error details to the logger service and Sentry for debugging.
+ * @param {string} message - Error message to display to the user
+ * @param {Error} [error=null] - Optional Error object for detailed logging
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
  */
   notifyError = (message, error = null) => {
   // Log error to logger service for debugging and Sentry
@@ -223,8 +227,10 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param message
+ * Displays a warning notification with amber theme and warning icon.
+ * Used for situations that need user attention but aren't errors.
+ * @param {string} message - Warning message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
  */
   notifyWarning = (message) => {
     return toast(message, {
@@ -278,8 +284,10 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param message
+ * Displays an informational notification with Scout blue theme and info icon.
+ * Used for helpful information and non-critical updates.
+ * @param {string} message - Informational message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
  */
   notifyInfo = (message) => {
     return toast(message, {
@@ -355,8 +363,10 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param message
+ * Displays a loading notification with spinner icon for async operations.
+ * Persists until manually dismissed when operation completes or fails.
+ * @param {string} message - Loading message to display to the user
+ * @returns {string} Toast ID that MUST be used to dismiss when operation completes
  */
   notifyLoading = (message) => {
     return toast.loading(message, {
@@ -445,9 +455,14 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param promise
- * @param messages
+ * Displays promise-based notifications that automatically transition between states.
+ * Handles loading, success, and error states with Scout-themed styling for each phase.
+ * @param {Promise} promise - Promise to monitor for state changes
+ * @param {object} messages - Messages for each notification state
+ * @param {string} messages.loading - Message to show while promise is pending
+ * @param {string} messages.success - Message to show when promise resolves
+ * @param {string} messages.error - Message to show when promise rejects
+ * @returns {Promise} The original promise (allows chaining)
  */
   notifyPromise = (promise, messages) => {
     return toast.promise(promise, messages, {
@@ -534,8 +549,10 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
- * @param toastId
+ * Dismisses a specific toast notification by its unique ID.
+ * Used for programmatic control over notification visibility.
+ * @param {string} toastId - The unique ID of the toast to dismiss
+ * @returns {void} No return value, dismisses the specified notification
  */
   dismissToast = (toastId) => {
     toast.dismiss(toastId);
@@ -586,7 +603,9 @@ export const /**
  * @since 2.3.7
  */
 export const /**
- *
+ * Dismisses all currently visible toast notifications.
+ * Used for cleanup operations and clearing the notification area.
+ * @returns {void} No return value, dismisses all active notifications
  */
   dismissAllToasts = () => {
     toast.dismiss();
