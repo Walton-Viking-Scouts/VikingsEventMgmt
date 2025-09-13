@@ -321,7 +321,9 @@ export function isTokenValid(responseData) {
 
 // Token expiration handling
 /**
- *
+ * Handles token expiration by clearing session data while preserving offline cache.
+ * 
+ * @returns {Promise<void>} Promise that resolves when cleanup is complete
  */
 export function handleTokenExpiration() {
   logger.info('Token expired - clearing session but keeping offline data', {}, LOG_CATEGORIES.AUTH);
@@ -342,7 +344,9 @@ export function handleTokenExpiration() {
 
 // Store current page path for return after OAuth
 /**
- *
+ * Stores current page path for redirect after OAuth authentication.
+ * 
+ * @returns {void}
  */
 export function storeReturnPath() {
   const currentPath = window.location.pathname + window.location.search + window.location.hash;
@@ -352,7 +356,9 @@ export function storeReturnPath() {
 
 // Get stored return path and clear it
 /**
- *
+ * Retrieves and clears stored return path after OAuth completion.
+ * 
+ * @returns {string|null} Stored return path or null if none exists
  */
 export function getAndClearReturnPath() {
   const returnPath = sessionStorage.getItem('oauth_return_path');
@@ -365,7 +371,9 @@ export function getAndClearReturnPath() {
 
 // Check if token is expired (for API call prevention)
 /**
- *
+ * Checks if current authentication token has expired.
+ * 
+ * @returns {boolean} True if token is expired or missing
  */
 export function isTokenExpired() {
   const expiresAt = sessionStorage.getItem('token_expires_at');
@@ -485,7 +493,9 @@ export function generateOAuthUrl(storeCurrentPath = false) {
 
 // User data management
 /**
- *
+ * Retrieves user information from session storage.
+ * 
+ * @returns {object|null} User information object or null if not found
  */
 export function getUserInfo() {
   const userInfoStr = sessionStorage.getItem('user_info');
@@ -501,15 +511,19 @@ export function getUserInfo() {
 }
 
 /**
- *
- * @param userInfo
+ * Stores user information in session storage.
+ * 
+ * @param {object} userInfo - User information object to store
+ * @returns {void}
  */
 export function setUserInfo(userInfo) {
   sessionStorage.setItem('user_info', JSON.stringify(userInfo));
 }
 
 /**
- *
+ * Clears user information from session storage.
+ * 
+ * @returns {void}
  */
 export function clearUserInfo() {
   sessionStorage.removeItem('user_info');
@@ -517,7 +531,9 @@ export function clearUserInfo() {
 
 // Fetch fresh user info from OSM startup data API
 /**
- *
+ * Fetches fresh user information from OSM startup data API with fallback.
+ * 
+ * @returns {Promise<object>} Promise resolving to user information object
  */
 export async function fetchUserInfoFromAPI() {
   const fallbackUserInfo = {
@@ -622,7 +638,9 @@ export async function fetchUserInfoFromAPI() {
 // Get user info from cache or return null
 // This function never makes API calls - it's for retrieving cached data only
 /**
- *
+ * Fetches user information (alias for getUserInfo).
+ * 
+ * @returns {object|null} User information object or null if not found
  */
 export function fetchUserInfo() {
   return getUserInfo();
@@ -630,7 +648,9 @@ export function fetchUserInfo() {
 
 // Simple token validation - just check if we have a token
 /**
- *
+ * Validates authentication token and checks for offline data availability.
+ * 
+ * @returns {Promise<boolean>} Promise resolving to validation status
  */
 export async function validateToken() {
   try {
@@ -666,7 +686,9 @@ export async function validateToken() {
 
 // Helper function to check for cached data
 /**
- *
+ * Checks for availability of cached offline data in local storage.
+ * 
+ * @returns {boolean} True if sufficient cached data is available for offline mode
  */
 function checkForCachedData() {
   try {
@@ -716,8 +738,10 @@ function checkForCachedData() {
 
 // Enhanced error handling for API authentication failures
 /**
- *
- * @param error
+ * Handles API authentication errors and manages token invalidation.
+ * 
+ * @param {object} error - Error object from API response
+ * @returns {void}
  */
 export function handleApiAuthError(error) {
   if (error?.status === 401 || error?.status === 403) {
@@ -747,7 +771,10 @@ export function handleApiAuthError(error) {
 
 // Guard function to check if write operations are allowed
 /**
- *
+ * Checks if write operations are permitted in current authentication state.
+ * 
+ * @returns {void}
+ * @throws {Error} When write operations are not allowed in offline mode
  */
 export function checkWritePermission() {
   if (sessionStorage.getItem('token_expired') === 'true') {
@@ -757,7 +784,9 @@ export function checkWritePermission() {
 
 // Logout function
 /**
- *
+ * Logs out user by clearing all session data and redirecting to home.
+ * 
+ * @returns {void}
  */
 export function logout() {
   clearToken();
@@ -796,7 +825,9 @@ export function logout() {
 
 // Check for blocked status
 /**
- *
+ * Checks if application is blocked by OSM due to rate limiting or other issues.
+ * 
+ * @returns {boolean} True if application is currently blocked
  */
 export function isBlocked() {
   return sessionStorage.getItem('osm_blocked') === 'true';

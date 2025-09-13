@@ -55,8 +55,7 @@ export const missingParamDescriptions = (numbers, multiplier = 1) => {
 
 /**
  * This has invalid JSDoc syntax and wrong parameter names
- * @param {Array<number>} wrongName - This parameter name doesn't match
- * @param {string} anotherWrong - This parameter doesn't exist
+ * @param {Array<number>} numbers - Array of numbers to count
  * @returns The return description is missing type
  */
 export const wrongParameterNames = (numbers = []) => {

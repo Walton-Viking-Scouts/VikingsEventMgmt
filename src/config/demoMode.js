@@ -4,8 +4,7 @@
 import { safeSetItem } from '../shared/utils/storageUtils.js';
 import logger, { LOG_CATEGORIES } from '../shared/services/utils/logger.js';
 
-// Global variable declarations for ESLint
-/* global URLSearchParams */
+// URLSearchParams is a built-in global - no declaration needed
 
 /**
  * Detects if the application should run in demonstration mode for offline Scout event management.

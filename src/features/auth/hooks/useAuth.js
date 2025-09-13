@@ -53,22 +53,22 @@ const broadcastAuthSync = () => {
  * Integrates with OSM OAuth, handles token expiration gracefully, and maintains
  * cross-tab synchronization for seamless user experience.
  * 
- * @returns {Object} Authentication state and methods
- * @returns {boolean} returns.isAuthenticated - Whether user has valid authentication
- * @returns {boolean} returns.isLoading - Whether auth check is in progress
- * @returns {Object|null} returns.user - Current user information object
- * @returns {boolean} returns.isBlocked - Whether application is blocked by OSM
- * @returns {boolean} returns.isOfflineMode - Whether operating in offline mode with cached data
- * @returns {string} returns.authState - Enhanced auth state: 'authenticated'|'token_expired'|'cached_only'|'no_data'
- * @returns {string|null} returns.lastSyncTime - Timestamp of last successful data sync
- * @returns {boolean} returns.showTokenExpiredDialog - Whether token expiration dialog should be shown
- * @returns {boolean} returns.hasCachedData - Whether cached offline data is available
- * @returns {Function} returns.login - Function to initiate OAuth login flow
- * @returns {Function} returns.logout - Function to log out and clear all data
- * @returns {Function} returns.setToken - Function to manually set authentication token
- * @returns {Function} returns.checkAuth - Function to refresh authentication state
- * @returns {Function} returns.handleReLogin - Function to handle re-authentication after token expiration
- * @returns {Function} returns.handleStayOffline - Function to continue in offline mode after token expiration
+ * @returns {object} Authentication state and methods with properties:
+ *   - isAuthenticated: Whether user has valid authentication
+ *   - isLoading: Whether auth check is in progress
+ *   - user: Current user information object or null
+ *   - isBlocked: Whether application is blocked by OSM
+ *   - isOfflineMode: Whether operating in offline mode with cached data
+ *   - authState: Enhanced auth state ('authenticated'|'token_expired'|'cached_only'|'no_data')
+ *   - lastSyncTime: Timestamp of last successful data sync or null
+ *   - showTokenExpiredDialog: Whether token expiration dialog should be shown
+ *   - hasCachedData: Whether cached offline data is available
+ *   - login: Function to initiate OAuth login flow
+ *   - logout: Function to log out and clear all data
+ *   - setToken: Function to manually set authentication token
+ *   - checkAuth: Function to refresh authentication state
+ *   - handleReLogin: Function to handle re-authentication after token expiration
+ *   - handleStayOffline: Function to continue in offline mode after token expiration
  * 
  * @example
  * // Basic usage in component

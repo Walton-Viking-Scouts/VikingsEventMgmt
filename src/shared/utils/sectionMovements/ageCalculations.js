@@ -39,9 +39,11 @@ export const MOVEMENT_TRANSITIONS = [
 ];
 
 /**
- *
- * @param birthdate
- * @param targetDate
+ * Calculates age in years (with decimal precision) at a specific date.
+ * 
+ * @param {string|Date} birthdate - Birth date as ISO string or Date object
+ * @param {string|Date} targetDate - Target date for age calculation
+ * @returns {number|null} Age in years with decimal precision, or null if invalid
  */
 export function calculateAgeAtDate(birthdate, targetDate) {
   if (!birthdate || !targetDate) {
@@ -73,9 +75,11 @@ export function calculateAgeAtDate(birthdate, targetDate) {
 }
 
 /**
- *
- * @param member
- * @param termStartDate
+ * Determines if member will move up to next section based on age at term start.
+ * 
+ * @param {object} member - Member object with birth date and section information
+ * @param {string|Date} termStartDate - Date when term starts
+ * @returns {boolean} True if member should move to next section
  */
 export function willMemberMoveUp(member, termStartDate) {
   const birthdate = member.date_of_birth || member.dob;
@@ -108,8 +112,10 @@ export function willMemberMoveUp(member, termStartDate) {
 }
 
 /**
- *
- * @param sectionName
+ * Determines section type from section name string.
+ * 
+ * @param {string} sectionName - Name of Scout section
+ * @returns {string|null} Section type constant or null if not recognized
  */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;

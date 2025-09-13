@@ -64,11 +64,11 @@ function getCachedAge(birthdate, termStartDate) {
  * age progression and FlexiRecord assignments. Generates movement lists, section
  * summaries, and projected member counts after movements are completed.
  * 
- * @param {Array<Object>} members - Array of member objects with personal and section data
+ * @param {Array<object>} members - Array of member objects with personal and section data
  * @param {string} termStartDate - Term start date in ISO format (YYYY-MM-DD)
- * @param {Array<Object>} [sections=[]] - Array of section objects with sectionid and sectionname
- * @param {Object|null} [termObject=null] - Term object with type and year properties
- * @returns {Object} Movement results with movers array and sectionSummaries Map
+ * @param {Array<object>} [sections=[]] - Array of section objects with sectionid and sectionname
+ * @param {object | null} [termObject=null] - Term object with type and year properties
+ * @returns {object} Movement results with movers array and sectionSummaries Map
  * 
  * @example
  * // Calculate movements for autumn term
@@ -298,8 +298,8 @@ function getTargetSection(currentSectionName) {
  * Useful for generating section-specific movement reports and managing
  * intake processes for receiving sections.
  * 
- * @param {Array<Object>} movers - Array of mover objects with targetSection property
- * @returns {Map<string, Array<Object>>} Map with target section names as keys and mover arrays as values
+ * @param {Array<object>} movers - Array of mover objects with targetSection property
+ * @returns {Map<string, Array<object>>} Map with target section names as keys and mover arrays as values
  * 
  * @example
  * // Group movers for intake processing

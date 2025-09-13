@@ -3,8 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 
 /**
- *
- * @param redirectTo
+ * Hook that requires authentication and redirects to specified route if not authenticated.
+ * 
+ * @param {string} [redirectTo='/'] - Route to redirect to if authentication fails
+ * @returns {object} Authentication state and user information
  */
 export function useRequireAuth(redirectTo = '/') {
   const { authState, isLoading, user } = useAuth();
@@ -33,7 +35,9 @@ export function useRequireAuth(redirectTo = '/') {
 }
 
 /**
- *
+ * Hook that requires offline access or cached data for application functionality.
+ * 
+ * @returns {object} Access state and authentication information
  */
 export function useRequireOfflineAccess() {
   const { authState, isLoading, hasCachedData } = useAuth();
@@ -71,8 +75,10 @@ export function useRequireOfflineAccess() {
 }
 
 /**
- *
- * @param requiredPermission
+ * Hook that guards routes based on user permissions and authentication status.
+ * 
+ * @param {string} requiredPermission - Required permission for route access
+ * @returns {object} Permission state and user information
  */
 export function usePermissionGuard(requiredPermission) {
   const { user, authState, isLoading } = useAuth();

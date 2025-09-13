@@ -60,8 +60,10 @@ export function initializeAPIMocks() {
 }
 
 /**
- * Mock authentication endpoints
- * @param req
+ * Mock authentication endpoints for Cypress testing.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Mock authentication response
  */
 function mockAuthEndpoints(req) {
   console.log('🔐 Mocking auth endpoint:', req.url);
@@ -98,8 +100,10 @@ function mockAuthEndpoints(req) {
 }
 
 /**
- * Mock user roles endpoint (sections data)
- * @param req
+ * Mock user roles endpoint for testing sections data.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Mock user roles response
  */
 function mockUserRoles(req) {
   console.log('👤 Mocking user roles endpoint:', req.url);
@@ -140,8 +144,10 @@ function mockUserRoles(req) {
 }
 
 /**
- * Mock events endpoint
- * @param req
+ * Mock events endpoint for testing event functionality.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Mock events response
  */
 function mockEvents(req) {
   console.log('📅 Mocking events endpoint:', req.url);
@@ -181,8 +187,10 @@ function mockEvents(req) {
 }
 
 /**
- * Mock sections endpoint
- * @param req
+ * Mock sections endpoint for testing section data.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Mock sections response
  */
 function mockSections(req) {
   console.log('🏛️ Mocking sections endpoint:', req.url);
@@ -208,8 +216,10 @@ function mockSections(req) {
 }
 
 /**
- * Generic API mock for any unhandled endpoints
- * @param req
+ * Generic API mock for any unhandled endpoints.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Generic mock API response
  */
 function mockGenericAPI(req) {
   console.log('🔧 Mocking generic API endpoint:', req.url);
@@ -226,8 +236,10 @@ function mockGenericAPI(req) {
 }
 
 /**
- * Block direct OSM API calls (should never happen)
- * @param req
+ * Block direct OSM API calls to prevent real API usage during testing.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Blocked request error response
  */
 function blockDirectOSMCalls(req) {
   console.error('🚨 BLOCKED DIRECT OSM API CALL:', req.url);
@@ -244,8 +256,10 @@ function blockDirectOSMCalls(req) {
 }
 
 /**
- * Rate limiting mock responses
- * @param req
+ * Rate limiting mock responses for testing throttling behavior.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Rate limited error response
  */
 export function mockRateLimitedResponse(req) {
   return req.reply({
@@ -262,8 +276,10 @@ export function mockRateLimitedResponse(req) {
 }
 
 /**
- * Mock offline responses
- * @param req
+ * Mock offline responses for testing network failure scenarios.
+ * 
+ * @param {object} req - Cypress request object
+ * @returns {object} Network error response
  */
 export function mockOfflineResponse(req) {
   return req.reply({
@@ -273,7 +289,9 @@ export function mockOfflineResponse(req) {
 }
 
 /**
- * Helper to enable/disable mocking based on environment
+ * Helper to enable/disable mocking based on environment configuration.
+ * 
+ * @returns {boolean} Whether API mocking should be enabled
  */
 export function shouldUseMocks() {
   return enableMocking;
