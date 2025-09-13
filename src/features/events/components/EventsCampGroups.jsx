@@ -9,7 +9,8 @@ import { notifyError } from '../../../shared/utils/notifications.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
- *
+ * EventsCampGroups component displays camp groups view for events management
+ * @returns {JSX.Element} Rendered events camp groups component
  */
 function EventsCampGroups() {
   const location = useLocation();

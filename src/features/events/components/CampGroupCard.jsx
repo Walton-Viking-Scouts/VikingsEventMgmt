@@ -24,6 +24,7 @@ import DraggableMember from './DraggableMember.jsx';
  * @param {string} props.draggingMemberId - ID of member currently being dragged
  * @param {boolean} props.dragDisabled - Whether drag & drop functionality is disabled
  * @param {string} props.className - Additional CSS classes
+ * @returns {JSX.Element} Rendered camp group card component
  */
 function CampGroupCard({
   group,

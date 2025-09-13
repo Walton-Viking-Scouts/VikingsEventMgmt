@@ -15,9 +15,10 @@ import {
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 
 /**
- *
- * @param root0
- * @param root0.onNavigateToAttendance
+ * EventsOverview component displays overview of all events with attendance data
+ * @param {object} props - Component props 
+ * @param {Function} props.onNavigateToAttendance - Callback for navigating to attendance view
+ * @returns {JSX.Element} Rendered events overview component
  */
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();

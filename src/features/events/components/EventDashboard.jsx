@@ -24,10 +24,12 @@ import {
 } from '../../../shared/utils/eventDashboardHelpers.js';
 
 /**
- *
- * @param root0
- * @param root0.onNavigateToMembers
- * @param root0.onNavigateToAttendance
+ * EventDashboard component displays the main events dashboard with sections and event cards
+ * 
+ * @param {object} props - Component props
+ * @param {Function} props.onNavigateToMembers - Callback for navigating to members view
+ * @param {Function} props.onNavigateToAttendance - Callback for navigating to attendance view
+ * @returns {JSX.Element} Rendered event dashboard component
  */
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useAuth(); // Initialize auth hook

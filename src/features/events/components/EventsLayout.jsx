@@ -8,7 +8,8 @@ import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
- *
+ * EventsLayoutContent component provides the main layout content with navigation and auth handling
+ * @returns {JSX.Element} Rendered events layout content component
  */
 function EventsLayoutContent() {
   const navigate = useNavigate();
@@ -79,7 +80,8 @@ function EventsLayoutContent() {
 }
 
 /**
- *
+ * EventsLayout component wrapper that renders the main events layout content
+ * @returns {JSX.Element} Rendered events layout wrapper component
  */
 function EventsLayout() {
   return <EventsLayoutContent />;
