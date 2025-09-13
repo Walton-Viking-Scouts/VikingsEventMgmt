@@ -224,7 +224,7 @@ describe('EventDashboard Helper Functions', () => {
       getEventAttendance.mockResolvedValue(mockAttendanceData);
       databaseService.saveAttendance.mockResolvedValue();
 
-      const result = await fetchEventAttendance(mockEvent, token, []);
+      const result = await fetchEventAttendance(mockEvent, token);
 
       expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
       expect(databaseService.saveAttendance).toHaveBeenCalledWith(101, mockAttendanceData);
@@ -261,7 +261,7 @@ describe('EventDashboard Helper Functions', () => {
 
       getEventAttendance.mockRejectedValue(error);
 
-      const result = await fetchEventAttendance(mockEvent, token, []);
+      const result = await fetchEventAttendance(mockEvent, token);
 
       expect(logger.error).toHaveBeenCalledWith(
         'Error fetching attendance for event {eventId}',

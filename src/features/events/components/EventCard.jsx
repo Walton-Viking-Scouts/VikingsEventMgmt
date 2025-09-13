@@ -24,16 +24,9 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  * loading states for async data operations.
  * 
  * @component
- * @param {Object} props - Component props
+ * @param {Object} props - Component props (destructured in function signature)
  * @param {Object} props.eventCard - Event data object containing event details
- * @param {string} props.eventCard.id - Unique event identifier
- * @param {string} props.eventCard.name - Event name/title
- * @param {Array} props.eventCard.events - Array of event date objects
- * @param {string} props.eventCard.events[].startdate - Event start date (ISO string)
- * @param {string} props.eventCard.events[].enddate - Event end date (ISO string)
- * @param {string} [props.eventCard.events[].sectionname] - Section name for the event
- * @param {Array} [props.eventCard.events[].attendanceData] - Attendance records for each event
- * @param {Function} [props.onViewAttendees] - Callback when "View Attendees" is clicked
+ * @param {Function} [props.onViewAttendees] - Callback when "View Attendees" is clicked  
  * @param {boolean} [props.loading=false] - Loading state indicator
  * 
  * @returns {JSX.Element} Rendered event card component

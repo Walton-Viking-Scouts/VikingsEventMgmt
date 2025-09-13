@@ -215,7 +215,7 @@ export async function handleAPIResponseWithRateLimit(response, apiName) {
   }
     
   // Simple auth handling with circuit breaker
-  if (!authHandler.handleAPIResponse(response, apiName)) {
+  if (!authHandler.handleAPIResponse(response)) {
     const error = new Error('Authentication failed');
     error.status = response.status;
     throw error;
