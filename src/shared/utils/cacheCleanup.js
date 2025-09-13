@@ -1,5 +1,5 @@
 /**
- * @fileoverview Cache cleanup utilities for Viking Event Management
+ * @file Cache cleanup utilities for Viking Event Management
  * 
  * This module provides specialized cache cleanup functions to maintain data
  * integrity across different application modes. Prevents demo data contamination

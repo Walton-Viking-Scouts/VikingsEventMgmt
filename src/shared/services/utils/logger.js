@@ -1,5 +1,5 @@
 /**
- * @fileoverview Centralized logging service for Vikings Event Management Mobile
+ * @file Centralized logging service for Vikings Event Management Mobile
  * 
  * Provides structured logging with automatic Sentry integration, category-based
  * organization, and development console output. Supports template literals,

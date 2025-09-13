@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import cypress from 'eslint-plugin-cypress';
 import importPlugin from 'eslint-plugin-import';
+import jsdoc from 'eslint-plugin-jsdoc';
 
 export default [
   js.configs.recommended,
@@ -48,6 +49,7 @@ export default [
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'import': importPlugin,
+      'jsdoc': jsdoc,
     },
     rules: {
       ...react.configs.recommended.rules,
@@ -130,6 +132,69 @@ export default [
       }],
       'import/no-cycle': ['error', { maxDepth: 10 }],
       'import/no-self-import': 'error',
+      
+      // JSDoc validation rules - RELAXED for CICD compatibility
+      'jsdoc/check-access': 'warn', // Check access declarations
+      'jsdoc/check-alignment': 'off', // Allow flexible alignment
+      'jsdoc/check-examples': 'off', // Disable examples checking
+      'jsdoc/check-indentation': 'off', // Allow flexible indentation
+      'jsdoc/check-line-alignment': 'off', // Allow flexible line alignment
+      'jsdoc/check-param-names': 'error', // Ensure param names match function signature
+      'jsdoc/check-property-names': 'error', // Ensure property names are valid
+      'jsdoc/check-syntax': 'error', // Check JSDoc syntax
+      'jsdoc/check-tag-names': ['error', { definedTags: ['component', 'hook', 'context', 'service', 'util', 'constant'] }], // Allow custom tags
+      'jsdoc/check-types': 'off', // Allow flexible types
+      'jsdoc/check-values': 'off', // Allow flexible values
+      'jsdoc/empty-tags': 'error', // Disallow empty tags
+      'jsdoc/implements-on-classes': 'error', // @implements only on classes
+      'jsdoc/multiline-blocks': 'off', // Allow any block format
+      'jsdoc/no-bad-blocks': 'error', // Disallow malformed JSDoc blocks
+      'jsdoc/no-defaults': 'off', // Allow defaults in JSDoc
+      'jsdoc/no-multi-asterisks': 'off', // Allow asterisk usage
+      'jsdoc/no-undefined-types': 'off', // Allow undefined types for React/DOM types
+      'jsdoc/require-asterisk-prefix': 'off', // Don't require asterisk prefix
+      'jsdoc/require-description': 'off', // Don't require descriptions
+      'jsdoc/require-description-complete-sentence': 'off', // Allow incomplete sentences
+      'jsdoc/require-example': 'off', // Don't require examples
+      'jsdoc/require-file-overview': 'off', // Don't require file overview
+      'jsdoc/require-hyphen-before-param-description': 'off', // Allow flexible param formatting
+      'jsdoc/require-jsdoc': [
+        'warn',
+        {
+          require: {
+            FunctionDeclaration: false, // Don't require JSDoc for all functions
+            FunctionExpression: false,
+            ArrowFunctionExpression: false,
+            ClassDeclaration: false,
+            ClassExpression: false,
+            MethodDefinition: false,
+          },
+          contexts: [
+            // Only require JSDoc for exported React components
+            'ExportNamedDeclaration > FunctionDeclaration[id.name=/^[A-Z]/]',
+            'ExportDefaultDeclaration > FunctionDeclaration[id.name=/^[A-Z]/]',
+          ],
+          checkConstructors: false,
+          checkGetters: false,
+          checkSetters: false,
+        },
+      ],
+      'jsdoc/require-param': 'off', // Don't require @param for all parameters
+      'jsdoc/require-param-description': 'off', // Don't require param descriptions
+      'jsdoc/require-param-name': 'error', // But if @param exists, require name
+      'jsdoc/require-param-type': 'off', // Don't require param types
+      'jsdoc/require-property': 'off', // Don't require @property
+      'jsdoc/require-property-description': 'off', // Don't require property descriptions
+      'jsdoc/require-property-name': 'error', // But if @property exists, require name
+      'jsdoc/require-property-type': 'off', // Don't require property types
+      'jsdoc/require-returns': 'off', // Don't require @returns
+      'jsdoc/require-returns-check': 'warn', // But check consistency if @returns exists
+      'jsdoc/require-returns-description': 'off', // Don't require return descriptions
+      'jsdoc/require-returns-type': 'off', // Don't require return types
+      'jsdoc/require-throws': 'off', // Don't require @throws
+      'jsdoc/require-yields': 'off', // Don't require @yields
+      'jsdoc/tag-lines': 'off', // Allow flexible tag line formatting
+      'jsdoc/valid-types': 'off', // Allow flexible type syntax
     },
     settings: {
       react: {

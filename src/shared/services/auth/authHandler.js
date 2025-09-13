@@ -10,7 +10,7 @@ class SimpleAuthHandler {
   /**
    * Handle API response and track authentication failures
    * @param {Response} response - Fetch response object
-   * @param {string} apiName - Name of the API call for logging
+   * @param {string} _apiName - Name of the API call for logging (unused)
    * @returns {boolean} - true if auth is OK, false if auth failed
    */
   handleAPIResponse(response, _apiName) {

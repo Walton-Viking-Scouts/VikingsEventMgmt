@@ -1,5 +1,5 @@
 /**
- * @fileoverview Scout-themed notification utilities using react-hot-toast
+ * @file Scout-themed notification utilities using react-hot-toast
  * 
  * This module provides notification functions with Scout color theming and
  * consistent styling across the application. Replaces the previous complex

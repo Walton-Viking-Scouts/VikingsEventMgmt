@@ -1,5 +1,5 @@
 /**
- * @fileoverview SQLite Database Service for Vikings Event Management
+ * @file SQLite Database Service for Vikings Event Management
  * 
  * Provides comprehensive offline-first data persistence for Scout sections, events,
  * attendance records, and member information. Uses Capacitor SQLite on native
@@ -69,7 +69,7 @@ class DatabaseService {
    * Initializes the service with platform detection and default state.
    * Does not establish database connection - call initialize() for that.
    * 
-   * @constructor
+   * @class
    */
   constructor() {
     /** @type {SQLiteConnection|null} SQLite connection instance */

@@ -169,7 +169,7 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
  * For shared events where user has access to owner section, fetches and merges shared attendance data
  * @param {Object} event - Event object with eventid, sectionid, termid
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {Array|null} allEvents - Array of all events (needed for shared event processing)
+ * @param {Array|null} _allEvents - Array of all events (needed for shared event processing, currently unused)
  * @returns {Promise<Array|null>} Attendance data (merged for shared events) or null if failed
  */
 export const fetchEventAttendance = async (event, token, _allEvents = null) => {

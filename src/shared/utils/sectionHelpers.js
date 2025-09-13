@@ -1,5 +1,5 @@
 /**
- * @fileoverview Section utility functions for Viking Event Management
+ * @file Section utility functions for Viking Event Management
  * 
  * This module provides utility functions for working with Scout sections data,
  * including lookups, filtering, and data organization. Supports the multi-section

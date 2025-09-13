@@ -1,5 +1,5 @@
 /**
- * @fileoverview EventCard component for displaying Scout event information
+ * @file EventCard component for displaying Scout event information
  * 
  * Responsive card component that displays event details including name, dates,
  * location, and attendance information. Features Scout-themed styling with
@@ -31,8 +31,8 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  * @param {Array} props.eventCard.events - Array of event date objects
  * @param {string} props.eventCard.events[].startdate - Event start date (ISO string)
  * @param {string} props.eventCard.events[].enddate - Event end date (ISO string)
- * @param {string} [props.eventCard.location] - Event location/venue
- * @param {Array} [props.eventCard.attendanceData] - Attendance records for the event
+ * @param {string} [props.eventCard.events[].sectionname] - Section name for the event
+ * @param {Array} [props.eventCard.events[].attendanceData] - Attendance records for each event
  * @param {Function} [props.onViewAttendees] - Callback when "View Attendees" is clicked
  * @param {boolean} [props.loading=false] - Loading state indicator
  * 
@@ -46,10 +46,10 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  *     name: 'Summer Camp 2024',
  *     events: [{
  *       startdate: '2024-07-15',
- *       enddate: '2024-07-20'
- *     }],
- *     location: 'Camp Wohelo',
- *     attendanceData: attendanceRecords
+ *       enddate: '2024-07-20',
+ *       sectionname: 'Beavers',
+ *       attendanceData: attendanceRecords
+ *     }]
  *   }}
  *   onViewAttendees={handleViewAttendees}
  * />
@@ -61,11 +61,10 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  *     id: 'weekly-meetings',
  *     name: 'Scout Meetings',
  *     events: [
- *       { startdate: '2024-07-01', enddate: '2024-07-01' },
- *       { startdate: '2024-07-08', enddate: '2024-07-08' },
- *       { startdate: '2024-07-15', enddate: '2024-07-15' }
- *     ],
- *     location: 'Scout Hall'
+ *       { startdate: '2024-07-01', enddate: '2024-07-01', sectionname: 'Scouts' },
+ *       { startdate: '2024-07-08', enddate: '2024-07-08', sectionname: 'Scouts' },
+ *       { startdate: '2024-07-15', enddate: '2024-07-15', sectionname: 'Scouts' }
+ *     ]
  *   }}
  * />
  * 
@@ -79,16 +78,20 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  * 
  * @example
  * // Event card with attendance grid
- * const handleViewAttendees = (eventId) => {
- *   navigate(`/events/${eventId}/attendance`);
+ * const handleViewAttendees = (eventData) => {
+ *   navigate(`/events/${eventData.id}/attendance`);
  * };
  * 
  * <EventCard 
  *   eventCard={{
  *     id: 'badge-ceremony',
  *     name: 'Badge Ceremony',
- *     events: [{ startdate: '2024-08-01', enddate: '2024-08-01' }],
- *     attendanceData: memberAttendance
+ *     events: [{ 
+ *       startdate: '2024-08-01', 
+ *       enddate: '2024-08-01',
+ *       sectionname: 'Cubs',
+ *       attendanceData: memberAttendance 
+ *     }]
  *   }}
  *   onViewAttendees={handleViewAttendees}
  * />
