@@ -494,8 +494,14 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
 /**
  * Get cached shared attendance data for demo mode
- * @param eventId
- * @param sectionId
+ * 
+ * Retrieves attendance data from localStorage cache using demo prefix.
+ * Returns empty structure if no cached data is found.
+ * 
+ * @private
+ * @param {string|number} eventId - Event identifier
+ * @param {string|number} sectionId - Section identifier
+ * @returns {{identifier: string, items: Array, _cacheTimestamp: number}} Attendance data with items array and timestamp
  */
 function generateDemoSharedAttendance(eventId, sectionId) {
   // Simply fetch the cached shared attendance data - use demo prefix

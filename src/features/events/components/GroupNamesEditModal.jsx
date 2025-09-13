@@ -13,6 +13,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  * @param {Function} props.onRename - Rename callback with (oldName, newName, membersBySection)
  * @param {Function} props.onDelete - Delete callback with (groupName, membersBySection)
  * @param {boolean} props.loading - Whether rename operation is in progress
+ * @returns {JSX.Element} Rendered group names edit modal component
  */
 function GroupNamesEditModal({
   isOpen,

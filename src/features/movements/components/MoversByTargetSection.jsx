@@ -3,14 +3,15 @@ import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
 /**
- *
- * @param root0
- * @param root0.movers
- * @param root0.allSections
- * @param root0.availableTerms
- * @param root0.assignments
- * @param root0.onAssignmentChange
- * @param root0.onTermOverrideChange
+ * Component for displaying movers grouped by target section
+ * @param {object} props - Component props
+ * @param {Array} props.movers - List of movers to display
+ * @param {Array} props.allSections - All available sections
+ * @param {Array} props.availableTerms - Available terms for assignment
+ * @param {object} props.assignments - Current assignments mapping
+ * @param {Function} props.onAssignmentChange - Assignment change handler
+ * @param {Function} props.onTermOverrideChange - Term override change handler
+ * @returns {JSX.Element} Movers by target section component
  */
 function MoversByTargetSection({
   movers,

@@ -14,10 +14,12 @@
  * - Multi-section FlexiRecord discovery and validation
  * 
  * @module FlexiRecordService
- * @requires storageUtils - Storage utilities for cache management
- * @requires networkUtils - Network connectivity checking utilities
- * @requires logger - Logging service for operation tracking
- * @requires sentry - Error tracking and monitoring utilities
+ * 
+ * Dependencies:
+ * - storageUtils: Storage utilities for cache management
+ * - networkUtils: Network connectivity checking utilities  
+ * - logger: Logging service for operation tracking
+ * - sentry: Error tracking and monitoring utilities
  */
 
 /**
@@ -97,10 +99,7 @@ const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - available flexirec
  * @private
  * @param {string} cacheKey - Cache key to check
  * @param {number} ttl - Time-to-live in milliseconds
- * @returns {object} Cache validity result with data and age information
- * @returns {boolean} returns.valid - Whether cache is still valid
- * @returns {*} returns.data - Cached data if available
- * @returns {number} returns.cacheAgeMinutes - Age of cache in minutes
+ * @returns {{valid: boolean, data: *, cacheAgeMinutes: number}} Cache validity result with data and age information
  * 
  * @example
  * // Check if events cache is valid
@@ -198,9 +197,7 @@ function cacheData(cacheKey, data) {
  * @param {string|number} sectionId - Section identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<object>} FlexiRecords list with metadata
- * @returns {Array} returns.items - Array of available FlexiRecord objects
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{items: Array, _cacheTimestamp?: number}>} FlexiRecords list with metadata
  * 
  * @example
  * // Get FlexiRecords for Beavers section
@@ -307,11 +304,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<object | null>} FlexiRecord structure or null if not found
- * @returns {string} returns.name - FlexiRecord name
- * @returns {string} returns.extraid - FlexiRecord external ID
- * @returns {object} returns.structure - Field definitions and configuration
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{name: string, extraid: string, structure: object, _cacheTimestamp?: number} | null>} FlexiRecord structure or null if not found
  * 
  * @example
  * // Get structure for Viking Event Management FlexiRecord
@@ -420,6 +413,12 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
 
 /**
  * Get flexirecord attendance data - refreshed frequently as it changes often
+ * 
+ * Retrieves FlexiRecord data with aggressive refresh policy as attendance
+ * data changes frequently during events. Uses shorter cache TTL and defaults
+ * to force refresh for up-to-date information.
+ * 
+ * @async
  * @param {string|number} flexirecordId - FlexiRecord ID
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
@@ -528,13 +527,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<object>} Consolidated FlexiRecord with structure and data
- * @returns {object} returns.items - Array of data records with meaningful field names
- * @returns {object} returns._structure - FlexiRecord metadata and field mapping
- * @returns {string} returns._structure.name - FlexiRecord name
- * @returns {string} returns._structure.extraid - FlexiRecord external ID
- * @returns {boolean} returns._structure.archived - Whether FlexiRecord is archived
- * @returns {object} returns._structure.fieldMapping - Field ID to name/type mapping
+ * @returns {Promise<{items: object, _structure: {name: string, extraid: string, archived: boolean, fieldMapping: object}}>} Consolidated FlexiRecord with structure and data
  * @throws {Error} If required parameters missing or API calls fail
  * 
  * @example
@@ -661,11 +654,7 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<object | null>} Viking Event Mgmt FlexiRecord data or null if not found
- * @returns {Array} returns.items - Event attendance records with scout details
- * @returns {object} returns._structure - FlexiRecord structure and field mapping
- * @returns {string} returns._structure.name - Always "Viking Event Mgmt"
- * @returns {object} returns._structure.fieldMapping - Field mappings for attendance data
+ * @returns {Promise<{items: Array, _structure: {name: string, fieldMapping: object}} | null>} Viking Event Mgmt FlexiRecord data or null if not found
  * 
  * @example
  * // Get Viking Event data for Beavers section
@@ -769,8 +758,12 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
 
 /**
  * Get Viking Section Movers flexirecord for a section
- * Looks for flexirecord with name="Viking Section Movers"
  * 
+ * Looks for flexirecord with name="Viking Section Movers" and returns
+ * consolidated data with meaningful field names for section movement tracking.
+ * Used for managing Scout assignments between sections.
+ * 
+ * @async
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token (null for offline)
@@ -1345,6 +1338,8 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
 
 /**
  * Clear all flexirecord caches (useful for debugging or when data needs refresh)
+ * 
+ * @returns {{clearedLocalStorageKeys: number}} Summary of cleared cache keys
  */
 export function clearFlexiRecordCaches() {
   // Clearing all flexirecord caches

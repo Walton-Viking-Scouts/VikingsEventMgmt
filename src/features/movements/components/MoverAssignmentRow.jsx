@@ -1,13 +1,14 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.mover
- * @param root0.availableSections
- * @param root0.availableTerms
- * @param root0.onAssignmentChange
- * @param root0.onTermOverrideChange
+ * Mover assignment row component for managing individual mover assignments
+ * @param {object} props - Component props
+ * @param {object} props.mover - Mover data object
+ * @param {Array} props.availableSections - Available sections for assignment
+ * @param {Array} props.availableTerms - Available terms for assignment
+ * @param {Function} props.onAssignmentChange - Assignment change handler
+ * @param {Function} props.onTermOverrideChange - Term override change handler
+ * @returns {JSX.Element} Mover assignment row component
  */
 function MoverAssignmentRow({
   mover,

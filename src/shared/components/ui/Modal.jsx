@@ -14,6 +14,7 @@ import { cn } from '../../utils/cn';
  * @param root0.closeOnEscape
  * @param root0.className
  * @param root0.children
+ * @returns {JSX.Element|null} Rendered modal component or null if not open
  */
 const Modal = ({
   isOpen = false,

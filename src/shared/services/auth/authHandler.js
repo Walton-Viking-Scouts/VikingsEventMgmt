@@ -2,7 +2,11 @@
 // Minimal solution to prevent multiple 403 errors and provide clear UX
 
 /**
- *
+ * Simple authentication error handler for Viking Event Management
+ * 
+ * Provides circuit breaker pattern for API authentication failures,
+ * preventing repeated 403/401 errors and improving user experience.
+ * Tracks authentication state and notifies components of failures.
  */
 class SimpleAuthHandler {
   constructor() {
@@ -13,9 +17,8 @@ class SimpleAuthHandler {
   /**
    * Handle API response and track authentication failures
    * @param {Response} response - Fetch response object
-   * @param {string} apiName - Name of the API call for logging
-   * @param _apiName
-   * @returns {boolean} - true if auth is OK, false if auth failed
+   * @param {string} _apiName - Name of the API call for logging (currently unused)
+   * @returns {boolean} true if auth is OK, false if auth failed
    */
   handleAPIResponse(response, _apiName) {
     if (response.status === 401 || response.status === 403) {
@@ -35,7 +38,7 @@ class SimpleAuthHandler {
 
   /**
    * Check if we should make an API call (simple circuit breaker)
-   * @returns {boolean} - true if safe to make API calls
+   * @returns {boolean} true if safe to make API calls
    */
   shouldMakeAPICall() {
     if (!this.hasShownAuthError) {
@@ -47,6 +50,7 @@ class SimpleAuthHandler {
 
   /**
    * Reset auth error state (call when user gets new token or reconnects)
+   * @returns {void}
    */
   reset() {
     // Resetting auth error state
@@ -55,7 +59,7 @@ class SimpleAuthHandler {
 
   /**
    * Check if authentication has failed this session
-   * @returns {boolean}
+   * @returns {boolean} true if authentication has failed
    */
   hasAuthFailed() {
     return this.hasShownAuthError;

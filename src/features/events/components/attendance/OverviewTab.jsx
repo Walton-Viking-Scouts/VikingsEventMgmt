@@ -1,12 +1,19 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.summaryStats
- * @param root0.members
- * @param root0.onResetFilters
- * @param root0.uniqueSections
+ * Overview tab component for attendance summary display
+ * 
+ * Shows attendance statistics broken down by sections with visual indicators
+ * for attendance counts, percentages, and member listings. Provides an overview
+ * of event attendance patterns across different scout sections.
+ * 
+ * @component
+ * @param {object} props - Component props
+ * @param {object} props.summaryStats - Statistics summary with section breakdowns
+ * @param {Array} props.members - Array of member data for calculations
+ * @param {Function} props.onResetFilters - Callback to reset applied filters
+ * @param {Array} props.uniqueSections - Array of unique sections (currently unused)
+ * @returns {JSX.Element} Rendered overview tab component
  */
 function OverviewTab({ 
   summaryStats,
