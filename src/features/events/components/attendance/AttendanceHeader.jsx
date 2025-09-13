@@ -2,13 +2,17 @@ import React from 'react';
 import { cn } from '../../../../shared/utils/cn';
 
 /**
- *
- * @param root0
- * @param root0.events
- * @param root0.onBack
- * @param root0.onRefresh
- * @param root0.canRefresh
- * @param root0.refreshLoading
+ * Scout event attendance header component providing navigation and data refresh controls.
+ * Displays event information, section counts, and interactive navigation elements
+ * for comprehensive Scout attendance management with responsive design.
+ * 
+ * @param {object} root0 - Scout event header configuration and navigation handlers
+ * @param {Array} root0.events - Scout event data containing names, dates, and section information
+ * @param {Function} root0.onBack - Handler for navigating back to Scout event overview or parent view
+ * @param {Function} root0.onRefresh - Handler for refreshing Scout attendance data from external sources
+ * @param {boolean} root0.canRefresh - Flag to control refresh button availability for Scout data updates
+ * @param {boolean} root0.refreshLoading - Flag indicating whether Scout data refresh operation is currently active
+ * @returns {JSX.Element|null} Scout event header interface with navigation controls or null if no events available
  */
 function AttendanceHeader({ 
   events, 

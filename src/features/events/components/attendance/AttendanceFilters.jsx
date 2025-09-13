@@ -3,17 +3,21 @@ import CompactAttendanceFilter from '../CompactAttendanceFilter.jsx';
 import { SectionFilter } from '../../../../shared/components/ui';
 
 /**
- *
- * @param root0
- * @param root0.attendanceFilters
- * @param root0.onAttendanceFiltersChange
- * @param root0.sectionFilters
- * @param root0.onSectionFiltersChange
- * @param root0.sections
- * @param root0.showDataFilters
- * @param root0.dataFilters
- * @param root0.onDataFiltersChange
- * @param root0.attendanceData
+ * Attendance filtering component providing comprehensive patrol management controls.
+ * Features Scout-themed attendance status filters, section filtering for multi-troop events,
+ * and optional data display controls for enhanced troop oversight.
+ * 
+ * @param {object} root0 - Scout patrol attendance filter configuration
+ * @param {object} root0.attendanceFilters - Current attendance status filter selections for patrol tracking
+ * @param {Function} root0.onAttendanceFiltersChange - Handler for updating attendance filter selections during patrol management
+ * @param {object} root0.sectionFilters - Active section filter selections for multi-troop event organization
+ * @param {Function} root0.onSectionFiltersChange - Handler for updating section filter selections in troop organization
+ * @param {Array} root0.sections - Available sections for filtering patrol assignments across multiple troops
+ * @param {boolean} root0.showDataFilters - Flag to display additional data filter controls for advanced patrol oversight
+ * @param {object} root0.dataFilters - Current data display filter selections for enhanced troop visibility
+ * @param {Function} root0.onDataFiltersChange - Handler for updating data display filter selections during patrol oversight
+ * @param {Array} root0.attendanceData - Current attendance records for patrol members and troop organization
+ * @returns {JSX.Element|null} Scout-themed attendance filter interface or null if no attendance data available
  */
 function AttendanceFilters({
   attendanceFilters,

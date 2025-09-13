@@ -72,15 +72,19 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
 };
 
 /**
- *
- * @param root0
- * @param root0.summaryStats
- * @param root0.members
- * @param root0.onSignInOut
- * @param root0.buttonLoading
- * @param root0.onMemberClick
- * @param root0.sortConfig
- * @param root0.onSort
+ * Scout registration and attendance management tab interface.
+ * Provides comprehensive member attendance tracking with sortable member lists,
+ * sign-in/out controls, and detailed attendance statistics for Scout event management.
+ * 
+ * @param {object} root0 - Scout registration tab configuration and interaction handlers
+ * @param {object} root0.summaryStats - Attendance summary statistics for Scout event overview
+ * @param {Array} root0.members - List of Scout members with attendance records and status information
+ * @param {Function} root0.onSignInOut - Handler for processing Scout sign-in and sign-out operations
+ * @param {boolean} root0.buttonLoading - Flag indicating whether sign-in/out operations are currently processing
+ * @param {Function} root0.onMemberClick - Handler triggered when Scout member details are requested for viewing
+ * @param {object} root0.sortConfig - Current column sorting configuration for member list organization
+ * @param {Function} root0.onSort - Handler for updating member list sorting preferences and display order
+ * @returns {JSX.Element} Scout registration interface with attendance tracking and member management controls
  */
 function RegisterTab({ 
   summaryStats,

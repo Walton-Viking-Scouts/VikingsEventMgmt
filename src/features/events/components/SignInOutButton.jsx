@@ -1,12 +1,16 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.member
- * @param root0.onSignInOut
- * @param root0.loading
- * @param root0.disabled
+ * Scout sign-in/out toggle button for event attendance management.
+ * Dynamically displays appropriate action based on current Scout attendance status
+ * with Scout-themed styling and comprehensive interaction feedback.
+ * 
+ * @param {object} root0 - Scout attendance toggle configuration and interaction handlers
+ * @param {object} root0.member - Scout member data containing attendance status and identification
+ * @param {Function} root0.onSignInOut - Handler triggered when Scout sign-in/out action is requested
+ * @param {boolean} root0.loading - Flag indicating whether sign-in/out operation is currently processing
+ * @param {boolean} root0.disabled - Flag to disable button interaction during critical operations
+ * @returns {JSX.Element} Scout-themed toggle button for event attendance management
  */
 function SignInOutButton({ 
   member, 

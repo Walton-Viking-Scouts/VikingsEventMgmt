@@ -30,8 +30,9 @@ import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js'
 /**
  * Demo mode version of camp group assignment
  * Updates localStorage cache instead of calling OSM API
- * @param moveData
- * @param flexiRecordContext
+ * @param {object} moveData - Scout member movement data for camp group allocation
+ * @param {object} flexiRecordContext - FlexiRecord configuration for Scout data management
+ * @returns {object} Operation result with success status and details
  */
 function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
   try {
@@ -86,10 +87,14 @@ function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
 }
 
 /**
- *
- * @param moveData
- * @param flexiRecordContext
- * @param token
+ * Assign Scout member to camp group with OSM FlexiRecord API integration.
+ * Handles both production OSM API calls and demo mode localStorage updates
+ * for flexible Scout camp group allocation management.
+ * 
+ * @param {object} moveData - Scout member movement data for camp group allocation
+ * @param {object} flexiRecordContext - FlexiRecord configuration for Scout data management
+ * @param {string} token - Authentication token for OSM API access
+ * @returns {Promise<object>} Operation result with success status and details
  */
 export async function assignMemberToCampGroup(moveData, flexiRecordContext, token) {
   // Handle demo mode

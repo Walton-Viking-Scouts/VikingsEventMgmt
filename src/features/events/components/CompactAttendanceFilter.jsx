@@ -1,10 +1,14 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.filters
- * @param root0.onFiltersChange
+ * Compact Scout attendance status filter component with interactive toggle buttons.
+ * Provides Yes/No/Invited/Not Invited filtering options with Scout-themed styling
+ * and comprehensive accessibility support for attendance management.
+ * 
+ * @param {object} root0 - Scout attendance filter configuration and interaction handlers  
+ * @param {object} root0.filters - Current filter selections for Scout attendance status categories
+ * @param {Function} root0.onFiltersChange - Handler for updating attendance filter selections during Scout event management
+ * @returns {JSX.Element} Scout-themed compact attendance filter interface with toggle buttons
  */
 function CompactAttendanceFilter({ filters, onFiltersChange }) {
   const handleFilterToggle = (status) => {

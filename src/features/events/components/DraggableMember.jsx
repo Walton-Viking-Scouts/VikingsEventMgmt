@@ -2,16 +2,20 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
 /**
- *
- * @param root0
- * @param root0.member
- * @param root0.group
- * @param root0.onMemberClick
- * @param root0.onDragStart
- * @param root0.onDragEnd
- * @param root0.isDragging
- * @param root0.disabled
- * @param root0.className
+ * Draggable Scout member component for patrol and camp group management.
+ * Supports both desktop drag-and-drop and mobile touch-based dragging for flexible Scout allocation.
+ * Features visual feedback, signed-out member detection, and comprehensive touch gesture handling.
+ * 
+ * @param {object} root0 - Scout member drag configuration and interaction handlers
+ * @param {object} root0.member - Scout member data containing identification and status information
+ * @param {object} root0.group - Current patrol or camp group assignment for the Scout member
+ * @param {Function} root0.onMemberClick - Handler triggered when Scout member card is clicked for detail view
+ * @param {Function} root0.onDragStart - Handler called when drag operation begins on Scout member allocation
+ * @param {Function} root0.onDragEnd - Handler called when drag operation completes for Scout member movement
+ * @param {boolean} root0.isDragging - Flag indicating whether this Scout member is currently being dragged
+ * @param {boolean} root0.disabled - Flag to disable drag functionality for locked Scout assignments
+ * @param {string} root0.className - Additional CSS classes for custom Scout member card styling
+ * @returns {JSX.Element} Interactive Scout member card with drag-and-drop capabilities for patrol management
  */
 function DraggableMember({ 
   member, 

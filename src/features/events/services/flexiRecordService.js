@@ -14,10 +14,10 @@
  * - Multi-section FlexiRecord discovery and validation
  * 
  * @module FlexiRecordService
- * @requires ../../../shared/utils/storageUtils
- * @requires ../../../shared/utils/networkUtils
- * @requires ../../../shared/services/utils/logger
- * @requires ../../../shared/services/utils/sentry
+ * @requires storageUtils - Storage utilities for cache management
+ * @requires networkUtils - Network connectivity checking utilities
+ * @requires logger - Logging service for operation tracking
+ * @requires sentry - Error tracking and monitoring utilities
  */
 
 /**

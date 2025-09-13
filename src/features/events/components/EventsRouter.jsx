@@ -5,7 +5,11 @@ import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx
 import EventsContainer from './EventsContainer.jsx';
 
 /**
- *
+ * Scout events routing component providing navigation structure and route management.
+ * Integrates main navigation with Scout event views and handles cross-feature navigation
+ * including section movements integration for comprehensive Scout group management.
+ * 
+ * @returns {JSX.Element} Scout events router with navigation and route configuration
  */
 function EventsRouter() {
   const navigate = useNavigate();

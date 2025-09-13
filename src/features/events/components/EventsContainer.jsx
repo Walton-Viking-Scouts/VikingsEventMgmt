@@ -6,7 +6,11 @@ import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
- *
+ * Main Scout events container component managing navigation between dashboard and attendance views.
+ * Handles state management for Scout event data, member information, and view transitions
+ * with comprehensive error handling and cached data management for offline-first operation.
+ * 
+ * @returns {JSX.Element} Scout events interface with dynamic view rendering and navigation control
  */
 function EventsContainer() {
   const [currentView, setCurrentView] = useState('dashboard');
