@@ -88,7 +88,6 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
         const attendanceData = await fetchEventAttendance(
           event,
           token,
-          filteredEvents,
         );
         if (attendanceData) {
           attendanceMap.set(event.eventid, attendanceData);

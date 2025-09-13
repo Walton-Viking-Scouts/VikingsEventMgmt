@@ -1,5 +1,5 @@
 /**
- * @fileoverview FlexiRecord Service for Viking Event Management
+ * @file FlexiRecord Service for Viking Event Management
  * 
  * Comprehensive service for managing OSM FlexiRecord operations with offline-first
  * architecture and intelligent caching. Handles Scout attendance data, section

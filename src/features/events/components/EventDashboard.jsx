@@ -629,7 +629,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         const attendanceData = await fetchEventAttendance(
           event,
           token,
-          filteredEvents,
         );
         if (attendanceData) {
           attendanceMap.set(event.eventid, attendanceData);

@@ -2,6 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 
+/**
+ *
+ */
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   
   // If using the new format with value/fieldName, process the data
@@ -46,6 +49,9 @@ export function MedicalDataPill({ value, fieldName, data, type = 'info', classNa
   );
 }
 
+/**
+ *
+ */
 export function MedicalDataList({ medicalData, className = '' }) {
   if (!medicalData || medicalData.length === 0) {
     return null;

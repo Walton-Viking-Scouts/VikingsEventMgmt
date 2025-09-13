@@ -1,5 +1,5 @@
 /**
- * @fileoverview Authentication service for Viking Event Management Mobile
+ * @file Authentication service for Viking Event Management Mobile
  * 
  * Provides comprehensive authentication utilities with offline-first design,
  * token management, OAuth integration, and Scout-specific user handling.

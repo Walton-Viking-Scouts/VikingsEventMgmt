@@ -1,5 +1,5 @@
 /**
- * @fileoverview FlexiRecord transformation utilities for Viking Event Management
+ * @file FlexiRecord transformation utilities for Viking Event Management
  * 
  * This module provides pure functions for transforming OSM FlexiRecord data into
  * meaningful, structured formats for the Viking Event Management system. Handles
