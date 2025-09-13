@@ -14,6 +14,12 @@ import {
 } from '../../../shared/utils/eventDashboardHelpers.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 
+/**
+ * EventsOverview component displays overview of all events with attendance data
+ * @param {object} props - Component props 
+ * @param {Function} props.onNavigateToAttendance - Callback for navigating to attendance view
+ * @returns {JSX.Element} Rendered events overview component
+ */
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();
   const navigate = useNavigate();

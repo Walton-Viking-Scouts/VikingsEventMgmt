@@ -1,6 +1,16 @@
 import React, { memo } from 'react';
 import { cn } from '../../../shared/utils/cn';
 
+/**
+ * Section movement card component showing movement statistics
+ * @param {object} props - Component props
+ * @param {string} props.sectionName - Name of the section
+ * @param {number} props.currentCount - Current number of members
+ * @param {Array} props.outgoingMovers - List of outgoing movers
+ * @param {number} props.remainingCount - Number of remaining members
+ * @param {number} props.incomingCount - Number of incoming members
+ * @returns {JSX.Element} Section movement card component
+ */
 function SectionMovementCard({ 
   sectionName, 
   currentCount, 

@@ -35,6 +35,11 @@ const saveUserPreference = (key, value) => {
 };
 
 
+/**
+ *
+ * @param root0
+ * @param root0.onBack
+ */
 function SectionMovementTracker({ onBack }) {
   // Load numberOfTerms from user preferences, default to 2
   const [numberOfTerms, setNumberOfTerms] = useState(() => {

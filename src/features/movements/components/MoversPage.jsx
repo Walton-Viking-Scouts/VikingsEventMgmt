@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { SectionMovementTracker } from './';
 import { MainNavigation } from '../../../shared/components/layout';
 
+/**
+ * Movers page component for managing section movements
+ * @returns {JSX.Element} Movers page component
+ */
 function MoversPage() {
   const navigate = useNavigate();
 

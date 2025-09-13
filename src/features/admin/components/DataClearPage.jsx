@@ -5,6 +5,11 @@ import databaseService from '../../../shared/services/storage/database.js';
 import { clearToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ * Administrative page component for clearing all application data and resetting to initial state.
+ * 
+ * @returns {JSX.Element} Data clearing interface with confirmation and progress feedback
+ */
 function DataClearPage() {
   const navigate = useNavigate();
   const { clearNavigationData: _clearNavigationData } = useAppState();

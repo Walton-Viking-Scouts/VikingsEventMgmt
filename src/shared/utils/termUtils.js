@@ -10,7 +10,7 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
  * @returns {TermObject|null} Most recent term object or null if no valid terms
  * @throws {Error} If terms parameter is invalid
  * 
- * @typedef {Object} TermObject
+ * @typedef {object} TermObject
  * @property {string} termid - Unique term identifier
  * @property {string} enddate - Term end date in ISO format or parseable date string
  * @property {string} [name] - Optional term name
@@ -116,7 +116,7 @@ export function findMostRecentTerm(terms) {
  * Convenience function that combines section lookup with most recent term finding
  * 
  * @param {number|string} sectionId - Section ID to find terms for (will be converted to string for lookup)
- * @param {Object} allTerms - Terms object keyed by section ID, values are arrays of term objects
+ * @param {object} allTerms - Terms object keyed by section ID, values are arrays of term objects
  * @returns {string|null} Most recent term ID or null if not found
  * @throws {Error} If parameters are invalid
  * 

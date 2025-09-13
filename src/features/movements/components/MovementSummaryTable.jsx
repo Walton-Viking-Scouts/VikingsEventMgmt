@@ -2,6 +2,11 @@ import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { groupSectionsByType, mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
+/**
+ * Get section type from section name
+ * @param {string} sectionName - The name of the section
+ * @returns {string|null} The section type or null if not recognized
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
   
@@ -16,6 +21,15 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
+/**
+ * Render section type rows for movement summary table
+ * @param {string} sectionType - The section type to render
+ * @param {Array} termCalculations - Term calculation data
+ * @param {Array} sectionsData - Sections data
+ * @param {Array} assignments - Assignment data
+ * @param {Array} unassignedData - Unassigned movement data
+ * @returns {Array|null} Array of table rows or null if no data
+ */
 function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assignments, unassignedData) {
   const firstTermGrouped = groupSectionsByType(termCalculations[0]?.sectionSummaries, sectionsData || []);
   const firstTermGroup = firstTermGrouped.get(sectionType);
@@ -95,6 +109,14 @@ function renderSectionTypeRows(sectionType, termCalculations, sectionsData, assi
   return rows;
 }
 
+/**
+ * Movement summary table component showing section movement data
+ * @param {object} props - Component props
+ * @param {Array} props.termCalculations - Term calculation data
+ * @param {Array} props.assignments - Assignment data
+ * @param {Array} props.sectionsData - Sections data
+ * @returns {JSX.Element} Movement summary table component
+ */
 function MovementSummaryTable({ termCalculations, assignments, sectionsData }) {
   const allSectionTypes = useMemo(() => ['Squirrels', 'Beavers', 'Cubs', 'Scouts', 'Explorers'], []);
   

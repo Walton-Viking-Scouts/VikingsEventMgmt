@@ -7,12 +7,21 @@ export const SECTION_TYPE_MAPPING = {
   'explorers': 'Explorers',
 };
 
+/**
+ *
+ * @param sectionType
+ */
 export function mapSectionType(sectionType) {
   if (!sectionType) return 'Unknown';
   const normalized = sectionType.toLowerCase();
   return SECTION_TYPE_MAPPING[normalized] || sectionType;
 }
 
+/**
+ *
+ * @param sectionSummaries
+ * @param sectionsData
+ */
 export function groupSectionsByType(sectionSummaries, sectionsData) {
   const grouped = new Map();
   
@@ -44,6 +53,10 @@ export function groupSectionsByType(sectionSummaries, sectionsData) {
   return grouped;
 }
 
+/**
+ *
+ * @param sectionName
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
   
@@ -58,6 +71,11 @@ function getSectionTypeFromName(sectionName) {
   return null;
 }
 
+/**
+ *
+ * @param movers
+ * @param groupedSections
+ */
 export function calculateGroupTotals(movers, groupedSections) {
   const groupTotals = new Map();
   

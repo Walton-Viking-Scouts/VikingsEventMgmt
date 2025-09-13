@@ -12,6 +12,10 @@ import databaseService from '../../../shared/services/storage/database.js';
 /**
  * Simple function to organize summaryStats by camp groups
  * Similar to RegisterTab's approach - just group the pre-processed data
+ * @param {Array} summaryStats - Array of member summary statistics
+ * @param {Map} pendingMoves - Map of pending member moves between groups
+ * @param {Map} recentlyCompletedMoves - Map of recently completed member moves
+ * @returns {object} Object containing organized groups and summary statistics
  */
 function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCompletedMoves = new Map()) {
   if (!summaryStats || summaryStats.length === 0) {
@@ -111,11 +115,13 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
  * CampGroupsView - Simple component for displaying camp groups
  * Uses pre-processed summaryStats like RegisterTab - no complex state management
  *
- * @param {Object} props - Component props
+ * @param {object} props - Component props
  * @param {Array} props.summaryStats - Pre-processed member data with Viking Event data
  * @param {Array} props.events - Array of event data (for context)  
  * @param {Array} props.members - Array of all member data (for member details)
  * @param {Function} props.onMemberClick - Member click handler
+ * @param {object} props.vikingEventData - Viking Event data for camp group management
+ * @returns {JSX.Element} Rendered camp groups view component
  */
 function CampGroupsView({
   summaryStats = [],

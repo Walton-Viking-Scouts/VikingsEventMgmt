@@ -1,5 +1,10 @@
 import React from 'react';
 
+/**
+ *
+ * @param root0
+ * @param root0.message
+ */
 function LoginScreen({ message = 'Please sign in to continue' }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">

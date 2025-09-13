@@ -8,6 +8,17 @@ import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
 
+/**
+ *
+ * @param root0
+ * @param root0.term
+ * @param root0.sectionSummaries
+ * @param root0.sectionsData
+ * @param root0.movers
+ * @param root0.sectionTypeTotals
+ * @param root0.onDataRefresh
+ * @param root0.allTerms
+ */
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh, allTerms }) {
   
   const [sectionState, setSectionState] = useState({

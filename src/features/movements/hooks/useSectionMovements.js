@@ -8,6 +8,9 @@ import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { fetchMostRecentTermId } from '../../../shared/services/api/api.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
+/**
+ *
+ */
 export default function useSectionMovements() {
   const [sections, setSections] = useState([]);
   const [members, setMembers] = useState([]);

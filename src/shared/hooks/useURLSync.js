@@ -4,6 +4,9 @@ import { useAppState } from '../../contexts/app';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 
 // Custom hook for synchronizing application state with URL parameters
+/**
+ *
+ */
 export function useURLSync() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

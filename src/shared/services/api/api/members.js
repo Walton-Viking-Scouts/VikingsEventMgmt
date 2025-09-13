@@ -21,7 +21,7 @@ import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
  * @param {number|string} sectionId - OSM section identifier
  * @param {number|string} termId - OSM term identifier
  * @param {string} token - OSM authentication token
- * @returns {Promise<Array<Object>>} Array of member objects with normalized data
+ * @returns {Promise<Array<object>>} Array of member objects with normalized data
  * @throws {Error} When API request fails and no cached data available
  * 
  * @example
@@ -163,9 +163,9 @@ export async function getMembersGrid(sectionId, termId, token) {
 /**
  * Retrieves members across multiple sections with deduplication
  * Optimized to load terms once and reuse for all sections
- * @param {Array<Object>} sections - Array of section objects with sectionid
+ * @param {Array<object>} sections - Array of section objects with sectionid
  * @param {string} token - OSM authentication token
- * @returns {Promise<Array<Object>>} Deduplicated array of members with section assignments
+ * @returns {Promise<Array<object>>} Deduplicated array of members with section assignments
  * @throws {Error} When offline with no cached data or API requests fail
  * 
  * @example

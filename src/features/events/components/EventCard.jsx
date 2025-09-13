@@ -1,5 +1,5 @@
 /**
- * @fileoverview EventCard component for displaying Scout event information
+ * @file EventCard component for displaying Scout event information
  * 
  * Responsive card component that displays event details including name, dates,
  * location, and attendance information. Features Scout-themed styling with
@@ -24,8 +24,8 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  * loading states for async data operations.
  * 
  * @component
- * @param {Object} props - Component props
- * @param {Object} props.eventCard - Event data object containing event details
+ * @param {object} props - Component props
+ * @param {object} props.eventCard - Event data object containing event details
  * @param {string} props.eventCard.id - Unique event identifier
  * @param {string} props.eventCard.name - Event name/title
  * @param {Array} props.eventCard.events - Array of event date objects

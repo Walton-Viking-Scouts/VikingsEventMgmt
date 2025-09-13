@@ -2,6 +2,17 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 
+/**
+ * Medical data pill component that displays formatted medical information in a styled badge.
+ * Automatically applies appropriate styling based on medical data type and severity.
+ * @param {object} root0 - The component props
+ * @param {string|Array} root0.value - The medical data value to display
+ * @param {string} root0.fieldName - The field name for formatting the display
+ * @param {string} root0.data - Legacy data format for backward compatibility
+ * @param {string} root0.type - The display type ('info'|'warning'|'danger'|'success') for styling
+ * @param {string} root0.className - Additional CSS classes to apply
+ * @returns {JSX.Element|null} Rendered medical data pill or null if no data
+ */
 export function MedicalDataPill({ value, fieldName, data, type = 'info', className = '' }) {
   
   // If using the new format with value/fieldName, process the data
@@ -46,6 +57,14 @@ export function MedicalDataPill({ value, fieldName, data, type = 'info', classNa
   );
 }
 
+/**
+ * List component that displays multiple medical data items in a structured format.
+ * Each medical item is rendered as a MedicalDataPill with appropriate styling.
+ * @param {object} root0 - The component props
+ * @param {Array} root0.medicalData - Array of medical data items to display
+ * @param {string} root0.className - Additional CSS classes to apply to the container
+ * @returns {JSX.Element|null} Rendered list of medical data pills or null if no data
+ */
 export function MedicalDataList({ medicalData, className = '' }) {
   if (!medicalData || medicalData.length === 0) {
     return null;
@@ -67,6 +86,14 @@ export function MedicalDataList({ medicalData, className = '' }) {
   );
 }
 
+/**
+ * Section-specific medical data display component for Scout members.
+ * Renders medical data using the MedicalDataList component with section-themed styling.
+ * @param {object} root0 - The component props
+ * @param {object} root0.member - Scout member object containing medical data
+ * @param {string} root0.className - Additional CSS classes to apply to the display
+ * @returns {JSX.Element|null} Rendered medical data display or null if no member data
+ */
 function MedicalDataDisplay({ member, className = '' }) {
   if (!member || !member.medicalData) {
     return null;

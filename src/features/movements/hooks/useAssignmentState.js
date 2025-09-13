@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 
+/**
+ *
+ */
 export default function useAssignmentState() {
   const [assignments, setAssignments] = useState(new Map());
   const [isDraft, setIsDraft] = useState(false);

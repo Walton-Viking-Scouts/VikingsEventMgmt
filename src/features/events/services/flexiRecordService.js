@@ -1,5 +1,5 @@
 /**
- * @fileoverview FlexiRecord Service for Viking Event Management
+ * @file FlexiRecord Service for Viking Event Management
  * 
  * Comprehensive service for managing OSM FlexiRecord operations with offline-first
  * architecture and intelligent caching. Handles Scout attendance data, section
@@ -14,10 +14,12 @@
  * - Multi-section FlexiRecord discovery and validation
  * 
  * @module FlexiRecordService
- * @requires ../../../shared/utils/storageUtils
- * @requires ../../../shared/utils/networkUtils
- * @requires ../../../shared/services/utils/logger
- * @requires ../../../shared/services/utils/sentry
+ * 
+ * Dependencies:
+ * - storageUtils: Storage utilities for cache management
+ * - networkUtils: Network connectivity checking utilities  
+ * - logger: Logging service for operation tracking
+ * - sentry: Error tracking and monitoring utilities
  */
 
 /**
@@ -97,10 +99,7 @@ const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - available flexirec
  * @private
  * @param {string} cacheKey - Cache key to check
  * @param {number} ttl - Time-to-live in milliseconds
- * @returns {Object} Cache validity result with data and age information
- * @returns {boolean} returns.valid - Whether cache is still valid
- * @returns {*} returns.data - Cached data if available
- * @returns {number} returns.cacheAgeMinutes - Age of cache in minutes
+ * @returns {{valid: boolean, data: *, cacheAgeMinutes: number}} Cache validity result with data and age information
  * 
  * @example
  * // Check if events cache is valid
@@ -198,9 +197,7 @@ function cacheData(cacheKey, data) {
  * @param {string|number} sectionId - Section identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<Object>} FlexiRecords list with metadata
- * @returns {Array} returns.items - Array of available FlexiRecord objects
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{items: Array, _cacheTimestamp?: number}>} FlexiRecords list with metadata
  * 
  * @example
  * // Get FlexiRecords for Beavers section
@@ -307,11 +304,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<Object|null>} FlexiRecord structure or null if not found
- * @returns {string} returns.name - FlexiRecord name
- * @returns {string} returns.extraid - FlexiRecord external ID
- * @returns {Object} returns.structure - Field definitions and configuration
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{name: string, extraid: string, structure: object, _cacheTimestamp?: number} | null>} FlexiRecord structure or null if not found
  * 
  * @example
  * // Get structure for Viking Event Management FlexiRecord
@@ -420,12 +413,18 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
 
 /**
  * Get flexirecord attendance data - refreshed frequently as it changes often
+ * 
+ * Retrieves FlexiRecord data with aggressive refresh policy as attendance
+ * data changes frequently during events. Uses shorter cache TTL and defaults
+ * to force refresh for up-to-date information.
+ * 
+ * @async
  * @param {string|number} flexirecordId - FlexiRecord ID
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token
  * @param {boolean} forceRefresh - Force API call ignoring cache (default: true)
- * @returns {Promise<Object>} FlexiRecord attendance data
+ * @returns {Promise<object>} FlexiRecord attendance data
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
   flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
@@ -528,13 +527,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<Object>} Consolidated FlexiRecord with structure and data
- * @returns {Object} returns.items - Array of data records with meaningful field names
- * @returns {Object} returns._structure - FlexiRecord metadata and field mapping
- * @returns {string} returns._structure.name - FlexiRecord name
- * @returns {string} returns._structure.extraid - FlexiRecord external ID
- * @returns {boolean} returns._structure.archived - Whether FlexiRecord is archived
- * @returns {Object} returns._structure.fieldMapping - Field ID to name/type mapping
+ * @returns {Promise<{items: object, _structure: {name: string, extraid: string, archived: boolean, fieldMapping: object}}>} Consolidated FlexiRecord with structure and data
  * @throws {Error} If required parameters missing or API calls fail
  * 
  * @example
@@ -661,11 +654,7 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<Object|null>} Viking Event Mgmt FlexiRecord data or null if not found
- * @returns {Array} returns.items - Event attendance records with scout details
- * @returns {Object} returns._structure - FlexiRecord structure and field mapping
- * @returns {string} returns._structure.name - Always "Viking Event Mgmt"
- * @returns {Object} returns._structure.fieldMapping - Field mappings for attendance data
+ * @returns {Promise<{items: Array, _structure: {name: string, fieldMapping: object}} | null>} Viking Event Mgmt FlexiRecord data or null if not found
  * 
  * @example
  * // Get Viking Event data for Beavers section
@@ -769,13 +758,17 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
 
 /**
  * Get Viking Section Movers flexirecord for a section
- * Looks for flexirecord with name="Viking Section Movers"
  * 
+ * Looks for flexirecord with name="Viking Section Movers" and returns
+ * consolidated data with meaningful field names for section movement tracking.
+ * Used for managing Scout assignments between sections.
+ * 
+ * @async
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token (null for offline)
  * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
- * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
+ * @returns {Promise<object | null>} Viking Section Movers flexirecord data or null if not found
  */
 export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');
@@ -850,11 +843,11 @@ export async function getVikingSectionMoversData(sectionId, termId, token, force
  * Maps required fields (Member ID, Date of Birth, Current Section, Target Section, Assignment Term)
  * following the extractFlexiRecordContext pattern
  * 
- * @param {Object} vikingSectionMoversData - Viking Section Movers FlexiRecord data  
+ * @param {object} vikingSectionMoversData - Viking Section Movers FlexiRecord data  
  * @param {string} sectionId - Section ID
  * @param {string} termId - Term ID
  * @param {string} sectionName - Section name
- * @returns {Object|null} Field mapping context or null if not available
+ * @returns {object | null} Field mapping context or null if not available
  */
 export function extractVikingSectionMoversContext(vikingSectionMoversData, sectionId, termId, sectionName) {
   // Try both _structure and structure properties for compatibility
@@ -932,8 +925,8 @@ export function extractVikingSectionMoversContext(vikingSectionMoversData, secti
  * Validate Viking Section Movers FlexiRecord structure
  * Checks if required fields exist for section movement assignments
  * 
- * @param {Object} consolidatedData - Consolidated flexirecord data from getVikingSectionMoversData
- * @returns {Object} Validation result with status and missing fields
+ * @param {object} consolidatedData - Consolidated flexirecord data from getVikingSectionMoversData
+ * @returns {object} Validation result with status and missing fields
  */
 export function validateVikingSectionMoversFields(consolidatedData) {
   const requiredFields = [
@@ -988,8 +981,8 @@ export function validateVikingSectionMoversFields(consolidatedData) {
  * @param {string} assignedTerm - Term when the assignment is effective
  * @param {string} assignedBy - User who made the assignment
  * @param {boolean} isOverride - Whether this assignment overrides age-based logic
- * @param {Object} fieldContext - Field context from extractVikingSectionMoversContext
- * @returns {Object} FlexiRecord data structure for assignment tracking
+ * @param {object} fieldContext - Field context from extractVikingSectionMoversContext
+ * @returns {object} FlexiRecord data structure for assignment tracking
  */
 export function createAssignmentTrackingData(
   memberId,
@@ -1055,9 +1048,9 @@ export function createAssignmentTrackingData(
  * Validate assignment tracking data structure
  * Ensures all required fields for assignment tracking are present
  * 
- * @param {Object} assignmentData - Assignment data to validate
- * @param {Object} fieldContext - Field context for validation
- * @returns {Object} Validation result
+ * @param {object} assignmentData - Assignment data to validate
+ * @param {object} fieldContext - Field context for validation
+ * @returns {object} Validation result
  */
 export function validateAssignmentTrackingData(assignmentData, fieldContext) {
   const validationResult = {
@@ -1111,7 +1104,7 @@ export function validateAssignmentTrackingData(assignmentData, fieldContext) {
  * 
  * @param {Array} discoveredFlexiRecords - Array of discovered FlexiRecord metadata
  * @param {Map} fieldMappings - Map of sectionId to field mapping context
- * @returns {Object} Validation summary with valid/invalid records
+ * @returns {object} Validation summary with valid/invalid records
  */
 export function validateVikingSectionMoversCollection(discoveredFlexiRecords, fieldMappings) {
   const validRecords = [];
@@ -1345,6 +1338,8 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
 
 /**
  * Clear all flexirecord caches (useful for debugging or when data needs refresh)
+ * 
+ * @returns {{clearedLocalStorageKeys: number}} Summary of cleared cache keys
  */
 export function clearFlexiRecordCaches() {
   // Clearing all flexirecord caches

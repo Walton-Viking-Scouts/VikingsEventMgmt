@@ -1,5 +1,5 @@
 /**
- * @fileoverview Age calculation utilities for Viking Event Management
+ * @file Age calculation utilities for Viking Event Management
  * 
  * This module provides age calculation functions with privacy-conscious formatting
  * for Scout environments. Implements leader privacy protection by showing ">25"

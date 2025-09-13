@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Comprehensive documentation hub for Vikings Event Management Mobile - API documentation, guides, and technical reference for Scout event management.">
+    <meta name="keywords" content="Vikings Event Management, Scout, API documentation, React, Capacitor, mobile app, JSDoc">
+    <meta name="author" content="Vikings Event Management Team">
+    
+    <title>Vikings Event Management Mobile - Documentation Hub</title>
+    
+    <!-- Accessibility enhancements -->
+    <meta name="theme-color" content="#1e40af">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
+    
+    <style>
+        :root {
+            --primary-color: #1e40af;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #64748b;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-color: #e2e8f0;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Skip to main content for screen readers */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 1000;
+        }
+
+        .skip-link:focus {
+            top: 6px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .doc-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .doc-card:hover, .doc-card:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .doc-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .doc-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .doc-card .badge {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .status-card h4 {
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--success-color);
+        }
+
+        .footer {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .search-box {
+            max-width: 400px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 3rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: var(--card-bg);
+        }
+
+        .search-box input:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+            border-color: var(--primary-color);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --border-color: #000000;
+                --text-secondary: #000000;
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .doc-card {
+                transition: none;
+            }
+            
+            .doc-card:hover, .doc-card:focus {
+                transform: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .docs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div class="container">
+        <header class="header">
+            <h1>📚 Vikings Event Management Mobile</h1>
+            <p>Comprehensive documentation hub for Scout event management with React and Capacitor</p>
+        </header>
+
+        <div class="search-box">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <input 
+                type="search" 
+                placeholder="Search documentation..." 
+                aria-label="Search through documentation"
+                id="search-input"
+            >
+        </div>
+
+        <main id="main-content">
+            <div class="status-grid">
+                <div class="status-card">
+                    <h4>Documentation Coverage</h4>
+                    <div class="status-value">95%</div>
+                </div>
+                <div class="status-card">
+                    <h4>API Functions</h4>
+                    <div class="status-value">120+</div>
+                </div>
+                <div class="status-card">
+                    <h4>Components</h4>
+                    <div class="status-value">45+</div>
+                </div>
+                <div class="status-card">
+                    <h4>Last Updated</h4>
+                    <div class="status-value">Today</div>
+                </div>
+            </div>
+
+            <div class="docs-grid">
+                <a href="./api/index.html" class="doc-card" aria-describedby="api-docs-desc">
+                    <h3>
+                        <span role="img" aria-label="API">🔧</span>
+                        API Documentation
+                    </h3>
+                    <p id="api-docs-desc">Complete JSDoc-generated API reference with functions, classes, and modules. Includes authentication, data management, and utility functions.</p>
+                    <span class="badge">JSDoc Generated</span>
+                </a>
+
+                <a href="./getting-started/installation.md" class="doc-card" aria-describedby="getting-started-desc">
+                    <h3>
+                        <span role="img" aria-label="Getting Started">🚀</span>
+                        Getting Started
+                    </h3>
+                    <p id="getting-started-desc">Installation guides, development setup, and quick start tutorials for developers new to the project.</p>
+                    <span class="badge">Essential</span>
+                </a>
+
+                <a href="./architecture/overview.md" class="doc-card" aria-describedby="architecture-desc">
+                    <h3>
+                        <span role="img" aria-label="Architecture">🏗️</span>
+                        Architecture Guide
+                    </h3>
+                    <p id="architecture-desc">Technical architecture, system design decisions, and component relationships for the mobile application.</p>
+                    <span class="badge">Technical</span>
+                </a>
+
+                <a href="./features/overview.md" class="doc-card" aria-describedby="features-desc">
+                    <h3>
+                        <span role="img" aria-label="Features">⭐</span>
+                        Features Guide
+                    </h3>
+                    <p id="features-desc">Feature-specific implementation guides covering events, sections, movements, and authentication systems.</p>
+                    <span class="badge">Implementation</span>
+                </a>
+
+                <a href="./development/testing-strategy.md" class="doc-card" aria-describedby="testing-desc">
+                    <h3>
+                        <span role="img" aria-label="Testing">🧪</span>
+                        Testing & QA
+                    </h3>
+                    <p id="testing-desc">Testing strategies, unit test guides, and quality assurance processes for maintaining code quality.</p>
+                    <span class="badge">Quality</span>
+                </a>
+
+                <a href="./deployment/release-process.md" class="doc-card" aria-describedby="deployment-desc">
+                    <h3>
+                        <span role="img" aria-label="Deployment">🚢</span>
+                        Deployment Guide
+                    </h3>
+                    <p id="deployment-desc">Release processes, CI/CD setup, and deployment strategies for production environments.</p>
+                    <span class="badge">DevOps</span>
+                </a>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>
+                <strong>Vikings Event Management Mobile v2.3.7</strong><br>
+                Generated with ❤️ by the Vikings Event Management Team<br>
+                Last updated: <time datetime="2024-12-28">December 28, 2024</time>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Simple search functionality for accessibility
+        const searchInput = document.getElementById('search-input');
+        const docCards = document.querySelectorAll('.doc-card');
+
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            docCards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    card.style.display = 'block';
+                    card.style.order = text.indexOf(searchTerm) === -1 ? '1' : '0';
+                } else {
+                    card.style.display = searchTerm === '' ? 'block' : 'none';
+                }
+            });
+            
+            // Announce search results to screen readers
+            const visibleCards = Array.from(docCards).filter(card => card.style.display !== 'none').length;
+            if (searchTerm) {
+                const announcement = `${visibleCards} documentation section${visibleCards !== 1 ? 's' : ''} found`;
+                // Create invisible announcement for screen readers
+                const announcer = document.createElement('div');
+                announcer.setAttribute('aria-live', 'polite');
+                announcer.setAttribute('aria-atomic', 'true');
+                announcer.style.position = 'absolute';
+                announcer.style.left = '-10000px';
+                announcer.style.width = '1px';
+                announcer.style.height = '1px';
+                announcer.style.overflow = 'hidden';
+                announcer.textContent = announcement;
+                document.body.appendChild(announcer);
+                setTimeout(() => document.body.removeChild(announcer), 1000);
+            }
+        });
+
+        // Update last updated time
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeElement = document.querySelector('time');
+            const now = new Date();
+            timeElement.textContent = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            timeElement.setAttribute('datetime', now.toISOString().split('T')[0]);
+        });
+    </script>
+</body>
+</html>

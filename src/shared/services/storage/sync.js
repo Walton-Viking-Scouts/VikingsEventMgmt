@@ -6,6 +6,10 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
 
+/**
+ * Service for managing data synchronization between local storage and OSM API.
+ * Provides offline-first functionality with authentication handling and rate limiting.
+ */
 class SyncService {
   constructor() {
     this.isSyncing = false;
@@ -14,31 +18,55 @@ class SyncService {
   }
 
   // Add listener for sync status changes
+  /**
+   * Adds a listener for sync status changes.
+   * @param {Function} callback - Callback function to be called when sync status changes
+   */
   addSyncListener(callback) {
     this.syncListeners.push(callback);
   }
 
   // Remove sync listener
+  /**
+   * Removes a sync status change listener.
+   * @param {Function} callback - Callback function to remove from listeners
+   */
   removeSyncListener(callback) {
     this.syncListeners = this.syncListeners.filter(cb => cb !== callback);
   }
 
   // Add listener for login prompt requests
+  /**
+   * Adds a listener for login prompt requests.
+   * @param {Function} callback - Callback function to handle login prompts
+   */
   addLoginPromptListener(callback) {
     this.loginPromptCallbacks.push(callback);
   }
 
   // Remove login prompt listener
+  /**
+   * Removes a login prompt listener.
+   * @param {Function} callback - Callback function to remove from listeners
+   */
   removeLoginPromptListener(callback) {
     this.loginPromptCallbacks = this.loginPromptCallbacks.filter(cb => cb !== callback);
   }
 
   // Notify listeners of sync status
+  /**
+   * Notifies all listeners of sync status changes.
+   * @param {object} status - Status object containing sync information
+   */
   notifyListeners(status) {
     this.syncListeners.forEach(callback => callback(status));
   }
 
   // Notify listeners to show login prompt
+  /**
+   * Shows login prompt to user and handles their response.
+   * @returns {Promise<boolean>} Promise resolving to true if user confirms login, false otherwise
+   */
   showLoginPrompt() {
     return new Promise((resolve) => {
       this.loginPromptCallbacks.forEach(callback => {
@@ -59,6 +87,10 @@ class SyncService {
   }
 
   // Check if we're online
+  /**
+   * Checks if the device is online using Capacitor Network plugin or navigator.
+   * @returns {Promise<boolean>} Promise resolving to true if online, false otherwise
+   */
   async isOnline() {
     if (Capacitor.isNativePlatform()) {
       const status = await Network.getStatus();
@@ -69,6 +101,10 @@ class SyncService {
   }
 
   // Check if we have a valid token before syncing
+  /**
+   * Checks authentication token validity and prompts for login if needed.
+   * @returns {Promise<boolean>} Promise resolving to true if valid token exists, false if login initiated
+   */
   async checkTokenAndPromptLogin() {
     // Check network status first - no point prompting for login if offline
     const isOnline = await checkNetworkStatus();
@@ -99,6 +135,11 @@ class SyncService {
   }
 
   // Handle 401/403 errors by prompting for login
+  /**
+   * Handles authentication errors by prompting user for login.
+   * @param {Error} error - The error object containing status and message information
+   * @returns {Promise<boolean>} Promise resolving to false if login initiated, throws otherwise
+   */
   async handleAuthError(error) {
     if (error.status === 401 || error.status === 403 || 
         error.message.includes('Invalid access token') || 
@@ -115,6 +156,12 @@ class SyncService {
   }
 
   // Wrapper method to handle auth errors consistently
+  /**
+   * Wraps operations with consistent authentication error handling.
+   * @param {Function} operation - The async operation to execute
+   * @param {object} options - Options for error handling behavior
+   * @returns {Promise<*>} Promise resolving to operation result or undefined on auth error
+   */
   async withAuthErrorHandling(operation, options = {}) {
     const { continueOnError = false, contextMessage = '' } = options;
     
@@ -142,6 +189,10 @@ class SyncService {
   }
 
   // Sync all data (legacy method - calls new three-stage approach)
+  /**
+   * Syncs all data using the three-stage approach (legacy method).
+   * @returns {Promise<void>} Promise that resolves when sync is complete
+   */
   async syncAll() {
     await this.syncDashboardData();
     // Start background sync after dashboard data is complete
@@ -149,6 +200,10 @@ class SyncService {
   }
 
   // Stage 1: Sync core data only (fast)
+  /**
+   * Syncs core dashboard data including terms, sections, and FlexiRecord structures.
+   * @returns {Promise<void>} Promise that resolves when core data sync is complete
+   */
   async syncDashboardData() {
     if (this.isSyncing) {
       return;
@@ -233,6 +288,10 @@ class SyncService {
   }
 
   // Stage 2: Sync background data (members only) - non-blocking
+  /**
+   * Syncs background data including member information for all sections.
+   * @returns {Promise<void>} Promise that resolves when background sync is complete
+   */
   async syncBackgroundData() {
     try {
       this.notifyListeners({ status: 'syncing', message: 'Loading member data...' });
@@ -264,6 +323,11 @@ class SyncService {
   }
 
   // Sync terms (core data needed for all section operations)
+  /**
+   * Syncs term data for all sections from OSM API.
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when terms are synced
+   */
   async syncTerms(token) {
     try {
       await this.withAuthErrorHandling(async () => {
@@ -283,6 +347,11 @@ class SyncService {
   }
 
   // Sync sections
+  /**
+   * Syncs section data and user roles from OSM API.
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when sections are synced
+   */
   async syncSections(token) {
     try {
       await this.withAuthErrorHandling(async () => {
@@ -301,6 +370,12 @@ class SyncService {
   }
 
   // Sync events for a section
+  /**
+   * Syncs events for a specific section from OSM API.
+   * @param {string|number} sectionId - Section identifier
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when events are synced
+   */
   async syncEvents(sectionId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing events for section ${sectionId}...` });
@@ -323,6 +398,14 @@ class SyncService {
   }
 
   // Sync attendance for an event
+  /**
+   * Syncs attendance data for a specific event from OSM API.
+   * @param {string|number} sectionId - Section identifier
+   * @param {string} eventId - Event identifier
+   * @param {string} termId - Term identifier
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when attendance is synced
+   */
   async syncAttendance(sectionId, eventId, termId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing attendance for event ${eventId}...` });
@@ -349,6 +432,12 @@ class SyncService {
   }
 
   // Sync members data for a section (includes medical information)
+  /**
+   * Syncs member data including medical information for a specific section.
+   * @param {string|number} sectionId - Section identifier
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when members are synced
+   */
   async syncMembers(sectionId, token) {
     await this.withAuthErrorHandling(async () => {
       this.notifyListeners({ status: 'syncing', message: `Syncing members for section ${sectionId}...` });
@@ -377,6 +466,10 @@ class SyncService {
 
 
   // Get sync status
+  /**
+   * Gets current synchronization status including offline data and connectivity.
+   * @returns {Promise<object>} Promise resolving to sync status object
+   */
   async getSyncStatus() {
     try {
       const hasOfflineData = await databaseService.hasOfflineData();
@@ -398,6 +491,12 @@ class SyncService {
   }
 
   // Preload static flexirecord data (lists and structures) for faster access later
+  /**
+   * Preloads static FlexiRecord data including lists and structures for faster access.
+   * @param {Array} sections - Array of section objects to preload data for
+   * @param {string} token - Authentication token for API access
+   * @returns {Promise<void>} Promise that resolves when preloading is complete
+   */
   async preloadStaticFlexiRecordData(sections, token) {
     try {
       if (!sections || !Array.isArray(sections) || sections.length === 0) {
@@ -509,6 +608,10 @@ class SyncService {
   }
 
   // Auto-sync disabled - user must manually sync via dashboard
+  /**
+   * Sets up auto-sync functionality (currently disabled).
+   * @returns {Promise<void>} Promise that resolves immediately
+   */
   async setupAutoSync() {
     // Auto-sync functionality disabled to prevent unwanted OSM API calls
     // User must manually trigger sync via dashboard sync button

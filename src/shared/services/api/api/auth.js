@@ -19,7 +19,7 @@ import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
  * Helper function to retrieve user info with multiple fallback strategies
  * Tries startup data API first, then cache, then existing auth data
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} User info object with firstname, lastname, userid, email
+ * @returns {Promise<object>} User info object with firstname, lastname, userid, email
  * @throws {Error} When no user info can be retrieved from any source
  * 
  * @example
@@ -78,7 +78,7 @@ async function retrieveUserInfo(token) {
  * Retrieves user roles and section information from OSM API
  * Includes comprehensive error handling with offline fallbacks
  * @param {string} token - OSM authentication token
- * @returns {Promise<Array<Object>>} Array of sections with permissions and details
+ * @returns {Promise<Array<object>>} Array of sections with permissions and details
  * @throws {Error} When authentication fails and no cached data available
  * 
  * @example
@@ -258,7 +258,7 @@ export async function getUserRoles(token) {
 /**
  * Retrieves OSM startup data including user information and globals
  * @param {string} token - OSM authentication token
- * @returns {Promise<Object|null>} Startup data with user info and globals
+ * @returns {Promise<object | null>} Startup data with user info and globals
  * @throws {Error} When authentication fails (401/403) - non-auth errors use cache fallback
  * 
  * @example

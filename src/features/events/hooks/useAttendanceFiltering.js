@@ -1,5 +1,16 @@
 import { useState, useMemo } from 'react';
 
+/**
+ * Custom hook for filtering and sorting attendance data
+ * 
+ * Provides comprehensive filtering capabilities for attendance data including
+ * attendance status filters, section filters, data filters, and sorting functionality.
+ * Manages filter states and applies them to attendance data efficiently.
+ * 
+ * @param {Array} attendanceData - Array of attendance records to filter and sort
+ * @param {Array} events - Array of event data used to initialize section filters
+ * @returns {{attendanceFilters: object, setAttendanceFilters: Function, sectionFilters: object, setSectionFilters: Function, dataFilters: object, setDataFilters: Function, sortConfig: object, handleSort: Function, filteredAndSortedData: Array}} Filtering and sorting utilities
+ */
 function useAttendanceFiltering(attendanceData, events) {
   // Attendance filter state - exclude "Not Invited" by default
   const [attendanceFilters, setAttendanceFilters] = useState({

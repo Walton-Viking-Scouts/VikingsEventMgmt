@@ -1,6 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
+/**
+ *
+ * @param root0
+ * @param root0.onNavigateToSectionMovements
+ */
 function MainNavigation({ onNavigateToSectionMovements }) {
   const location = useLocation();
   

@@ -3,6 +3,17 @@ import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
+/**
+ * Custom hook for managing shared attendance data across events
+ * 
+ * Manages shared attendance data loading, caching, and state for events that
+ * have shared attendance metadata. Detects shared events automatically and
+ * provides loading states and data access for cross-event attendance views.
+ * 
+ * @param {Array} events - Array of event objects to check for shared metadata
+ * @param {string} viewMode - Current view mode (affects data loading behavior)
+ * @returns {{sharedAttendanceData: Array|null, loadingSharedAttendance: boolean, hasSharedEvents: boolean}} Shared attendance state and utilities
+ */
 export function useSharedAttendance(events, viewMode) {
   const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
   const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);

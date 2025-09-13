@@ -1,6 +1,7 @@
 // Environment variable configuration and validation
 // This module centralizes environment variable access and validates required variables
 
+
 // Required environment variables for basic functionality
 // Skip validation in demo mode to allow public access
 // OAuth client ID removed - now handled server-side for security
@@ -9,6 +10,17 @@ const requiredVars = [
 ];
 
 // Helper function to check demo mode safely
+/**
+ * Checks if the application is running in demo mode based on URL parameters or hostname patterns.
+ * Demo mode allows the app to run without required environment variables for public demonstrations.
+ * 
+ * @returns {boolean} True if demo mode is detected, false otherwise
+ * @since 1.0.0
+ * @example
+ * if (isInDemoMode()) {
+ *   console.log('Running in demo mode - using sample data');
+ * }
+ */
 function isInDemoMode() {
   try {
     // Lazy import to avoid circular dependencies
@@ -24,7 +36,7 @@ function isInDemoMode() {
         return true;
       }
     }
-  } catch (error) {
+  } catch {
     // Ignore errors in test environment
   }
   return import.meta.env.VITE_DEMO_MODE === 'true';
@@ -62,7 +74,35 @@ if (apiUrl && !apiUrl.match(/^https?:\/\/.+/)) {
   console.warn('⚠️ VITE_API_URL should be a valid HTTP/HTTPS URL');
 }
 
-// Export validated configuration
+/**
+ * Application configuration object with validated environment variables.
+ * Contains API configuration, environment detection, and computed values.
+ * 
+ * @type {object}
+ * @property {string} apiUrl - API base URL from VITE_API_URL
+ * @property {string} sentryDsn - Sentry DSN for error tracking (optional)
+ * @property {boolean} isDev - True in development mode
+ * @property {boolean} isProd - True in production mode
+ * @property {string} mode - Vite build mode
+ * @property {string} actualEnvironment - Computed environment based on hostname and build mode
+ * @property {boolean} isApiUrlLocal - True if API URL uses localhost
+ * @property {boolean} isApiUrlSecure - True if API URL uses HTTPS
+ * @since 1.0.0
+ * @example
+ * import { config } from './config/env.js';
+ * console.log('API URL:', config.apiUrl);
+ * console.log('Environment:', config.actualEnvironment);
+ */
+
+/**
+ * Validated application configuration object containing all environment-specific settings
+ * @type {object}
+ * @property {string} apiUrl - Base URL for API endpoints
+ * @property {string} sentryDsn - Sentry DSN for error tracking
+ * @property {string} mapboxAccessToken - Mapbox access token for maps
+ * @property {string} actualEnvironment - Current environment (development/staging/production)
+ */
+// eslint-disable-next-line jsdoc/require-jsdoc
 export const config = {
   // API Configuration
   apiUrl: import.meta.env.VITE_API_URL,
@@ -76,6 +116,13 @@ export const config = {
   mode: import.meta.env.MODE,
   
   // Computed environment based on multiple factors
+  /**
+     * Computes the actual environment based on build mode and hostname patterns.
+     * Checks production build flag, deployment hostnames, and localhost patterns.
+     * 
+     * @returns {string} Environment name ('production', 'development', or Vite mode)
+     * @since 1.0.0
+     */
   actualEnvironment: (() => {
     // Check if we're in a production build
     if (import.meta.env.PROD) return 'production';
@@ -116,4 +163,9 @@ if (config.actualEnvironment === 'development') {
   console.log('   Secure API:', config.isApiUrlSecure ? 'Yes' : 'No');
 }
 
+/**
+ * Default export of the application configuration object.
+ * @type {object}
+ * @since 1.0.0
+ */
 export default config;

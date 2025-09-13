@@ -12,24 +12,27 @@ import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js'
 /**
  * Move a member to a different camp group
  * 
- * @param {Object} moveData - The move operation data
- * @param {Object} moveData.member - Member being moved
+ * @param {object} moveData - The move operation data
+ * @param {object} moveData.member - Member being moved
  * @param {string} moveData.fromGroupNumber - Original group number
  * @param {string} moveData.fromGroupName - Original group name  
  * @param {string} moveData.toGroupNumber - Target group number
  * @param {string} moveData.toGroupName - Target group name
- * @param {Object} flexiRecordContext - FlexiRecord configuration
+ * @param {object} flexiRecordContext - FlexiRecord configuration
  * @param {string} flexiRecordContext.flexirecordid - FlexiRecord ID
  * @param {string} flexiRecordContext.columnid - Column ID for CampGroup field
  * @param {string} flexiRecordContext.sectionid - Section ID
  * @param {string} flexiRecordContext.termid - Term ID
  * @param {string} flexiRecordContext.section - Section name
  * @param {string} token - Authentication token
- * @returns {Promise<Object>} Result with success status and details
+ * @returns {Promise<object>} Result with success status and details
  */
 /**
  * Demo mode version of camp group assignment
  * Updates localStorage cache instead of calling OSM API
+ * @param {object} moveData - Scout member movement data for camp group allocation
+ * @param {object} flexiRecordContext - FlexiRecord configuration for Scout data management
+ * @returns {object} Operation result with success status and details
  */
 function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
   try {
@@ -83,6 +86,16 @@ function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
   }
 }
 
+/**
+ * Assign Scout member to camp group with OSM FlexiRecord API integration.
+ * Handles both production OSM API calls and demo mode localStorage updates
+ * for flexible Scout camp group allocation management.
+ * 
+ * @param {object} moveData - Scout member movement data for camp group allocation
+ * @param {object} flexiRecordContext - FlexiRecord configuration for Scout data management
+ * @param {string} token - Authentication token for OSM API access
+ * @returns {Promise<object>} Operation result with success status and details
+ */
 export async function assignMemberToCampGroup(moveData, flexiRecordContext, token) {
   // Handle demo mode
   if (isDemoMode()) {
@@ -221,10 +234,10 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
  * Process multiple member moves in sequence
  * Useful for bulk operations or retry scenarios
  * 
- * @param {Array<Object>} moves - Array of move operations
- * @param {Object} flexiRecordContext - FlexiRecord configuration 
+ * @param {Array<object>} moves - Array of move operations
+ * @param {object} flexiRecordContext - FlexiRecord configuration 
  * @param {string} token - Authentication token
- * @returns {Promise<Array<Object>>} Array of results for each move
+ * @returns {Promise<Array<object>>} Array of results for each move
  */
 export async function batchAssignMembers(moves, flexiRecordContext, token) {
   logger.info('Starting batch camp group assignment', {
@@ -292,11 +305,11 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
 /**
  * Extract FlexiRecord context from Viking Event data
  * 
- * @param {Object} vikingEventData - Viking Event Management FlexiRecord data
+ * @param {object} vikingEventData - Viking Event Management FlexiRecord data
  * @param {string} sectionId - Section ID
  * @param {string} termId - Term ID
  * @param {string} sectionName - Section name
- * @returns {Object|null} FlexiRecord context or null if not available
+ * @returns {object | null} FlexiRecord context or null if not available
  */
 export function extractFlexiRecordContext(vikingEventData, sectionId, termId, sectionName) {
   // Debug: Log the actual data being passed
@@ -349,10 +362,10 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
 /**
  * Validate that a member can be moved to a specific group
  * 
- * @param {Object} member - Member data
+ * @param {object} member - Member data
  * @param {string} targetGroupNumber - Target group number
- * @param {Object} currentGroups - Current group organization
- * @returns {Object} Validation result with success/error details
+ * @param {object} currentGroups - Current group organization
+ * @returns {object} Validation result with success/error details
  */
 export function validateMemberMove(member, targetGroupNumber, currentGroups) {
   // Validate member object exists

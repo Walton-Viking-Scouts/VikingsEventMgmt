@@ -2,6 +2,17 @@ import { useMemo } from 'react';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 
+/**
+ * Custom hook for formatting attendance data and member information
+ * 
+ * Provides formatting utilities for attendance records including UK date/time
+ * formatting and comprehensive member data retrieval with section lookups
+ * and contact information processing.
+ * 
+ * @param {Array} members - Array of member data for lookups and formatting
+ * @param {Array} sectionsCache - Cached section data for member section lookups
+ * @returns {{formatUKDateTime: Function, getComprehensiveMemberData: Function}} Formatting utilities
+ */
 export function useAttendanceFormatters(members, sectionsCache) {
   const formatUKDateTime = (dateString) => {
     if (!dateString) return '';

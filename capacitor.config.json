@@ -1,5 +1,31 @@
 {
   "appId": "com.vikings.eventmgmt",
   "appName": "Vikings Event Mgmt",
-  "webDir": "dist"
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsInlineMediaPlayback": true,
+    "allowsAirPlayForMediaPlayback": false,
+    "allowsPictureInPictureMediaPlayback": false,
+    "handleApplicationNotifications": false,
+    "limitsNavigationsToAppBoundDomains": true,
+    "presentationStyle": "fullscreen",
+    "preferredContentMode": "mobile",
+    "backgroundColor": "#ffffff"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#ffffff",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "default",
+      "backgroundColor": "#ffffff"
+    }
+  }
 }

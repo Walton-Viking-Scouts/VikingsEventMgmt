@@ -1,0 +1,91 @@
+name: Documentation Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.js'
+      - 'src/**/*.jsx'
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+      - 'jsdoc.config.json'
+      - 'eslint.config.jsdoc.js'
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**/*.js'
+      - 'src/**/*.jsx'
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+
+jobs:
+  validate-documentation:
+    name: Validate JSDoc Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Lint JSDoc documentation
+        run: npm run docs:lint:ci
+        
+      - name: Generate documentation
+        run: npm run docs:generate
+        
+      - name: Upload JSDoc lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jsdoc-lint-results
+          path: docs-lint-results.json
+          
+      - name: Upload generated documentation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-docs
+          path: docs/api/
+          
+      - name: Comment PR with documentation status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 📚 Documentation Validation Results\n\n';
+            
+            try {
+              const lintResults = JSON.parse(fs.readFileSync('docs-lint-results.json', 'utf8'));
+              const totalErrors = lintResults.reduce((sum, file) => sum + file.errorCount, 0);
+              const totalWarnings = lintResults.reduce((sum, file) => sum + file.warningCount, 0);
+              
+              if (totalErrors === 0 && totalWarnings === 0) {
+                comment += '✅ **All documentation checks passed!**\n\n';
+                comment += '- JSDoc linting: ✅ No issues found\n';
+                comment += '- Documentation generation: ✅ Successful\n';
+              } else {
+                comment += `❌ **Documentation issues found:**\n\n`;
+                comment += `- Errors: ${totalErrors}\n`;
+                comment += `- Warnings: ${totalWarnings}\n\n`;
+                comment += 'Please review and fix JSDoc documentation issues before merging.\n';
+              }
+            } catch (error) {
+              comment += '⚠️ Could not parse documentation validation results.\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

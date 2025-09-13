@@ -1,5 +1,5 @@
 /**
- * @fileoverview Scout-themed notification utilities using react-hot-toast
+ * @file Scout-themed notification utilities using react-hot-toast
  * 
  * This module provides notification functions with Scout color theming and
  * consistent styling across the application. Replaces the previous complex
@@ -84,19 +84,25 @@ const defaultToastOptions = {
  * 
  * @since 2.3.7
  */
-export const notifySuccess = (message) => {
-  return toast.success(message, {
-    ...defaultToastOptions,
-    style: {
-      ...defaultToastOptions.style,
-      borderLeft: `4px solid ${SCOUT_COLORS.green}`,
-    },
-    iconTheme: {
-      primary: SCOUT_COLORS.green,
-      secondary: SCOUT_COLORS.white,
-    },
-  });
-};
+export const /**
+ * Displays a success notification with Scout green theme and check icon.
+ * Used for positive user actions and successful operations.
+ * @param {string} message - Success message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
+ */
+  notifySuccess = (message) => {
+    return toast.success(message, {
+      ...defaultToastOptions,
+      style: {
+        ...defaultToastOptions.style,
+        borderLeft: `4px solid ${SCOUT_COLORS.green}`,
+      },
+      iconTheme: {
+        primary: SCOUT_COLORS.green,
+        secondary: SCOUT_COLORS.white,
+      },
+    });
+  };
 
 /**
  * Displays an error notification with Scout red theme and extended duration
@@ -148,34 +154,41 @@ export const notifySuccess = (message) => {
  * 
  * @since 2.3.7
  */
-export const notifyError = (message, error = null) => {
+export const /**
+ * Displays an error notification with Scout red theme and extended duration.
+ * Automatically logs error details to the logger service and Sentry for debugging.
+ * @param {string} message - Error message to display to the user
+ * @param {Error} [error=null] - Optional Error object for detailed logging
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
+ */
+  notifyError = (message, error = null) => {
   // Log error to logger service for debugging and Sentry
-  if (error) {
-    logger.error('Toast notification error', { 
-      message, 
-      error: {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      },
-    }, LOG_CATEGORIES.ERROR);
-  } else {
-    logger.error('Toast notification error', { message }, LOG_CATEGORIES.ERROR);
-  }
+    if (error) {
+      logger.error('Toast notification error', { 
+        message, 
+        error: {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        },
+      }, LOG_CATEGORIES.ERROR);
+    } else {
+      logger.error('Toast notification error', { message }, LOG_CATEGORIES.ERROR);
+    }
 
-  return toast.error(message, {
-    ...defaultToastOptions,
-    duration: 6000, // Extended duration for errors
-    style: {
-      ...defaultToastOptions.style,
-      borderLeft: `4px solid ${SCOUT_COLORS.red}`,
-    },
-    iconTheme: {
-      primary: SCOUT_COLORS.red,
-      secondary: SCOUT_COLORS.white,
-    },
-  });
-};
+    return toast.error(message, {
+      ...defaultToastOptions,
+      duration: 6000, // Extended duration for errors
+      style: {
+        ...defaultToastOptions.style,
+        borderLeft: `4px solid ${SCOUT_COLORS.red}`,
+      },
+      iconTheme: {
+        primary: SCOUT_COLORS.red,
+        secondary: SCOUT_COLORS.white,
+      },
+    });
+  };
 
 /**
  * Displays a warning notification with amber theme
@@ -213,16 +226,22 @@ export const notifyError = (message, error = null) => {
  * 
  * @since 2.3.7
  */
-export const notifyWarning = (message) => {
-  return toast(message, {
-    ...defaultToastOptions,
-    icon: '⚠️',
-    style: {
-      ...defaultToastOptions.style,
-      borderLeft: `4px solid ${SCOUT_COLORS.amber}`,
-    },
-  });
-};
+export const /**
+ * Displays a warning notification with amber theme and warning icon.
+ * Used for situations that need user attention but aren't errors.
+ * @param {string} message - Warning message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
+ */
+  notifyWarning = (message) => {
+    return toast(message, {
+      ...defaultToastOptions,
+      icon: '⚠️',
+      style: {
+        ...defaultToastOptions.style,
+        borderLeft: `4px solid ${SCOUT_COLORS.amber}`,
+      },
+    });
+  };
 
 /**
  * Displays an informational notification with Scout blue theme
@@ -264,16 +283,22 @@ export const notifyWarning = (message) => {
  * 
  * @since 2.3.7
  */
-export const notifyInfo = (message) => {
-  return toast(message, {
-    ...defaultToastOptions,
-    icon: 'ℹ️',
-    style: {
-      ...defaultToastOptions.style,
-      borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
-    },
-  });
-};
+export const /**
+ * Displays an informational notification with Scout blue theme and info icon.
+ * Used for helpful information and non-critical updates.
+ * @param {string} message - Informational message to display to the user
+ * @returns {string} Toast ID that can be used to dismiss the notification manually
+ */
+  notifyInfo = (message) => {
+    return toast(message, {
+      ...defaultToastOptions,
+      icon: 'ℹ️',
+      style: {
+        ...defaultToastOptions.style,
+        borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
+      },
+    });
+  };
 
 /**
  * Displays a loading notification for async operations
@@ -337,15 +362,21 @@ export const notifyInfo = (message) => {
  * 
  * @since 2.3.7
  */
-export const notifyLoading = (message) => {
-  return toast.loading(message, {
-    ...defaultToastOptions,
-    style: {
-      ...defaultToastOptions.style,
-      borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
-    },
-  });
-};
+export const /**
+ * Displays a loading notification with spinner icon for async operations.
+ * Persists until manually dismissed when operation completes or fails.
+ * @param {string} message - Loading message to display to the user
+ * @returns {string} Toast ID that MUST be used to dismiss when operation completes
+ */
+  notifyLoading = (message) => {
+    return toast.loading(message, {
+      ...defaultToastOptions,
+      style: {
+        ...defaultToastOptions.style,
+        borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
+      },
+    });
+  };
 
 /**
  * Displays promise-based notifications that automatically transition states
@@ -355,7 +386,7 @@ export const notifyLoading = (message) => {
  * of async operations with Scout-themed styling for each state.
  * 
  * @param {Promise} promise - Promise to monitor for state changes
- * @param {Object} messages - Messages for each notification state
+ * @param {object} messages - Messages for each notification state
  * @param {string} messages.loading - Message to show while promise is pending
  * @param {string} messages.success - Message to show when promise resolves
  * @param {string} messages.error - Message to show when promise rejects
@@ -423,38 +454,48 @@ export const notifyLoading = (message) => {
  * 
  * @since 2.3.7
  */
-export const notifyPromise = (promise, messages) => {
-  return toast.promise(promise, messages, {
-    ...defaultToastOptions,
-    success: {
-      style: {
-        ...defaultToastOptions.style,
-        borderLeft: `4px solid ${SCOUT_COLORS.green}`,
+export const /**
+ * Displays promise-based notifications that automatically transition between states.
+ * Handles loading, success, and error states with Scout-themed styling for each phase.
+ * @param {Promise} promise - Promise to monitor for state changes
+ * @param {object} messages - Messages for each notification state
+ * @param {string} messages.loading - Message to show while promise is pending
+ * @param {string} messages.success - Message to show when promise resolves
+ * @param {string} messages.error - Message to show when promise rejects
+ * @returns {Promise} The original promise (allows chaining)
+ */
+  notifyPromise = (promise, messages) => {
+    return toast.promise(promise, messages, {
+      ...defaultToastOptions,
+      success: {
+        style: {
+          ...defaultToastOptions.style,
+          borderLeft: `4px solid ${SCOUT_COLORS.green}`,
+        },
+        iconTheme: {
+          primary: SCOUT_COLORS.green,
+          secondary: SCOUT_COLORS.white,
+        },
       },
-      iconTheme: {
-        primary: SCOUT_COLORS.green,
-        secondary: SCOUT_COLORS.white,
+      error: {
+        duration: 6000,
+        style: {
+          ...defaultToastOptions.style,
+          borderLeft: `4px solid ${SCOUT_COLORS.red}`,
+        },
+        iconTheme: {
+          primary: SCOUT_COLORS.red,
+          secondary: SCOUT_COLORS.white,
+        },
       },
-    },
-    error: {
-      duration: 6000,
-      style: {
-        ...defaultToastOptions.style,
-        borderLeft: `4px solid ${SCOUT_COLORS.red}`,
+      loading: {
+        style: {
+          ...defaultToastOptions.style,
+          borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
+        },
       },
-      iconTheme: {
-        primary: SCOUT_COLORS.red,
-        secondary: SCOUT_COLORS.white,
-      },
-    },
-    loading: {
-      style: {
-        ...defaultToastOptions.style,
-        borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
-      },
-    },
-  });
-};
+    });
+  };
 
 /**
  * Dismisses a specific toast notification by ID
@@ -507,9 +548,15 @@ export const notifyPromise = (promise, messages) => {
  * 
  * @since 2.3.7
  */
-export const dismissToast = (toastId) => {
-  toast.dismiss(toastId);
-};
+export const /**
+ * Dismisses a specific toast notification by its unique ID.
+ * Used for programmatic control over notification visibility.
+ * @param {string} toastId - The unique ID of the toast to dismiss
+ * @returns {void} No return value, dismisses the specified notification
+ */
+  dismissToast = (toastId) => {
+    toast.dismiss(toastId);
+  };
 
 /**
  * Dismisses all currently visible toast notifications
@@ -555,9 +602,14 @@ export const dismissToast = (toastId) => {
  * 
  * @since 2.3.7
  */
-export const dismissAllToasts = () => {
-  toast.dismiss();
-};
+export const /**
+ * Dismisses all currently visible toast notifications.
+ * Used for cleanup operations and clearing the notification area.
+ * @returns {void} No return value, dismisses all active notifications
+ */
+  dismissAllToasts = () => {
+    toast.dismiss();
+  };
 
 export default {
   notifySuccess,

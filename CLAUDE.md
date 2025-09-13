@@ -142,3 +142,7 @@ git checkout main && git pull origin main  # Just sync with merged PR
 ---
 
 **📍 Start Here**: [Documentation Overview](docs/README.md) for complete technical architecture, system design, and comprehensive documentation.
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

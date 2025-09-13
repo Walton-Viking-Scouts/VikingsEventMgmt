@@ -8,6 +8,11 @@ import {
 import { getToken } from '../services/auth.js';
 import logger, { LOG_CATEGORIES } from '../services/logger.js';
 
+/**
+ *
+ * @param sectionId
+ * @param termId
+ */
 export function useVikingSectionMovers(sectionId, termId) {
   // Core data state
   const [discoveredFlexiRecords, setDiscoveredFlexiRecords] = useState([]);

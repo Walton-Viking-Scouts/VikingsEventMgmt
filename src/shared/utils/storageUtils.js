@@ -196,7 +196,7 @@ export function safeSetSessionItem(key, value) {
  * @param {string} cacheKey - Cache key for localStorage
  * @param {any} data - Data to cache
  * @param {string} category - Log category for structured logging
- * @param {Object} context - Additional context for logging
+ * @param {object} context - Additional context for logging
  * @returns {boolean} Success status of caching operation
  * 
  * @example

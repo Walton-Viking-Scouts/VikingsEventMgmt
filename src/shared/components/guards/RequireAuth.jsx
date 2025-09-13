@@ -4,6 +4,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 // import { useAuth } from '../../../features/auth/hooks/useAuth.js';
 import LoginScreen from '../LoginScreen.jsx';
 
+/**
+ *
+ * @param root0
+ * @param root0.children
+ * @param root0.redirectTo
+ * @param root0.showLoginScreen
+ * @param root0.fallbackComponent
+ */
 function RequireAuth({ 
   children, 
   redirectTo = '/',

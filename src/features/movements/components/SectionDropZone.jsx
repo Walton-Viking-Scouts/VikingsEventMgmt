@@ -1,5 +1,18 @@
 import React, { useState, useRef, useCallback } from 'react';
 
+/**
+ * Drop zone component for section mover assignments
+ * @param {object} props - Component props
+ * @param {object} props.sectionData - Section data object
+ * @param {number} props.currentCount - Current number of movers
+ * @param {number} props.incomingCount - Number of incoming movers
+ * @param {number} props.maxCapacity - Maximum capacity for section
+ * @param {Function} props.onMoverDrop - Drop event handler
+ * @param {boolean} props.isDragInProgress - Whether drag is in progress
+ * @param {boolean} props.canAcceptDrop - Whether drop zone can accept drop
+ * @param {string} props.className - Additional CSS classes
+ * @returns {JSX.Element} Section drop zone component
+ */
 function SectionDropZone({
   sectionData,
   currentCount,
