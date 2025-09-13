@@ -115,7 +115,7 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
  * @param {Array} props.summaryStats - Pre-processed member data with Viking Event data
  * @param {Array} props.events - Array of event data (for context)  
  * @param {Array} props.members - Array of all member data (for member details)
- * @param {Object} props.vikingEventData - Viking event configuration data
+ * @param {Map<string, Object>} props.vikingEventData - Viking event configuration data
  * @param {Function} props.onMemberClick - Member click handler
  */
 function CampGroupsView({
