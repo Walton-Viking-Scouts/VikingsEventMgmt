@@ -5,12 +5,39 @@ import { calculateAge } from '../../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 
 /**
- *
- * @param root0
- * @param root0.summaryStats
- * @param root0.members
- * @param root0.onMemberClick
- * @param root0.showContacts
+ * DetailedTab component displays comprehensive member information in a table format
+ * 
+ * Renders a detailed table view of all members with their attendance status, personal
+ * information, medical data, and contact details. Supports interactive member selection
+ * and provides comprehensive data visualization for event management.
+ * 
+ * @component
+ * @param {object} root0 - Component props
+ * @param {Array} root0.summaryStats - Array of member attendance statistics
+ * @param {Array} root0.members - Array of member objects with detailed information
+ * @param {Function} root0.onMemberClick - Callback when a member row is clicked
+ * @param {boolean} [root0.showContacts=false] - Whether to display contact information columns
+ * 
+ * @returns {JSX.Element} Rendered detailed members table or empty state
+ * 
+ * @example
+ * // Basic detailed view
+ * <DetailedTab 
+ *   summaryStats={attendanceStats}
+ *   members={memberList}
+ *   onMemberClick={handleMemberClick}
+ * />
+ * 
+ * @example
+ * // With contact information displayed
+ * <DetailedTab 
+ *   summaryStats={attendanceStats}
+ *   members={memberList}
+ *   onMemberClick={handleMemberClick}
+ *   showContacts={true}
+ * />
+ * 
+ * @since 2.3.7
  */
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);

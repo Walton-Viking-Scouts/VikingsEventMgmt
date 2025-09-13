@@ -2,7 +2,8 @@
  * Utility function to group contact information from member data
  * Handles both flattened fields (contact__field) and nested contact_groups
  * Preserves falsy values (false, 0) that are meaningful for consents and flags
- * @param member
+ * @param {object} member - Member data object with contact information
+ * @returns {object} Grouped contact information organized by contact groups
  */
 export function groupContactInfo(member) {
   const groups = {};

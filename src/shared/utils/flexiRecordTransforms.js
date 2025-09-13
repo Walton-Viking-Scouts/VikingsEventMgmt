@@ -478,8 +478,8 @@ export function extractVikingEventFields(consolidatedData) {
  * @param {object} [processedMembers[].vikingEventData] - Viking Event specific data from FlexiRecord
  * @param {string} [processedMembers[].vikingEventData.CampGroup] - Assigned camp group number
  * @returns {object} Organized camp groups with metadata
- * @returns {object} returns.groups - Camp groups organized by group name
- * @returns {object} returns.summary - Summary statistics and metadata
+ * @property {object} groups - Camp groups organized by group name
+ * @property {object} summary - Summary statistics and metadata
  * 
  * @example
  * // Organize members from getSummaryStats into camp groups

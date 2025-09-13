@@ -1,14 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 /**
- *
- * @param root0
- * @param root0.mover
- * @param root0.onDragStart
- * @param root0.onDragEnd
- * @param root0.isDragging
- * @param root0.disabled
- * @param root0.className
+ * DraggableMover component provides drag-and-drop functionality for member movement
+ * 
+ * Interactive component that allows users to drag members between different sections
+ * during section movements. Supports both mouse and touch interactions with visual
+ * feedback during drag operations. Prevents dragging of already assigned members.
+ * 
+ * @component
+ * @param {object} root0 - Component props
+ * @param {object} root0.mover - Mover object containing member information and current assignment
+ * @param {Function} root0.onDragStart - Callback when drag operation begins
+ * @param {Function} root0.onDragEnd - Callback when drag operation ends
+ * @param {boolean} [root0.isDragging=false] - Whether this mover is currently being dragged
+ * @param {boolean} [root0.disabled=false] - Whether dragging is disabled for this mover
+ * @param {string} [root0.className=''] - Additional CSS classes to apply
+ * 
+ * @returns {JSX.Element} Rendered draggable mover component
+ * 
+ * @example
+ * // Basic draggable mover
+ * <DraggableMover
+ *   mover={memberData}
+ *   onDragStart={handleDragStart}
+ *   onDragEnd={handleDragEnd}
+ * />
+ * 
+ * @example
+ * // Disabled draggable mover
+ * <DraggableMover
+ *   mover={memberData}
+ *   onDragStart={handleDragStart}
+ *   onDragEnd={handleDragEnd}
+ *   disabled={true}
+ * />
+ * 
+ * @since 2.3.7
  */
 function DraggableMover({
   mover,

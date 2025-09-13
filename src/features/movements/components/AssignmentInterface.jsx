@@ -5,14 +5,36 @@ import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js'
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
- *
- * @param root0
- * @param root0.term
- * @param root0.movers
- * @param root0.availableSections
- * @param root0.onAssignmentChange
- * @param root0.onSaveAssignments
- * @param root0.onResetAssignments
+ * AssignmentInterface component provides drag-and-drop interface for member section assignments
+ * 
+ * Interactive interface that allows administrators to assign members to different sections
+ * using drag-and-drop functionality. Features auto-save capabilities, visual feedback,
+ * and comprehensive assignment management for term transitions. Supports bulk operations
+ * and provides draft saving to prevent data loss.
+ * 
+ * @component
+ * @param {object} root0 - Component props
+ * @param {object} root0.term - Term object containing term information and dates
+ * @param {Array} root0.movers - Array of member objects that can be moved between sections
+ * @param {Array} root0.availableSections - Array of section objects available for assignment
+ * @param {Function} root0.onAssignmentChange - Callback when member assignment changes
+ * @param {Function} root0.onSaveAssignments - Callback to save all current assignments
+ * @param {Function} root0.onResetAssignments - Callback to reset all assignments to original state
+ * 
+ * @returns {JSX.Element} Rendered assignment interface with drag-and-drop zones
+ * 
+ * @example
+ * // Basic assignment interface
+ * <AssignmentInterface
+ *   term={currentTerm}
+ *   movers={availableMembers}
+ *   availableSections={sectionList}
+ *   onAssignmentChange={handleAssignmentChange}
+ *   onSaveAssignments={handleSave}
+ *   onResetAssignments={handleReset}
+ * />
+ * 
+ * @since 2.3.7
  */
 function AssignmentInterface({
   term,

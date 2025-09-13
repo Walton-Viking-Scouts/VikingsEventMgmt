@@ -24,17 +24,17 @@ import AttendanceGrid from './AttendanceGrid.jsx';
  * loading states for async data operations.
  * 
  * @component
- * @param {object} props - Component props
- * @param {object} props.eventCard - Event data object containing event details
- * @param {string} props.eventCard.id - Unique event identifier
- * @param {string} props.eventCard.name - Event name/title
- * @param {Array} props.eventCard.events - Array of event date objects
- * @param {string} props.eventCard.events[].startdate - Event start date (ISO string)
- * @param {string} props.eventCard.events[].enddate - Event end date (ISO string)
- * @param {string} [props.eventCard.location] - Event location/venue
- * @param {Array} [props.eventCard.attendanceData] - Attendance records for the event
- * @param {Function} [props.onViewAttendees] - Callback when "View Attendees" is clicked
- * @param {boolean} [props.loading=false] - Loading state indicator
+ * @param {object} root0 - Component props
+ * @param {object} root0.eventCard - Event data object containing event details
+ * @param {string} root0.eventCard.id - Unique event identifier
+ * @param {string} root0.eventCard.name - Event name/title
+ * @param {Array} root0.eventCard.events - Array of event date objects
+ * @param {string} root0.eventCard.events[].startdate - Event start date (ISO string)
+ * @param {string} root0.eventCard.events[].enddate - Event end date (ISO string)
+ * @param {string} [root0.eventCard.location] - Event location/venue
+ * @param {Array} [root0.eventCard.attendanceData] - Attendance records for the event
+ * @param {Function} [root0.onViewAttendees] - Callback when "View Attendees" is clicked
+ * @param {boolean} [root0.loading=false] - Loading state indicator
  * 
  * @returns {JSX.Element} Rendered event card component
  * 

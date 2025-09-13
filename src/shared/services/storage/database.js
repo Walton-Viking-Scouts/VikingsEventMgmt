@@ -74,7 +74,7 @@ class DatabaseService {
   constructor() {
     /** @type {SQLiteConnection|null} SQLite connection instance */
     this.sqlite = null;
-    /** @type {SQLiteDBConnection|null} Database connection instance */
+    /** @type {object|null} Database connection instance */
     this.db = null;
     /** @type {boolean} Whether service has been initialized */
     this.isInitialized = false;
@@ -371,9 +371,9 @@ class DatabaseService {
    * 
    * @async
    * @returns {Promise<Array<object>>} Array of section objects
-   * @returns {number} returns[].sectionid - Unique section identifier
-   * @returns {string} returns[].sectionname - Display name
-   * @returns {string} [returns[].sectiontype] - Section type
+   * @property {number} returns[].sectionid - Unique section identifier
+   * @property {string} returns[].sectionname - Display name
+   * @property {string} [returns[].sectiontype] - Section type
    * 
    * @example
    * // Get all available sections
@@ -521,12 +521,12 @@ class DatabaseService {
    * @async
    * @param {number} sectionId - Section identifier to get events for
    * @returns {Promise<Array<object>>} Array of event objects for the section
-   * @returns {string|number} returns[].eventid - Unique event identifier
-   * @returns {string} returns[].name - Event name/title
-   * @returns {string} returns[].startdate - Event start date
-   * @returns {string} [returns[].enddate] - Event end date
-   * @returns {string} [returns[].location] - Event location
-   * @returns {string} [returns[].notes] - Event notes
+   * @property {string|number} returns[].eventid - Unique event identifier
+   * @property {string} returns[].name - Event name/title
+   * @property {string} returns[].startdate - Event start date
+   * @property {string} [returns[].enddate] - Event end date
+   * @property {string} [returns[].location] - Event location
+   * @property {string} [returns[].notes] - Event notes
    * 
    * @example
    * // Get events for Beavers section

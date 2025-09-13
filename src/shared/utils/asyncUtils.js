@@ -24,11 +24,12 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
  *   }
  * }
  */
-export const /**
- *
- * @param ms
+/**
+ * Sleep for a specified number of milliseconds
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>} Promise that resolves after the delay
  */
-  sleep = (ms) => {
+export const sleep = (ms) => {
   // Input validation
     if (typeof ms !== 'number' || ms < 0 || !isFinite(ms)) {
       const error = new Error(`Invalid sleep duration: ${ms}. Must be a positive finite number.`);
@@ -66,7 +67,7 @@ export const /**
  * Useful for operations that need to be cancelled mid-flight
  * 
  * @param {number} ms - Milliseconds to sleep (must be positive number)
- * @param {AbortSignal} [signal] - Optional abort signal to cancel the sleep
+ * @param {object} [signal] - Optional abort signal to cancel the sleep
  * @returns {Promise<void>} Promise that resolves after delay or rejects if aborted
  * @throws {Error} If ms is invalid or if operation is aborted
  * 
@@ -82,12 +83,7 @@ export const /**
  *   console.log('Sleep was cancelled');
  * }
  */
-export const /**
- *
- * @param ms
- * @param signal
- */
-  sleepWithAbort = (ms, signal) => {
+export const sleepWithAbort = (ms, signal) => {
   // Input validation
     if (typeof ms !== 'number' || ms < 0 || !isFinite(ms)) {
       const error = new Error(`Invalid sleep duration: ${ms}. Must be a positive finite number.`);
@@ -163,11 +159,7 @@ export const /**
  * // Invalid timestamp
  * parseTimestamp('invalid') // → null
  */
-export const /**
- *
- * @param timestamp
- */
-  parseTimestamp = (timestamp) => {
+export const parseTimestamp = (timestamp) => {
     if (!timestamp) return null;
 
     const now = Date.now();

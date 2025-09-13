@@ -153,15 +153,17 @@ export async function getDetailedNetworkStatus() {
 }
 
 /**
+ * @callback NetworkChangeCallback
+ * @param {NetworkStatus} status - Network status object containing connection info
+ */
+
+/**
  * Add network status change listener with error handling
  * Sets up monitoring for network connectivity changes across platforms
  * 
  * @param {NetworkChangeCallback} callback - Function to call when network status changes
  * @returns {Function} Cleanup function to remove the listener
  * @throws {Error} If listener setup fails
- * 
- * @callback NetworkChangeCallback
- * @param {NetworkStatus} status - Network status object containing connection info
  * 
  * @example
  * // Monitor network changes and update UI

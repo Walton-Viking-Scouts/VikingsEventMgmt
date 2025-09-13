@@ -14,7 +14,20 @@ import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
- *
+ * EventsRegister component provides event attendance management functionality
+ * 
+ * Displays a comprehensive interface for managing event attendance, including member
+ * registration, attendance tracking, and filtering capabilities. Supports both
+ * individual and bulk attendance operations with real-time updates.
+ * 
+ * @component
+ * @returns {JSX.Element} Rendered events register interface
+ * 
+ * @example
+ * // Basic usage - typically routed to with event data
+ * <EventsRegister />
+ * 
+ * @since 2.3.7
  */
 function EventsRegister() {
   const location = useLocation();

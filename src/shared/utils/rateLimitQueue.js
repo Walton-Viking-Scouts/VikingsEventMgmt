@@ -9,8 +9,8 @@ import { sentryUtils } from '../services/utils/sentry.js';
  */
 export class RateLimitQueue {
   /**
-   *
-   * @param options
+   * Creates a new rate limit queue
+   * @param {object} options - Configuration options for the queue
    */
   constructor(options = {}) {
     this.queue = [];
@@ -367,19 +367,19 @@ export const globalRateLimitQueue = new RateLimitQueue({
   queueTimeout: 300000,
 });
 
-// Helper function to wrap API calls with rate limit queue
-export const /**
- *
- * @param apiCall
- * @param options
+/**
+ * Helper function to wrap API calls with rate limit queue
+ * @param {Function} apiCall - The API function to call
+ * @param {object} options - Options for the queue
+ * @returns {Promise} Promise that resolves with API call result
  */
-  withRateLimitQueue = (apiCall, options = {}) => {
+export const withRateLimitQueue = (apiCall, options = {}) => {
   // Rate limit queue wrapping API call
     return globalRateLimitQueue.enqueue(apiCall, options);
   };
 
-// Export queue stats for dashboard display
-export const /**
- *
+/**
+ * Export queue stats for dashboard display
+ * @returns {object} Current queue status and statistics
  */
-  getRateLimitQueueStats = () => globalRateLimitQueue.getStatus();
+export const getRateLimitQueueStats = () => globalRateLimitQueue.getStatus();

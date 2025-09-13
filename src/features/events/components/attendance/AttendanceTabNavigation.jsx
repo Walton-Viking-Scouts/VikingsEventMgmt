@@ -1,11 +1,36 @@
 import React from 'react';
 
 /**
- *
- * @param root0
- * @param root0.activeTab
- * @param root0.onTabChange
- * @param root0.hasSharedEvents
+ * AttendanceTabNavigation component provides tab navigation for attendance views
+ * 
+ * Renders a horizontal tab navigation interface allowing users to switch between
+ * different attendance views (Overview, Register, Detailed, Camp Groups). Dynamically
+ * shows additional tabs based on event configuration.
+ * 
+ * @component
+ * @param {object} root0 - Component props
+ * @param {string} root0.activeTab - Currently active tab identifier
+ * @param {Function} root0.onTabChange - Callback function when tab is clicked
+ * @param {boolean} [root0.hasSharedEvents=false] - Whether to show shared attendance tab
+ * 
+ * @returns {JSX.Element} Rendered tab navigation component
+ * 
+ * @example
+ * // Basic tab navigation
+ * <AttendanceTabNavigation 
+ *   activeTab="overview"
+ *   onTabChange={handleTabChange}
+ * />
+ * 
+ * @example
+ * // With shared events tab
+ * <AttendanceTabNavigation 
+ *   activeTab="register"
+ *   onTabChange={handleTabChange}
+ *   hasSharedEvents={true}
+ * />
+ * 
+ * @since 2.3.7
  */
 function AttendanceTabNavigation({ 
   activeTab, 

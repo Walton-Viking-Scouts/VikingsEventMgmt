@@ -16,11 +16,30 @@ import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
 /**
- *
- * @param root0
- * @param root0.events
- * @param root0.members
- * @param root0.onBack
+ * EventAttendance component provides comprehensive event attendance management interface
+ * 
+ * Main attendance management component that coordinates multiple attendance views through
+ * a tabbed interface. Handles data loading, error states, and provides seamless navigation
+ * between Overview, Register, Detailed, and Camp Groups views. Supports both individual
+ * and shared event attendance tracking.
+ * 
+ * @component
+ * @param {object} root0 - Component props
+ * @param {Array} root0.events - Array of event objects to display attendance for
+ * @param {Array} root0.members - Array of member objects for attendance tracking
+ * @param {Function} root0.onBack - Callback function to navigate back to previous view
+ * 
+ * @returns {JSX.Element} Rendered event attendance interface with tabbed navigation
+ * 
+ * @example
+ * // Basic event attendance management
+ * <EventAttendance 
+ *   events={selectedEvents}
+ *   members={sectionMembers}
+ *   onBack={handleBackClick}
+ * />
+ * 
+ * @since 2.3.7
  */
 function EventAttendance({ events, members, onBack }) {
   const {
