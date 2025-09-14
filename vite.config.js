@@ -7,23 +7,36 @@ import packageJson from './package.json';
 
 // Resolve version once for the whole config
 function resolveVersion() {
-  // 1) CI-provided env
-  if (process.env.VITE_APP_VERSION) return process.env.VITE_APP_VERSION.replace(/^v/, '');
-  // 2) GitHub release
+  // 1) CI-provided env (should be set by GitHub Actions)
+  if (process.env.VITE_APP_VERSION) {
+    console.log('Using CI-provided version:', process.env.VITE_APP_VERSION);
+    return process.env.VITE_APP_VERSION.replace(/^v/, '');
+  }
+  
+  // 2) GitHub release (local development)
   try {
     const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    if (ghRelease && ghRelease !== 'null') return ghRelease.replace(/^v/, '');
+    if (ghRelease && ghRelease !== 'null') {
+      console.log('Using GitHub release version:', ghRelease);
+      return ghRelease.replace(/^v/, '');
+    }
   } catch (e) {
     console.warn('GitHub release lookup failed:', e.message);
   }
-  // 3) Git tag
+  
+  // 3) Git tag (fallback)
   try {
     const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    if (gitTag) return gitTag.replace(/^v/, '');
+    if (gitTag) {
+      console.log('Using Git tag version:', gitTag);
+      return gitTag.replace(/^v/, '');
+    }
   } catch (e) {
     console.warn('Git tag lookup failed:', e.message);
   }
-  // 4) package.json
+  
+  // 4) package.json (last resort)
+  console.warn('Falling back to package.json version:', packageJson.version);
   return packageJson.version;
 }
 const resolvedVersion = resolveVersion();
