@@ -467,9 +467,9 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
           </div>
         ) : (
           <div className="space-y-6">
-            {sectionTypeGroups.map(([sectionType, group]) => {
+            {(() => {
               const { flexiRecordAssignments } = getFlexiRecordAssignments();
-              return (
+              return sectionTypeGroups.map(([sectionType, group]) => (
                 <SectionTypeGroup
                   key={sectionType}
                   sectionType={sectionType}
@@ -488,8 +488,8 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
                   onResetAssignments={handleResetAssignments}
                   isSaving={isSaving}
                 />
-              );
-            })}
+              ));
+            })()}
           </div>
         )}
       </div>
