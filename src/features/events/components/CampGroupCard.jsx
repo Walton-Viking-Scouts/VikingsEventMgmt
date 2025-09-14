@@ -41,7 +41,7 @@ function CampGroupCard({
   const [canDrop, setCanDrop] = useState(false);
   const cardRef = useRef(null);
 
-  const { name, leaders = [], youngPeople = [] } = group || {};
+  const { name, youngPeople = [] } = group || {};
 
   const handleMemberClick = (member) => {
     if (onMemberClick && typeof onMemberClick === 'function') {
@@ -176,17 +176,6 @@ function CampGroupCard({
     return null;
   }
 
-  const MemberName = ({ member }) => (
-    <span
-      className={`text-sm break-words ${
-        member.SignedOutBy || member.SignedOutWhen || member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? 'text-gray-400' : ''
-      } ${onMemberClick ? 'cursor-pointer hover:text-scout-blue hover:underline' : ''}`}
-      onClick={() => handleMemberClick(member)}
-      title={`${member.firstname} ${member.lastname}`}
-    >
-      {member.firstname} {member.lastname}
-    </span>
-  );
 
 
   return (
@@ -215,86 +204,26 @@ function CampGroupCard({
           </div>
         </div>
 
-        {/* Leaders section */}
-        {leaders.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-1 mb-1">
-              <svg
-                className="w-3 h-3 text-scout-purple"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-xs font-medium text-gray-700">
-                Leaders ({leaders.length})
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              {leaders.map((leader) => (
-                <div key={leader.scoutid} className="flex items-center gap-1">
-                  <span
-                    className={cn(
-                      'inline-flex items-center font-medium rounded-full px-2.5 py-0.5 text-xs flex-shrink-0',
-                      leader.person_type === 'Leaders'
-                        ? 'bg-scout-purple text-white'
-                        : 'bg-scout-blue text-white',
-                    )}
-                  >
-                    {leader.person_type === 'Leaders' ? 'L' : 'YL'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <MemberName member={leader} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Body with young people */}
       <div className={cn('p-4 pt-0')}>
         {youngPeople.length > 0 ? (
-          <div>
-            <div className="flex items-center gap-1 mb-2">
-              <svg
-                className="w-3 h-3 text-scout-green"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-xs font-medium text-gray-700">
-                Young People ({youngPeople.length})
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {youngPeople.map((youngPerson) => (
-                <DraggableMember
-                  key={youngPerson.scoutid}
-                  member={youngPerson}
-                  group={group}
-                  onMemberClick={handleMemberClick}
-                  onDragStart={onDragStart}
-                  onDragEnd={onDragEnd}
-                  isDragging={
-                    String(draggingMemberId) === String(youngPerson.scoutid)
-                  }
-                  disabled={dragDisabled}
-                />
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            {youngPeople.map((youngPerson) => (
+              <DraggableMember
+                key={youngPerson.scoutid}
+                member={youngPerson}
+                group={group}
+                onMemberClick={handleMemberClick}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                isDragging={
+                  String(draggingMemberId) === String(youngPerson.scoutid)
+                }
+                disabled={dragDisabled}
+              />
+            ))}
           </div>
         ) : (
           <div
@@ -326,7 +255,7 @@ function CampGroupCard({
       </div>
 
       {/* Footer with additional info if needed */}
-      {leaders.length === 0 && youngPeople.length === 0 && (
+      {youngPeople.length === 0 && (
         <div className={cn('px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg text-center text-gray-500 text-sm')}>
           No members assigned to this group
         </div>

@@ -32,15 +32,23 @@ function EventsCampGroups() {
         const stateMembers = location.state?.members;
         
         if (stateEvents && stateEvents.length > 0) {
+          console.log('Camp Groups Debug - Using cached data from location.state');
           setEvents(stateEvents);
           setMembers(stateMembers || []);
         } else {
+          console.log('Camp Groups Debug - Loading fresh data from database');
           const eventsData = await databaseService.getEvents();
           setEvents(eventsData || []);
           
           if (eventsData && eventsData.length > 0) {
             const sectionsInvolved = Array.from(new Set(eventsData.map((e) => e.sectionid)));
-            const membersData = await databaseService.getMembers(sectionsInvolved);
+            console.log('Camp Groups Debug - Getting comprehensive members for sections:', sectionsInvolved);
+            // Get comprehensive member data that includes person_type
+            const membersData = await databaseService.getComprehensiveMembers(sectionsInvolved);
+            console.log('Camp Groups Debug - Got members data:', membersData?.length, 'members');
+            if (membersData?.length > 0) {
+              console.log('Camp Groups Debug - Sample member keys:', Object.keys(membersData[0]));
+            }
             setMembers(membersData || []);
           }
         }
@@ -56,30 +64,38 @@ function EventsCampGroups() {
   }, [location.state]);
 
   const getSummaryStats = () => {
-    if (!attendanceData || !members) return [];
+    console.log('Camp Groups Debug - getSummaryStats called');
+    console.log('Camp Groups Debug - attendanceData:', attendanceData?.length || 'null/undefined');
+    console.log('Camp Groups Debug - members:', members?.length || 'null/undefined');
+    
+    if (!attendanceData || !members) {
+      console.log('Camp Groups Debug - Early return due to missing data');
+      return [];
+    }
+    
+    // Debug: Log all unique person_type values in members data
+    const personTypes = [...new Set(members.map(m => m.person_type).filter(Boolean))];
+    console.log('Camp Groups Debug - All person_type values in members:', personTypes);
     
     return attendanceData.map((record) => {
       const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
       if (!memberData) return null;
 
-      const shouldIncludeInSummary = (record) => {
-        const memberDetails = members.find(
-          (m) => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10),
-        );
-        if (!memberDetails) return true;
+      // Debug: Log each member's person_type
+      console.log(`Camp Groups Debug - Member ${memberData.firstname} ${memberData.lastname}: person_type = "${memberData.person_type}"`);
 
-        const personType = memberDetails.person_type;
-        return personType !== 'Leaders' && personType !== 'Young Leaders';
-      };
-
-      if (!shouldIncludeInSummary(record)) return null;
+      // Filter for Young People only (camp groups are only for Young People)
+      if (memberData.person_type !== 'Young People') {
+        console.log(`Camp Groups Debug - Filtering out ${memberData.firstname} ${memberData.lastname} (person_type: "${memberData.person_type}")`);
+        return null;
+      }
 
       return {
         scoutid: memberData.scoutid,
         name: `${memberData.firstname} ${memberData.lastname}`,
         firstname: memberData.firstname,
         lastname: memberData.lastname,
-        person_type: memberData.person_type,
+        person_type: memberData.person_type, // This should pull from the comprehensive member data
         patrol_id: memberData.patrol_id,
         patrolid: memberData.patrolid,
         sectionid: record.sectionid,

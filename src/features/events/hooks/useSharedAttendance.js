@@ -27,42 +27,8 @@ export function useSharedAttendance(events, viewMode) {
   });
 
   // Debug logging for shared events
-  console.log('🐛 SHARED EVENTS DEBUG:', {
-    eventsCount: events?.length || 0,
-    hasSharedEvents,
-    eventDetails: events?.map(e => {
-      const prefix = isDemoMode() ? 'demo_' : '';
-      const sharedMetadataKey = `${prefix}viking_shared_metadata_${e.eventid}`;
-      const sharedMetadata = localStorage.getItem(sharedMetadataKey);
-      let isShared = false;
-      
-      if (sharedMetadata) {
-        try {
-          const metadata = JSON.parse(sharedMetadata);
-          isShared = metadata._isSharedEvent === true;
-        } catch (error) {
-          // Ignore parse errors for debug logging
-        }
-      }
-      
-      return {
-        name: e.eventname,
-        eventid: e.eventid,
-        sharedMetadataKey,
-        hasMetadata: !!sharedMetadata,
-        isShared,
-      };
-    }) || [],
-  });
 
   useEffect(() => {
-    console.log('🐛 useSharedAttendance useEffect triggered:', {
-      viewMode,
-      hasSharedEvents,
-      sharedAttendanceData: !!sharedAttendanceData,
-      isDemoMode: isDemoMode(),
-      shouldLoad: viewMode === 'sharedAttendance' && hasSharedEvents && (!sharedAttendanceData || (Array.isArray(sharedAttendanceData) && sharedAttendanceData.length === 0)),
-    });
     
     if (
       viewMode === 'sharedAttendance' &&
@@ -70,12 +36,10 @@ export function useSharedAttendance(events, viewMode) {
       !loadingSharedAttendance &&
       (!sharedAttendanceData || (Array.isArray(sharedAttendanceData) && sharedAttendanceData.length === 0))
     ) {
-      console.log('🐛 Loading shared attendance data...');
       const loadSharedAttendance = async () => {
         setLoadingSharedAttendance(true);
         try {
           if (isDemoMode()) {
-            console.log('🐛 Demo mode: Loading shared attendance from localStorage');
             // In demo mode, load shared attendance data from localStorage
             const sharedEvents = events.filter(event => {
               const prefix = 'demo_';
@@ -115,7 +79,6 @@ export function useSharedAttendance(events, viewMode) {
                 }
               } else {
                 // If shared attendance data doesn't exist, try to generate it from individual section data
-                console.log('🐛 No shared attendance data found, attempting to generate from section data for event:', event.eventid);
                 const sharedMetadataKey = `demo_viking_shared_metadata_${event.eventid}`;
                 const sharedMetadata = localStorage.getItem(sharedMetadataKey);
                 
@@ -180,7 +143,6 @@ export function useSharedAttendance(events, viewMode) {
               const cached = localStorage.getItem(cacheKey);
               if (cached) {
                 cachedData = JSON.parse(cached);
-                console.log('🐛 Found cached shared attendance data');
               }
             } catch (cacheError) {
               console.warn('Failed to parse cached shared attendance data:', cacheError);
@@ -192,16 +154,11 @@ export function useSharedAttendance(events, viewMode) {
             // Try API call if we have a token
             if (token) {
               try {
-                console.log('🐛 Fetching shared attendance from API...', {
-                  eventId: sharedEvent.eventid,
-                  sectionId: sharedEvent.sectionid,
-                });
                 sharedData = await getSharedEventAttendance(sharedEvent.eventid, sharedEvent.sectionid, token);
                 
                 // Cache the API response for offline use
                 if (sharedData) {
                   localStorage.setItem(cacheKey, JSON.stringify(sharedData));
-                  console.log('🐛 Cached shared attendance data for offline use');
                 }
               } catch (apiError) {
                 console.warn('API call failed, will use cached data if available:', apiError);
@@ -224,7 +181,6 @@ export function useSharedAttendance(events, viewMode) {
 
             // If we still don't have data, try to generate it from section data
             if (!sharedData) {
-              console.log('🐛 Attempting to generate shared attendance from section data');
               const combinedData = [];
               const sharedMetadataKey = `viking_shared_metadata_${sharedEvent.eventid}`;
               const sharedMetadata = localStorage.getItem(sharedMetadataKey);
@@ -257,7 +213,6 @@ export function useSharedAttendance(events, viewMode) {
               }
               
               if (combinedData.length > 0) {
-                console.log('🐛 Successfully generated shared attendance from section data:', combinedData.length, 'records');
                 // Cache the generated data for future use
                 const generatedSharedData = { items: combinedData };
                 localStorage.setItem(cacheKey, JSON.stringify(generatedSharedData));

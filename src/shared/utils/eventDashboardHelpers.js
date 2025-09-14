@@ -318,12 +318,6 @@ export const fetchEventAttendance = async (event, token) => {
       
       // Check if this event has sharing information
       if (eventSummary?.data?.sharing) {
-        if (import.meta.env.DEV) {
-          logger.debug('Event has sharing data', {
-            eventId: event.eventid,
-            isOwner: eventSummary.data.sharing.is_owner,
-          }, LOG_CATEGORIES.COMPONENT);
-        }
         
         // If this section is the owner or participant of a shared event
         if (eventSummary.data.sharing.is_owner || eventSummary.data.sharing.is_owner === false) {
@@ -565,21 +559,14 @@ export const convertSharedEventToAttendanceFormat = (sharedEventData) => {
  * Expands shared events to include synthetic events for all participating sections
  * This allows EventCard to display attendance for all sections in shared events
  * @param {Array} events - Original events array (only user-accessible sections)
- * @param {Map} attendanceMap - Map of event IDs to attendance data
+ * @param {Map} _attendanceMap - Map of event IDs to attendance data
  * @returns {Array} Expanded events array including synthetic events for shared event sections
  */
-export const expandSharedEvents = (events, attendanceMap) => {
+export const expandSharedEvents = (events, _attendanceMap) => {
   // For shared events, we DON'T want to create synthetic events for each section
   // Instead, we want the EventCard to handle displaying all sections within a single card
   // So we'll just return the original events array without expansion
   
-  if (import.meta.env.DEV) {
-    logger.debug('expandSharedEvents called - returning original events to prevent duplicate cards', {
-      eventsCount: events.length,
-      attendanceMapSize: attendanceMap.size,
-      eventNames: events.map(e => e.name).slice(0, 5), // First 5 event names
-    }, LOG_CATEGORIES.COMPONENT);
-  }
 
   // The shared event data is already combined in the attendance data
   // EventCard will handle displaying all sections using the combined attendance data

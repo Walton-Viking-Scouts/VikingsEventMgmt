@@ -18,6 +18,7 @@ import DetailedTab from './DetailedTab.jsx';
 function EventAttendance({ events, members, onBack }) {
   const {
     attendanceData,
+    vikingEventData,
     loading,
     error,
     loadVikingEventData,
@@ -40,31 +41,6 @@ function EventAttendance({ events, members, onBack }) {
     hasSharedEvents, 
   } = useSharedAttendance(events, activeTab);
 
-  // Debug the events being passed and shared events detection
-  console.log('🐛 EventAttendance DEBUG:', {
-    eventsCount: events?.length || 0,
-    hasSharedEvents,
-    eventDetails: events?.map(e => ({
-      name: e.eventname,
-      shared: e.shared,
-      sharedType: typeof e.shared,
-      allProperties: Object.keys(e),
-    })) || [],
-  });
-  
-  // Also log the full first event to see all available properties
-  if (events?.length > 0) {
-    console.log('🐛 FIRST EVENT FULL DATA:', events[0]);
-    console.log('🐛 ALL EVENT PROPERTIES:', Object.keys(events[0]));
-    console.log('🐛 LOOKING FOR SHARED PROPERTIES:', {
-      shared: events[0].shared,
-      isShared: events[0].isShared,
-      shared_event: events[0].shared_event,
-      sharedevent: events[0].sharedevent,
-      is_shared: events[0].is_shared,
-      sharedEvent: events[0].sharedEvent,
-    });
-  }
   const [sortConfig, setSortConfig] = useState({
     key: 'attendance',
     direction: 'desc',
@@ -142,6 +118,9 @@ function EventAttendance({ events, members, onBack }) {
     filteredAttendanceData.forEach((record) => {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
+        // Find member data to get person_type
+        const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
+        
         memberMap.set(key, {
           scoutid: record.scoutid,
           name: `${record.firstname} ${record.lastname}`,
@@ -155,6 +134,9 @@ function EventAttendance({ events, members, onBack }) {
           notInvited: 0,
           vikingEventData: record.vikingEventData,
           isSignedIn: Boolean(record.vikingEventData?.SignedInBy && !record.vikingEventData?.SignedOutBy),
+          person_type: memberData?.person_type, // Include person_type from member data
+          patrol_id: memberData?.patrol_id,
+          patrolid: memberData?.patrolid,
         });
       }
 
@@ -177,7 +159,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return Array.from(memberMap.values());
-  }, [filteredAttendanceData]);
+  }, [filteredAttendanceData, members]);
 
   const simplifiedSummaryStats = useMemo(() => {
     if (!filteredAttendanceData || filteredAttendanceData.length === 0) {
@@ -335,7 +317,9 @@ function EventAttendance({ events, members, onBack }) {
           summaryStats={summaryStats}
           events={events}
           members={members}
+          vikingEventData={vikingEventData}
           onMemberClick={handleMemberClick}
+          onDataRefresh={loadVikingEventData}
         />
       );
       
