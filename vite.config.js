@@ -57,7 +57,7 @@ export default defineConfig({
     })(),
   },
   define: {
-    // Inject actual deployed version from git tags or environment
+    // Inject actual deployed version from GitHub releases or environment
     'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
       // First priority: Environment variable set by CI/CD
       if (process.env.VITE_APP_VERSION) {
@@ -65,9 +65,21 @@ export default defineConfig({
       }
       
       try {
-        // Second priority: Get version from git tags (use latest tag available)
+        // Second priority: Get version from GitHub releases (authoritative)
+        const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
+        if (ghRelease && ghRelease !== 'null') {
+          console.log('Using GitHub release version:', ghRelease);
+          return ghRelease.replace(/^v/, ''); // Remove 'v' prefix
+        }
+      } catch (error) {
+        console.warn('GitHub release lookup failed (likely no gh CLI or no releases):', error.message);
+      }
+      
+      try {
+        // Third priority: Get version from git tags (fallback)
         const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
         if (gitVersion) {
+          console.log('Using Git tag version:', gitVersion);
           return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
         }
       } catch (error) {
