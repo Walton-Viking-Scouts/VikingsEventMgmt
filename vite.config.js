@@ -57,16 +57,26 @@ export default defineConfig({
     })(),
   },
   define: {
-    // Inject actual deployed version from git tags
+    // Inject actual deployed version from git tags or environment
     'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
-      try {
-        // Get version from git tags (use latest tag available)
-        const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
-        return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
-      } catch {
-        // Fallback to package.json if git command fails
-        return packageJson.version;
+      // First priority: Environment variable set by CI/CD
+      if (process.env.VITE_APP_VERSION) {
+        return process.env.VITE_APP_VERSION.replace(/^v/, '');
       }
+      
+      try {
+        // Second priority: Get version from git tags (use latest tag available)
+        const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+        if (gitVersion) {
+          return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
+        }
+      } catch (error) {
+        console.warn('Git tag lookup failed:', error.message);
+      }
+      
+      // Final fallback: package.json version
+      console.log('Using package.json version:', packageJson.version);
+      return packageJson.version;
     })()),
   },
   build: {
