@@ -1,3 +1,17 @@
+/**
+ * @file SectionMovementTracker - Main component for managing Scout section movements
+ * 
+ * Complex React component that handles displaying and managing movement tracking data 
+ * for Scout sections across multiple terms. Features term selection (1-12 terms),
+ * FlexiRecord assignments management, complex memoized calculations for projections,
+ * and comprehensive error handling with loading states.
+ * 
+ * @module SectionMovementTracker
+ * @version 1.0.0
+ * @since 1.0.0 - Initial implementation
+ * @author Vikings Event Management Team
+ */
+
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Alert } from '../../../shared/components/ui';
@@ -11,9 +25,18 @@ import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sect
 import { notifyError } from '../../../shared/utils/notifications.js';
 import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 
-// User preferences utilities
+/**
+ * User preferences utilities for persistent storage
+ * @namespace UserPreferences
+ */
 const USER_PREFERENCES_KEY = 'viking_user_preferences';
 
+/**
+ * Retrieves user preferences from localStorage with error handling
+ * @function getUserPreferences
+ * @memberof UserPreferences
+ * @returns {Object} User preferences object, empty object if none found or error
+ */
 const getUserPreferences = () => {
   try {
     const stored = localStorage.getItem(USER_PREFERENCES_KEY);
@@ -24,6 +47,13 @@ const getUserPreferences = () => {
   }
 };
 
+/**
+ * Saves a user preference to localStorage with error handling
+ * @function saveUserPreference
+ * @memberof UserPreferences
+ * @param {string} key - Preference key to save
+ * @param {*} value - Preference value to save
+ */
 const saveUserPreference = (key, value) => {
   try {
     const preferences = getUserPreferences();
@@ -35,16 +65,57 @@ const saveUserPreference = (key, value) => {
 };
 
 
+/**
+ * SectionMovementTracker - Main component for tracking Scout section movements across terms
+ * 
+ * Complex component that displays and manages movement tracking data for Scout sections,
+ * allowing users to view projected movements across 1-12 future terms. Features include:
+ * - Term selection with persistent user preferences
+ * - FlexiRecord assignment management and validation
+ * - Complex memoized calculations for cumulative section counts
+ * - Movement summary tables and individual term cards
+ * - Comprehensive loading states and error handling
+ * - Automatic FlexiRecord validation with user notifications
+ * 
+ * The component performs complex calculations to project section membership changes
+ * over multiple terms, taking into account age-based movements, manual assignments
+ * from FlexiRecords, and cumulative effects across terms.
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Function} props.onBack - Callback function to navigate back to previous view
+ * 
+ * @returns {JSX.Element} Rendered section movement tracker interface
+ * 
+ * @example
+ * // Basic usage with navigation callback
+ * <SectionMovementTracker 
+ *   onBack={() => navigate('/admin')} 
+ * />
+ * 
+ * @example
+ * // Within a routing context
+ * <Route path="/movements" element={
+ *   <SectionMovementTracker onBack={() => router.back()} />
+ * } />
+ */
 function SectionMovementTracker({ onBack }) {
-  // Load numberOfTerms from user preferences, default to 2
+  // Load numberOfTerms from user preferences, default to 2 (max 12 per UI constraint)
   const [numberOfTerms, setNumberOfTerms] = useState(() => {
     const preferences = getUserPreferences();
     return preferences.numberOfTerms || 2;
   });
+  
+  // Legacy state variables - retained for potential future expansion
   const [_allAssignments, _setAllAssignments] = useState(new Map());
+  
+  // Main data hook - provides members, sections, and FlexiRecord state
   const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
+  
+  // Tracks whether FlexiRecord validation has been performed (once per session)
   const hasCheckedFlexiRecords = useRef(false);
   
+  // Calculate future terms based on user selection
   const futureTerms = getFutureTerms(numberOfTerms);
 
   // Save numberOfTerms preference whenever it changes
@@ -52,7 +123,21 @@ function SectionMovementTracker({ onBack }) {
     saveUserPreference('numberOfTerms', numberOfTerms);
   }, [numberOfTerms]);
 
-  // Check for missing Viking Section Movers FlexiRecords
+  /**
+   * Checks for missing 'Viking Section Movers' FlexiRecords across sections
+   * 
+   * Validates that each section (excluding adults/waitinglist) has the required
+   * 'Viking Section Movers' FlexiRecord with proper fields. Shows user notification
+   * if any sections are missing this FlexiRecord.
+   * 
+   * Required FlexiRecord fields: AssignedSection, AssignedTerm
+   * Optional FlexiRecord fields: AssignmentDate, AssignedBy
+   * 
+   * @function checkForMissingFlexiRecords
+   * @param {Array} sectionsData - Array of section objects to validate
+   * @param {string|number} sectionsData[].sectionid - Section ID
+   * @param {string} sectionsData[].sectionname - Section display name
+   */
   const checkForMissingFlexiRecords = useCallback((sectionsData) => {
     if (!sectionsData || sectionsData.length === 0) return;
 
@@ -122,6 +207,26 @@ function SectionMovementTracker({ onBack }) {
     };
   }, []);
   
+  /**
+   * Complex memoized calculation of section movements across multiple terms
+   * 
+   * Performs sophisticated multi-term projections by:
+   * 1. Processing each term sequentially to track cumulative effects
+   * 2. Calculating section-specific movements (incoming/outgoing/manual assignments)
+   * 3. Maintaining cumulative section counts across terms
+   * 4. Grouping sections by type (Squirrels, Beavers, Cubs, Scouts, Explorers)
+   * 5. Computing section type totals for summary reporting
+   * 6. Filtering available members to prevent double-counting across terms
+   * 
+   * Dependencies: members, sections, futureTerms
+   * 
+   * @returns {Array<Object>} Array of term calculation objects
+   * @returns {Object} returns[].term - Term information (type, year, startDate)
+   * @returns {Map} returns[].sectionSummaries - Section-specific movement data
+   * @returns {Array} returns[].unassignedMovers - Members without FlexiRecord assignments
+   * @returns {Array} returns[].movers - All moving members for this term
+   * @returns {Map} returns[].sectionTypeTotals - Aggregated counts by section type
+   */
   const termCalculations = useMemo(() => {
     if (!members || !sections) return [];
     
@@ -238,7 +343,20 @@ function SectionMovementTracker({ onBack }) {
     });
   }, [members, sections, futureTerms]);
 
-  // Collect all FlexiRecord assignments from all terms for the summary table
+  /**
+   * Collects all FlexiRecord assignments from all terms for summary table display
+   * 
+   * Aggregates manual section assignments from FlexiRecords across all calculated terms,
+   * mapping member IDs to their assigned sections and terms. Used by MovementSummaryTable
+   * to display consolidated assignment information.
+   * 
+   * @returns {Map<string, Object>} Map of member IDs to assignment objects
+   * @returns {string} returns.get().memberId - Member ID
+   * @returns {string|number} returns.get().currentSectionId - Current section ID
+   * @returns {string|number} returns.get().sectionId - Assigned section ID
+   * @returns {string} returns.get().sectionName - Assigned section name
+   * @returns {string} returns.get().term - Assignment term (e.g., "Autumn-2024")
+   */
   const allFlexiRecordAssignments = useMemo(() => {
     const assignments = new Map();
     
