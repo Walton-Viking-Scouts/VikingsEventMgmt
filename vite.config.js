@@ -5,43 +5,28 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import packageJson from './package.json';
 
-// Unified version resolution logic - used by both Sentry and app display
-const resolveAppVersion = () => {
-  // First priority: Environment variable set by CI/CD
-  if (process.env.VITE_APP_VERSION) {
-    return process.env.VITE_APP_VERSION.replace(/^v/, '');
-  }
-  
+// Resolve version once for the whole config
+function resolveVersion() {
+  // 1) CI-provided env
+  if (process.env.VITE_APP_VERSION) return process.env.VITE_APP_VERSION.replace(/^v/, '');
+  // 2) GitHub release
   try {
-    // Second priority: Get version from GitHub releases (authoritative)
     const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    if (ghRelease && ghRelease !== 'null') {
-      console.log('Using GitHub release version:', ghRelease);
-      return ghRelease.replace(/^v/, ''); // Remove 'v' prefix
-    }
-  } catch (error) {
-    console.warn('GitHub release lookup failed (likely no gh CLI or no releases):', error.message);
+    if (ghRelease && ghRelease !== 'null') return ghRelease.replace(/^v/, '');
+  } catch (e) {
+    console.warn('GitHub release lookup failed:', e.message);
   }
-  
+  // 3) Git tag
   try {
-    // Third priority: Get version from git tags (fallback)
-    const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
-    if (gitVersion) {
-      console.log('Using Git tag version:', gitVersion);
-      return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
-    }
-  } catch (error) {
-    console.warn('Git tag lookup failed:', error.message);
+    const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    if (gitTag) return gitTag.replace(/^v/, '');
+  } catch (e) {
+    console.warn('Git tag lookup failed:', e.message);
   }
-  
-  // Final fallback: package.json version
-  console.log('Using package.json version:', packageJson.version);
+  // 4) package.json
   return packageJson.version;
-};
-
-// Resolve version once for consistency
-const resolvedVersion = resolveAppVersion();
-console.log('🔧 Resolved app version:', resolvedVersion);
+}
+const resolvedVersion = resolveVersion();
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -95,7 +80,7 @@ export default defineConfig({
     })(),
   },
   define: {
-    // Inject the unified resolved version for consistency with Sentry release
+    // Inject single resolved version
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(resolvedVersion),
   },
   build: {
