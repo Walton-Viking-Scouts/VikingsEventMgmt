@@ -252,7 +252,9 @@ function SectionMovementTracker({ onBack }) {
           );
           
           if (assignedSection) {
-            console.log('DEBUG: Found assignment:', mover.name, 'to', mover.flexiRecordSection, 'section ID:', assignedSection.sectionid);
+            if (import.meta.env.DEV) {
+              console.debug('Found assignment:', mover.name, 'to', mover.flexiRecordSection, 'section ID:', assignedSection.sectionid);
+            }
             const assignment = {
               memberId: mover.memberId,
               currentSectionId: mover.currentSectionId,
@@ -267,7 +269,9 @@ function SectionMovementTracker({ onBack }) {
       });
     });
     
-    console.log('DEBUG: FlexiRecord assignments collected:', assignments.size, assignments);
+    if (import.meta.env.DEV) {
+      console.debug('FlexiRecord assignments collected:', assignments.size);
+    }
     return assignments;
   }, [termCalculations, sections]);
 
