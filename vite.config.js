@@ -100,7 +100,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          ui: ['@headlessui/react', '@heroicons/react']
+          ui: ['@heroicons/react', '@sentry/react'],
         },
         // Add more descriptive chunk names
         chunkFileNames: 'assets/[name]-[hash].js',
