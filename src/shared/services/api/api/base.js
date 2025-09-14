@@ -407,7 +407,7 @@ export async function testBackendConnection() {
  * @param {string} functionName - Name of the API function for logging
  * @param {Object} options - Configuration options
  * @param {boolean} options.requireAuth - If true, will prompt for login when no cached data
- * @returns {Promise<{data?: any, source: 'api'|'cache'|'none', needsAuth?: boolean, error?: string}>}
+ * @returns {Promise<{data: any, source: 'api'|'cache'|'none', needsAuth: boolean, error: string}>}
  * 
  * @example
  * const result = await gracefulAPICall(
