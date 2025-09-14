@@ -50,6 +50,8 @@ export {
   getFlexiStructure,
   updateFlexiRecord,
   multiUpdateFlexiRecord,
+  createFlexiRecord,
+  addFlexiColumn,
   // Re-exported from other services
   // TODO: Move getConsolidatedFlexiRecord to shared layer
   // getConsolidatedFlexiRecord,

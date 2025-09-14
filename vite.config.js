@@ -41,6 +41,7 @@ export default defineConfig({
         uploadLegacySourcemaps: false,
         setCommits: {
           auto: true,
+          ignoreMissing: true,
         },
         deploy: {
           env: 'production',
@@ -95,8 +96,12 @@ export default defineConfig({
         main: './index.html',
       },
       output: {
-        // Preserve function names for better stack traces
-        manualChunks: undefined,
+        // Split large chunks for better loading performance
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@heroicons/react', '@sentry/react'],
+        },
         // Add more descriptive chunk names
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
