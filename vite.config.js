@@ -5,6 +5,29 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import packageJson from './package.json';
 
+// Resolve version once for the whole config
+function resolveVersion() {
+  // 1) CI-provided env
+  if (process.env.VITE_APP_VERSION) return process.env.VITE_APP_VERSION.replace(/^v/, '');
+  // 2) GitHub release
+  try {
+    const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    if (ghRelease && ghRelease !== 'null') return ghRelease.replace(/^v/, '');
+  } catch (e) {
+    console.warn('GitHub release lookup failed:', e.message);
+  }
+  // 3) Git tag
+  try {
+    const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    if (gitTag) return gitTag.replace(/^v/, '');
+  } catch (e) {
+    console.warn('Git tag lookup failed:', e.message);
+  }
+  // 4) package.json
+  return packageJson.version;
+}
+const resolvedVersion = resolveVersion();
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -14,7 +37,7 @@ export default defineConfig({
       project: 'viking-event-mgmt',
       authToken: process.env.SENTRY_AUTH_TOKEN,
       release: {
-        name: process.env.SENTRY_RELEASE || `vikings-eventmgmt-mobile@${packageJson.version}`,
+        name: process.env.SENTRY_RELEASE || `vikings-eventmgmt-mobile@${resolvedVersion}`,
         uploadLegacySourcemaps: false,
         setCommits: {
           auto: true,
@@ -57,17 +80,8 @@ export default defineConfig({
     })(),
   },
   define: {
-    // Inject actual deployed version from git tags
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify((() => {
-      try {
-        // Get version from git tags (use latest tag available)
-        const gitVersion = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
-        return gitVersion.replace(/^v/, ''); // Remove 'v' prefix
-      } catch {
-        // Fallback to package.json if git command fails
-        return packageJson.version;
-      }
-    })()),
+    // Inject single resolved version
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(resolvedVersion),
   },
   build: {
     outDir: 'dist',
