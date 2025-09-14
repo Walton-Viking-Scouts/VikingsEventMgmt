@@ -319,7 +319,7 @@ function SectionMovementTracker({ onBack }) {
                 id="number-of-terms"
                 type="number"
                 min="1"
-                max="6"
+                max="12"
                 value={numberOfTerms}
                 onChange={(e) => setNumberOfTerms(parseInt(e.target.value) || 2)}
                 className="text-sm border rounded px-2 py-1 w-20"
