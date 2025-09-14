@@ -503,6 +503,336 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
   }
 }
 
+/**
+ * Creates a new FlexiRecord template for a section
+ * 
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {string} name - Name of the new FlexiRecord
+ * @param {string} token - OSM authentication token
+ * @param {Object} [options={}] - Optional configuration
+ * @param {string|boolean} [options.dob='1'] - Include date of birth field (1/0/true/false)
+ * @param {string|boolean} [options.age='1'] - Include age field (1/0/true/false)
+ * @param {string|boolean} [options.patrol='1'] - Include patrol field (1/0/true/false)
+ * @param {string} [options.type='none'] - Record type
+ * @returns {Promise<Object|null>} Creation result with flexirecordid
+ * @throws {Error} When API request fails or validation errors
+ * 
+ * @example
+ * const result = await createFlexiRecord(123, 'Viking Section Movers', token);
+ * console.log(`Created FlexiRecord with ID: ${result.flexirecordid}`);
+ */
+export async function createFlexiRecord(sectionid, name, token, options = {}) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating createFlexiRecord success', {
+      sectionid,
+      name,
+    }, LOG_CATEGORIES.API);
+    return {
+      success: true,
+      flexirecordid: Math.floor(Math.random() * 100000),
+      name: name,
+    };
+  }
+  
+  validateTokenBeforeAPICall(token, 'createFlexiRecord');
+  
+  try {
+    // Check if write operations are allowed
+    checkWritePermission();
+
+    const requestBody = {
+      sectionid,
+      name,
+      dob: options.dob ?? '1',
+      age: options.age ?? '1', 
+      patrol: options.patrol ?? '1',
+      type: options.type ?? 'none',
+    };
+
+    logger.debug('createFlexiRecord: Making API call', { 
+      url: `${BACKEND_URL}/create-flexi-record`,
+      requestBody, 
+    }, LOG_CATEGORIES.API);
+
+    const response = await fetch(`${BACKEND_URL}/create-flexi-record`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', 
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    logger.debug('createFlexiRecord: Response received', { 
+      status: response.status,
+      statusText: response.statusText, 
+    }, LOG_CATEGORIES.API);
+        
+    const data = await handleAPIResponseWithRateLimit(response, 'createFlexiRecord');
+    
+    logger.debug('createFlexiRecord: Response processed', { 
+      success: data?.success,
+      flexirecordid: data?.flexirecordid,
+    }, LOG_CATEGORIES.API);
+    
+    return data || null;
+        
+  } catch (error) {
+    logger.error('Error creating flexi record', { 
+      error: error.message,
+      sectionid,
+      name,
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
+/**
+ * Adds a new column/field to an existing FlexiRecord
+ * 
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {number|string} flexirecordid - Existing FlexiRecord identifier
+ * @param {string} columnName - Name of the new column/field to add
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object|null>} Addition result with columnid
+ * @throws {Error} When API request fails or validation errors
+ * 
+ * @example
+ * const result = await addFlexiColumn(123, 456, 'AssignedSection', token);
+ * console.log(`Added column with ID: ${result.columnid}`);
+ */
+export async function addFlexiColumn(sectionid, flexirecordid, columnName, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating addFlexiColumn success', {
+      sectionid,
+      flexirecordid,
+      columnName,
+    }, LOG_CATEGORIES.API);
+    return {
+      success: true,
+      columnid: `f_${Math.floor(Math.random() * 100)}`,
+      name: columnName,
+    };
+  }
+  
+  validateTokenBeforeAPICall(token, 'addFlexiColumn');
+  
+  try {
+    // Check if write operations are allowed
+    checkWritePermission();
+
+    const requestBody = {
+      sectionid,
+      flexirecordid,
+      columnName,
+    };
+
+    logger.debug('addFlexiColumn: Making API call', { 
+      url: `${BACKEND_URL}/add-flexi-column`,
+      requestBody, 
+    }, LOG_CATEGORIES.API);
+
+    const response = await fetch(`${BACKEND_URL}/add-flexi-column`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', 
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    logger.debug('addFlexiColumn: Response received', { 
+      status: response.status,
+      statusText: response.statusText, 
+    }, LOG_CATEGORIES.API);
+        
+    const data = await handleAPIResponseWithRateLimit(response, 'addFlexiColumn');
+    
+    logger.debug('addFlexiColumn: Response processed', { 
+      success: data?.success,
+      columnid: data?.columnid,
+    }, LOG_CATEGORIES.API);
+    
+    return data || null;
+        
+  } catch (error) {
+    logger.error('Error adding flexi column', { 
+      error: error.message,
+      sectionid,
+      flexirecordid,
+      columnName,
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
+/**
+ * Creates a new FlexiRecord template for a section
+ * 
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {string} name - Name of the new FlexiRecord
+ * @param {string} token - OSM authentication token
+ * @param {Object} [options={}] - Optional configuration
+ * @param {string|boolean} [options.dob='1'] - Include date of birth field (1/0/true/false)
+ * @param {string|boolean} [options.age='1'] - Include age field (1/0/true/false)
+ * @param {string|boolean} [options.patrol='1'] - Include patrol field (1/0/true/false)
+ * @param {string} [options.type='none'] - Record type
+ * @returns {Promise<Object|null>} Creation result with flexirecordid
+ * @throws {Error} When API request fails or validation errors
+ * 
+ * @example
+ * const result = await createFlexiRecord(123, 'Viking Section Movers', token);
+ * console.log(`Created FlexiRecord with ID: ${result.flexirecordid}`);
+ */
+export async function createFlexiRecord(sectionid, name, token, options = {}) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating createFlexiRecord success', {
+      sectionid,
+      name,
+    }, LOG_CATEGORIES.API);
+    return {
+      success: true,
+      flexirecordid: Math.floor(Math.random() * 100000),
+      name: name,
+    };
+  }
+  
+  validateTokenBeforeAPICall(token, 'createFlexiRecord');
+  
+  try {
+    // Check if write operations are allowed
+    checkWritePermission();
+
+    const requestBody = {
+      sectionid,
+      name,
+      dob: options.dob ?? '1',
+      age: options.age ?? '1', 
+      patrol: options.patrol ?? '1',
+      type: options.type ?? 'none',
+    };
+
+    logger.debug('createFlexiRecord: Making API call', { 
+      url: `${BACKEND_URL}/create-flexi-record`,
+      requestBody, 
+    }, LOG_CATEGORIES.API);
+
+    const response = await fetch(`${BACKEND_URL}/create-flexi-record`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', 
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    logger.debug('createFlexiRecord: Response received', { 
+      status: response.status,
+      statusText: response.statusText, 
+    }, LOG_CATEGORIES.API);
+        
+    const data = await handleAPIResponseWithRateLimit(response, 'createFlexiRecord');
+    
+    logger.debug('createFlexiRecord: Response processed', { 
+      success: data?.success,
+      flexirecordid: data?.flexirecordid,
+    }, LOG_CATEGORIES.API);
+    
+    return data || null;
+        
+  } catch (error) {
+    logger.error('Error creating flexi record', { 
+      error: error.message,
+      sectionid,
+      name,
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
+/**
+ * Adds a new column/field to an existing FlexiRecord
+ * 
+ * @param {number|string} sectionid - OSM section identifier
+ * @param {number|string} flexirecordid - Existing FlexiRecord identifier
+ * @param {string} columnName - Name of the new column/field to add
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object|null>} Addition result with columnid
+ * @throws {Error} When API request fails or validation errors
+ * 
+ * @example
+ * const result = await addFlexiColumn(123, 456, 'AssignedSection', token);
+ * console.log(`Added column with ID: ${result.columnid}`);
+ */
+export async function addFlexiColumn(sectionid, flexirecordid, columnName, token) {
+  // Demo mode protection
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating addFlexiColumn success', {
+      sectionid,
+      flexirecordid,
+      columnName,
+    }, LOG_CATEGORIES.API);
+    return {
+      success: true,
+      columnid: `f_${Math.floor(Math.random() * 100)}`,
+      name: columnName,
+    };
+  }
+  
+  validateTokenBeforeAPICall(token, 'addFlexiColumn');
+  
+  try {
+    // Check if write operations are allowed
+    checkWritePermission();
+
+    const requestBody = {
+      sectionid,
+      flexirecordid,
+      columnName,
+    };
+
+    logger.debug('addFlexiColumn: Making API call', { 
+      url: `${BACKEND_URL}/add-flexi-column`,
+      requestBody, 
+    }, LOG_CATEGORIES.API);
+
+    const response = await fetch(`${BACKEND_URL}/add-flexi-column`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json', 
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    logger.debug('addFlexiColumn: Response received', { 
+      status: response.status,
+      statusText: response.statusText, 
+    }, LOG_CATEGORIES.API);
+        
+    const data = await handleAPIResponseWithRateLimit(response, 'addFlexiColumn');
+    
+    logger.debug('addFlexiColumn: Response processed', { 
+      success: data?.success,
+      columnid: data?.columnid,
+    }, LOG_CATEGORIES.API);
+    
+    return data || null;
+        
+  } catch (error) {
+    logger.error('Error adding flexi column', { 
+      error: error.message,
+      sectionid,
+      flexirecordid,
+      columnName,
+    }, LOG_CATEGORIES.API);
+    throw error;
+  }
+}
+
 // TODO: Move getConsolidatedFlexiRecord to shared layer to avoid circular dependency
 // Temporarily removing cross-feature export
 
