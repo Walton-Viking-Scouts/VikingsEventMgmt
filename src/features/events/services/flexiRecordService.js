@@ -195,7 +195,7 @@ function cacheData(cacheKey, data) {
  * @param {string|number} sectionId - Section identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<{items: Array, _cacheTimestamp?: number}>} FlexiRecords list with metadata
+ * @returns {Promise<{items: Array, _cacheTimestamp: number}>} FlexiRecords list with metadata
  * 
  * @example
  * // Get FlexiRecords for Beavers section
@@ -302,7 +302,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<{name: string, extraid: string, structure: Object, _cacheTimestamp?: number}|null>} FlexiRecord structure or null if not found
+ * @returns {Promise<{name: string, extraid: string, structure: Object, _cacheTimestamp: number}|null>} FlexiRecord structure or null if not found
  * 
  * @example
  * // Get structure for Viking Event Management FlexiRecord
