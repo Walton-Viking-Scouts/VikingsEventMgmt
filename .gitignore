@@ -85,3 +85,6 @@ tasks/
 
 # Real OSM data examples
 api_examples/
+
+# JSDoc generated documentation
+docs/api/
