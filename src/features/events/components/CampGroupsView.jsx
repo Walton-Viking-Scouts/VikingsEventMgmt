@@ -352,8 +352,7 @@ function CampGroupsView({
       const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
 
       if (!flexiRecordContext) {
-        notifyError('No Viking Event Management flexi record found for this section.');
-        return;
+        throw new Error('No Viking Event Management flexi record found for this section.');
       }
 
       const memberName = member.name || `${member.firstname} ${member.lastname}`;
