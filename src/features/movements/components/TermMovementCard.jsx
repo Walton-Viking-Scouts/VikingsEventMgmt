@@ -341,7 +341,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
               await multiUpdateFlexiRecord(
                 group.sectionId,
                 group.memberIds,
-                [group.termValue], // Single value for all members in this section
+                group.termValue, // Single value for all members in this section
                 context.assignedTerm,
                 sectionFlexiRecordId,
                 token,
@@ -384,7 +384,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
               await multiUpdateFlexiRecord(
                 group.sectionId,
                 group.memberIds,
-                [group.sectionValue], // Single value for all members in this section
+                group.sectionValue, // Single value for all members in this section
                 context.assignedSection,
                 sectionFlexiRecordId,
                 token,

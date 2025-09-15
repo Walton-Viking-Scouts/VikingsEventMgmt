@@ -697,7 +697,26 @@ export const mergeSharedAndSectionAttendance = (sharedAttendanceData, sectionSpe
       sectionDataCount: sectionSpecificAttendanceData?.length || 0,
     }, LOG_CATEGORIES.COMPONENT);
     
-    // Fallback to section-specific data only
-    return sectionSpecificAttendanceData.flatMap(data => data.items || []);
+    // Fallback to section-specific data only (preserve shape)
+    const items = sectionSpecificAttendanceData.flatMap(data => data.items || []);
+    return {
+      items,
+      summary: { total_members: items.length },
+      sections: [],
+      sharing: { isSharedEvent: true, hasSharedData: false },
+    };
   }
+};
+export default {
+  fetchAllSectionEvents,
+  fetchSectionEvents,
+  fetchEventAttendance,
+  groupEventsByName,
+  buildEventCard,
+  filterEventsByDateRange,
+  isSharedEventOwner,
+  getUserAccessibleSections,
+  convertSharedEventToAttendanceFormat,
+  expandSharedEvents,
+  mergeSharedAndSectionAttendance,
 };

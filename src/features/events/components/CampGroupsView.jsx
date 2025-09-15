@@ -646,8 +646,30 @@ function CampGroupsView({
 
       if (totalFailed === 0) {
         notifySuccess(`Group "${groupName}" successfully deleted (${totalSuccessful} members moved to Unassigned)`);
+        
+        // Refresh Viking Event data to get updated camp group assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after group delete', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
       } else if (totalSuccessful > 0) {
         notifyInfo(`Group "${groupName}" partially deleted: ${totalSuccessful} successful, ${totalFailed} failed`);
+        
+        // Refresh Viking Event data even for partial success to get updated assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after partial group delete', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
       } else {
         throw new Error(`Failed to delete group: no members were moved (${totalFailed} failures)`);
       }

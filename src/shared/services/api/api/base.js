@@ -1,6 +1,15 @@
 // Base API configuration and shared utilities
 // Extracted from monolithic api.js for better modularity
 
+/**
+ * @typedef {'api'|'cache'|'none'} DataSource
+ * @typedef {Object} GracefulAPICallResult
+ * @property {*} [data]
+ * @property {DataSource} source
+ * @property {boolean} [needsAuth]
+ * @property {string} [error]
+ */
+
 import { sentryUtils } from '../../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { authHandler } from '../../auth/authHandler.js';
@@ -407,7 +416,7 @@ export async function testBackendConnection() {
  * @param {string} functionName - Name of the API function for logging
  * @param {Object} options - Configuration options
  * @param {boolean} options.requireAuth - If true, will prompt for login when no cached data
- * @returns {Promise<{data: any, source: 'api'|'cache'|'none', needsAuth: boolean, error: string}>}
+ * @returns {Promise<GracefulAPICallResult>}
  * 
  * @example
  * const result = await gracefulAPICall(
