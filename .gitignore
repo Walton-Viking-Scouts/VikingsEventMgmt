@@ -88,3 +88,4 @@ api_examples/
 
 # JSDoc generated documentation
 docs/api/
+docs/jsdoc-validation.json
