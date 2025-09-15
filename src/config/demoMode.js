@@ -252,8 +252,8 @@ export async function initializeDemoMode() {
 
     // Generate attendance for events
     DEMO_CACHE_DATA.viking_sections_offline.forEach(section => {
+      const events = generateEventsForSection(section);
       for (let i = 1; i <= 6; i++) {
-        const events = generateEventsForSection(section);
         const event = events[i - 1];
         const eventId = event.eventid;
         const attendanceData = generateAttendanceForEvent(section, eventId);

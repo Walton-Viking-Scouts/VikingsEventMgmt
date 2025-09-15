@@ -97,10 +97,7 @@ const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - available flexirec
  * @private
  * @param {string} cacheKey - Cache key to check
  * @param {number} ttl - Time-to-live in milliseconds
- * @returns {Object} Cache validity result with data and age information
- * @returns {boolean} returns.valid - Whether cache is still valid
- * @returns {*} returns.data - Cached data if available
- * @returns {number} returns.cacheAgeMinutes - Age of cache in minutes
+ * @returns {{valid: boolean, data: *, cacheAgeMinutes: number}} Cache validity result with data and age information
  * 
  * @example
  * // Check if events cache is valid
@@ -198,9 +195,7 @@ function cacheData(cacheKey, data) {
  * @param {string|number} sectionId - Section identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<Object>} FlexiRecords list with metadata
- * @returns {Array} returns.items - Array of available FlexiRecord objects
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{items: Array, _cacheTimestamp: number}>} FlexiRecords list with metadata
  * 
  * @example
  * // Get FlexiRecords for Beavers section
@@ -307,11 +302,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<Object|null>} FlexiRecord structure or null if not found
- * @returns {string} returns.name - FlexiRecord name
- * @returns {string} returns.extraid - FlexiRecord external ID
- * @returns {Object} returns.structure - Field definitions and configuration
- * @returns {number} [returns._cacheTimestamp] - Cache timestamp for debugging
+ * @returns {Promise<{name: string, extraid: string, structure: Object, _cacheTimestamp: number}|null>} FlexiRecord structure or null if not found
  * 
  * @example
  * // Get structure for Viking Event Management FlexiRecord
@@ -528,13 +519,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<Object>} Consolidated FlexiRecord with structure and data
- * @returns {Object} returns.items - Array of data records with meaningful field names
- * @returns {Object} returns._structure - FlexiRecord metadata and field mapping
- * @returns {string} returns._structure.name - FlexiRecord name
- * @returns {string} returns._structure.extraid - FlexiRecord external ID
- * @returns {boolean} returns._structure.archived - Whether FlexiRecord is archived
- * @returns {Object} returns._structure.fieldMapping - Field ID to name/type mapping
+ * @returns {Promise<{items: Array, _structure: {name: string, extraid: string, archived: boolean, fieldMapping: Object}}>} Consolidated FlexiRecord with structure and data
  * @throws {Error} If required parameters missing or API calls fail
  * 
  * @example
@@ -661,11 +646,7 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<Object|null>} Viking Event Mgmt FlexiRecord data or null if not found
- * @returns {Array} returns.items - Event attendance records with scout details
- * @returns {Object} returns._structure - FlexiRecord structure and field mapping
- * @returns {string} returns._structure.name - Always "Viking Event Mgmt"
- * @returns {Object} returns._structure.fieldMapping - Field mappings for attendance data
+ * @returns {Promise<{items: Array, _structure: {name: string, fieldMapping: Object}}|null>} Viking Event Mgmt FlexiRecord data or null if not found
  * 
  * @example
  * // Get Viking Event data for Beavers section

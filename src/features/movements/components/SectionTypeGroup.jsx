@@ -25,6 +25,7 @@ function SectionTypeGroup({
   allSections = [],
   availableTerms = [],
   assignments = new Map(),
+  originalAssignments = new Map(),
   currentTerm,
   sectionTypeTotals,
   onAssignmentChange,
@@ -46,9 +47,23 @@ function SectionTypeGroup({
 
 
 
-  const assignmentsForThisType = incomingMovers.filter(mover => 
-    assignments.has(mover.memberId),
-  );
+  // Calculate only assignments that have actually changed for this section type
+  const changedAssignmentsForThisType = incomingMovers.filter(mover => {
+    const currentAssignment = assignments.get(mover.memberId);
+    const originalAssignment = originalAssignments.get(mover.memberId);
+    
+    if (!currentAssignment) {
+      return false; // No current assignment
+    }
+    
+    // Check if this is a new assignment or if values have changed
+    const isChanged = !originalAssignment || 
+      originalAssignment.sectionId !== currentAssignment.sectionId ||
+      originalAssignment.sectionName !== currentAssignment.sectionName ||
+      originalAssignment.term !== currentAssignment.term;
+    
+    return isChanged;
+  });
 
   // Use passed section type totals or fallback to calculation
   const sectionTotals = sectionTypeTotals?.get(sectionType) ?? sectionTypeTotals?.get(typeKey);
@@ -93,17 +108,17 @@ function SectionTypeGroup({
             <div className="flex space-x-2">
               <button 
                 onClick={onResetAssignments}
-                disabled={assignmentsForThisType.length === 0}
+                disabled={changedAssignmentsForThisType.length === 0}
                 className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-300 active:bg-gray-100"
               >
                 Reset
               </button>
               <button 
                 onClick={onSaveAssignments}
-                disabled={assignmentsForThisType.length === 0 || isSaving}
+                disabled={changedAssignmentsForThisType.length === 0 || isSaving}
                 className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue-light active:bg-scout-blue-dark"
               >
-                {isSaving ? 'Saving...' : `Save (${assignmentsForThisType.length})`}
+                {isSaving ? 'Saving...' : `Save (${changedAssignmentsForThisType.length})`}
               </button>
             </div>
           )}

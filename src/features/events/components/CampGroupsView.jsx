@@ -2,9 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { Alert } from '../../../shared/components/ui';
 import CampGroupCard from './CampGroupCard.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
+import GroupNamesEditModal from './GroupNamesEditModal.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { isMobileLayout } from '../../../shared/utils/platform.js';
-import { assignMemberToCampGroup, extractFlexiRecordContext } from '../services/campGroupAllocationService.js';
+import { assignMemberToCampGroup, batchAssignMembers, extractFlexiRecordContext, bulkUpdateCampGroups } from '../services/campGroupAllocationService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
@@ -29,10 +30,8 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
   const groups = {};
   let totalMembers = 0;
   
-  // Filter to only young people (exclude leaders like RegisterTab does)
-  const youngPeople = summaryStats.filter(member => 
-    member.person_type !== 'Leaders' && member.person_type !== 'Young Leaders',
-  );
+  // Filter for Young People only (camp groups are only for Young People)
+  const youngPeople = summaryStats.filter(member => member.person_type === 'Young People');
 
   // Apply optimistic updates to the data
   const allMoves = new Map([...pendingMoves, ...recentlyCompletedMoves]);
@@ -117,6 +116,7 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
  * @param {Array} props.members - Array of all member data (for member details)
  * @param {Map<string, Object>} props.vikingEventData - Viking event configuration data
  * @param {Function} props.onMemberClick - Member click handler
+ * @param {Function} props.onDataRefresh - Function to refresh Viking Event data after operations
  */
 function CampGroupsView({
   summaryStats = [],
@@ -124,10 +124,15 @@ function CampGroupsView({
   members: _members = [],
   vikingEventData,
   onMemberClick,
+  onDataRefresh,
 }) {
   // Simple state for modal
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  
+  // State for group names edit modal
+  const [showGroupNamesModal, setShowGroupNamesModal] = useState(false);
+  const [groupNamesLoading, setGroupNamesLoading] = useState(false);
   
   // State for optimistic updates - track member camp group changes
   const [pendingMoves, setPendingMoves] = useState(new Map());
@@ -347,8 +352,7 @@ function CampGroupsView({
       const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
 
       if (!flexiRecordContext) {
-        notifyError('No Viking Event Management flexi record found for this section.');
-        return;
+        throw new Error('No Viking Event Management flexi record found for this section.');
       }
 
       const memberName = member.name || `${member.firstname} ${member.lastname}`;
@@ -370,6 +374,17 @@ function CampGroupsView({
         });
         
         setRecentlyCompletedMoves(prev => new Map(prev).set(moveId, moveData));
+        
+        // Refresh Viking Event data to get updated camp group assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after member move', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
         
         // Clear from recently completed after a delay to allow data refresh
         setTimeout(() => {
@@ -416,6 +431,259 @@ function CampGroupsView({
     });
   }, [groups]);
 
+  // Handler to open group names edit modal
+  const handleEditGroupNames = () => {
+    setShowGroupNamesModal(true);
+  };
+
+  // Handler to close group names edit modal
+  const handleCloseGroupNamesModal = () => {
+    setShowGroupNamesModal(false);
+    setGroupNamesLoading(false);
+  };
+
+  // Handler for renaming groups
+  const handleRenameGroup = async (oldName, newName, membersBySection) => {
+    setGroupNamesLoading(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('Please sign in to OSM to rename groups.');
+      }
+
+      const allMembers = Object.values(membersBySection).flat();
+      const memberCount = allMembers.length;
+      
+      logger.info('Group rename requested', {
+        oldName,
+        newName,
+        memberCount,
+        sectionCount: Object.keys(membersBySection).length,
+      }, LOG_CATEGORIES.APP);
+
+      notifyInfo(`Renaming "${oldName}" to "${newName}" (${memberCount} members)...`);
+
+      // Extract the new group number from newName
+      // Handle special case where newName could be just a number or "Group X" format
+      const newGroupNumber = newName.replace(/^Group\s+/, '').trim();
+
+      // Process each section separately
+      let totalSuccessful = 0;
+      let totalFailed = 0;
+
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
+
+        // Get Viking Event data structure for this section
+        const sectionVikingEventData = vikingEventData?.get(String(sectionId));
+        
+        // Get section details for termId and section name
+        const event = events.find(e => String(e.sectionid) === String(sectionId));
+        const termId = event?.termid || 'current';
+        
+        // Get real section type from section cache
+        const sectionsData = await databaseService.getSections();
+        const sectionData = sectionsData.find(s => String(s.sectionid) === String(sectionId));
+        const realSectionType = sectionData?.sectiontype || 'Unknown Section Type';
+        
+        const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
+
+        if (!flexiRecordContext) {
+          logger.warn('No FlexiRecord context for section, skipping', { sectionId }, LOG_CATEGORIES.APP);
+          totalFailed += members.length;
+          continue;
+        }
+
+        // Extract scout IDs for bulk update
+        const scoutIds = members.map(member => member.scoutid);
+        
+        // Determine the new group value for the API
+        // Empty string or null for "Unassigned", otherwise the group number
+        const newGroupValue = (newGroupNumber === 'Unassigned' || !newGroupNumber) 
+          ? '' 
+          : newGroupNumber.toString();
+
+        logger.info('Processing bulk camp group rename for section', {
+          sectionId,
+          memberCount: scoutIds.length,
+          oldName,
+          newName,
+          newGroupValue,
+        }, LOG_CATEGORIES.APP);
+
+        // Execute bulk update for this section using multi-update API
+        const bulkResult = await bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordContext, token);
+
+        if (bulkResult.success) {
+          totalSuccessful += scoutIds.length;
+          logger.info('Bulk camp group rename succeeded for section', {
+            sectionId,
+            updatedCount: scoutIds.length,
+          }, LOG_CATEGORIES.APP);
+        } else {
+          totalFailed += scoutIds.length;
+          logger.warn('Bulk camp group rename failed for section', {
+            sectionId,
+            error: bulkResult.error,
+            failedCount: scoutIds.length,
+          }, LOG_CATEGORIES.APP);
+        }
+      }
+
+      if (totalFailed === 0) {
+        notifySuccess(`Group "${oldName}" successfully renamed to "${newName}" (${totalSuccessful} members updated)`);
+        
+        // Refresh Viking Event data to get updated camp group assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after group rename', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else if (totalSuccessful > 0) {
+        notifyInfo(`Group "${oldName}" partially renamed: ${totalSuccessful} successful, ${totalFailed} failed`);
+        
+        // Refresh Viking Event data even for partial success to get updated assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after partial group rename', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else {
+        throw new Error(`Failed to rename group: no members were updated (${totalFailed} failures)`);
+      }
+
+    } catch (error) {
+      logger.error('Failed to rename group', {
+        oldName,
+        newName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      notifyError(`Failed to rename group: ${error.message}`);
+    } finally {
+      setGroupNamesLoading(false);
+    }
+  };
+
+  // Handler for deleting groups
+  const handleDeleteGroup = async (groupName, membersBySection) => {
+    setGroupNamesLoading(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('Please sign in to OSM to delete groups.');
+      }
+
+      const allMembers = Object.values(membersBySection).flat();
+      const memberCount = allMembers.length;
+      
+      logger.info('Group delete requested', {
+        groupName,
+        memberCount,
+        sectionCount: Object.keys(membersBySection).length,
+      }, LOG_CATEGORIES.APP);
+
+      notifyInfo(`Deleting "${groupName}" and moving ${memberCount} members to Unassigned...`);
+
+      // Process each section separately
+      let totalSuccessful = 0;
+      let totalFailed = 0;
+
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
+
+        // Get Viking Event data structure for this section
+        const sectionVikingEventData = vikingEventData?.get(String(sectionId));
+        
+        // Get section details for termId and section name
+        const event = events.find(e => String(e.sectionid) === String(sectionId));
+        const termId = event?.termid || 'current';
+        
+        // Get real section type from section cache
+        const sectionsData = await databaseService.getSections();
+        const sectionData = sectionsData.find(s => String(s.sectionid) === String(sectionId));
+        const realSectionType = sectionData?.sectiontype || 'Unknown Section Type';
+        
+        const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
+
+        if (!flexiRecordContext) {
+          logger.warn('No FlexiRecord context for section, skipping', { sectionId }, LOG_CATEGORIES.APP);
+          totalFailed += members.length;
+          continue;
+        }
+
+        // Create move operations to move all members to "Unassigned"
+        const moves = members.map(member => ({
+          member: member,
+          fromGroupNumber: member.vikingEventData?.CampGroup || 'Unassigned',
+          fromGroupName: groupName,
+          toGroupNumber: 'Unassigned',
+          toGroupName: 'Group Unassigned',
+        }));
+
+        // Execute batch assignment for this section
+        const batchResult = await batchAssignMembers(moves, flexiRecordContext, token);
+
+        if (batchResult.summary) {
+          totalSuccessful += batchResult.summary.successful;
+          totalFailed += batchResult.summary.failed;
+        } else {
+          // Handle individual results
+          const successful = batchResult.results.filter(r => r.success).length;
+          const failed = batchResult.results.filter(r => !r.success).length;
+          totalSuccessful += successful;
+          totalFailed += failed;
+        }
+      }
+
+      if (totalFailed === 0) {
+        notifySuccess(`Group "${groupName}" successfully deleted (${totalSuccessful} members moved to Unassigned)`);
+        
+        // Refresh Viking Event data to get updated camp group assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after group delete', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else if (totalSuccessful > 0) {
+        notifyInfo(`Group "${groupName}" partially deleted: ${totalSuccessful} successful, ${totalFailed} failed`);
+        
+        // Refresh Viking Event data even for partial success to get updated assignments
+        if (onDataRefresh) {
+          try {
+            await onDataRefresh();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after partial group delete', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else {
+        throw new Error(`Failed to delete group: no members were moved (${totalFailed} failures)`);
+      }
+
+    } catch (error) {
+      logger.error('Failed to delete group', {
+        groupName,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      notifyError(`Failed to delete group: ${error.message}`);
+    } finally {
+      setGroupNamesLoading(false);
+    }
+  };
+
   if (!summaryStats || summaryStats.length === 0) {
     return (
       <div className="text-center py-12">
@@ -448,13 +716,40 @@ function CampGroupsView({
     <div className="camp-groups-view">
       {/* Header with summary stats */}
       <div className="mb-6">
-        <div className="flex flex-wrap gap-4 mb-4">
-          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white">
-            {summary.totalGroups || 0} Groups
-          </span>
-          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white">
-            {summary.totalMembers || 0} Members
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex flex-wrap gap-4">
+            <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white">
+              {summary.totalGroups || 0} Groups
+            </span>
+            <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white">
+              {summary.totalMembers || 0} Members
+            </span>
+          </div>
+          
+          {/* Edit Names Button */}
+          {summary.totalGroups > 0 && (
+            <button
+              onClick={handleEditGroupNames}
+              disabled={groupNamesLoading}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              Edit Names
+            </button>
+          )}
         </div>
 
         {!summary.vikingEventDataAvailable && (
@@ -491,6 +786,16 @@ function CampGroupsView({
         member={selectedMember}
         isOpen={showMemberModal}
         onClose={handleModalClose}
+      />
+
+      {/* Group Names Edit Modal */}
+      <GroupNamesEditModal
+        isOpen={showGroupNamesModal}
+        onClose={handleCloseGroupNamesModal}
+        groups={groups}
+        onRename={handleRenameGroup}
+        onDelete={handleDeleteGroup}
+        loading={groupNamesLoading}
       />
     </div>
   );

@@ -1,6 +1,15 @@
 // Base API configuration and shared utilities
 // Extracted from monolithic api.js for better modularity
 
+/**
+ * @typedef {'api'|'cache'|'none'} DataSource
+ * @typedef {Object} GracefulAPICallResult
+ * @property {*} [data]
+ * @property {DataSource} source
+ * @property {boolean} [needsAuth]
+ * @property {string} [error]
+ */
+
 import { sentryUtils } from '../../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { authHandler } from '../../auth/authHandler.js';
@@ -25,15 +34,31 @@ export class TokenExpiredError extends Error {
 }
 
 /**
- * Validates token before making API calls to prevent calls with expired tokens
+ * Validates token before making API calls with graceful handling for offline-first behavior
  * @param {string} token - Authentication token to validate
  * @param {string} functionName - Name of the API function for logging
- * @throws {TokenExpiredError} If token is expired
- * @throws {Error} If no token provided
+ * @param {Object} options - Validation options
+ * @param {boolean} options.allowMissingToken - If true, returns validation result instead of throwing
+ * @returns {Object} Validation result: { isValid: boolean, reason: string, shouldFallbackToCache: boolean }
+ * @throws {TokenExpiredError} If token is expired and allowMissingToken is false
+ * @throws {Error} If no token provided and allowMissingToken is false
  */
-export function validateTokenBeforeAPICall(token, functionName) {
+export function validateTokenBeforeAPICall(token, functionName, options = {}) {
+  const { allowMissingToken = false } = options;
+  
   if (!token) {
-    logger.warn(`${functionName}: No authentication token provided`, {}, LOG_CATEGORIES.API);
+    logger.debug(`${functionName}: No authentication token provided`, {}, LOG_CATEGORIES.API);
+    
+    if (allowMissingToken) {
+      return {
+        isValid: false,
+        reason: 'NO_TOKEN',
+        shouldFallbackToCache: true,
+        message: 'No authentication token - will use cached data if available',
+      };
+    }
+    
+    // Legacy behavior - throw error (but don't spam Sentry for expected cases)
     const err = new Error('No authentication token');
     err.status = 401;
     err.code = 'NO_TOKEN';
@@ -41,11 +66,21 @@ export function validateTokenBeforeAPICall(token, functionName) {
   }
   
   if (isTokenExpired()) {
-    logger.warn(`${functionName}: Preventing API call with expired token`, {
+    logger.debug(`${functionName}: Token has expired`, {
       functionName,
       tokenPresent: !!token,
       tokenExpiresAt: sessionStorage.getItem('token_expires_at') || null,
     }, LOG_CATEGORIES.API);
+    
+    if (allowMissingToken) {
+      return {
+        isValid: false,
+        reason: 'TOKEN_EXPIRED',
+        shouldFallbackToCache: true,
+        message: 'Authentication token expired - will use cached data if available',
+      };
+    }
+    
     throw new TokenExpiredError(`Cannot call ${functionName} - authentication token has expired`);
   }
   
@@ -53,6 +88,13 @@ export function validateTokenBeforeAPICall(token, functionName) {
     functionName,
     tokenPresent: !!token,
   }, LOG_CATEGORIES.API);
+  
+  return {
+    isValid: true,
+    reason: 'VALID',
+    shouldFallbackToCache: false,
+    message: 'Token is valid',
+  };
 }
 
 /**
@@ -176,21 +218,19 @@ export async function handleAPIResponseWithRateLimit(response, apiName) {
 
   if (response.status === 429) {
     const errorData = await response.json().catch(() => ({}));
-        
-    // Log rate limiting to Sentry
-    logger.warn(logger.fmt`Rate limit hit for API: ${apiName}`, {
-      api: apiName,
-      status: response.status,
-      retryAfter: errorData.rateLimitInfo?.retryAfter,
-    });
-        
+    
     // Create error object that RateLimitQueue can handle
     const rateLimitError = new Error('Rate limit exceeded');
     rateLimitError.status = 429;
     
     if (errorData.rateLimitInfo) {
+      // OSM API rate limiting - this is genuine and should be logged
       const retryAfter = errorData.rateLimitInfo.retryAfter;
-      logger.warn(`${apiName} rate limited by OSM`, { retryAfter }, LOG_CATEGORIES.API);
+      logger.warn(`${apiName} rate limited by OSM API`, { 
+        api: apiName,
+        retryAfter,
+        source: 'OSM',
+      }, LOG_CATEGORIES.API);
       
       // Set retryAfter for RateLimitQueue to use
       if (retryAfter) {
@@ -200,15 +240,20 @@ export async function handleAPIResponseWithRateLimit(response, apiName) {
         rateLimitError.message = 'OSM API rate limit exceeded. Please wait before trying again.';
       }
     } else {
-      // Backend rate limiting - extract from backend response format
+      // Internal backend rate limiting - expected behavior, don't spam logs
       const backendRetryAfter = errorData.rateLimit?.retryAfter;
+      logger.debug(`${apiName} rate limited by internal backend (expected behavior)`, { 
+        api: apiName,
+        retryAfter: backendRetryAfter,
+        source: 'INTERNAL',
+      }, LOG_CATEGORIES.API);
+      
       if (backendRetryAfter) {
         rateLimitError.retryAfter = backendRetryAfter;
-        rateLimitError.message = `Backend rate limit exceeded. Please wait ${backendRetryAfter} seconds.`;
+        rateLimitError.message = `Request queued by backend rate limiting. Please wait ${backendRetryAfter} seconds.`;
       } else {
-        rateLimitError.message = 'Rate limited. The backend is managing request flow to prevent blocking.';
+        rateLimitError.message = 'Request queued by backend rate limiting to prevent OSM API blocking.';
       }
-      logger.warn(`${apiName} rate limited by backend`, { retryAfter: backendRetryAfter }, LOG_CATEGORIES.API);
     }
     
     throw rateLimitError;
@@ -360,5 +405,93 @@ export async function testBackendConnection() {
   } catch (error) {
     logger.error('Backend connection test error', { error: error.message }, LOG_CATEGORIES.API);
     return { status: 'error', error: error.message };
+  }
+}
+
+/**
+ * Creates a graceful API call wrapper that handles missing tokens by falling back to cached data
+ * This prevents "No authentication token" errors from being thrown to Sentry for unauthenticated users
+ * @param {Function} apiCall - The API function to call (should accept token as parameter)
+ * @param {Function} getCachedData - Function to retrieve cached data when API call fails
+ * @param {string} functionName - Name of the API function for logging
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.requireAuth - If true, will prompt for login when no cached data
+ * @returns {Promise<GracefulAPICallResult>}
+ * 
+ * @example
+ * const result = await gracefulAPICall(
+ *   (token) => getFlexiRecords(sectionId, token),
+ *   () => getCachedFlexiRecords(sectionId),
+ *   'getFlexiRecords'
+ * );
+ * 
+ * if (result.needsAuth) {
+ *   // Show login prompt
+ * } else if (result.data) {
+ *   // Use data (from API or cache)
+ * }
+ */
+export async function gracefulAPICall(apiCall, getCachedData, functionName, options = {}) {
+  const { requireAuth = false } = options;
+  
+  // Get token and validate with graceful handling
+  const { getToken } = await import('../../auth/tokenService.js');
+  const token = getToken();
+  
+  const validation = validateTokenBeforeAPICall(token, functionName, { allowMissingToken: true });
+  
+  if (validation.isValid) {
+    // Token is valid, try API call
+    try {
+      const data = await apiCall(token);
+      return { data, source: 'api' };
+    } catch (error) {
+      // API call failed, fall back to cache
+      logger.debug(`${functionName}: API call failed, falling back to cache`, {
+        error: error.message,
+      }, LOG_CATEGORIES.API);
+      
+      if (getCachedData) {
+        try {
+          const cachedData = await getCachedData();
+          if (cachedData) {
+            return { data: cachedData, source: 'cache' };
+          }
+        } catch (cacheError) {
+          logger.debug(`${functionName}: Cache retrieval failed`, {
+            error: cacheError.message,
+          }, LOG_CATEGORIES.API);
+        }
+      }
+      
+      return { 
+        source: 'none', 
+        needsAuth: requireAuth,
+        error: error.message, 
+      };
+    }
+  } else {
+    // Token is missing or expired, try cached data first
+    logger.debug(`${functionName}: ${validation.message}`, {}, LOG_CATEGORIES.API);
+    
+    if (getCachedData) {
+      try {
+        const cachedData = await getCachedData();
+        if (cachedData) {
+          return { data: cachedData, source: 'cache' };
+        }
+      } catch (cacheError) {
+        logger.debug(`${functionName}: Cache retrieval failed`, {
+          error: cacheError.message,
+        }, LOG_CATEGORIES.API);
+      }
+    }
+    
+    // No cached data available
+    return { 
+      source: 'none', 
+      needsAuth: requireAuth || !getCachedData,
+      error: validation.message,
+    };
   }
 }

@@ -210,13 +210,37 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
   };
 
   const handleSaveAssignments = async () => {
-    const assignmentsList = Array.from(sectionState.assignments.values());
+    // Get current assignments and original FlexiRecord assignments
+    const currentAssignments = sectionState.assignments;
+    const { flexiRecordAssignments } = getFlexiRecordAssignments();
     
-    if (assignmentsList.length === 0) {
-      logger.info('No assignments to save', {}, LOG_CATEGORIES.USER_ACTION);
-      showToast('error', 'No assignments to save. Please assign members to sections first.');
+    // Find only the assignments that have actually changed
+    const changedAssignments = [];
+    
+    for (const [memberId, currentAssignment] of currentAssignments) {
+      const originalAssignment = flexiRecordAssignments.get(memberId);
+      
+      // Check if this is a new assignment or if values have changed
+      const isChanged = !originalAssignment || 
+        originalAssignment.sectionId !== currentAssignment.sectionId ||
+        originalAssignment.sectionName !== currentAssignment.sectionName ||
+        originalAssignment.term !== currentAssignment.term;
+      
+      if (isChanged) {
+        changedAssignments.push(currentAssignment);
+      }
+    }
+    
+    if (changedAssignments.length === 0) {
+      logger.info('No changed assignments to save', {}, LOG_CATEGORIES.USER_ACTION);
+      showToast('error', 'No changes to save. Please modify member assignments first.');
       return;
     }
+    
+    logger.info('Saving only changed assignments', {
+      totalAssignments: currentAssignments.size,
+      changedAssignments: changedAssignments.length,
+    }, LOG_CATEGORIES.USER_ACTION);
 
     setIsSaving(true);
     setSaveError(null);
@@ -289,7 +313,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       if (context.assignedTerm) {
         const termGroups = new Map(); // Key: "sectionId|termValue"
         
-        for (const assignment of assignmentsList) {
+        for (const assignment of changedAssignments) {
           const termValue = assignment.term || '';
           const memberId = assignment.memberId || assignment.scoutId;
           const currentSectionId = assignment.currentSectionId;
@@ -317,7 +341,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
               await multiUpdateFlexiRecord(
                 group.sectionId,
                 group.memberIds,
-                [group.termValue], // Single value for all members in this section
+                group.termValue, // Single value for all members in this section
                 context.assignedTerm,
                 sectionFlexiRecordId,
                 token,
@@ -331,7 +355,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       if (context.assignedSection) {
         const sectionGroups = new Map(); // Key: "currentSectionId|targetSectionValue"
         
-        for (const assignment of assignmentsList) {
+        for (const assignment of changedAssignments) {
           const sectionValue = assignment.sectionId === 'Not Known' || !assignment.sectionId 
             ? 'Not Known' 
             : assignment.sectionName || 'Not Known';
@@ -360,7 +384,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
               await multiUpdateFlexiRecord(
                 group.sectionId,
                 group.memberIds,
-                [group.sectionValue], // Single value for all members in this section
+                group.sectionValue, // Single value for all members in this section
                 context.assignedSection,
                 sectionFlexiRecordId,
                 token,
@@ -371,11 +395,11 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       }
 
       logger.info('Section mover assignments saved successfully', {
-        assignmentCount: assignmentsList.length,
+        assignmentCount: changedAssignments.length,
       }, LOG_CATEGORIES.USER_ACTION);
 
       // Show success toast
-      showToast('success', `Successfully saved ${assignmentsList.length} assignment${assignmentsList.length > 1 ? 's' : ''}`);
+      showToast('success', `Successfully saved ${changedAssignments.length} assignment${changedAssignments.length > 1 ? 's' : ''}`);
 
       // Reset only manually made assignments, keep FlexiRecord assignments
       const { flexiRecordAssignments, flexiRecordCounts } = getFlexiRecordAssignments();
@@ -398,7 +422,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
     } catch (error) {
       logger.error('Failed to save section mover assignments', {
         error: error.message,
-        assignmentCount: assignmentsList.length,
+        assignmentCount: changedAssignments.length,
       }, LOG_CATEGORIES.API);
       
       setSaveError(error.message);
@@ -443,25 +467,29 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
           </div>
         ) : (
           <div className="space-y-6">
-            {sectionTypeGroups.map(([sectionType, group]) => (
-              <SectionTypeGroup
-                key={sectionType}
-                sectionType={sectionType}
-                group={group}
-                movers={movers}
-                showAssignmentInterface={true}
-                allSections={availableSections}
-                availableTerms={availableTerms}
-                assignments={sectionState.assignments}
-                currentTerm={term}
-                sectionTypeTotals={sectionTypeTotals}
-                onAssignmentChange={handleAssignmentChange}
-                onTermOverrideChange={handleTermOverrideChange}
-                onSaveAssignments={handleSaveAssignments}
-                onResetAssignments={handleResetAssignments}
-                isSaving={isSaving}
-              />
-            ))}
+            {(() => {
+              const { flexiRecordAssignments } = getFlexiRecordAssignments();
+              return sectionTypeGroups.map(([sectionType, group]) => (
+                <SectionTypeGroup
+                  key={sectionType}
+                  sectionType={sectionType}
+                  group={group}
+                  movers={movers}
+                  showAssignmentInterface={true}
+                  allSections={availableSections}
+                  availableTerms={availableTerms}
+                  assignments={sectionState.assignments}
+                  originalAssignments={flexiRecordAssignments}
+                  currentTerm={term}
+                  sectionTypeTotals={sectionTypeTotals}
+                  onAssignmentChange={handleAssignmentChange}
+                  onTermOverrideChange={handleTermOverrideChange}
+                  onSaveAssignments={handleSaveAssignments}
+                  onResetAssignments={handleResetAssignments}
+                  isSaving={isSaving}
+                />
+              ));
+            })()}
           </div>
         )}
       </div>

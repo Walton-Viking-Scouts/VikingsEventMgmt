@@ -1,4 +1,4 @@
-import { updateFlexiRecord } from '../../../shared/services/api/api.js';
+import { updateFlexiRecord, multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { isDemoMode } from '../../../config/demoMode.js';
@@ -388,4 +388,156 @@ export function validateMemberMove(member, targetGroupNumber, currentGroups) {
   return {
     valid: true,
   };
+}
+
+/**
+ * Bulk update camp group assignments for multiple members using multi-update API
+ * More efficient than individual updates for operations like group renaming
+ * 
+ * @param {Array<string|number>} scoutIds - Array of scout/member IDs to update
+ * @param {string} newGroupValue - New camp group value (empty string for "Unassigned")
+ * @param {Object} flexiRecordContext - FlexiRecord configuration
+ * @param {string} flexiRecordContext.flexirecordid - FlexiRecord ID
+ * @param {string} flexiRecordContext.columnid - Column ID for CampGroup field
+ * @param {string} flexiRecordContext.sectionid - Section ID
+ * @param {string} token - Authentication token
+ * @returns {Promise<Object>} Result with success status and details
+ */
+export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordContext, token) {
+  // Handle demo mode
+  if (isDemoMode()) {
+    logger.info('Demo mode: Simulating bulk camp group update', {
+      scoutCount: scoutIds.length,
+      newGroupValue,
+      flexirecordid: flexiRecordContext?.flexirecordid,
+    }, LOG_CATEGORIES.API);
+    
+    // Update demo cache for each scout
+    const flexirecordid = flexiRecordContext?.flexirecordid || 'flexi_viking_event';
+    const sectionid = flexiRecordContext?.sectionid;
+    const termid = '12345'; // Demo term ID
+    
+    const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
+    const cached = safeGetItem(cacheKey, { items: [] });
+    
+    let updatedCount = 0;
+    scoutIds.forEach(scoutId => {
+      const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === Number(scoutId));
+      if (memberIndex >= 0) {
+        cached.items[memberIndex].f_1 = newGroupValue;
+        cached.items[memberIndex].CampGroup = newGroupValue;
+        updatedCount++;
+      }
+    });
+    
+    safeSetItem(cacheKey, cached);
+    
+    return {
+      ok: true,
+      success: true,
+      message: `Demo mode: Bulk updated ${updatedCount} members`,
+      updatedCount,
+    };
+  }
+  
+  // Production mode
+  const startTime = Date.now();
+  
+  try {
+    // Validate required data
+    if (!Array.isArray(scoutIds) || scoutIds.length === 0) {
+      throw new Error('Invalid scout IDs: array is required and must not be empty');
+    }
+
+    if (!flexiRecordContext || !flexiRecordContext.flexirecordid) {
+      throw new Error('Invalid FlexiRecord context: missing flexirecordid');
+    }
+
+    if (!flexiRecordContext.sectionid) {
+      throw new Error('Invalid FlexiRecord context: missing sectionid');
+    }
+
+    if (!flexiRecordContext.columnid || !/^f_\d+$/.test(flexiRecordContext.columnid)) {
+      throw new Error(`Invalid FlexiRecord field ID: expected format 'f_N', got '${flexiRecordContext.columnid || 'undefined'}'`);
+    }
+
+    if (!token || typeof token !== 'string') {
+      throw new Error('Invalid or missing authentication token');
+    }
+
+    logger.info('Starting bulk camp group update', {
+      scoutCount: scoutIds.length,
+      newGroupValue,
+      operation: 'bulkUpdateCampGroups',
+    }, LOG_CATEGORIES.API);
+
+    // Call the multi-update API
+    const result = await multiUpdateFlexiRecord(
+      flexiRecordContext.sectionid,
+      scoutIds,
+      newGroupValue,
+      flexiRecordContext.columnid,
+      flexiRecordContext.flexirecordid,
+      token,
+    );
+
+    // Check for application-level failure
+    if (!result || result.ok === false || result.status === 'error' || result.success === false) {
+      throw new Error(result?.message || result?.error || 'Multi-update FlexiRecord failed - API returned error status');
+    }
+
+    const duration = Date.now() - startTime;
+
+    logger.info('Bulk camp group update successful', {
+      scoutCount: scoutIds.length,
+      newGroupValue,
+      duration: `${duration}ms`,
+      operation: 'bulkUpdateCampGroups',
+    }, LOG_CATEGORIES.API);
+
+    return {
+      success: true,
+      scoutIds,
+      newGroupValue,
+      result,
+      duration,
+    };
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    
+    logger.error('Bulk camp group update failed', {
+      scoutCount: scoutIds?.length || 0,
+      newGroupValue,
+      error: error.message,
+      duration: `${duration}ms`,
+      operation: 'bulkUpdateCampGroups',
+    }, LOG_CATEGORIES.ERROR);
+
+    // Capture in Sentry with context
+    sentryUtils.captureException(error, {
+      tags: {
+        operation: 'bulkUpdateCampGroups',
+      },
+      contexts: {
+        bulkUpdate: {
+          scoutCount: scoutIds?.length || 0,
+          newGroupValue,
+        },
+        flexiRecord: {
+          id: flexiRecordContext?.flexirecordid,
+          columnid: flexiRecordContext?.columnid,
+          sectionid: flexiRecordContext?.sectionid,
+        },
+      },
+    });
+
+    return {
+      success: false,
+      scoutIds,
+      newGroupValue,
+      error: error.message,
+      duration,
+    };
+  }
 }
