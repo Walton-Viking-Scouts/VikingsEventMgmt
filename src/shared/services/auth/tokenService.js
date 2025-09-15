@@ -61,7 +61,40 @@ export function clearToken() {
 }
 
 export function isTokenExpired() {
-  return sessionStorage.getItem('token_expired') === 'true';
+  const expiresAt = sessionStorage.getItem('token_expires_at');
+  if (!expiresAt) {
+    // No expiration time stored - fall back to existing token_expired flag
+    return sessionStorage.getItem('token_expired') === 'true';
+  }
+  
+  const expirationTime = parseInt(expiresAt, 10);
+  
+  // Validate the parsed expiration time
+  if (!Number.isFinite(expirationTime)) {
+    logger.warn('Corrupt token expiration time detected in API validation', {
+      corruptValue: expiresAt,
+      tokenExpiredFlag: sessionStorage.getItem('token_expired'),
+    }, LOG_CATEGORIES.AUTH);
+    
+    // Treat corrupt expiration as expired for safety and consistency
+    sessionStorage.setItem('token_expired', 'true');
+    return true;
+  }
+  
+  const now = Date.now();
+  const isExpired = now >= expirationTime;
+  
+  // If expired, set the token_expired flag for consistency with existing code
+  if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
+    logger.info('Token expiration detected during API validation', {
+      now,
+      expirationTime,
+      expired: true,
+    }, LOG_CATEGORIES.AUTH);
+    sessionStorage.setItem('token_expired', 'true');
+  }
+  
+  return isExpired;
 }
 
 export function markTokenAsExpired() {

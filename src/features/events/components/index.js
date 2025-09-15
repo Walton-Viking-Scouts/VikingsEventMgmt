@@ -5,7 +5,6 @@ export { default as CampGroupsView } from './CampGroupsView.jsx';
 export { default as CompactAttendanceFilter } from './CompactAttendanceFilter.jsx';
 export { default as EventCard } from './EventCard.jsx';
 export { default as EventDashboard } from './EventDashboard.jsx';
-export { default as EventsCampGroups } from './EventsCampGroups.jsx';
 export { default as EventsContainer } from './EventsContainer.jsx';
 export { default as EventsLayout } from './EventsLayout.jsx';
 export { default as EventsOverview } from './EventsOverview.jsx';

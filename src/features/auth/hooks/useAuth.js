@@ -1,7 +1,8 @@
 // useAuth hook for managing authentication state in React
 import { useState, useEffect, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import authService, { generateOAuthUrl, getAndClearReturnPath, isTokenExpired } from '../services/auth.js';
+import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
+import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
 
