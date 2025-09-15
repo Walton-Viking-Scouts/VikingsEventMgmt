@@ -320,7 +320,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             member.scoutid,
             vikingFlexiRecord.extraid,
             getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
+            '---', // Clear the field
             termId,
             sectionType,
             opToken,
@@ -343,7 +343,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             member.scoutid,
             vikingFlexiRecord.extraid,
             getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
+            '', // Clear the time field with empty string
             termId,
             sectionType,
             opToken,

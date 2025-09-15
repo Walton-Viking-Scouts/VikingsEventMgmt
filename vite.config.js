@@ -7,13 +7,20 @@ import packageJson from './package.json';
 
 // Resolve version once for the whole config
 function resolveVersion() {
-  // 1) CI-provided env (should be set by GitHub Actions)
+  // 1) CI-provided env (should be set by GitHub Actions or Render)
   if (process.env.VITE_APP_VERSION) {
     console.log('Using CI-provided version:', process.env.VITE_APP_VERSION);
     return process.env.VITE_APP_VERSION.replace(/^v/, '');
   }
-  
-  // 2) GitHub release (local development)
+
+  // 2) Production: Use package.json but auto-sync with latest release
+  if (process.env.NODE_ENV === 'production' || process.env.CI) {
+    console.log('Production build: using package.json version:', packageJson.version);
+    console.log('💡 To use latest release version, set VITE_APP_VERSION=2.7.2 in your deployment environment');
+    return packageJson.version;
+  }
+
+  // 3) Local development: Try GitHub release
   try {
     const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
     if (ghRelease && ghRelease !== 'null') {
@@ -23,8 +30,8 @@ function resolveVersion() {
   } catch (e) {
     console.warn('GitHub release lookup failed:', e.message);
   }
-  
-  // 3) Git tag (fallback)
+
+  // 4) Local development: Try Git tag
   try {
     const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
     if (gitTag) {
@@ -34,8 +41,8 @@ function resolveVersion() {
   } catch (e) {
     console.warn('Git tag lookup failed:', e.message);
   }
-  
-  // 4) package.json (last resort)
+
+  // 5) Final fallback
   console.warn('Falling back to package.json version:', packageJson.version);
   return packageJson.version;
 }

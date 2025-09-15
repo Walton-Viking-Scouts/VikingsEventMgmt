@@ -4,8 +4,17 @@ import SignInOutButton from '../SignInOutButton.jsx';
 const formatUKDateTime = (dateString) => {
   if (!dateString) return '';
 
+  // Handle cleared/placeholder values
+  if (dateString === '---') return '---';
+
   try {
     const date = new Date(dateString);
+
+    // Check if date is invalid (NaN)
+    if (isNaN(date.getTime())) {
+      return '---';
+    }
+
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
@@ -17,7 +26,7 @@ const formatUKDateTime = (dateString) => {
     if (import.meta.env.DEV) {
       console.warn('Failed to format date:', dateString, error);
     }
-    return dateString;
+    return '---';
   }
 };
 
@@ -71,21 +80,32 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
   );
 };
 
-function RegisterTab({ 
+function RegisterTab({
   summaryStats,
   members,
   onSignInOut,
   buttonLoading,
   onMemberClick,
   sortConfig,
-  onSort, 
+  onSort,
+  onClearSignInData,
+  clearSignInDataLoading = false,
 }) {
   const handleSort = (key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     onSort({ key, direction });
   };
 
-  if (!summaryStats || summaryStats.length === 0) {
+  // Filter for Young People only (register is primarily for Young People)
+  const youngPeople = summaryStats.filter(member => member.person_type === 'Young People');
+
+  // Calculate signed in/out counts
+  const signedInCount = youngPeople.filter(member =>
+    member.vikingEventData?.SignedInBy && member.vikingEventData.SignedInBy !== '---' && (!member.vikingEventData?.SignedOutBy || member.vikingEventData.SignedOutBy === '---'),
+  ).length;
+  const notSignedInCount = youngPeople.length - signedInCount;
+
+  if (!youngPeople || youngPeople.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 mb-4">
@@ -93,135 +113,179 @@ function RegisterTab({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Members Found</h3>
-        <p className="text-gray-600">No members match the current filter criteria.</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Young People Found</h3>
+        <p className="text-gray-600">No young people match the current filter criteria.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th
-              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-              onClick={() => handleSort('member')}
+    <div>
+      {/* Status pills and Clear button */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Status Pills */}
+        <div className="flex gap-3">
+          {/* Signed In Pill - Green */}
+          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white">
+            Signed In: {signedInCount}
+          </span>
+
+          {/* Not Signed In Pill - Red */}
+          <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-red text-white">
+            Not Signed In: {notSignedInCount}
+          </span>
+        </div>
+
+        {/* Clear All Sign-In Data Button */}
+        {onClearSignInData && (
+          <button
+            onClick={onClearSignInData}
+            disabled={clearSignInDataLoading}
+            className="inline-flex items-center px-3 py-2 border border-scout-yellow shadow-sm text-sm leading-4 font-medium rounded-md text-gray-900 bg-scout-yellow hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-yellow disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            type="button"
+            title="Clear all sign-in and sign-out data for all members"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <div className="flex items-center">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+            {clearSignInDataLoading ? 'Clearing...' : 'Clear All Sign-In Data'}
+          </button>
+        )}
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th
+                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('member')}
+              >
+                <div className="flex items-center">
                 Member {getSortIcon('member', sortConfig.key, sortConfig.direction)}
-              </div>
-            </th>
-            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-            <th
-              className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-              onClick={() => handleSort('attendance')}
-            >
-              <div className="flex items-center">
-                Status {getSortIcon('attendance', sortConfig.key, sortConfig.direction)}
-              </div>
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Camp Group
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Signed In
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Signed Out
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {sortData(summaryStats, sortConfig.key, sortConfig.direction).map((member, index) => (
-            <tr key={member.scoutid || index} className="hover:bg-gray-50">
-              <td className="px-3 py-2">
-                <button
-                  onClick={() => {
-                    const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
-                    if (fullMember) {
-                      onMemberClick(fullMember);
-                    }
-                  }}
-                  className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block text-xs"
-                >
-                  {member.name}
-                </button>
-              </td>
-              <td className="px-2 py-2 text-center">
-                <SignInOutButton
-                  member={member}
-                  onSignInOut={onSignInOut}
-                  loading={buttonLoading?.[member.scoutid] || false}
-                />
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <div className="flex gap-1 flex-wrap">
-                  {member.yes > 0 && (
-                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">
-                      Yes
-                    </span>
-                  )}
-                  {member.no > 0 && (
-                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">
-                      No
-                    </span>
-                  )}
-                  {member.invited > 0 && (
-                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">
-                      Invited
-                    </span>
-                  )}
-                  {member.notInvited > 0 && (
-                    <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">
-                      Not Invited
-                    </span>
-                  )}
                 </div>
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
-                {member.vikingEventData?.CampGroup || '-'}
-              </td>
-              <td className="px-3 py-2 text-xs">
-                {member.vikingEventData?.SignedInBy || member.vikingEventData?.SignedInWhen ? (
-                  <div className="space-y-0.5">
-                    <div className="text-gray-900 font-medium leading-tight">
-                      {member.vikingEventData?.SignedInBy || '-'}
-                    </div>
-                    <div className="text-gray-500 text-xs leading-tight">
-                      {member.vikingEventData?.SignedInWhen
-                        ? formatUKDateTime(member.vikingEventData.SignedInWhen)
-                        : '-'
-                      }
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-gray-400">-</span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-xs">
-                {member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? (
-                  <div className="space-y-0.5">
-                    <div className="text-gray-900 font-medium leading-tight">
-                      {member.vikingEventData?.SignedOutBy || '-'}
-                    </div>
-                    <div className="text-gray-500 text-xs leading-tight">
-                      {member.vikingEventData?.SignedOutWhen
-                        ? formatUKDateTime(member.vikingEventData.SignedOutWhen)
-                        : '-'
-                      }
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-gray-400">-</span>
-                )}
-              </td>
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+              </th>
+              <th
+                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('attendance')}
+              >
+                <div className="flex items-center">
+                Status {getSortIcon('attendance', sortConfig.key, sortConfig.direction)}
+                </div>
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Camp Group
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Signed In
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Signed Out
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sortData(youngPeople, sortConfig.key, sortConfig.direction).map((member, index) => (
+              <tr key={member.scoutid || index} className="hover:bg-gray-50">
+                <td className="px-3 py-2">
+                  <button
+                    onClick={() => {
+                      const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
+                      if (fullMember) {
+                        onMemberClick(fullMember);
+                      }
+                    }}
+                    className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block text-xs"
+                  >
+                    {member.name}
+                  </button>
+                </td>
+                <td className="px-2 py-2 text-center">
+                  <SignInOutButton
+                    member={member}
+                    onSignInOut={onSignInOut}
+                    loading={buttonLoading?.[member.scoutid] || false}
+                  />
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="flex gap-1 flex-wrap">
+                    {member.yes > 0 && (
+                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">
+                      Yes
+                      </span>
+                    )}
+                    {member.no > 0 && (
+                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">
+                      No
+                      </span>
+                    )}
+                    {member.invited > 0 && (
+                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">
+                      Invited
+                      </span>
+                    )}
+                    {member.notInvited > 0 && (
+                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">
+                      Not Invited
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+                  {member.vikingEventData?.CampGroup || '-'}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {member.vikingEventData?.SignedInBy || member.vikingEventData?.SignedInWhen ? (
+                    <div className="space-y-0.5">
+                      <div className="text-gray-900 font-medium leading-tight">
+                        {member.vikingEventData?.SignedInBy || '-'}
+                      </div>
+                      <div className="text-gray-500 text-xs leading-tight">
+                        {member.vikingEventData?.SignedInWhen
+                          ? formatUKDateTime(member.vikingEventData.SignedInWhen)
+                          : '-'
+                        }
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? (
+                    <div className="space-y-0.5">
+                      <div className="text-gray-900 font-medium leading-tight">
+                        {member.vikingEventData?.SignedOutBy || '-'}
+                      </div>
+                      <div className="text-gray-500 text-xs leading-tight">
+                        {member.vikingEventData?.SignedOutWhen
+                          ? formatUKDateTime(member.vikingEventData.SignedOutWhen)
+                          : '-'
+                        }
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

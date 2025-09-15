@@ -3,10 +3,15 @@ import { SectionCardsFlexMasonry } from '../../../../shared/components/ui';
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import { MemberDetailModal } from '../../../../shared/components/ui';
 import CampGroupsView from '../CampGroupsView.jsx';
-import { notifyError, notifyWarning } from '../../../../shared/utils/notifications.js';
+import ClearSignInDataModal from '../ClearSignInDataModal.jsx';
+import { notifyError, notifyWarning, notifySuccess, notifyInfo } from '../../../../shared/utils/notifications.js';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../../shared/hooks/useSignInOut.js';
 import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
+import { bulkClearSignInData } from '../../services/signInDataService.js';
+import { getToken } from '../../../../shared/services/auth/tokenService.js';
+import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
+import { parseFlexiStructure } from '../../../../shared/utils/flexiRecordTransforms.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
 import AttendanceFilters from './AttendanceFilters.jsx';
@@ -50,15 +55,18 @@ function EventAttendance({ events, members, onBack }) {
 
   const [attendanceFilters, setAttendanceFilters] = useState({
     yes: true,
-    no: true,
-    invited: true,
-    notInvited: true,
+    no: false,
+    invited: false,
+    notInvited: false,
   });
 
   const [dataFilters, setDataFilters] = useState({
     contacts: false,
   });
 
+  // Clear sign-in data modal state
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearingSignInData, setClearingSignInData] = useState(false);
 
   const [sectionFilters, setSectionFilters] = useState(() => {
     const filters = {};
@@ -82,17 +90,18 @@ function EventAttendance({ events, members, onBack }) {
   }, [events]);
 
 
-  const applyFilters = (attendanceData, attendanceFilters, sectionFilters) => {
+  const applyFilters = (attendanceData, attendanceFilters, sectionFilters, includeAttendanceFilter = true) => {
     if (!attendanceData || !Array.isArray(attendanceData)) return [];
 
     return attendanceData.filter((record) => {
       // Handle both string and number formats for attending field
       const attending = record.attending;
-      const statusMatch = 
-        ((attending === 1 || attending === 'Yes') && attendanceFilters.yes) ||
-        ((attending === 0 || attending === 'No') && attendanceFilters.no) ||
-        ((attending === 2 || attending === 'Invited') && attendanceFilters.invited) ||
-        ((attending === 3 || attending === 'Not Invited') && attendanceFilters.notInvited);
+      const statusMatch = includeAttendanceFilter
+        ? ((attending === 1 || attending === 'Yes') && attendanceFilters.yes) ||
+          ((attending === 0 || attending === 'No') && attendanceFilters.no) ||
+          ((attending === 2 || attending === 'Invited') && attendanceFilters.invited) ||
+          ((attending === 3 || attending === 'Not Invited') && attendanceFilters.notInvited)
+        : true; // For Overview tab, include all attendance statuses
 
       // For section filtering, skip if sectionid is missing (common in cached data)
       // The data should have sectionid added by the hook, but if not, allow it through
@@ -133,7 +142,7 @@ function EventAttendance({ events, members, onBack }) {
           invited: 0,
           notInvited: 0,
           vikingEventData: record.vikingEventData,
-          isSignedIn: Boolean(record.vikingEventData?.SignedInBy && !record.vikingEventData?.SignedOutBy),
+          isSignedIn: Boolean(record.vikingEventData?.SignedInBy && record.vikingEventData.SignedInBy !== '---' && (!record.vikingEventData?.SignedOutBy || record.vikingEventData.SignedOutBy === '---')),
           person_type: memberData?.person_type, // Include person_type from member data
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
@@ -147,7 +156,7 @@ function EventAttendance({ events, members, onBack }) {
       if (record.vikingEventData) {
         member.vikingEventData = record.vikingEventData;
         // Update isSignedIn based on the latest vikingEventData
-        member.isSignedIn = Boolean(record.vikingEventData?.SignedInBy && !record.vikingEventData?.SignedOutBy);
+        member.isSignedIn = Boolean(record.vikingEventData?.SignedInBy && record.vikingEventData.SignedInBy !== '---' && (!record.vikingEventData?.SignedOutBy || record.vikingEventData.SignedOutBy === '---'));
       }
 
       // Handle both string and number formats for attending field
@@ -161,14 +170,17 @@ function EventAttendance({ events, members, onBack }) {
     return Array.from(memberMap.values());
   }, [filteredAttendanceData, members]);
 
-  const simplifiedSummaryStats = useMemo(() => {
-    if (!filteredAttendanceData || filteredAttendanceData.length === 0) {
+  // Simplified summary stats for Overview tab (unfiltered by attendance status)
+  const simplifiedSummaryStatsForOverview = useMemo(() => {
+    // Use unfiltered data but respect section filters
+    const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
+
+    if (!overviewData || overviewData.length === 0) {
       return { sections: [], totals: null };
     }
 
-
     const sectionMap = new Map();
-    
+
     uniqueSections.forEach(section => {
       if (sectionFilters[section.sectionid] !== false) {
         sectionMap.set(section.sectionid, {
@@ -182,7 +194,7 @@ function EventAttendance({ events, members, onBack }) {
       }
     });
 
-    filteredAttendanceData.forEach((record) => {
+    overviewData.forEach((record) => {
       const section = sectionMap.get(record.sectionid);
       if (!section) return;
 
@@ -190,7 +202,7 @@ function EventAttendance({ events, members, onBack }) {
       // Convert both scoutids to strings to handle type mismatch (attendance has strings, members has numbers)
       const memberData = members.find(m => m.scoutid.toString() === record.scoutid.toString());
       const personType = memberData?.person_type;
-      
+
       // Map person_type to role abbreviations
       let roleType = 'l'; // default to Leaders
       if (personType === 'Young People') {
@@ -217,7 +229,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     const sections = Array.from(sectionMap.values());
-    
+
     const totals = sections.reduce((acc, section) => {
       ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(category => {
         acc[category].yp += section[category].yp;
@@ -235,7 +247,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return { sections, totals };
-  }, [filteredAttendanceData, uniqueSections, sectionFilters, members]);
+  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, members]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);
@@ -248,15 +260,261 @@ function EventAttendance({ events, members, onBack }) {
   const handleResetFilters = () => {
     setAttendanceFilters({
       yes: true,
-      no: true,
-      invited: true,
-      notInvited: true,
+      no: false,
+      invited: false,
+      notInvited: false,
     });
     const allSectionsEnabled = {};
     uniqueSections.forEach((section) => {
       allSectionsEnabled[section.sectionid] = true;
     });
     setSectionFilters(allSectionsEnabled);
+  };
+
+  // Handler to open clear sign-in data modal
+  const handleClearSignInData = () => {
+    setShowClearModal(true);
+  };
+
+  // Handler to close clear sign-in data modal
+  const handleCloseClearModal = () => {
+    setShowClearModal(false);
+  };
+
+  // Handler to confirm clearing all sign-in data
+  const handleConfirmClearSignInData = async () => {
+    const token = getToken();
+    if (!token) {
+      notifyError('Please sign in to OSM to clear sign-in data.');
+      return;
+    }
+
+    setClearingSignInData(true);
+    try {
+      // Get all members with sign-in data, organized by section
+      const membersBySection = {};
+      let totalMembers = 0;
+
+      // Process summary stats to find members with sign-in data
+      summaryStats.forEach(member => {
+        const hasSignInData = member.vikingEventData?.SignedInBy ||
+                            member.vikingEventData?.SignedInWhen ||
+                            member.vikingEventData?.SignedOutBy ||
+                            member.vikingEventData?.SignedOutWhen;
+
+        if (hasSignInData) {
+          const sectionId = member.sectionid;
+          if (!membersBySection[sectionId]) {
+            membersBySection[sectionId] = [];
+          }
+          membersBySection[sectionId].push(member);
+          totalMembers++;
+        }
+      });
+
+      if (totalMembers === 0) {
+        notifyInfo('No sign-in data found to clear.');
+        setShowClearModal(false);
+        setClearingSignInData(false);
+        return;
+      }
+
+      logger.info('Starting bulk clear sign-in data operation', {
+        totalMembers,
+        sectionCount: Object.keys(membersBySection).length,
+      }, LOG_CATEGORIES.API);
+
+      notifyInfo(`Clearing sign-in data for ${totalMembers} members across ${Object.keys(membersBySection).length} section(s)...`);
+
+      // Process each section separately
+      let totalSuccessful = 0;
+      let totalFailed = 0;
+
+      for (const [sectionId, members] of Object.entries(membersBySection)) {
+        if (members.length === 0) continue;
+
+        try {
+          // Get section details for termId
+          const event = events.find(e => String(e.sectionid) === String(sectionId));
+          const termId = event?.termid || 'current';
+
+          // Use the same approach as individual sign-in operations
+          // Import the function from useSignInOut hook approach
+          const getVikingEventFlexiRecord = async (sectionId) => {
+            try {
+              const structureKeys = Object.keys(localStorage).filter(key =>
+                key.includes('viking_flexi_structure_') && key.includes('offline'),
+              );
+
+              const dataKeys = Object.keys(localStorage).filter(key =>
+                key.includes('viking_flexi_data_') && key.includes(`_${sectionId}_`) && key.includes('offline'),
+              );
+
+              if (structureKeys.length > 0 && dataKeys.length > 0) {
+                const dataKey = dataKeys[0];
+                const keyParts = dataKey.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
+                const realFlexiRecordId = keyParts[0];
+
+                // Try to find a structure that matches this FlexiRecord ID
+                for (const structureKey of structureKeys) {
+                  try {
+                    const structureData = JSON.parse(localStorage.getItem(structureKey));
+
+                    const structureFlexiRecordId = structureData?.extraid || structureData?._structure?.extraid ||
+                                                 structureData?.flexirecordid || structureData?._structure?.flexirecordid;
+                    if (String(structureFlexiRecordId) !== String(realFlexiRecordId)) {
+                      continue;
+                    }
+
+                    // Parse the raw structure to get field mapping
+                    const fieldMapping = {};
+                    try {
+                      const parsedMapping = parseFlexiStructure(structureData);
+                      if (parsedMapping && parsedMapping.size > 0) {
+                        parsedMapping.forEach((fieldInfo, fieldId) => {
+                          fieldMapping[fieldId] = {
+                            columnId: fieldId,
+                            ...fieldInfo,
+                          };
+                        });
+                      }
+                    } catch (error) {
+                      logger.warn('Failed to parse structure for bulk clear', { error: error.message }, LOG_CATEGORIES.API);
+                    }
+
+                    // Look for sign-in fields
+                    const hasSignInFields = Object.values(fieldMapping).some(field => {
+                      const name = field.name?.toLowerCase();
+                      return name === 'signedinby' || name === 'signed in by' ||
+                             name === 'signedoutby' || name === 'signed out by';
+                    });
+
+                    if (hasSignInFields) {
+                      return {
+                        extraid: realFlexiRecordId,
+                        structure: structureData,
+                        fieldMapping: parseFlexiStructure(structureData._structure || structureData),
+                      };
+                    }
+                  } catch (error) {
+                    logger.warn('Failed to parse Viking Event structure for bulk clear', { structureKey, error: error.message }, LOG_CATEGORIES.API);
+                  }
+                }
+              }
+            } catch (error) {
+              logger.warn('Failed to load Viking Event data from cache for bulk clear', { error: error.message }, LOG_CATEGORIES.API);
+            }
+            return null;
+          };
+
+          const vikingEventRecord = await getVikingEventFlexiRecord(sectionId);
+
+          if (!vikingEventRecord) {
+            logger.warn('No Viking Event FlexiRecord found for bulk clear', { sectionId }, LOG_CATEGORIES.API);
+            totalFailed += members.length;
+            continue;
+          }
+
+          // Create context in the format expected by extractSignInFlexiRecordContext
+          const flexiRecordContext = {
+            flexirecordid: String(vikingEventRecord.extraid),
+            sectionid: String(sectionId),
+            termid: String(termId),
+            sectiontype: 'Unknown Section Type', // Not needed for bulk clear
+            fieldMapping: vikingEventRecord.fieldMapping,
+          };
+
+          if (!flexiRecordContext) {
+            logger.warn('No FlexiRecord context for section, skipping', { sectionId }, LOG_CATEGORIES.API);
+            totalFailed += members.length;
+            continue;
+          }
+
+          // Extract scout IDs for bulk update
+          const scoutIds = members.map(member => member.scoutid);
+
+          logger.info('Processing bulk sign-in data clear for section', {
+            sectionId,
+            memberCount: scoutIds.length,
+          }, LOG_CATEGORIES.API);
+
+          // Execute bulk clear for this section
+          const clearResult = await bulkClearSignInData(scoutIds, flexiRecordContext, token);
+
+          if (clearResult.success) {
+            totalSuccessful += scoutIds.length;
+            logger.info('Bulk sign-in data clear succeeded for section', {
+              sectionId,
+              clearedCount: scoutIds.length,
+              clearedFields: clearResult.clearedFields,
+              partial: clearResult.partial || false,
+            }, LOG_CATEGORIES.API);
+
+            if (clearResult.partial) {
+              logger.warn('Partial success for section - some fields failed to clear', {
+                sectionId,
+                clearedFields: clearResult.clearedFields,
+                failedFields: clearResult.failedFields,
+              }, LOG_CATEGORIES.API);
+            }
+          } else {
+            totalFailed += scoutIds.length;
+            logger.warn('Bulk sign-in data clear failed for section', {
+              sectionId,
+              error: clearResult.error,
+              failedCount: scoutIds.length,
+            }, LOG_CATEGORIES.API);
+          }
+
+        } catch (sectionError) {
+          logger.error('Failed to clear sign-in data for section', {
+            sectionId,
+            error: sectionError.message,
+            memberCount: members.length,
+          }, LOG_CATEGORIES.ERROR);
+          totalFailed += members.length;
+        }
+      }
+
+      if (totalFailed === 0) {
+        notifySuccess(`Successfully cleared sign-in data for ${totalSuccessful} members`);
+
+        // Refresh Viking Event data to show cleared data
+        if (loadVikingEventData) {
+          try {
+            await loadVikingEventData();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after clear operation', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else if (totalSuccessful > 0) {
+        notifyWarning(`Sign-in data partially cleared: ${totalSuccessful} successful, ${totalFailed} failed`);
+
+        // Refresh Viking Event data even for partial success
+        if (loadVikingEventData) {
+          try {
+            await loadVikingEventData();
+          } catch (refreshError) {
+            logger.warn('Failed to refresh Viking Event data after partial clear operation', {
+              error: refreshError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
+        }
+      } else {
+        throw new Error(`Failed to clear sign-in data: no members were updated (${totalFailed} failures)`);
+      }
+
+    } catch (error) {
+      logger.error('Failed to clear sign-in data', {
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      notifyError(`Failed to clear sign-in data: ${error.message}`);
+    } finally {
+      setClearingSignInData(false);
+      setShowClearModal(false);
+    }
   };
 
   if (loading) {
@@ -280,8 +538,8 @@ function EventAttendance({ events, members, onBack }) {
     switch (activeTab) {
     case 'overview':
       return (
-        <OverviewTab 
-          summaryStats={simplifiedSummaryStats}
+        <OverviewTab
+          summaryStats={simplifiedSummaryStatsForOverview}
           members={members}
           onResetFilters={handleResetFilters}
           uniqueSections={uniqueSections}
@@ -290,7 +548,7 @@ function EventAttendance({ events, members, onBack }) {
       
     case 'register':
       return (
-        <RegisterTab 
+        <RegisterTab
           summaryStats={summaryStats}
           members={members}
           onSignInOut={handleSignInOut}
@@ -298,6 +556,8 @@ function EventAttendance({ events, members, onBack }) {
           onMemberClick={handleMemberClick}
           sortConfig={sortConfig}
           onSort={setSortConfig}
+          onClearSignInData={handleClearSignInData}
+          clearSignInDataLoading={clearingSignInData}
         />
       );
       
@@ -458,7 +718,7 @@ function EventAttendance({ events, members, onBack }) {
           />
 
           <div className="p-4">
-            <AttendanceFilters 
+            <AttendanceFilters
               attendanceFilters={attendanceFilters}
               onAttendanceFiltersChange={setAttendanceFilters}
               sectionFilters={sectionFilters}
@@ -487,6 +747,33 @@ function EventAttendance({ events, members, onBack }) {
             member={selectedMember}
           />
         )}
+
+        <ClearSignInDataModal
+          isOpen={showClearModal}
+          onClose={handleCloseClearModal}
+          onConfirm={handleConfirmClearSignInData}
+          memberCount={summaryStats.filter(member =>
+            member.vikingEventData?.SignedInBy ||
+            member.vikingEventData?.SignedInWhen ||
+            member.vikingEventData?.SignedOutBy ||
+            member.vikingEventData?.SignedOutWhen,
+          ).length}
+          sectionCount={Object.keys(uniqueSections.reduce((acc, section) => {
+            const hasSignInDataInSection = summaryStats.some(member =>
+              String(member.sectionid) === String(section.sectionid) && (
+                member.vikingEventData?.SignedInBy ||
+                member.vikingEventData?.SignedInWhen ||
+                member.vikingEventData?.SignedOutBy ||
+                member.vikingEventData?.SignedOutWhen
+              ),
+            );
+            if (hasSignInDataInSection) {
+              acc[section.sectionid] = true;
+            }
+            return acc;
+          }, {})).length}
+          loading={clearingSignInData}
+        />
       </div>
     </div>
   );

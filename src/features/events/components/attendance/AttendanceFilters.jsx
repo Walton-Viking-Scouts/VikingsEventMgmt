@@ -21,7 +21,7 @@ function AttendanceFilters({
 
   return (
     <div className="space-y-3 mb-6 p-3 bg-gray-50 rounded-lg">
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 items-start">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Attendance Status:
