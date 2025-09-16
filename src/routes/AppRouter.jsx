@@ -11,6 +11,7 @@ import { useAuth } from '../features/auth/hooks';
 // Lazy load main feature modules for better performance
 const MoversPage = React.lazy(() => import('../features/movements/components').then(module => ({ default: module.MoversPage })));
 const SectionsPage = React.lazy(() => import('../features/sections/components').then(module => ({ default: module.SectionsPage })));
+const YoungLeadersPage = React.lazy(() => import('../features/young-leaders/components').then(module => ({ default: module.YoungLeadersPage })));
 const EventsRouter = React.lazy(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
 const DataClearPage = React.lazy(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
 
@@ -74,21 +75,29 @@ function AppContent() {
                 </RouteGuard>
               } 
             />
-            <Route 
-              path="/sections" 
+            <Route
+              path="/sections"
               element={
                 <RouteGuard authLevel="none">
                   <SectionsPage />
                 </RouteGuard>
-              } 
+              }
             />
-            <Route 
-              path="/events/*" 
+            <Route
+              path="/young-leaders"
+              element={
+                <RouteGuard authLevel="none">
+                  <YoungLeadersPage />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/events/*"
               element={
                 <RouteGuard authLevel="none">
                   <EventsRouter />
                 </RouteGuard>
-              } 
+              }
             />
             <Route 
               path="/clear" 
