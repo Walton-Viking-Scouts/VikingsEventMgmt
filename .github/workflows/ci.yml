@@ -444,7 +444,12 @@ jobs:
 
               # Commit package.json changes for explicit versions
               git add package.json package-lock.json 2>/dev/null || true
-              git commit -m "chore(release): v${CLEAN_VERSION} [explicit]" || echo "No changes to commit"
+              if git commit -m "chore(release): v${CLEAN_VERSION} [explicit]"; then
+                echo "📝 Package.json updated to v${CLEAN_VERSION}, pushing to repository..."
+                git push origin main || echo "⚠️ Failed to push package.json update (may be due to branch protection)"
+              else
+                echo "ℹ️ No package.json changes to commit"
+              fi
 
               echo "✅ Explicit version set: $NEW_VERSION"
             else
@@ -495,7 +500,12 @@ jobs:
 
               # Commit package.json changes for semantic versions
               git add package.json package-lock.json 2>/dev/null || true
-              git commit -m "chore(release): v${NEW_VERSION} [${VERSION_TYPE}]" || echo "No changes to commit"
+              if git commit -m "chore(release): v${NEW_VERSION} [${VERSION_TYPE}]"; then
+                echo "📝 Package.json updated to v${NEW_VERSION}, pushing to repository..."
+                git push origin main || echo "⚠️ Failed to push package.json update (may be due to branch protection)"
+              else
+                echo "ℹ️ No package.json changes to commit"
+              fi
             fi
 
             DEPLOYMENT_TYPE="production"
