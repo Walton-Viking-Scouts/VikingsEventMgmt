@@ -13,14 +13,35 @@ function resolveVersion() {
     return process.env.VITE_APP_VERSION.replace(/^v/, '');
   }
 
-  // 2) Production: Use package.json but auto-sync with latest release
+  // 2) Production: Try GitHub release first, then package.json
   if (process.env.NODE_ENV === 'production' || process.env.CI) {
-    console.log('Production build: using package.json version:', packageJson.version);
-    console.log('💡 To use latest release version, set VITE_APP_VERSION=2.7.2 in your deployment environment');
+    // Try GitHub release in production builds
+    try {
+      const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
+      if (ghRelease && ghRelease !== 'null') {
+        console.log('Using GitHub release version:', ghRelease);
+        return ghRelease.replace(/^v/, '');
+      }
+    } catch (e) {
+      console.warn('GitHub release lookup failed in production:', e.message);
+    }
+
+    // Try Git tag as fallback for production
+    try {
+      const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+      if (gitTag) {
+        console.log('Using Git tag version in production:', gitTag);
+        return gitTag.replace(/^v/, '');
+      }
+    } catch (e) {
+      console.warn('Git tag lookup failed in production:', e.message);
+    }
+
+    console.log('Production build: falling back to package.json version:', packageJson.version);
     return packageJson.version;
   }
 
-  // 3) Local development: Try GitHub release
+  // 3) Local development: Try GitHub release first, then Git tag
   try {
     const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
     if (ghRelease && ghRelease !== 'null') {
@@ -28,10 +49,10 @@ function resolveVersion() {
       return ghRelease.replace(/^v/, '');
     }
   } catch (e) {
-    console.warn('GitHub release lookup failed:', e.message);
+    console.warn('GitHub release lookup failed in development:', e.message);
   }
 
-  // 4) Local development: Try Git tag
+  // Fallback to Git tag in development
   try {
     const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
     if (gitTag) {
@@ -42,7 +63,7 @@ function resolveVersion() {
     console.warn('Git tag lookup failed:', e.message);
   }
 
-  // 5) Final fallback
+  // 4) Final fallback
   console.warn('Falling back to package.json version:', packageJson.version);
   return packageJson.version;
 }
