@@ -269,6 +269,12 @@ export async function getListOfMembers(sections, token) {
             if (!existingMember.sections.includes(section.sectionname)) {
               existingMember.sections.push(section.sectionname);
             }
+
+            // If this membership is Young Leaders, update the person_type
+            if (member.person_type === 'Young Leaders') {
+              existingMember.person_type = 'Young Leaders';
+              existingMember.sectionname = section.sectionname;
+            }
           } else {
             // New member, add to map with section info
             memberMap.set(scoutId, {

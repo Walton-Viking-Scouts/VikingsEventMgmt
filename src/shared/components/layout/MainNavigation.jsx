@@ -10,6 +10,7 @@ function MainNavigation({ onNavigateToSectionMovements }) {
     if (path.startsWith('/events')) return 'events';
     if (path.startsWith('/sections')) return 'sections';
     if (path.startsWith('/movers')) return 'movers';
+    if (path.startsWith('/young-leaders')) return 'young-leaders';
     return 'events'; // default
   };
 
@@ -54,6 +55,22 @@ function MainNavigation({ onNavigateToSectionMovements }) {
               aria-label="Switch to Sections view"
             >
               👥 Sections
+            </Link>
+
+            {/* Young Leaders Tab */}
+            <Link
+              to="/young-leaders"
+              className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                currentPage === 'young-leaders'
+                  ? 'border-scout-blue text-scout-blue'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+              role="tab"
+              aria-selected={currentPage === 'young-leaders'}
+              aria-controls="young-leaders-panel"
+              aria-label="Switch to Young Leaders view"
+            >
+              🏅 Young Leaders
             </Link>
 
             {/* Movers Button */}
