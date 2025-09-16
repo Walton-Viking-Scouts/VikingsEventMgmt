@@ -202,9 +202,12 @@ DraggableMember.propTypes = {
     lastname: PropTypes.string,
     sectionid: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     patrol: PropTypes.string,
-    SignedOutBy: PropTypes.string,
-    SignedOutWhen: PropTypes.string,
-    vikingEventData: PropTypes.object,
+    vikingEventData: PropTypes.shape({
+      SignedInBy: PropTypes.string,
+      SignedInWhen: PropTypes.string,
+      SignedOutBy: PropTypes.string,
+      SignedOutWhen: PropTypes.string,
+    }),
   }).isRequired,
   group: PropTypes.shape({
     name: PropTypes.string,
