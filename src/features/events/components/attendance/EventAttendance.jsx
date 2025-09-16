@@ -22,6 +22,18 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
+// Centralized function to check if a member has actual sign-in data (not cleared)
+const hasSignInData = (vikingEventData) => {
+  if (!vikingEventData) return false;
+
+  return (
+    (vikingEventData.SignedInBy && !isFieldCleared(vikingEventData.SignedInBy)) ||
+    (vikingEventData.SignedInWhen && !isFieldCleared(vikingEventData.SignedInWhen)) ||
+    (vikingEventData.SignedOutBy && !isFieldCleared(vikingEventData.SignedOutBy)) ||
+    (vikingEventData.SignedOutWhen && !isFieldCleared(vikingEventData.SignedOutWhen))
+  );
+};
+
 function EventAttendance({ events, members, onBack }) {
   const {
     attendanceData,
@@ -112,6 +124,12 @@ function EventAttendance({ events, members, onBack }) {
     setFilteredAttendanceData(filtered);
   }, [attendanceData, attendanceFilters, sectionFilters]);
 
+  // Pre-index members by scoutid for O(1) lookups instead of O(n)
+  const membersById = useMemo(
+    () => new Map(members.map(m => [String(m.scoutid), m])),
+    [members],
+  );
+
   const summaryStats = useMemo(() => {
     if (!filteredAttendanceData || filteredAttendanceData.length === 0) {
       return [];
@@ -122,7 +140,7 @@ function EventAttendance({ events, members, onBack }) {
     filteredAttendanceData.forEach((record) => {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
-        const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
+        const memberData = membersById.get(String(record.scoutid));
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -150,7 +168,11 @@ function EventAttendance({ events, members, onBack }) {
       const member = memberMap.get(key);
       member.events.push(record);
 
+      // Fix: Ensure sectionid matches the record with actual sign-in data
       if (record.vikingEventData) {
+        if (!member.vikingEventData) {
+          member.sectionid = record.sectionid;  // Set section to match sign-in data
+        }
         member.vikingEventData = record.vikingEventData;
         member.isSignedIn = Boolean(
           record.vikingEventData?.SignedInBy &&
@@ -164,7 +186,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return Array.from(memberMap.values());
-  }, [filteredAttendanceData, members]);
+  }, [filteredAttendanceData, membersById]);
 
   const bulkOperationSummaryStats = useMemo(() => {
     const bulkData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
@@ -178,7 +200,7 @@ function EventAttendance({ events, members, onBack }) {
     bulkData.forEach((record) => {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
-        const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
+        const memberData = membersById.get(String(record.scoutid));
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -206,7 +228,11 @@ function EventAttendance({ events, members, onBack }) {
       const member = memberMap.get(key);
       member.events.push(record);
 
+      // Fix: Ensure sectionid matches the record with actual sign-in data
       if (record.vikingEventData) {
+        if (!member.vikingEventData) {
+          member.sectionid = record.sectionid;  // Set section to match sign-in data
+        }
         member.vikingEventData = record.vikingEventData;
         member.isSignedIn = Boolean(
           record.vikingEventData?.SignedInBy &&
@@ -220,7 +246,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return Array.from(memberMap.values());
-  }, [attendanceData, attendanceFilters, sectionFilters, members]);
+  }, [attendanceData, attendanceFilters, sectionFilters, membersById]);
 
   const simplifiedSummaryStatsForOverview = useMemo(() => {
     const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
@@ -248,7 +274,7 @@ function EventAttendance({ events, members, onBack }) {
       const section = sectionMap.get(record.sectionid);
       if (!section) return;
 
-      const memberData = members.find(m => m.scoutid.toString() === record.scoutid.toString());
+      const memberData = membersById.get(String(record.scoutid));
       const personType = memberData?.person_type;
 
       let roleType = 'l';
@@ -283,7 +309,7 @@ function EventAttendance({ events, members, onBack }) {
     });
 
     return { sections, totals };
-  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, members]);
+  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);
@@ -323,23 +349,19 @@ function EventAttendance({ events, members, onBack }) {
 
     setClearingSignInData(true);
     try {
-      const membersBySection = {};
-      let totalMembers = 0;
-      bulkOperationSummaryStats.forEach(member => {
-        const hasSignInData = member.vikingEventData?.SignedInBy ||
-                            member.vikingEventData?.SignedInWhen ||
-                            member.vikingEventData?.SignedOutBy ||
-                            member.vikingEventData?.SignedOutWhen;
+      // Use clearEligibleMembers for consistency and avoid code duplication
+      const clearEligibleMembers = bulkOperationSummaryStats.filter(member =>
+        hasSignInData(member.vikingEventData),
+      );
 
-        if (hasSignInData) {
-          const sectionId = member.sectionid;
-          if (!membersBySection[sectionId]) {
-            membersBySection[sectionId] = [];
-          }
-          membersBySection[sectionId].push(member);
-          totalMembers++;
-        }
-      });
+      // Build members by section using the eligible members
+      const membersBySection = clearEligibleMembers.reduce((acc, member) => {
+        const sectionId = member.sectionid;
+        (acc[sectionId] ||= []).push(member);
+        return acc;
+      }, {});
+
+      const totalMembers = clearEligibleMembers.length;
 
       if (totalMembers === 0) {
         notifyInfo('No sign-in data found to clear.');
@@ -759,19 +781,12 @@ function EventAttendance({ events, members, onBack }) {
           onClose={handleCloseClearModal}
           onConfirm={handleConfirmClearSignInData}
           memberCount={bulkOperationSummaryStats.filter(member =>
-            member.vikingEventData?.SignedInBy ||
-            member.vikingEventData?.SignedInWhen ||
-            member.vikingEventData?.SignedOutBy ||
-            member.vikingEventData?.SignedOutWhen,
+            hasSignInData(member.vikingEventData),
           ).length}
           sectionCount={Object.keys(uniqueSections.reduce((acc, section) => {
             const hasSignInDataInSection = bulkOperationSummaryStats.some(member =>
-              String(member.sectionid) === String(section.sectionid) && (
-                member.vikingEventData?.SignedInBy ||
-                member.vikingEventData?.SignedInWhen ||
-                member.vikingEventData?.SignedOutBy ||
-                member.vikingEventData?.SignedOutWhen
-              ),
+              String(member.sectionid) === String(section.sectionid) &&
+              hasSignInData(member.vikingEventData),
             );
             if (hasSignInDataInSection) {
               acc[section.sectionid] = true;
