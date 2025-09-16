@@ -6,7 +6,6 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import { getListOfMembers } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { getMostRecentTermId } from '../../../shared/utils/termUtils.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -65,7 +64,6 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
 function YoungLeadersPage() {
   const navigate = useNavigate();
   const [youngLeaders, setYoungLeaders] = useState([]);
-  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -83,9 +81,6 @@ function YoungLeadersPage() {
   useEffect(() => {
     const loadYoungLeaders = async () => {
       const startTime = Date.now();
-      let sectionsProcessed = 0;
-      let sectionsSuccessful = 0;
-      let sectionsFailed = 0;
 
       try {
         setLoading(true);
@@ -126,29 +121,13 @@ function YoungLeadersPage() {
           totalLoadTime: `${loadTime}ms`,
           totalMembers: allMembers.length,
           youngLeadersCount: youngLeaderMembers?.length || 0,
-          sectionsProcessed,
-          sectionsSuccessful,
-          sectionsFailed,
-          successRate: sectionsProcessed > 0 ? `${Math.round((sectionsSuccessful / sectionsProcessed) * 100)}%` : '0%',
         }, LOG_CATEGORIES.APP);
-
-        // Show warning if many sections failed but still show available data
-        if (sectionsFailed > sectionsSuccessful && sectionsProcessed > 1) {
-          logger.warn('Many sections failed to load - showing available data only', {
-            sectionsSuccessful,
-            sectionsFailed,
-            youngLeadersFound: youngLeaderMembers?.length || 0,
-          }, LOG_CATEGORIES.APP);
-        }
 
       } catch (err) {
         const loadTime = Date.now() - startTime;
         logger.error('Failed to load young leaders', {
           error: err.message,
           loadTime: `${loadTime}ms`,
-          sectionsProcessed,
-          sectionsSuccessful,
-          sectionsFailed,
         }, LOG_CATEGORIES.ERROR);
         setError(err.message);
         setYoungLeaders([]);
