@@ -1,37 +1,46 @@
 import React, { useMemo } from 'react';
 
+const RESPONSIVE_BREAKPOINTS = {
+  LARGE: 1024,
+  MEDIUM: 768,
+};
+
+const COLUMN_COUNTS = {
+  LARGE: 3,
+  MEDIUM: 2,
+  BASE: 1,
+};
+
+const HEIGHT_ESTIMATES = {
+  HEADER: 64,
+  MEMBER_ROW: 32,
+};
+
 const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
   const { columns } = useMemo(() => {
-    // Responsive column count based on screen width
     const getColumnCount = () => {
-      if (typeof window === 'undefined') return 1;
+      if (typeof window === 'undefined') return COLUMN_COUNTS.BASE;
       const width = window.innerWidth;
-      if (width >= 1024) return 3; // lg
-      if (width >= 768) return 2;  // md
-      return 1; // base
+      if (width >= RESPONSIVE_BREAKPOINTS.LARGE) return COLUMN_COUNTS.LARGE;
+      if (width >= RESPONSIVE_BREAKPOINTS.MEDIUM) return COLUMN_COUNTS.MEDIUM;
+      return COLUMN_COUNTS.BASE;
     };
 
     const columnCount = getColumnCount();
-    
-    // Smart distribution algorithm - places each card in the shortest column
+
     const distributeCards = (cards, numColumns) => {
       const columns = Array(numColumns).fill(null).map(() => ({
         cards: [],
         height: 0,
       }));
 
-      // Calculate estimated height for each section based on member count
       const getEstimatedHeight = (section) => {
-        const headerHeight = 64; // Header height estimate
-        const memberHeight = 32;  // Each member row height estimate
-        return headerHeight + (section.members.length * memberHeight);
+        return HEIGHT_ESTIMATES.HEADER + (section.members.length * HEIGHT_ESTIMATES.MEMBER_ROW);
       };
 
-      // Place each section in the column with minimum height
       cards.forEach(section => {
         const estimatedHeight = getEstimatedHeight(section);
-        
-        // Find column with minimum height
+
         const shortestColumn = columns.reduce(
           (min, col) => (col.height < min.height ? col : min),
           columns[0],
@@ -45,7 +54,7 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
     };
 
     const distributedColumns = distributeCards(sections, columnCount);
-    
+
     return {
       columns: distributedColumns,
     };
@@ -62,7 +71,7 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
         <div 
           key={columnIndex} 
           className="flex-1 flex flex-col gap-4"
-          style={{ minHeight: 0 }} // Allows flex child to shrink
+          style={{ minHeight: 0 }}
         >
           {column.cards.map((section) => (
             <div
@@ -72,7 +81,6 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
               aria-labelledby={`section-title-${section.sectionid}`}
               aria-describedby={`section-stats-${section.sectionid}`}
             >
-              {/* Section header */}
               <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <h4 
@@ -94,7 +102,6 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
                 </div>
               </div>
 
-              {/* Section members */}
               <div className="divide-y divide-gray-200">
                 {section.members.map((member, memberIndex) => (
                   <div

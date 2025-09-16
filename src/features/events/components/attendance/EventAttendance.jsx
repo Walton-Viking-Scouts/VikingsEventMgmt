@@ -42,10 +42,10 @@ function EventAttendance({ events, members, onBack }) {
   const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const { 
-    sharedAttendanceData, 
-    loadingSharedAttendance, 
-    hasSharedEvents, 
+  const {
+    sharedAttendanceData,
+    loadingSharedAttendance,
+    hasSharedEvents,
   } = useSharedAttendance(events, activeTab);
 
   const [sortConfig, setSortConfig] = useState({
@@ -123,7 +123,7 @@ function EventAttendance({ events, members, onBack }) {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
         const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
-        
+
         memberMap.set(key, {
           scoutid: record.scoutid,
           name: `${record.firstname} ${record.lastname}`,
@@ -165,6 +165,62 @@ function EventAttendance({ events, members, onBack }) {
 
     return Array.from(memberMap.values());
   }, [filteredAttendanceData, members]);
+
+  const bulkOperationSummaryStats = useMemo(() => {
+    const bulkData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
+
+    if (!bulkData || bulkData.length === 0) {
+      return [];
+    }
+
+    const memberMap = new Map();
+
+    bulkData.forEach((record) => {
+      const key = record.scoutid;
+      if (!memberMap.has(key)) {
+        const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
+
+        memberMap.set(key, {
+          scoutid: record.scoutid,
+          name: `${record.firstname} ${record.lastname}`,
+          firstname: record.firstname,
+          lastname: record.lastname,
+          sectionid: record.sectionid,
+          events: [],
+          yes: 0,
+          no: 0,
+          invited: 0,
+          notInvited: 0,
+          vikingEventData: record.vikingEventData,
+          isSignedIn: Boolean(
+            record.vikingEventData?.SignedInBy &&
+            !isFieldCleared(record.vikingEventData.SignedInBy) &&
+            (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
+          ),
+          person_type: memberData?.person_type,
+          patrol_id: memberData?.patrol_id,
+          patrolid: memberData?.patrolid,
+        });
+      }
+
+      const member = memberMap.get(key);
+      member.events.push(record);
+
+      if (record.vikingEventData) {
+        member.vikingEventData = record.vikingEventData;
+        member.isSignedIn = Boolean(
+          record.vikingEventData?.SignedInBy &&
+          !isFieldCleared(record.vikingEventData.SignedInBy) &&
+          (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
+        );
+      }
+
+      const attending = record.attending;
+      incrementAttendanceCount(member, attending);
+    });
+
+    return Array.from(memberMap.values());
+  }, [attendanceData, attendanceFilters, sectionFilters, members]);
 
   const simplifiedSummaryStatsForOverview = useMemo(() => {
     const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
@@ -269,7 +325,7 @@ function EventAttendance({ events, members, onBack }) {
     try {
       const membersBySection = {};
       let totalMembers = 0;
-      summaryStats.forEach(member => {
+      bulkOperationSummaryStats.forEach(member => {
         const hasSignInData = member.vikingEventData?.SignedInBy ||
                             member.vikingEventData?.SignedInWhen ||
                             member.vikingEventData?.SignedOutBy ||
@@ -306,12 +362,8 @@ function EventAttendance({ events, members, onBack }) {
         if (members.length === 0) continue;
 
         try {
-          // Get section details for termId
           const event = events.find(e => String(e.sectionid) === String(sectionId));
           const termId = event?.termid || 'current';
-
-          // Use the same approach as individual sign-in operations
-          // Import the function from useSignInOut hook approach
           const getVikingEventFlexiRecord = async (sectionId) => {
             try {
               const structureKeys = Object.keys(localStorage).filter(key =>
@@ -327,7 +379,6 @@ function EventAttendance({ events, members, onBack }) {
                 const keyParts = dataKey.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
                 const realFlexiRecordId = keyParts[0];
 
-                // Try to find a structure that matches this FlexiRecord ID
                 for (const structureKey of structureKeys) {
                   try {
                     const structureData = JSON.parse(localStorage.getItem(structureKey));
@@ -338,7 +389,6 @@ function EventAttendance({ events, members, onBack }) {
                       continue;
                     }
 
-                    // Parse the raw structure to get field mapping
                     const fieldMapping = {};
                     try {
                       const parsedMapping = parseFlexiStructure(structureData);
@@ -353,8 +403,6 @@ function EventAttendance({ events, members, onBack }) {
                     } catch (error) {
                       logger.warn('Failed to parse structure for bulk clear', { error: error.message }, LOG_CATEGORIES.API);
                     }
-
-                    // Look for sign-in fields
                     const hasSignInFields = Object.values(fieldMapping).some(field => {
                       const name = field.name?.toLowerCase();
                       return name === 'signedinby' || name === 'signed in by' ||
@@ -387,12 +435,11 @@ function EventAttendance({ events, members, onBack }) {
             continue;
           }
 
-          // Create context in the format expected by extractSignInFlexiRecordContext
           const flexiRecordContext = {
             flexirecordid: String(vikingEventRecord.extraid),
             sectionid: String(sectionId),
             termid: String(termId),
-            sectiontype: 'Unknown Section Type', // Not needed for bulk clear
+            sectiontype: 'Unknown Section Type',
             fieldMapping: vikingEventRecord.fieldMapping,
           };
 
@@ -402,7 +449,6 @@ function EventAttendance({ events, members, onBack }) {
             continue;
           }
 
-          // Extract scout IDs for bulk update
           const scoutIds = members.map(member => member.scoutid);
 
           logger.info('Processing bulk sign-in data clear for section', {
@@ -410,7 +456,6 @@ function EventAttendance({ events, members, onBack }) {
             memberCount: scoutIds.length,
           }, LOG_CATEGORIES.API);
 
-          // Execute bulk clear for this section
           const clearResult = await bulkClearSignInData(scoutIds, flexiRecordContext, token);
 
           if (clearResult.success) {
@@ -451,7 +496,6 @@ function EventAttendance({ events, members, onBack }) {
       if (totalFailed === 0) {
         notifySuccess(`Successfully cleared sign-in data for ${totalSuccessful} members`);
 
-        // Refresh Viking Event data to show cleared data
         if (loadVikingEventData) {
           try {
             await loadVikingEventData();
@@ -464,7 +508,6 @@ function EventAttendance({ events, members, onBack }) {
       } else if (totalSuccessful > 0) {
         notifyWarning(`Sign-in data partially cleared: ${totalSuccessful} successful, ${totalFailed} failed`);
 
-        // Refresh Viking Event data even for partial success
         if (loadVikingEventData) {
           try {
             await loadVikingEventData();
@@ -565,34 +608,28 @@ function EventAttendance({ events, members, onBack }) {
           {sharedAttendanceData && sharedAttendanceData.length > 0 ? (
             <div>
               {(() => {
-                // Helper function to determine if member is young person or adult based on age
                 const isYoungPerson = (age) => {
-                  if (!age) return true; // Default to young person if no age
-                  return age !== '25+'; // Adults/leaders have '25+', young people have formats like '06 / 08'
+                  if (!age) return true;
+                  return age !== '25+';
                 };
 
-                // Helper function to get numeric age for sorting (handle years/months format)
                 const getNumericAge = (age) => {
                   if (!age) return 0;
-                  if (age === '25+') return 999; // Put adults at the end
+                  if (age === '25+') return 999;
 
-                  // Handle format like '06 / 08' which is years / months
                   const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
                   if (match) {
                     const years = parseInt(match[1], 10);
                     const months = parseInt(match[2], 10);
-                    // Convert to total months for accurate sorting
                     return years * 12 + months;
                   }
 
-                  // Fallback to just first number
                   const singleMatch = age.match(/^(\d+)/);
                   return singleMatch
                     ? parseInt(singleMatch[1], 10) * 12
-                    : 0; // Convert years to months
+                    : 0;
                 };
 
-                // Process the data to group by sections
                 const sectionGroups = {};
                 let totalYoungPeople = 0;
                 let totalAdults = 0;
@@ -626,7 +663,6 @@ function EventAttendance({ events, members, onBack }) {
                   sectionGroups[sectionName].members.push(member);
                 });
 
-                // Sort members within each section by age (youngest first, adults last)
                 Object.values(sectionGroups).forEach((section) => {
                   section.members.sort((a, b) => {
                     const ageA = getNumericAge(a.age);
@@ -640,7 +676,6 @@ function EventAttendance({ events, members, onBack }) {
 
                 return (
                   <>
-                    {/* Overall summary */}
                     <div className="p-4 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">
@@ -656,10 +691,9 @@ function EventAttendance({ events, members, onBack }) {
                       </div>
                     </div>
 
-                    {/* Scrollable masonry container */}
                     <div className="max-h-[600px] overflow-y-auto">
-                      <SectionCardsFlexMasonry 
-                        sections={sections} 
+                      <SectionCardsFlexMasonry
+                        sections={sections}
                         isYoungPerson={isYoungPerson}
                       />
                     </div>
@@ -724,14 +758,14 @@ function EventAttendance({ events, members, onBack }) {
           isOpen={showClearModal}
           onClose={handleCloseClearModal}
           onConfirm={handleConfirmClearSignInData}
-          memberCount={summaryStats.filter(member =>
+          memberCount={bulkOperationSummaryStats.filter(member =>
             member.vikingEventData?.SignedInBy ||
             member.vikingEventData?.SignedInWhen ||
             member.vikingEventData?.SignedOutBy ||
             member.vikingEventData?.SignedOutWhen,
           ).length}
           sectionCount={Object.keys(uniqueSections.reduce((acc, section) => {
-            const hasSignInDataInSection = summaryStats.some(member =>
+            const hasSignInDataInSection = bulkOperationSummaryStats.some(member =>
               String(member.sectionid) === String(section.sectionid) && (
                 member.vikingEventData?.SignedInBy ||
                 member.vikingEventData?.SignedInWhen ||
