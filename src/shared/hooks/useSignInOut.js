@@ -8,6 +8,7 @@ import { getToken } from '../services/auth/tokenService.js';
 import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
+import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../constants/signInDataConstants.js';
 
 // Inter-call delay to prevent API clashing - tunable for flaky APIs
 const STEP_DELAY_MS = 150;
@@ -320,7 +321,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             member.scoutid,
             vikingFlexiRecord.extraid,
             getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
+            CLEAR_STRING_SENTINEL,
             termId,
             sectionType,
             opToken,
@@ -343,7 +344,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             member.scoutid,
             vikingFlexiRecord.extraid,
             getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-            '', // Clear the field
+            CLEAR_TIME_SENTINEL,
             termId,
             sectionType,
             opToken,

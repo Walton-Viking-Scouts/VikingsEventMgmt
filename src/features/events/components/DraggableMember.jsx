@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { isFieldCleared } from '../../../shared/constants/signInDataConstants.js';
 
 function DraggableMember({ 
   member, 
@@ -130,9 +131,20 @@ function DraggableMember({
     setIsTouchDragging(false);
   };
 
-  // Determine if member is signed out (for greying)
-  const isSignedOut = member.SignedOutBy || member.SignedOutWhen || 
-                     member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen;
+  // Determine if member is NOT signed in (for greying)
+  // A member is signed in if they have SignedInBy/SignedInWhen and no valid SignedOutBy/SignedOutWhen
+  const vikingEventData = member.vikingEventData;
+  const hasSignedIn = vikingEventData?.SignedInBy &&
+                      !isFieldCleared(vikingEventData.SignedInBy) &&
+                      vikingEventData?.SignedInWhen &&
+                      !isFieldCleared(vikingEventData.SignedInWhen);
+  const hasSignedOut = vikingEventData?.SignedOutBy &&
+                       !isFieldCleared(vikingEventData.SignedOutBy) &&
+                       vikingEventData?.SignedOutWhen &&
+                       !isFieldCleared(vikingEventData.SignedOutWhen);
+
+  // Member should be greyed out if they haven't signed in OR if they've signed out after signing in
+  const shouldGrey = !hasSignedIn || hasSignedOut;
 
   return (
     <div
@@ -165,7 +177,7 @@ function DraggableMember({
 
       {/* Member info */}
       <div className={`text-sm font-medium transition-colors ${
-        isSignedOut ? 'text-gray-400' : 'text-gray-900'
+        shouldGrey ? 'text-gray-400' : 'text-gray-900'
       }`}>
         {member.firstname} {member.lastname}
       </div>
@@ -190,9 +202,12 @@ DraggableMember.propTypes = {
     lastname: PropTypes.string,
     sectionid: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     patrol: PropTypes.string,
-    SignedOutBy: PropTypes.string,
-    SignedOutWhen: PropTypes.string,
-    vikingEventData: PropTypes.object,
+    vikingEventData: PropTypes.shape({
+      SignedInBy: PropTypes.string,
+      SignedInWhen: PropTypes.string,
+      SignedOutBy: PropTypes.string,
+      SignedOutWhen: PropTypes.string,
+    }),
   }).isRequired,
   group: PropTypes.shape({
     name: PropTypes.string,
