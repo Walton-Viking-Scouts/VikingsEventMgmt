@@ -13,9 +13,7 @@ function resolveVersion() {
     return process.env.VITE_APP_VERSION.replace(/^v/, '');
   }
 
-  // 2) Production: Try GitHub release first, then package.json
   if (process.env.NODE_ENV === 'production' || process.env.CI) {
-    // Try GitHub release in production builds
     try {
       const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
       if (ghRelease && ghRelease !== 'null') {
@@ -26,9 +24,9 @@ function resolveVersion() {
       console.warn('GitHub release lookup failed in production:', e.message);
     }
 
-    // Try Git tag as fallback for production
     try {
-      const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+      const tagsRaw = execSync('git tag --sort=-version:refname', { encoding: 'utf8', stdio: 'pipe' });
+      const gitTag = tagsRaw.split(/\r?\n/).find(Boolean);
       if (gitTag) {
         console.log('Using Git tag version in production:', gitTag);
         return gitTag.replace(/^v/, '');
@@ -41,7 +39,6 @@ function resolveVersion() {
     return packageJson.version;
   }
 
-  // 3) Local development: Try GitHub release first, then Git tag
   try {
     const ghRelease = execSync('gh release list --limit 1 --json tagName --jq ".[0].tagName"', { encoding: 'utf8', stdio: 'pipe' }).trim();
     if (ghRelease && ghRelease !== 'null') {
@@ -52,9 +49,9 @@ function resolveVersion() {
     console.warn('GitHub release lookup failed in development:', e.message);
   }
 
-  // Fallback to Git tag in development
   try {
-    const gitTag = execSync('git tag --sort=-version:refname | head -1', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    const tagsRaw = execSync('git tag --sort=-version:refname', { encoding: 'utf8', stdio: 'pipe' });
+    const gitTag = tagsRaw.split(/\r?\n/).find(Boolean);
     if (gitTag) {
       console.log('Using Git tag version:', gitTag);
       return gitTag.replace(/^v/, '');
@@ -63,7 +60,6 @@ function resolveVersion() {
     console.warn('Git tag lookup failed:', e.message);
   }
 
-  // 4) Final fallback
   console.warn('Falling back to package.json version:', packageJson.version);
   return packageJson.version;
 }
