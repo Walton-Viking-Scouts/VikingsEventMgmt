@@ -1,24 +1,9 @@
 import { useMemo } from 'react';
 import { findMemberSectionName } from '../../../shared/utils/sectionHelpers.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
+import { formatUKDateTime } from '../../../shared/utils/dateFormatting.js';
 
 export function useAttendanceFormatters(members, sectionsCache) {
-  const formatUKDateTime = (dateString) => {
-    if (!dateString) return '';
-    
-    try {
-      const date = new Date(dateString);
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
-    } catch (error) {
-      return dateString;
-    }
-  };
 
   const getComprehensiveMemberData = useMemo(() => {
     return (attendanceRecord) => {

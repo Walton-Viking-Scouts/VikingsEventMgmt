@@ -1,34 +1,7 @@
 import React from 'react';
 import SignInOutButton from '../SignInOutButton.jsx';
-
-const formatUKDateTime = (dateString) => {
-  if (!dateString) return '';
-
-  // Handle cleared/placeholder values
-  if (dateString === '---') return '---';
-
-  try {
-    const date = new Date(dateString);
-
-    // Check if date is invalid (NaN)
-    if (isNaN(date.getTime())) {
-      return '---';
-    }
-
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Failed to format date:', dateString, error);
-    }
-    return '---';
-  }
-};
+import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
+import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -101,7 +74,9 @@ function RegisterTab({
 
   // Calculate signed in/out counts
   const signedInCount = youngPeople.filter(member =>
-    member.vikingEventData?.SignedInBy && member.vikingEventData.SignedInBy !== '---' && (!member.vikingEventData?.SignedOutBy || member.vikingEventData.SignedOutBy === '---'),
+    member.vikingEventData?.SignedInBy &&
+    !isFieldCleared(member.vikingEventData.SignedInBy) &&
+    (!member.vikingEventData?.SignedOutBy || isFieldCleared(member.vikingEventData.SignedOutBy)),
   ).length;
   const notSignedInCount = youngPeople.length - signedInCount;
 

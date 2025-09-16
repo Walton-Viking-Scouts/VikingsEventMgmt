@@ -20,6 +20,7 @@
 
 import { sentryUtils } from '../services/utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
+import { normalizeWhenFieldForDisplay } from '../constants/signInDataConstants.js';
 
 /**
  * Parses FlexiRecord structure configuration to create field mapping
@@ -433,10 +434,17 @@ export function extractVikingEventFields(consolidatedData) {
         photo_guid: scout.photo_guid,
       };
 
-      // Add Viking Event Management fields
+      // Add Viking Event Management fields with normalization
       vikingFields.forEach(field => {
         if (Object.prototype.hasOwnProperty.call(scout, field)) {
-          vikingScout[field] = scout[field];
+          let value = scout[field];
+
+          // Normalize when field values to prevent NaN and inconsistent display
+          if (field.toLowerCase().includes('when')) {
+            value = normalizeWhenFieldForDisplay(value);
+          }
+
+          vikingScout[field] = value;
         }
       });
 

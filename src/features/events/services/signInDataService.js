@@ -2,6 +2,7 @@ import { multiUpdateFlexiRecord } from '../../../shared/services/api/api/flexiRe
 import { parseFlexiStructure } from '../../../shared/utils/flexiRecordTransforms.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
+import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../../../shared/constants/signInDataConstants.js';
 
 /**
  * Get field ID from field mapping
@@ -135,12 +136,12 @@ export async function bulkClearSignInData(scoutIds, flexiRecordContext, token) {
     }, LOG_CATEGORIES.API);
 
     // Execute 4 bulk updates in sequence - one for each field
-    // Use same values as individual sign-in operations
+    // Use consistent clearing values from shared constants
     const operations = [
-      { fieldId: signInByFieldId, fieldName: 'SignedInBy', clearValue: '---' },
-      { fieldId: signInWhenFieldId, fieldName: 'SignedInWhen', clearValue: '' },
-      { fieldId: signOutByFieldId, fieldName: 'SignedOutBy', clearValue: '---' },
-      { fieldId: signOutWhenFieldId, fieldName: 'SignedOutWhen', clearValue: '' },
+      { fieldId: signInByFieldId, fieldName: 'SignedInBy', clearValue: CLEAR_STRING_SENTINEL },
+      { fieldId: signInWhenFieldId, fieldName: 'SignedInWhen', clearValue: CLEAR_TIME_SENTINEL },
+      { fieldId: signOutByFieldId, fieldName: 'SignedOutBy', clearValue: CLEAR_STRING_SENTINEL },
+      { fieldId: signOutWhenFieldId, fieldName: 'SignedOutWhen', clearValue: CLEAR_TIME_SENTINEL },
     ];
 
     const results = [];
@@ -154,13 +155,10 @@ export async function bulkClearSignInData(scoutIds, flexiRecordContext, token) {
           sectionid,
         }, LOG_CATEGORIES.API);
 
-        // For empty string values, use a space character for multi-update API compatibility
-        const apiValue = clearValue === '' ? ' ' : clearValue;
-
         const result = await multiUpdateFlexiRecord(
           sectionid,
           scoutIds,
-          apiValue, // Use API-compatible value
+          clearValue,
           fieldId,
           flexirecordid,
           token,

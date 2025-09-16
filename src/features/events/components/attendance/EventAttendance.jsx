@@ -12,6 +12,8 @@ import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
 import { parseFlexiStructure } from '../../../../shared/utils/flexiRecordTransforms.js';
+import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
+import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
 import AttendanceFilters from './AttendanceFilters.jsx';
@@ -64,7 +66,6 @@ function EventAttendance({ events, members, onBack }) {
     contacts: false,
   });
 
-  // Clear sign-in data modal state
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearingSignInData, setClearingSignInData] = useState(false);
 
@@ -94,17 +95,11 @@ function EventAttendance({ events, members, onBack }) {
     if (!attendanceData || !Array.isArray(attendanceData)) return [];
 
     return attendanceData.filter((record) => {
-      // Handle both string and number formats for attending field
       const attending = record.attending;
       const statusMatch = includeAttendanceFilter
-        ? ((attending === 1 || attending === 'Yes') && attendanceFilters.yes) ||
-          ((attending === 0 || attending === 'No') && attendanceFilters.no) ||
-          ((attending === 2 || attending === 'Invited') && attendanceFilters.invited) ||
-          ((attending === 3 || attending === 'Not Invited') && attendanceFilters.notInvited)
-        : true; // For Overview tab, include all attendance statuses
+        ? checkAttendanceMatch(attending, attendanceFilters)
+        : true;
 
-      // For section filtering, skip if sectionid is missing (common in cached data)
-      // The data should have sectionid added by the hook, but if not, allow it through
       const recordSectionId = record.sectionid;
       const sectionMatch = !recordSectionId || sectionFilters[recordSectionId] !== false;
 
@@ -127,7 +122,6 @@ function EventAttendance({ events, members, onBack }) {
     filteredAttendanceData.forEach((record) => {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
-        // Find member data to get person_type
         const memberData = members.find(m => parseInt(m.scoutid, 10) === parseInt(record.scoutid, 10));
         
         memberMap.set(key, {
@@ -142,8 +136,12 @@ function EventAttendance({ events, members, onBack }) {
           invited: 0,
           notInvited: 0,
           vikingEventData: record.vikingEventData,
-          isSignedIn: Boolean(record.vikingEventData?.SignedInBy && record.vikingEventData.SignedInBy !== '---' && (!record.vikingEventData?.SignedOutBy || record.vikingEventData.SignedOutBy === '---')),
-          person_type: memberData?.person_type, // Include person_type from member data
+          isSignedIn: Boolean(
+            record.vikingEventData?.SignedInBy &&
+            !isFieldCleared(record.vikingEventData.SignedInBy) &&
+            (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
+          ),
+          person_type: memberData?.person_type,
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
         });
@@ -152,27 +150,23 @@ function EventAttendance({ events, members, onBack }) {
       const member = memberMap.get(key);
       member.events.push(record);
 
-      // Update vikingEventData if this record has more recent data
       if (record.vikingEventData) {
         member.vikingEventData = record.vikingEventData;
-        // Update isSignedIn based on the latest vikingEventData
-        member.isSignedIn = Boolean(record.vikingEventData?.SignedInBy && record.vikingEventData.SignedInBy !== '---' && (!record.vikingEventData?.SignedOutBy || record.vikingEventData.SignedOutBy === '---'));
+        member.isSignedIn = Boolean(
+          record.vikingEventData?.SignedInBy &&
+          !isFieldCleared(record.vikingEventData.SignedInBy) &&
+          (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
+        );
       }
 
-      // Handle both string and number formats for attending field
       const attending = record.attending;
-      if (attending === 1 || attending === 'Yes') member.yes++;
-      else if (attending === 0 || attending === 'No') member.no++;
-      else if (attending === 2 || attending === 'Invited') member.invited++;
-      else if (attending === 3 || attending === 'Not Invited') member.notInvited++;
+      incrementAttendanceCount(member, attending);
     });
 
     return Array.from(memberMap.values());
   }, [filteredAttendanceData, members]);
 
-  // Simplified summary stats for Overview tab (unfiltered by attendance status)
   const simplifiedSummaryStatsForOverview = useMemo(() => {
-    // Use unfiltered data but respect section filters
     const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
 
     if (!overviewData || overviewData.length === 0) {
@@ -198,13 +192,10 @@ function EventAttendance({ events, members, onBack }) {
       const section = sectionMap.get(record.sectionid);
       if (!section) return;
 
-      // Find member data to get person_type for proper role categorization
-      // Convert both scoutids to strings to handle type mismatch (attendance has strings, members has numbers)
       const memberData = members.find(m => m.scoutid.toString() === record.scoutid.toString());
       const personType = memberData?.person_type;
 
-      // Map person_type to role abbreviations
-      let roleType = 'l'; // default to Leaders
+      let roleType = 'l';
       if (personType === 'Young People') {
         roleType = 'yp';
       } else if (personType === 'Young Leaders') {
@@ -213,19 +204,8 @@ function EventAttendance({ events, members, onBack }) {
         roleType = 'l';
       }
 
-      const updateCounts = (category) => {
-        section[category][roleType]++;
-        section[category].total++;
-        section.total[roleType]++;
-        section.total.total++;
-      };
-
-      // Handle both string and number formats for attending field
       const attending = record.attending;
-      if (attending === 1 || attending === 'Yes') updateCounts('yes');
-      else if (attending === 0 || attending === 'No') updateCounts('no');
-      else if (attending === 2 || attending === 'Invited') updateCounts('invited');
-      else if (attending === 3 || attending === 'Not Invited') updateCounts('notInvited');
+      updateSectionCountsByAttendance(section, attending, roleType);
     });
 
     const sections = Array.from(sectionMap.values());
@@ -271,17 +251,13 @@ function EventAttendance({ events, members, onBack }) {
     setSectionFilters(allSectionsEnabled);
   };
 
-  // Handler to open clear sign-in data modal
   const handleClearSignInData = () => {
     setShowClearModal(true);
   };
 
-  // Handler to close clear sign-in data modal
   const handleCloseClearModal = () => {
     setShowClearModal(false);
   };
-
-  // Handler to confirm clearing all sign-in data
   const handleConfirmClearSignInData = async () => {
     const token = getToken();
     if (!token) {
@@ -291,11 +267,8 @@ function EventAttendance({ events, members, onBack }) {
 
     setClearingSignInData(true);
     try {
-      // Get all members with sign-in data, organized by section
       const membersBySection = {};
       let totalMembers = 0;
-
-      // Process summary stats to find members with sign-in data
       summaryStats.forEach(member => {
         const hasSignInData = member.vikingEventData?.SignedInBy ||
                             member.vikingEventData?.SignedInWhen ||
@@ -326,7 +299,6 @@ function EventAttendance({ events, members, onBack }) {
 
       notifyInfo(`Clearing sign-in data for ${totalMembers} members across ${Object.keys(membersBySection).length} section(s)...`);
 
-      // Process each section separately
       let totalSuccessful = 0;
       let totalFailed = 0;
 
