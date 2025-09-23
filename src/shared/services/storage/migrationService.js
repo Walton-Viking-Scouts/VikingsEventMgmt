@@ -36,7 +36,6 @@ const RECORD_TYPE_MAPPINGS = {
   [MIGRATION_PHASES.PHASE_3_FLEXI]: {
     patterns: [
       { pattern: /^viking_flexi_lists_(.+)_offline$/, store: IndexedDBService.STORES.FLEXI_LISTS },
-      { pattern: /^viking_flexi_records_(.+)_archived_n_offline$/, store: IndexedDBService.STORES.FLEXI_RECORDS },
       { pattern: /^viking_flexi_structure_(.+)_offline$/, store: IndexedDBService.STORES.FLEXI_STRUCTURE },
       { pattern: /^viking_flexi_data_(.+)_offline$/, store: IndexedDBService.STORES.FLEXI_DATA },
     ],

@@ -37,8 +37,8 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
-    
-    const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
+
+    const storageKey = `viking_flexi_lists_${sectionId}_offline`;
 
     // Check network status first
     const isOnline = await checkNetworkStatus();
@@ -128,7 +128,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
-        const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
+        const storageKey = `viking_flexi_lists_${sectionId}_offline`;
         const cached = await UnifiedStorageService.get(storageKey) || { identifier: null, label: null, items: [] };
         logger.info('Using cached fallback data after API error', {}, LOG_CATEGORIES.API);
         return cached;

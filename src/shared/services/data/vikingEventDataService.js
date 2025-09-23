@@ -1,5 +1,4 @@
 import indexedDBService from '../storage/indexedDBService.js';
-import flexiRecordDataService from '../flexiRecordDataService.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
 class VikingEventDataService {
@@ -15,6 +14,7 @@ class VikingEventDataService {
     }
 
     try {
+      const { default: flexiRecordDataService } = await import('../flexiRecordDataService.js');
       const structures = await flexiRecordDataService.getFlexiRecordStructures();
 
       const vikingStructure = structures.find(structure =>

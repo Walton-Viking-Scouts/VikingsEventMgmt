@@ -11,7 +11,6 @@ const STORES = {
   STARTUP_DATA: 'startup_data',
   TERMS: 'terms',
   FLEXI_LISTS: 'flexi_lists',
-  FLEXI_RECORDS: 'flexi_records',
   FLEXI_STRUCTURE: 'flexi_structure',
   FLEXI_DATA: 'flexi_data',
   EVENTS: 'events',
@@ -62,10 +61,6 @@ function getDB() {
           flexiListsStore.createIndex('sectionId', 'sectionId', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains(STORES.FLEXI_RECORDS)) {
-          const flexiRecordsStore = db.createObjectStore(STORES.FLEXI_RECORDS, { keyPath: 'key' });
-          flexiRecordsStore.createIndex('sectionId', 'sectionId', { unique: false });
-        }
 
         if (!db.objectStoreNames.contains(STORES.FLEXI_STRUCTURE)) {
           const flexiStructureStore = db.createObjectStore(STORES.FLEXI_STRUCTURE, { keyPath: 'key' });

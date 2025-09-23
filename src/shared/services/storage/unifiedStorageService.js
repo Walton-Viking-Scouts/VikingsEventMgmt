@@ -142,11 +142,9 @@ export class UnifiedStorageService {
       key === 'demo_viking_terms_offline' ||
       // Flexi System
       key.match(/^viking_flexi_lists_.+_offline$/) ||
-      key.match(/^viking_flexi_records_.+_archived_n_offline$/) ||
       key.match(/^viking_flexi_structure_.+_offline$/) ||
       key.match(/^viking_flexi_data_.+_offline$/) ||
       key.match(/^demo_viking_flexi_lists_.+_offline$/) ||
-      key.match(/^demo_viking_flexi_records_.+_archived_n_offline$/) ||
       key.match(/^demo_viking_flexi_structure_.+_offline$/) ||
       key.match(/^demo_viking_flexi_data_.+_offline$/) ||
       // Events
@@ -185,9 +183,6 @@ export class UnifiedStorageService {
     // Phase 3: Flexi System
     if (key.match(/^viking_flexi_lists_.+_offline$/) || key.match(/^demo_viking_flexi_lists_.+_offline$/)) {
       return IndexedDBService.STORES.FLEXI_LISTS;
-    }
-    if (key.match(/^viking_flexi_records_.+_archived_n_offline$/) || key.match(/^demo_viking_flexi_records_.+_archived_n_offline$/)) {
-      return IndexedDBService.STORES.FLEXI_RECORDS;
     }
     if (key.match(/^viking_flexi_structure_.+_offline$/) || key.match(/^demo_viking_flexi_structure_.+_offline$/)) {
       return IndexedDBService.STORES.FLEXI_STRUCTURE;

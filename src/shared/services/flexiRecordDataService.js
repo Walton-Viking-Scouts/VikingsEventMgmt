@@ -4,7 +4,6 @@ import databaseService from './storage/database.js';
 import logger, { LOG_CATEGORIES } from './utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } from './api/api/flexiRecords.js';
-import vikingEventDataService from './data/vikingEventDataService.js';
 
 const _CACHE_KEYS = {
   FLEXI_LISTS: 'viking_flexirecord_lists_offline',
@@ -138,6 +137,7 @@ class FlexiRecordDataService {
 
     if (isVikingEvent) {
       let savedCount = 0;
+      const { default: vikingEventDataService } = await import('./data/vikingEventDataService.js');
       for (const item of apiData.items) {
         try {
           await vikingEventDataService.saveVikingEventData(item, sectionId, flexiRecordId);
@@ -372,6 +372,7 @@ class FlexiRecordDataService {
 
       if (vikingEventRecordIds.length > 0) {
         try {
+          const { default: vikingEventDataService } = await import('./data/vikingEventDataService.js');
           vikingEventData = await vikingEventDataService.getAllVikingEventData();
 
           vikingEventData = vikingEventData.map(record => ({
