@@ -33,29 +33,29 @@ class FlexiRecordDataService {
 
   async isVikingEventManagementFlexiRecord(flexiRecordId) {
     try {
-      console.log('🔍 DEBUG: Checking if FlexiRecord is Viking Event Mgmt', { flexiRecordId });
+      logger.debug('Checking if FlexiRecord is Viking Event Mgmt', { flexiRecordId }, LOG_CATEGORIES.DATA_SERVICE);
 
       const structures = await this.getFlexiRecordStructures([Number(flexiRecordId)]);
-      console.log('🔍 DEBUG: Retrieved structures', {
+      logger.debug('Retrieved structures for Viking Event check', {
         flexiRecordId,
         structureCount: structures.length,
         structures: structures.map(s => ({ id: s.flexirecord_id, name: s.name })),
-      });
+      }, LOG_CATEGORIES.DATA_SERVICE);
 
       if (structures.length === 0) {
-        console.log('🔍 DEBUG: No structures found, returning false');
+        logger.debug('No structures found, returning false', { flexiRecordId }, LOG_CATEGORIES.DATA_SERVICE);
         return false;
       }
 
       const structure = structures[0];
       const isVikingEvent = structure.name === 'Viking Event Mgmt';
 
-      console.log('🔍 DEBUG: Structure check result', {
+      logger.debug('Structure check result', {
         flexiRecordId,
         structureName: structure.name,
         isVikingEvent,
         structureKeys: Object.keys(structure),
-      });
+      }, LOG_CATEGORIES.DATA_SERVICE);
 
       logger.debug('Checked if FlexiRecord is Viking Event Mgmt', {
         flexiRecordId,
@@ -65,7 +65,6 @@ class FlexiRecordDataService {
 
       return isVikingEvent;
     } catch (err) {
-      console.log('🔍 DEBUG: Error in isVikingEventManagementFlexiRecord', { flexiRecordId, error: err });
       logger.error('Failed to check if FlexiRecord is Viking Event Mgmt', {
         error: err,
         flexiRecordId,
