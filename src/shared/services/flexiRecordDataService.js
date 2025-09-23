@@ -228,7 +228,6 @@ class FlexiRecordDataService {
     return {
       ...apiData,
       flexirecord_id: Number(flexiRecordId),
-      structure_hash: this.generateStructureHash(apiData),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -265,14 +264,6 @@ class FlexiRecordDataService {
     return flexiRecordData;
   }
 
-  generateStructureHash(structureData) {
-    const hashInput = JSON.stringify({
-      name: structureData.name,
-      columns: structureData.columns || {},
-      config: structureData.config || {},
-    });
-    return globalThis.btoa(hashInput).slice(0, 16);
-  }
 
   async storeData(flexiRecordLists, flexiRecordStructures, flexiRecordData) {
     if (this.isNative) {
