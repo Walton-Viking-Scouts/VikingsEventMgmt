@@ -4,8 +4,10 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
-import { getListOfMembers } from '../../../shared/services/api/api.js';
+import { getListOfMembers, getTerms } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import { isDemoMode } from '../../../config/demoMode.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -67,9 +69,15 @@ function YoungLeadersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [loadingProgress] = useState({ loaded: 0, total: 0 });
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleNavigateToSectionMovements = () => {
     navigate('/movers');
+  };
+
+  const handleRefreshData = () => {
+    window.location.reload();
   };
 
   const handleSort = (key) => {
@@ -77,7 +85,7 @@ function YoungLeadersPage() {
     setSortConfig({ key, direction });
   };
 
-  // Load young leaders data on component mount
+  // Load young leaders data by refreshing member grids for all sections
   useEffect(() => {
     const loadYoungLeaders = async () => {
       const startTime = Date.now();
@@ -85,19 +93,18 @@ function YoungLeadersPage() {
       try {
         setLoading(true);
         setError(null);
+        setRefreshing(true);
 
         // Get all sections to fetch members from
         const sections = await databaseService.getSections();
         if (!sections || sections.length === 0) {
           setYoungLeaders([]);
           setLoading(false);
+          setRefreshing(false);
           return;
         }
 
-        logger.debug('Starting Young Leaders data load', {
-          sectionCount: sections.length,
-          timestamp: new Date().toISOString(),
-        }, LOG_CATEGORIES.APP);
+
 
         // Get authentication token for API calls
         const token = getToken();
@@ -105,27 +112,64 @@ function YoungLeadersPage() {
           throw new Error('No authentication token available');
         }
 
-        // Use getListOfMembers which properly handles section names and deduplication
-        const allMembers = await getListOfMembers(sections, token);
+        // Load terms once for all sections (major optimization!)
+        let allTerms = null;
+        if (token) {
+          try {
+            allTerms = await getTerms(token);
+          } catch (err) {
+            logger.error('Error loading terms, will use fallback', { error: err.message }, LOG_CATEGORIES.ERROR);
+          }
+        }
 
-        // Filter for Young Leaders - only include those with person_type === 'Young Leaders'
-        // This excludes Adults section memberships to avoid incorrect classification
+        // Fallback to offline cached terms if API failed
+        if (!allTerms) {
+          try {
+            const demoMode = isDemoMode();
+            const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+            const cachedTerms = await UnifiedStorageService.get(termsKey);
+            if (cachedTerms) {
+              allTerms = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
+            }
+          } catch (err) {
+            logger.warn('Failed to parse offline terms from storage', { error: err.message }, LOG_CATEGORIES.APP);
+          }
+        }
+
+        // Use cached data to avoid excessive API calls
+        const allMembers = await getListOfMembers(sections, token);
         const youngLeaderMembers = allMembers.filter(member => {
           return member.person_type === 'Young Leaders';
         });
 
-        setYoungLeaders(youngLeaderMembers || []);
+        // Create section name lookup map from sections data
+        const sectionNameMap = {};
+        sections.forEach(section => {
+          if (section.sectionid && section.sectionname) {
+            sectionNameMap[section.sectionid] = section.sectionname;
+          }
+        });
 
-        const loadTime = Date.now() - startTime;
-        logger.info('Young Leaders loading completed', {
-          totalLoadTime: `${loadTime}ms`,
-          totalMembers: allMembers.length,
-          youngLeadersCount: youngLeaderMembers?.length || 0,
-        }, LOG_CATEGORIES.APP);
+        // Fix missing section names using section lookup
+        const youngLeadersWithSectionNames = youngLeaderMembers.map(leader => {
+          if (!leader.sectionname || leader.sectionname === 'Unknown Section') {
+            // Try to find section name from the member's section ID
+            if (leader.sectionid && sectionNameMap[leader.sectionid]) {
+              return {
+                ...leader,
+                sectionname: sectionNameMap[leader.sectionid],
+              };
+            }
+          }
+          return leader;
+        });
+
+        setYoungLeaders(youngLeadersWithSectionNames || []);
+
 
       } catch (err) {
         const loadTime = Date.now() - startTime;
-        logger.error('Failed to load young leaders', {
+        logger.error('Failed to refresh young leaders', {
           error: err.message,
           loadTime: `${loadTime}ms`,
         }, LOG_CATEGORIES.ERROR);
@@ -133,6 +177,7 @@ function YoungLeadersPage() {
         setYoungLeaders([]);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     };
 
@@ -156,7 +201,10 @@ function YoungLeadersPage() {
   }, []);
 
   if (loading) {
-    return <LoadingScreen message="Loading young leaders..." />;
+    const progressMessage = refreshing && loadingProgress.total > 0
+      ? `Loading young leaders... (${loadingProgress.loaded}/${loadingProgress.total} sections)`
+      : 'Loading young leaders...';
+    return <LoadingScreen message={progressMessage} />;
   }
 
   if (error) {
@@ -186,10 +234,39 @@ function YoungLeadersPage() {
       {/* Young Leaders Content */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Young Leaders</h2>
-          <p className="text-gray-600 mt-1">
-            View and manage young leader information and development tracking
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Young Leaders</h2>
+              <p className="text-gray-600 mt-1">
+                View and manage young leader information and development tracking
+              </p>
+            </div>
+            <button
+              onClick={handleRefreshData}
+              disabled={refreshing}
+              className="px-4 py-2 bg-scout-blue text-white rounded hover:bg-scout-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </div>
+          {refreshing && loadingProgress.total > 0 && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-700">
+                  Refreshing member data from all sections
+                </span>
+                <span className="text-sm text-blue-600">
+                  {loadingProgress.loaded}/{loadingProgress.total}
+                </span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(loadingProgress.loaded / loadingProgress.total) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
         </div>
 
         {youngLeaders.length === 0 ? (
