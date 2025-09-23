@@ -5,6 +5,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
+import { UnifiedStorageService } from './unifiedStorageService.js';
 
 class SyncService {
   constructor() {
@@ -197,7 +198,7 @@ class SyncService {
       }
 
       const completionTimestamp = Date.now();
-      localStorage.setItem('viking_last_sync', completionTimestamp.toString());
+      await UnifiedStorageService.setLastSync(completionTimestamp.toString());
       
       // Notify dashboard data is complete
       this.notifyListeners({ 

@@ -6,6 +6,7 @@ import { getMostRecentTermId } from './termUtils.js';
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
+import { UnifiedStorageService } from '../services/storage/unifiedStorageService.js';
 
 /**
  * Fetches events for all sections with optimized terms loading
@@ -199,10 +200,11 @@ export const fetchEventAttendance = async (event, token) => {
           const { isDemoMode } = await import('../../config/demoMode.js');
           const prefix = isDemoMode() ? 'demo_' : '';
           const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
-          const sharedMetadata = localStorage.getItem(sharedMetadataKey);
+          const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
           if (sharedMetadata) {
             try {
-              const metadata = JSON.parse(sharedMetadata);
+              // UnifiedStorageService returns objects, not strings
+              const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
               if (metadata._isSharedEvent) {
                 
                 // For shared events in demo mode, we might need to combine with other sections
@@ -308,7 +310,7 @@ export const fetchEventAttendance = async (event, token) => {
     if (!checkForSharedEvents) {
       // Save basic attendance data to cache and return it
       await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-      localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+      await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
       return sectionSpecificAttendanceData;
     }
     
@@ -341,7 +343,7 @@ export const fetchEventAttendance = async (event, token) => {
               
               // Save combined attendance data to cache
               await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
-              localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+              await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
               
               // Store shared event metadata separately for event expansion
               const { isDemoMode } = await import('../../config/demoMode.js');
@@ -351,7 +353,7 @@ export const fetchEventAttendance = async (event, token) => {
                 _allSections: sharedEventData.items,
                 _sourceEvent: event,
               };
-              localStorage.setItem(`${prefix}viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
+              await UnifiedStorageService.set(`${prefix}viking_shared_metadata_${event.eventid}`, metadata);
               
               return combinedAttendanceData;
             }
@@ -378,7 +380,7 @@ export const fetchEventAttendance = async (event, token) => {
     
     // Default: Save section-specific data to cache and return it
     await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-    localStorage.setItem(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
+    await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
     return sectionSpecificAttendanceData;
     
   } catch (err) {

@@ -23,6 +23,7 @@ import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import { safeGetItem, safeSetItem } from '../../utils/storageUtils.js';
 import { isDemoMode } from '../../../config/demoMode.js';
+import UnifiedStorageService from './unifiedStorageService.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -337,13 +338,20 @@ class DatabaseService {
    */
   async saveSections(sections) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use demo prefix if in demo mode
+      // Use UnifiedStorageService for consistent storage routing
       const { isDemoMode } = await import('../../../config/demoMode.js');
       const prefix = isDemoMode() ? 'demo_' : '';
       const key = `${prefix}viking_sections_offline`;
-      safeSetItem(key, sections);
+
+      if (isDemoMode()) {
+        // Demo mode still uses direct localStorage to maintain separation
+        safeSetItem(key, sections);
+      } else {
+        // Production mode uses UnifiedStorageService for migration support
+        await UnifiedStorageService.setSections(sections);
+      }
       return;
     }
     
@@ -393,32 +401,45 @@ class DatabaseService {
    */
   async getSections() {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use demo prefix if in demo mode
+      // Use UnifiedStorageService for consistent storage routing
       const { isDemoMode } = await import('../../../config/demoMode.js');
-      const prefix = isDemoMode() ? 'demo_' : '';
-      const key = `${prefix}viking_sections_offline`;
-      const sectionsData = safeGetItem(key, []);
-      
-      // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
-      // In production, they might be timestamped format with {items: [...]}
-      let sections = [];
-      if (Array.isArray(sectionsData)) {
-        sections = sectionsData;
-      } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
-        sections = sectionsData.items;
-      }
-      
-      // Filter out demo sections if not in demo mode
-      if (!isDemoMode()) {
+
+      if (isDemoMode()) {
+        // Demo mode still uses direct localStorage to maintain separation
+        const prefix = 'demo_';
+        const key = `${prefix}viking_sections_offline`;
+        const sectionsData = safeGetItem(key, []);
+
+        // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
+        let sections = [];
+        if (Array.isArray(sectionsData)) {
+          sections = sectionsData;
+        } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+          sections = sectionsData.items;
+        }
+        return sections;
+      } else {
+        // Production mode uses UnifiedStorageService for migration support
+        const sectionsData = await UnifiedStorageService.getSections();
+
+        // Handle different data formats
+        let sections = [];
+        if (Array.isArray(sectionsData)) {
+          sections = sectionsData;
+        } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+          sections = sectionsData.items;
+        }
+
+        // Filter out demo sections if not in demo mode
         sections = sections.filter((section) => {
           const name = section?.sectionname;
           return !(typeof name === 'string' && name.startsWith('Demo '));
         });
+
+        return sections;
       }
-      
-      return sections;
     }
     
     const query = 'SELECT * FROM sections ORDER BY sectionname';
@@ -475,11 +496,16 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use demo prefix if in demo mode
+      // Storage routing - use demo prefix if in demo mode
       const { isDemoMode } = await import('../../../config/demoMode.js');
-      const prefix = isDemoMode() ? 'demo_' : '';
+      const demoMode = isDemoMode();
+      const prefix = demoMode ? 'demo_' : '';
       const key = `${prefix}viking_events_${sectionId}_offline`;
-      safeSetItem(key, events);
+      if (demoMode) {
+        safeSetItem(key, events);
+      } else {
+        await UnifiedStorageService.set(key, events);
+      }
       return;
     }
     
@@ -550,11 +576,12 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use demo prefix if in demo mode
+      // Storage routing - use demo prefix if in demo mode
       const { isDemoMode } = await import('../../../config/demoMode.js');
-      const prefix = isDemoMode() ? 'demo_' : '';
+      const demoMode = isDemoMode();
+      const prefix = demoMode ? 'demo_' : '';
       const key = `${prefix}viking_events_${sectionId}_offline`;
-      const eventsData = safeGetItem(key, []);
+      const eventsData = demoMode ? safeGetItem(key, []) : await UnifiedStorageService.get(key) || [];
       
       // In demo mode, events are stored as flat array (already parsed by safeGetItem)
       // In production, they might be timestamped format with {items: [...]}
@@ -627,9 +654,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
+      // Storage routing
       const key = `viking_attendance_${eventId}_offline`;
-      safeSetItem(key, attendanceData);
+      await UnifiedStorageService.set(key, attendanceData);
       return;
     }
     
@@ -689,9 +716,9 @@ class DatabaseService {
     await this.initialize();
     
     if (!this.isNative || !this.db) {
-      // localStorage fallback
+      // Storage routing
       const key = `viking_attendance_${eventId}_offline`;
-      return safeGetItem(key, []);
+      return await UnifiedStorageService.get(key) || [];
     }
     
     const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname';
@@ -806,9 +833,13 @@ class DatabaseService {
       // Get existing members
       let existingMembers = [];
       try {
-        existingMembers = safeGetItem(key, []);
+        if (demoMode) {
+          existingMembers = safeGetItem(key, []);
+        } else {
+          existingMembers = await UnifiedStorageService.get(key) || [];
+        }
       } catch (error) {
-        console.warn('Failed to parse existing members cache:', error);
+        console.warn('Failed to get existing members cache:', error);
         existingMembers = [];
       }
       
@@ -840,7 +871,11 @@ class DatabaseService {
       
       // Save comprehensive member list
       const allMembers = Array.from(memberMap.values());
-      safeSetItem(key, allMembers);
+      if (demoMode) {
+        safeSetItem(key, allMembers);
+      } else {
+        await UnifiedStorageService.set(key, allMembers);
+      }
       return;
     }
     
@@ -954,7 +989,7 @@ class DatabaseService {
       const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
       
       try {
-        const members = safeGetItem(key, []);
+        const members = demoMode ? safeGetItem(key, []) : await UnifiedStorageService.get(key) || [];
         if (!members.length) {
           return [];
         }

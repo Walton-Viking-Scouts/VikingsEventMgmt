@@ -9,6 +9,7 @@ import {
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem } from '../../../utils/storageUtils.js';
+import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
@@ -356,13 +357,12 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     const prefix = demoMode ? 'demo_' : '';
     const cacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const cachedData = JSON.parse(cached);
+      const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
+      if (cachedData) {
         // Check if cache is still fresh (within 1 hour)
         const cacheAge = Date.now() - (cachedData._cacheTimestamp || 0);
         const maxAge = 60 * 60 * 1000; // 1 hour
-        
+
         if (cacheAge < maxAge) {
           logger.debug('Using cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
           return cachedData;
@@ -386,9 +386,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     if (!isOnlineNow) {
       // If offline, try to return stale cache
       try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const cachedData = JSON.parse(cached);
+        const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
+        if (cachedData) {
           logger.info('Using stale cached shared attendance data (offline)', { eventId, sectionId }, LOG_CATEGORIES.API);
           return cachedData;
         }
@@ -404,9 +403,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     if (!authHandler.shouldMakeAPICall()) {
       // Try to return stale cache if auth failed
       try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const cachedData = JSON.parse(cached);
+        const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
+        if (cachedData) {
           logger.info('Using stale cached shared attendance data (auth failed)', { eventId, sectionId }, LOG_CATEGORIES.API);
           return cachedData;
         }
@@ -457,7 +455,11 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         ...result,
         _cacheTimestamp: Date.now(),
       };
-      localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      if (demoMode) {
+        localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+      } else {
+        await UnifiedStorageService.set(cacheKey, dataToCache);
+      }
       logger.debug('Cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
       logger.warn('Failed to cache shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
@@ -477,9 +479,8 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     const prefix = demoMode ? 'demo_' : '';
     const sharedCacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
     try {
-      const cached = localStorage.getItem(sharedCacheKey);
-      if (cached) {
-        const cachedData = JSON.parse(cached);
+      const cachedData = demoMode ? safeGetItem(sharedCacheKey) : await UnifiedStorageService.get(sharedCacheKey);
+      if (cachedData) {
         logger.info('Using stale cached shared attendance data (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
         return cachedData;
       }
@@ -498,7 +499,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 function generateDemoSharedAttendance(eventId, sectionId) {
   // Simply fetch the cached shared attendance data - use demo prefix
   const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
-  const cachedSharedAttendance = localStorage.getItem(sharedCacheKey);
+  const cachedSharedAttendance = safeGetItem(sharedCacheKey);
   
   if (import.meta.env.DEV) {
     logger.debug('Demo mode: Looking for cached shared attendance', {
@@ -510,12 +511,7 @@ function generateDemoSharedAttendance(eventId, sectionId) {
   }
   
   if (cachedSharedAttendance) {
-    try {
-      const attendanceData = JSON.parse(cachedSharedAttendance);
-      return attendanceData;
-    } catch (error) {
-      logger.warn('Failed to parse cached shared attendance', { error: error.message }, LOG_CATEGORIES.API);
-    }
+    return cachedSharedAttendance;
   }
   
   // Return empty structure if no cached data found

@@ -14,6 +14,7 @@ import { authHandler } from '../../auth/authHandler.js';
 import { sentryUtils } from '../../utils/sentry.js';
 import databaseService from '../../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
+import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 
 /**
  * Helper function to retrieve user info with multiple fallback strategies
@@ -46,10 +47,15 @@ async function retrieveUserInfo(token) {
   } catch (startupError) {
     logger.warn('Failed to get startup data for user info:', startupError.message);
     
-    // Fallback: try to get from cache/localStorage with demo mode awareness
+    // Fallback: try to get from storage with demo mode awareness
     const demoMode = isDemoMode();
-    const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-    const cachedStartupData = safeGetItem(cacheKey);
+    let cachedStartupData;
+    if (demoMode) {
+      const cacheKey = 'demo_viking_startup_data_offline';
+      cachedStartupData = safeGetItem(cacheKey);
+    } else {
+      cachedStartupData = await UnifiedStorageService.get('viking_startup_data_offline');
+    }
     if (cachedStartupData && cachedStartupData.globals) {
       const userInfo = {
         firstname: cachedStartupData.globals.firstname || 'Scout Leader',
@@ -272,17 +278,21 @@ export async function getStartupData(token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      return safeGetItem('demo_viking_startup_data_offline', null);
+      return await UnifiedStorageService.get('demo_viking_startup_data_offline');
     }
     
     // Check network status first
     const isOnline = await checkNetworkStatus();
     
-    // If offline, get from localStorage
+    // If offline, get from storage
     if (!isOnline) {
       const demoMode = isDemoMode();
-      const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-      return safeGetItem(cacheKey, null);
+      if (demoMode) {
+        const cacheKey = 'demo_viking_startup_data_offline';
+        return safeGetItem(cacheKey, null);
+      } else {
+        return await UnifiedStorageService.get('viking_startup_data_offline');
+      }
     }
 
     validateTokenBeforeAPICall(token, 'getStartupData');
@@ -302,8 +312,13 @@ export async function getStartupData(token) {
     if (startupData) {
       try {
         const demoMode = isDemoMode();
-        const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-        const success = safeSetItem(cacheKey, startupData);
+        let success;
+        if (demoMode) {
+          const cacheKey = 'demo_viking_startup_data_offline';
+          success = safeSetItem(cacheKey, startupData);
+        } else {
+          success = await UnifiedStorageService.set('viking_startup_data_offline', startupData);
+        }
         if (success) {
           logger.info('Startup data successfully cached', {
             dataSize: JSON.stringify(startupData).length,
@@ -334,13 +349,17 @@ export async function getStartupData(token) {
       throw error;
     }
     
-    // If online request fails (non-auth errors), try localStorage as fallback
+    // If online request fails (non-auth errors), try storage as fallback
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
         const demoMode = isDemoMode();
-        const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-        return safeGetItem(cacheKey, null);
+        if (demoMode) {
+          const cacheKey = 'demo_viking_startup_data_offline';
+          return safeGetItem(cacheKey, null);
+        } else {
+          return await UnifiedStorageService.get('viking_startup_data_offline');
+        }
       } catch (cacheError) {
         logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
       }

@@ -7,6 +7,7 @@ import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversCont
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh, allTerms }) {
   
@@ -263,9 +264,8 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       const firstRecord = discoveredRecords[0];
       
       // Get preloaded structure from cache and process fieldMapping
-      const { safeGetItem } = await import('../../../shared/utils/storageUtils.js');
       const cacheKey = `viking_flexi_structure_${firstRecord.flexiRecordId}_offline`;
-      const structureData = safeGetItem(cacheKey, null);
+      const structureData = await UnifiedStorageService.get(cacheKey);
       
       if (!structureData) {
         const errorMsg = 'FlexiRecord structure not found in cache. Please refresh the app.';

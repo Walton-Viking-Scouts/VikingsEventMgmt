@@ -23,7 +23,7 @@ import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 import { notifyError } from '../../../shared/utils/notifications.js';
-import { safeGetItem } from '../../../shared/utils/storageUtils.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 
 /**
  * User preferences utilities for persistent storage
@@ -125,66 +125,71 @@ function SectionMovementTracker({ onBack }) {
 
   /**
    * Checks for missing 'Viking Section Movers' FlexiRecords across sections
-   * 
+   *
    * Validates that each section (excluding adults/waitinglist) has the required
    * 'Viking Section Movers' FlexiRecord with proper fields. Shows user notification
    * if any sections are missing this FlexiRecord.
-   * 
+   *
    * Required FlexiRecord fields: AssignedSection, AssignedTerm
    * Optional FlexiRecord fields: AssignmentDate, AssignedBy
-   * 
+   *
    * @function checkForMissingFlexiRecords
    * @param {Array} sectionsData - Array of section objects to validate
    * @param {string|number} sectionsData[].sectionid - Section ID
    * @param {string} sectionsData[].sectionname - Section display name
    */
-  const checkForMissingFlexiRecords = useCallback((sectionsData) => {
+  const checkForMissingFlexiRecords = useCallback(async (sectionsData) => {
     if (!sectionsData || sectionsData.length === 0) return;
 
     const missingSections = [];
 
-    sectionsData.forEach(section => {
+    for (const section of sectionsData) {
       const sectionId = section.sectionid;
       const sectionName = section.sectionname || section.name || 'Unknown Section';
-      
+
       // Filter out adults and waitinglist sections
       const normalizedName = sectionName.toLowerCase();
-      if (normalizedName.includes('adults') || 
-          normalizedName.includes('waiting') || 
+      if (normalizedName.includes('adults') ||
+          normalizedName.includes('waiting') ||
           normalizedName.includes('waitinglist')) {
-        return; // Skip these sections
+        continue; // Skip these sections
       }
 
       // Check if this section is already loaded (has FlexiRecord data)
       if (flexiRecordState.loadedSections && flexiRecordState.loadedSections.has(sectionId)) {
-        return; // Section has FlexiRecord loaded, treat as present
+        continue; // Section has FlexiRecord loaded, treat as present
       }
 
-      // Fallback: Check if FlexiRecord list exists in cache for this section
+      // Check if FlexiRecord list exists in storage for this section
       const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
-      const flexiRecordsList = safeGetItem(cacheKey, null);
-      
-      if (!flexiRecordsList || !flexiRecordsList.items) {
-        missingSections.push(sectionName);
-        return;
-      }
+      try {
+        const flexiRecordsList = await UnifiedStorageService.get(cacheKey);
 
-      // Check if Viking Section Movers FlexiRecord exists in the list
-      const hasVikingSectionMovers = flexiRecordsList.items.some(record => 
-        record.name === 'Viking Section Movers',
-      );
+        if (!flexiRecordsList || !flexiRecordsList.items) {
+          missingSections.push(sectionName);
+          continue;
+        }
 
-      if (!hasVikingSectionMovers) {
+        // Check if Viking Section Movers FlexiRecord exists in the list
+        const hasVikingSectionMovers = flexiRecordsList.items.some(record =>
+          record.name === 'Viking Section Movers',
+        );
+
+        if (!hasVikingSectionMovers) {
+          missingSections.push(sectionName);
+        }
+      } catch (error) {
+        // If we can't access storage, assume missing
         missingSections.push(sectionName);
       }
-    });
+    }
 
     // Show notification if there are missing FlexiRecords
     if (missingSections.length > 0) {
       const sectionList = missingSections.join(', ');
       const requiredFields = ['AssignedSection', 'AssignedTerm'];
       const optionalFields = ['AssignmentDate', 'AssignedBy'];
-      
+
       const message = `Missing "Viking Section Movers" FlexiRecord for: ${sectionList}. ` +
         `Contact your administrator to create this FlexiRecord with required fields: ${requiredFields.join(', ')} ` +
         `and optional fields: ${optionalFields.join(', ')}.`;

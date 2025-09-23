@@ -5,6 +5,7 @@ import authService, { generateOAuthUrl, getAndClearReturnPath } from '../service
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 
 // Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
@@ -48,8 +49,8 @@ export function useAuth() {
       const cachedSections = await databaseService.getSections();
       const hasCache = cachedSections && cachedSections.length > 0;
       
-      // Get last sync time from cache (side effect kept for compatibility)
-      const lastSync = localStorage.getItem('viking_last_sync');
+      // Get last sync time from storage
+      const lastSync = await UnifiedStorageService.getLastSync();
       setLastSyncTime(lastSync);
       
       // Check if token has expired based on stored expiration time
@@ -459,10 +460,10 @@ export function useAuth() {
   useEffect(() => {
     let cleanupFn = null;
     
-    const handleSyncComplete = (syncStatus) => {
+    const handleSyncComplete = async (syncStatus) => {
       if (syncStatus.status === 'completed') {
-        // Use the timestamp from sync status, or get from localStorage as fallback
-        const timestamp = syncStatus.timestamp || localStorage.getItem('viking_last_sync');
+        // Use the timestamp from sync status, or get from storage as fallback
+        const timestamp = syncStatus.timestamp || await UnifiedStorageService.getLastSync();
         setLastSyncTime(timestamp);
         logger.debug('Updated lastSyncTime after sync completion', { timestamp }, LOG_CATEGORIES.AUTH);
       }

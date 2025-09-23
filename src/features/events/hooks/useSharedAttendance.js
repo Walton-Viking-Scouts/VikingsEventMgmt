@@ -2,29 +2,54 @@ import { useState, useEffect } from 'react';
 import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 
 export function useSharedAttendance(events, viewMode) {
   const [sharedAttendanceData, setSharedAttendanceData] = useState(null);
   const [loadingSharedAttendance, setLoadingSharedAttendance] = useState(false);
+  const [hasSharedEvents, setHasSharedEvents] = useState(false);
 
-  // Check if there are shared events by looking for shared metadata in localStorage
-  const hasSharedEvents = events && events.some(event => {
-    const prefix = isDemoMode() ? 'demo_' : '';
-    const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
-    const sharedMetadata = localStorage.getItem(sharedMetadataKey);
-    
-    if (sharedMetadata) {
-      try {
-        const metadata = JSON.parse(sharedMetadata);
-        return metadata._isSharedEvent === true;
-      } catch (error) {
-        console.warn('Failed to parse shared metadata for event:', event.eventid, error);
-        return false;
+  // Helper function to check for shared events asynchronously
+  const checkForSharedEvents = async (eventsList) => {
+    if (!eventsList) return false;
+
+    for (const event of eventsList) {
+      const prefix = isDemoMode() ? 'demo_' : '';
+      const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
+      const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
+
+      if (sharedMetadata) {
+        try {
+          const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
+          if (metadata._isSharedEvent === true) {
+            return true;
+          }
+        } catch (error) {
+          console.warn('Failed to parse shared metadata for event:', event.eventid, error);
+        }
       }
     }
-    
+
     return false;
-  });
+  };
+
+  // Check for shared events when events change
+  useEffect(() => {
+    let isMounted = true;
+
+    const updateSharedEventsStatus = async () => {
+      const hasShared = await checkForSharedEvents(events);
+      if (isMounted) {
+        setHasSharedEvents(hasShared);
+      }
+    };
+
+    updateSharedEventsStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [events]);
 
   // Debug logging for shared events
 
@@ -40,24 +65,24 @@ export function useSharedAttendance(events, viewMode) {
         setLoadingSharedAttendance(true);
         try {
           if (isDemoMode()) {
-            // In demo mode, load shared attendance data from localStorage
-            const sharedEvents = events.filter(event => {
+            // In demo mode, load shared attendance data from storage
+            const sharedEvents = [];
+            for (const event of events) {
               const prefix = 'demo_';
               const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
-              const sharedMetadata = localStorage.getItem(sharedMetadataKey);
-              
+              const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
+
               if (sharedMetadata) {
                 try {
-                  const metadata = JSON.parse(sharedMetadata);
-                  return metadata._isSharedEvent === true;
+                  const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
+                  if (metadata._isSharedEvent === true) {
+                    sharedEvents.push(event);
+                  }
                 } catch (error) {
                   console.warn('Failed to parse shared metadata for event:', event.eventid, error);
-                  return false;
                 }
               }
-              
-              return false;
-            });
+            }
 
             // Load cached shared attendance data for demo mode
             const combinedData = [];
@@ -116,18 +141,21 @@ export function useSharedAttendance(events, viewMode) {
             // Production mode - first try cache, then API, then generate from section data
             
             // Find the shared event (the one that has shared metadata)
-            const sharedEvent = events.find(event => {
-              const metadata = localStorage.getItem(`viking_shared_metadata_${event.eventid}`);
+            let sharedEvent = null;
+            for (const event of events) {
+              const metadata = await UnifiedStorageService.get(`viking_shared_metadata_${event.eventid}`);
               if (metadata) {
                 try {
-                  const parsed = JSON.parse(metadata);
-                  return parsed._isSharedEvent === true;
+                  const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+                  if (parsed._isSharedEvent === true) {
+                    sharedEvent = event;
+                    break;
+                  }
                 } catch (e) {
-                  return false;
+                  console.warn('Failed to parse shared metadata for event:', event.eventid, e);
                 }
               }
-              return false;
-            });
+            }
 
             if (!sharedEvent) {
               console.warn('No shared event found');
@@ -183,17 +211,17 @@ export function useSharedAttendance(events, viewMode) {
             if (!sharedData) {
               const combinedData = [];
               const sharedMetadataKey = `viking_shared_metadata_${sharedEvent.eventid}`;
-              const sharedMetadata = localStorage.getItem(sharedMetadataKey);
+              const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
               
               if (sharedMetadata) {
                 try {
-                  const metadata = JSON.parse(sharedMetadata);
+                  const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
                   if (metadata._allSections) {
                     metadata._allSections.forEach(section => {
                       if (section.receiving_eventid && section.receiving_eventid !== '0') {
                         const sectionAttendanceKey = `viking_attendance_${section.receiving_eventid}_offline`;
                         const sectionAttendanceData = localStorage.getItem(sectionAttendanceKey);
-                        
+
                         if (sectionAttendanceData) {
                           try {
                             const sectionData = JSON.parse(sectionAttendanceData);

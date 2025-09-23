@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DraggableMover from './DraggableMover.jsx';
 import SectionDropZone from './SectionDropZone.jsx';
-import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js';
+import { safeSetItem } from '../../../shared/utils/storageUtils.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function AssignmentInterface({
@@ -73,10 +74,10 @@ function AssignmentInterface({
     }
   }, [assignments, draftKey, term]);
 
-  const loadDraftFromStorage = useCallback(() => {
+  const loadDraftFromStorage = useCallback(async () => {
     try {
-      const draftData = safeGetItem(draftKey, null);
-      
+      const draftData = await UnifiedStorageService.get(draftKey);
+
       if (draftData && draftData.assignments) {
         if (draftData.term?.type === term.type && draftData.term?.year === term.year) {
           const loadedAssignments = new Map(draftData.assignments);
@@ -126,7 +127,9 @@ function AssignmentInterface({
   }, [draftKey]);
 
   useEffect(() => {
-    loadDraftFromStorage();
+    loadDraftFromStorage().catch(error => {
+      logger.error('Failed to load draft from storage', { error: error.message }, LOG_CATEGORIES.ERROR);
+    });
   }, [loadDraftFromStorage]);
 
   useEffect(() => {

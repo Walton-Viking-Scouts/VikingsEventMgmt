@@ -84,10 +84,6 @@ export function validateTokenBeforeAPICall(token, functionName, options = {}) {
     throw new TokenExpiredError(`Cannot call ${functionName} - authentication token has expired`);
   }
   
-  logger.debug(`${functionName}: Token validation passed`, {
-    functionName,
-    tokenPresent: !!token,
-  }, LOG_CATEGORIES.API);
   
   return {
     isValid: true,

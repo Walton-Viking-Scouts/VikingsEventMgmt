@@ -99,15 +99,15 @@ function AppContent() {
                 </RouteGuard>
               }
             />
-            <Route 
-              path="/clear" 
+            <Route
+              path="/clear"
               element={
                 <RouteGuard authLevel="none">
                   <DataClearPage />
                 </RouteGuard>
-              } 
+              }
             />
-            
+
             {/* Legacy route redirects */}
             <Route path="/dashboard" element={<Navigate to="/events" replace />} />
             <Route path="/" element={<Navigate to={`/events${window.location.search}`} replace />} />
