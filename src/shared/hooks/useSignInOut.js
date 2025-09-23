@@ -5,7 +5,7 @@ import { getFlexiRecordsList } from '../../features/events/services/flexiRecordS
 // import { getFlexiRecordStructure } from '../../features/events/services/flexiRecordService.js';
 import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
 import { getToken } from '../services/auth/tokenService.js';
-import { safeGetItem, safeGetSessionItem } from '../utils/storageUtils.js';
+import { safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import UnifiedStorageService from '../services/storage/unifiedStorageService.js';
 import IndexedDBService from '../services/storage/indexedDBService.js';
@@ -164,7 +164,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
                   fieldMapping[row.field] = {
                     name: row.name,
                     field: row.field,
-                    index: index
+                    index: index,
                   };
                 }
               });
@@ -243,7 +243,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
           console.log('🔍 Debug: parseFlexiStructure() succeeded:', {
             fieldMappingType: typeof fieldMapping,
             isMap: fieldMapping instanceof Map,
-            size: fieldMapping?.size || 'no size property'
+            size: fieldMapping?.size || 'no size property',
           });
         } catch (parseError) {
           console.error('🐛 Failed to parse FlexiRecord structure with parseFlexiStructure():', parseError);
@@ -261,7 +261,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
         if (fieldMapping && fieldMapping.size > 0) {
           console.log('🔍 Debug: Successfully parsed field mapping:', {
             fieldMappingSize: fieldMapping.size,
-            availableFields: Array.from(fieldMapping.entries()).map(([id, info]) => `${id}: ${info.name}`)
+            availableFields: Array.from(fieldMapping.entries()).map(([id, info]) => `${id}: ${info.name}`),
           });
         }
 

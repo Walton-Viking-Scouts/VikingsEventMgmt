@@ -11,12 +11,12 @@ function addTestMigrationData() {
   localStorage.setItem('viking_shared_metadata_test', JSON.stringify({
     version: '1.0',
     lastUpdate: Date.now(),
-    type: 'metadata'
+    type: 'metadata',
   }));
 
   // Add some non-Phase 1 data to test filtering
   localStorage.setItem('viking_sections_offline', JSON.stringify([
-    { sectionid: 123, name: 'Test Section' }
+    { sectionid: 123, name: 'Test Section' },
   ]));
   localStorage.setItem('other_app_data', 'should not be migrated');
 

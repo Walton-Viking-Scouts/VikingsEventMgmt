@@ -1,13 +1,12 @@
 import { Capacitor } from '@capacitor/core';
-import { BACKEND_URL, validateTokenBeforeAPICall, handleAPIResponseWithRateLimit } from './api/api/base.js';
-import { withRateLimitQueue } from '../utils/rateLimitQueue.js';
+import { validateTokenBeforeAPICall } from './api/api/base.js';
 import databaseService from './storage/database.js';
 import logger, { LOG_CATEGORIES } from './utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } from './api/api/flexiRecords.js';
 import vikingEventDataService from './data/vikingEventDataService.js';
 
-const CACHE_KEYS = {
+const _CACHE_KEYS = {
   FLEXI_LISTS: 'viking_flexirecord_lists_offline',
   FLEXI_STRUCTURES: 'viking_flexirecord_structures_offline',
   FLEXI_DATA: 'viking_flexirecord_data_offline',
@@ -79,7 +78,7 @@ class FlexiRecordDataService {
 
     validateTokenBeforeAPICall(token, 'fetchFlexiRecordLists');
 
-    const sectionInfo = await this.getSectionInfo(sectionId);
+    const _sectionInfo = await this.getSectionInfo(sectionId);
 
     const apiData = await getFlexiRecords(sectionId, token, 'n', true);
 
@@ -87,7 +86,7 @@ class FlexiRecordDataService {
       throw new Error('Invalid API response: missing FlexiRecord items array');
     }
 
-    const flexiRecordLists = this.normalizeFlexiRecordLists(apiData.items, sectionId, termId, sectionInfo);
+    const flexiRecordLists = this.normalizeFlexiRecordLists(apiData.items, sectionId, termId, _sectionInfo);
 
     await this.storeFlexiRecordLists(flexiRecordLists);
 
@@ -127,7 +126,7 @@ class FlexiRecordDataService {
 
     validateTokenBeforeAPICall(token, 'fetchFlexiRecordData');
 
-    const sectionInfo = await this.getSectionInfo(sectionId);
+    const _sectionInfo = await this.getSectionInfo(sectionId);
 
     const apiData = await getSingleFlexiRecord(flexiRecordId, sectionId, termId, token);
 
@@ -185,7 +184,7 @@ class FlexiRecordDataService {
         };
       } else {
         const sections = await databaseService.storageBackend.getSections();
-        const section = sections.find(s => s.sectionid == sectionId);
+        const section = sections.find(s => s.sectionid === sectionId);
         return {
           sectionname: section?.sectionname || `Section ${sectionId}`,
           section: section?.section || null,
@@ -272,7 +271,7 @@ class FlexiRecordDataService {
       columns: structureData.columns || {},
       config: structureData.config || {},
     });
-    return btoa(hashInput).slice(0, 16);
+    return globalThis.btoa(hashInput).slice(0, 16);
   }
 
   async storeData(flexiRecordLists, flexiRecordStructures, flexiRecordData) {
@@ -361,7 +360,7 @@ class FlexiRecordDataService {
     }
   }
 
-  async getFlexiRecordData(flexiRecordIds = [], sectionIds = []) {
+  async getFlexiRecordData(flexiRecordIds = [], _sectionIds = []) {
     await this.initialize();
 
     if (flexiRecordIds.length > 0) {
@@ -420,17 +419,17 @@ class FlexiRecordDataService {
     return [];
   }
 
-  async getFlexiRecordListsFromSQLite(sectionIds) {
+  async getFlexiRecordListsFromSQLite(_sectionIds) {
     // TODO: Implement SQLite retrieval for FlexiRecord lists
     throw new Error('SQLite retrieval for FlexiRecord lists not yet implemented');
   }
 
-  async getFlexiRecordStructuresFromSQLite(flexiRecordIds) {
+  async getFlexiRecordStructuresFromSQLite(_flexiRecordIds) {
     // TODO: Implement SQLite retrieval for FlexiRecord structures
     throw new Error('SQLite retrieval for FlexiRecord structures not yet implemented');
   }
 
-  async getFlexiRecordDataFromSQLite(flexiRecordIds, sectionIds) {
+  async getFlexiRecordDataFromSQLite(_flexiRecordIds, _sectionIds) {
     // TODO: Implement SQLite retrieval for FlexiRecord data
     throw new Error('SQLite retrieval for FlexiRecord data not yet implemented');
   }

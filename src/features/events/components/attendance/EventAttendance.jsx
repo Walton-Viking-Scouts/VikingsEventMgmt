@@ -11,7 +11,6 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
-import { parseFlexiStructure } from '../../../../shared/utils/flexiRecordTransforms.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 

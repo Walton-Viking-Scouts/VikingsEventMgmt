@@ -17,8 +17,7 @@ import {
 import { getToken } from '../auth/tokenService.js';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
 import { getMostRecentTermId } from '../../utils/termUtils.js';
-import logger, { LOG_CATEGORIES } from '../utils/logger.js';
-import flexiRecordDataService from '../flexiRecordDataService.js';
+import logger from '../utils/logger.js';
 
 class PageDataManager {
   constructor() {
@@ -281,7 +280,7 @@ class PageDataManager {
    * NOTE: FlexiRecord data handling preserved for separate implementation
    */
   async loadEventDetailData(eventId, sectionId) {
-    const cacheKey = `event-detail-${eventId}-${sectionId}`;
+    const _cacheKey = `event-detail-${eventId}-${sectionId}`;
 
     try {
       const dbCached = await databaseService.get(`event_detail_${eventId}_${sectionId}`);
