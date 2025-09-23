@@ -4,6 +4,7 @@ import databaseService from './storage/database.js';
 import logger, { LOG_CATEGORIES } from './utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } from './api/api/flexiRecords.js';
+import dataServiceOrchestrator from './data/dataServiceOrchestrator.js';
 
 const _CACHE_KEYS = {
   FLEXI_LISTS: 'viking_flexirecord_lists_offline',
@@ -12,7 +13,8 @@ const _CACHE_KEYS = {
 };
 
 class FlexiRecordDataService {
-  constructor() {
+  constructor(orchestrator = dataServiceOrchestrator) {
+    this.orchestrator = orchestrator;
     this.isNative = Capacitor.isNativePlatform();
     this.isInitialized = false;
   }
@@ -136,30 +138,20 @@ class FlexiRecordDataService {
     const isVikingEvent = await this.isVikingEventManagementFlexiRecord(flexiRecordId);
 
     if (isVikingEvent) {
-      let savedCount = 0;
-      const { default: vikingEventDataService } = await import('./data/vikingEventDataService.js');
-      for (const item of apiData.items) {
-        try {
-          await vikingEventDataService.saveVikingEventData(item, sectionId, flexiRecordId);
-          savedCount++;
-        } catch (err) {
-          logger.error('Failed to save Viking Event data item', {
-            error: err,
-            flexiRecordId,
-            sectionId,
-            memberId: item.scoutid,
-          }, LOG_CATEGORIES.STORAGE);
-        }
-      }
+      const result = await this.orchestrator.processVikingEventFlexiRecordData(
+        apiData.items,
+        sectionId,
+        flexiRecordId,
+      );
 
-      logger.info('Viking Event FlexiRecord data fetched and stored via simplified service', {
+      logger.info('Viking Event FlexiRecord data fetched and stored via orchestrator', {
         flexiRecordId,
         sectionId,
-        dataCount: savedCount,
-        totalItems: apiData.items.length,
+        savedCount: result.savedCount,
+        totalItems: result.totalItems,
       }, LOG_CATEGORIES.STORAGE);
 
-      return { success: true, dataCount: savedCount };
+      return { success: true, dataCount: result.savedCount };
     } else {
       logger.info('FlexiRecord data fetched but not stored (only Viking Event Mgmt records are stored)', {
         flexiRecordId,
@@ -372,22 +364,14 @@ class FlexiRecordDataService {
 
       if (vikingEventRecordIds.length > 0) {
         try {
-          const { default: vikingEventDataService } = await import('./data/vikingEventDataService.js');
-          vikingEventData = await vikingEventDataService.getAllVikingEventData();
+          vikingEventData = await this.orchestrator.getVikingEventDataForFlexiRecordAPI();
 
-          vikingEventData = vikingEventData.map(record => ({
-            ...record,
-            flexirecordid: record.flexirecord_id,
-            scoutid: record.member_id,
-            sectionid: record.section_id,
-          }));
-
-          logger.debug('Retrieved Viking Event data via simplified service', {
+          logger.debug('Retrieved Viking Event data via orchestrator', {
             vikingRecordIds: vikingEventRecordIds,
             dataCount: vikingEventData.length,
           }, LOG_CATEGORIES.STORAGE);
         } catch (err) {
-          logger.error('Failed to retrieve Viking Event data', {
+          logger.error('Failed to retrieve Viking Event data via orchestrator', {
             error: err,
             vikingRecordIds: vikingEventRecordIds,
           }, LOG_CATEGORIES.STORAGE);

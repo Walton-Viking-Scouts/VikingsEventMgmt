@@ -1,8 +1,10 @@
 import indexedDBService from '../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import dataServiceOrchestrator from './dataServiceOrchestrator.js';
 
 class VikingEventDataService {
-  constructor() {
+  constructor(orchestrator = dataServiceOrchestrator) {
+    this.orchestrator = orchestrator;
     this.VIKING_EVENT_STRUCTURE_NAME = 'Viking Event Mgmt';
     this.cachedStructure = null;
     this.fieldMappings = null;
@@ -14,24 +16,17 @@ class VikingEventDataService {
     }
 
     try {
-      const { default: flexiRecordDataService } = await import('../flexiRecordDataService.js');
-      const structures = await flexiRecordDataService.getFlexiRecordStructures();
-
-      const vikingStructure = structures.find(structure =>
-        structure.name === this.VIKING_EVENT_STRUCTURE_NAME,
-      );
+      const vikingStructure = await this.orchestrator.getVikingEventStructure();
 
       if (!vikingStructure) {
-        logger.warn('Viking Event Mgmt structure not found', {
-          availableStructures: structures.map(s => s.name),
-        }, LOG_CATEGORIES.DATA_SERVICE);
+        logger.warn('Viking Event Mgmt structure not found via orchestrator', {}, LOG_CATEGORIES.DATA_SERVICE);
         return null;
       }
 
       this.cachedStructure = vikingStructure;
       return vikingStructure;
     } catch (err) {
-      logger.error('Failed to retrieve Viking Event structure', {
+      logger.error('Failed to retrieve Viking Event structure via orchestrator', {
         error: err,
       }, LOG_CATEGORIES.DATA_SERVICE);
       throw err;
@@ -43,53 +38,20 @@ class VikingEventDataService {
       return this.fieldMappings;
     }
 
-    const structure = await this.getVikingEventStructure();
-    if (!structure || !structure.parsedFieldMapping) {
-      logger.error('No parsed field mapping found in Viking Event structure', {
-        structure: structure ? 'found' : 'not found',
-        hasParsedMapping: !!(structure && structure.parsedFieldMapping),
+    try {
+      this.fieldMappings = await this.orchestrator.getVikingEventFieldMappings();
+
+      logger.debug('Retrieved field mappings via orchestrator', {
+        mappingCount: Object.keys(this.fieldMappings).length,
+      }, LOG_CATEGORIES.DATA_SERVICE);
+
+      return this.fieldMappings;
+    } catch (err) {
+      logger.error('Failed to retrieve field mappings via orchestrator', {
+        error: err,
       }, LOG_CATEGORIES.DATA_SERVICE);
       return {};
     }
-
-    this.fieldMappings = {};
-
-    for (const [fieldId, fieldInfo] of Object.entries(structure.parsedFieldMapping)) {
-      const fieldName = fieldInfo.name || '';
-
-      switch (fieldName.toLowerCase()) {
-      case 'camp group':
-      case 'campgroup':
-        this.fieldMappings[fieldId] = 'camp_group';
-        break;
-      case 'signed in by':
-      case 'signedinby':
-        this.fieldMappings[fieldId] = 'signed_in_by';
-        break;
-      case 'signed in when':
-      case 'signedinwhen':
-      case 'signed in time':
-        this.fieldMappings[fieldId] = 'signed_in_when';
-        break;
-      case 'signed out by':
-      case 'signedoutby':
-        this.fieldMappings[fieldId] = 'signed_out_by';
-        break;
-      case 'signed out when':
-      case 'signedoutwhen':
-      case 'signed out time':
-        this.fieldMappings[fieldId] = 'signed_out_when';
-        break;
-      default:
-        this.fieldMappings[fieldId] = fieldName.toLowerCase().replace(/\s+/g, '_');
-      }
-    }
-
-    logger.debug('Built field mappings from pre-parsed structure', {
-      mappings: this.fieldMappings,
-    }, LOG_CATEGORIES.DATA_SERVICE);
-
-    return this.fieldMappings;
   }
 
   async mapFlexiRecordToVikingEventData(flexiRecord, sectionId, flexiRecordId) {
@@ -303,6 +265,7 @@ class VikingEventDataService {
   clearCache() {
     this.cachedStructure = null;
     this.fieldMappings = null;
+    this.orchestrator.clearCacheForFlexiRecord(this.VIKING_EVENT_STRUCTURE_NAME);
     logger.debug('Cleared Viking Event data service cache', {}, LOG_CATEGORIES.DATA_SERVICE);
   }
 }
