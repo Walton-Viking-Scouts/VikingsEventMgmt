@@ -346,6 +346,10 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
                 sectionFlexiRecordId,
                 token,
               );
+            } else {
+              logger.warn('No FlexiRecord ID for section during term update', {
+                sectionId: group.sectionId,
+              }, LOG_CATEGORIES.API);
             }
           }
         }
@@ -356,9 +360,9 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
         const sectionGroups = new Map(); // Key: "currentSectionId|targetSectionValue"
         
         for (const assignment of changedAssignments) {
-          const sectionValue = assignment.sectionId === 'Not Known' || !assignment.sectionId 
-            ? 'Not Known' 
-            : assignment.sectionName || 'Not Known';
+          const sectionValue = assignment.sectionId
+            ? (assignment.sectionName || 'Not Known')
+            : 'Not Known';
           const memberId = assignment.memberId || assignment.scoutId;
           const currentSectionId = assignment.currentSectionId;
           const groupKey = `${currentSectionId}|${sectionValue}`;

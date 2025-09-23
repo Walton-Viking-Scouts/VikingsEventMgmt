@@ -13,10 +13,12 @@ import {
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
+import { useAuth } from '../../auth/hooks/useAuth.js';
 
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { lastSyncTime } = useAuth();
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,7 +61,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     };
 
     buildEventCardsFromCache();
-  }, [location.state]);
+  }, [location.state, lastSyncTime]);
 
   // Build event cards function - copied from EventDashboard
   const buildEventCards = async (sectionsData, token = null) => {
@@ -163,15 +165,6 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     }
   };
 
-  // Debug logging
-  if (import.meta.env.DEV) {
-    console.log('EventsOverview Debug:', {
-      loading,
-      error,
-      eventCardsCount: eventCards.length,
-      locationState: location.state,
-    });
-  }
 
   if (loading) {
     return <LoadingScreen message="Loading events overview..." />;

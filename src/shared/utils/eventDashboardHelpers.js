@@ -1,7 +1,7 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEventSummary, getEventSharingStatus } from '../services/api/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEventSummary, getEventSharingStatus, getSharedEventAttendance } from '../services/api/api.js';
 import { getMostRecentTermId } from './termUtils.js';
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
@@ -30,17 +30,15 @@ export const fetchAllSectionEvents = async (sections, token) => {
   } else {
     // Load offline cached terms once (avoid per-section localStorage parsing)
     try {
-      if (typeof localStorage !== 'undefined') {
-        const demoMode = isDemoMode();
-        const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-        const cachedTerms = localStorage.getItem(termsKey);
-        if (cachedTerms) {
-          allTerms = JSON.parse(cachedTerms);
-          logger.info('Using offline cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
-        }
+      const demoMode = isDemoMode();
+      const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
+      const cachedTerms = await UnifiedStorageService.get(termsKey);
+      if (cachedTerms) {
+        allTerms = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
+        logger.info('Using offline cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
       }
     } catch (err) {
-      logger.warn('Failed to parse offline terms from localStorage', { error: err }, LOG_CATEGORIES.COMPONENT);
+      logger.warn('Failed to parse offline terms from storage', { error: err }, LOG_CATEGORIES.COMPONENT);
     }
   }
   
@@ -129,18 +127,18 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
         // Fallback: try to get from cached event or fetch from API if needed
         termId = cachedEvents[0]?.termid;
         
-        // If still no termId, try to get from localStorage terms cache
+        // If still no termId, try to get from storage terms cache
         if (!termId) {
           try {
             const demoMode = isDemoMode();
             const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-            const cachedTerms = localStorage.getItem(termsKey);
+            const cachedTerms = await UnifiedStorageService.get(termsKey);
             if (cachedTerms) {
-              const parsedTerms = JSON.parse(cachedTerms);
-              termId = getMostRecentTermId(section.sectionid, parsedTerms);
+              const termsObj = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
+              termId = getMostRecentTermId(section.sectionid, termsObj);
             }
           } catch (error) {
-            logger.warn('Failed to get termId from localStorage terms cache', { error }, LOG_CATEGORIES.COMPONENT);
+            logger.warn('Failed to get termId from storage terms cache', { error }, LOG_CATEGORIES.COMPONENT);
           }
         }
       }
@@ -265,8 +263,9 @@ export const fetchEventAttendance = async (event, token) => {
     if (cachedAttendance) {
       // Check cache age to determine if we should refresh
       const cacheKey = `viking_attendance_cache_time_${event.eventid}`;
-      const cacheTime = localStorage.getItem(cacheKey);
-      const cacheAge = cacheTime ? Date.now() - parseInt(cacheTime) : Infinity;
+      const cacheTimeRaw = await UnifiedStorageService.get(cacheKey);
+      const cacheTime = cacheTimeRaw ? parseInt(cacheTimeRaw, 10) : null;
+      const cacheAge = cacheTime ? Date.now() - cacheTime : Infinity;
       const maxCacheAge = 60 * 60 * 1000; // 1 hour
       
       if (cacheAge < maxCacheAge) {
@@ -324,27 +323,29 @@ export const fetchEventAttendance = async (event, token) => {
         // If this section is the owner or participant of a shared event
         if (eventSummary.data.sharing.is_owner || eventSummary.data.sharing.is_owner === false) {
           try {
-            // Get shared event data with section attendance counts
+            // Get shared event data with section attendance counts for event card stats
             const sharedEventData = await getEventSharingStatus(event.eventid, event.sectionid, token);
-            
+
             if (sharedEventData) {
-              // For shared events, create attendance data from section-level counts
+              // For event cards, create attendance records from section-level counts
               const sharedAttendanceData = convertSharedEventToAttendanceFormat(sharedEventData);
-              
-              // Combine section-specific and shared data for maximum detail
+
+              // Combine section-specific and shared data for event card summary stats
+              const userSectionId = event.sectionid;
               const combinedAttendanceData = [
                 // Include real section-specific data (has No/Invited/NotInvited details)
                 ...sectionSpecificAttendanceData,
-                // Include synthetic data for sections we don't have access to
-                ...sharedAttendanceData.items.filter(item => 
-                  item.scoutid && item.scoutid.startsWith('synthetic-'),
+                // Include attendance records for ALL other sections in the shared event
+                ...sharedAttendanceData.items.filter(item =>
+                  item.scoutid && item.scoutid.startsWith('synthetic-') &&
+                  item.sectionid !== userSectionId,
                 ),
               ];
-              
+
               // Save combined attendance data to cache
               await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
               await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
-              
+
               // Store shared event metadata separately for event expansion
               const { isDemoMode } = await import('../../config/demoMode.js');
               const prefix = isDemoMode() ? 'demo_' : '';
@@ -354,7 +355,7 @@ export const fetchEventAttendance = async (event, token) => {
                 _sourceEvent: event,
               };
               await UnifiedStorageService.set(`${prefix}viking_shared_metadata_${event.eventid}`, metadata);
-              
+
               return combinedAttendanceData;
             }
           } catch (sharedErr) {

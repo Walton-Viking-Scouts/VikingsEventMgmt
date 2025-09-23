@@ -1,5 +1,5 @@
 import databaseService from './database.js';
-import { getUserRoles, getEvents, getEventAttendance, fetchMostRecentTermId, getTerms, getMembersGrid } from '../api/api.js';
+import { getUserRoles, getEvents, fetchMostRecentTermId, getTerms, getMembersGrid } from '../api/api.js';
 import { getToken, generateOAuthUrl, validateToken } from '../auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { Capacitor } from '@capacitor/core';
@@ -167,22 +167,39 @@ class SyncService {
       // Check token and prompt for login if needed
       const hasValidToken = await this.checkTokenAndPromptLogin();
       if (!hasValidToken) {
-        this.notifyListeners({ 
-          status: 'error', 
+        this.notifyListeners({
+          status: 'error',
           message: 'Login required - redirecting to authentication',
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
+      // Reset auth handler circuit breaker for refresh operations
+      // This allows sync to attempt fresh API calls even if previous calls failed
+      const { default: authHandler } = await import('../auth/authHandler.js');
+      authHandler.reset();
+
       const token = getToken();
 
-      // Load core static data - events will be loaded by buildEventCards
+      // Load core static data
       await this.syncTerms(token);
       await this.syncSections(token);
-      
-      // Get sections for FlexiRecord preloading
+
+      // Get sections for events and FlexiRecord loading
       const sections = await databaseService.getSections();
+
+      // Sync events for all sections
+      for (const section of sections) {
+        try {
+          await this.syncEvents(section.sectionid, token);
+        } catch (error) {
+          logger.warn('Failed to sync events for section', {
+            sectionId: section.sectionid,
+            error: error.message,
+          }, LOG_CATEGORIES.SYNC);
+        }
+      }
       
       // Preload static FlexiRecord data (lists and structures) - static like terms
       try {
@@ -198,7 +215,11 @@ class SyncService {
       }
 
       const completionTimestamp = Date.now();
-      await UnifiedStorageService.setLastSync(completionTimestamp.toString());
+      try {
+        await UnifiedStorageService.setLastSync(String(completionTimestamp));
+      } catch (e) {
+        logger.warn('Failed to persist last sync timestamp', { error: e.message }, LOG_CATEGORIES.SYNC);
+      }
       
       // Notify dashboard data is complete
       this.notifyListeners({ 
@@ -316,7 +337,24 @@ class SyncService {
       }
 
       // This will fetch from server and save to database
-      await getEvents(sectionId, termId, token);
+      const events = await getEvents(sectionId, termId, token);
+
+      // Also sync attendance data for each event to populate event cards properly
+      if (events && events.length > 0) {
+        this.notifyListeners({ status: 'syncing', message: `Syncing attendance for ${events.length} events...` });
+
+        for (const event of events) {
+          try {
+            await this.syncAttendance(sectionId, event.eventid, termId, token);
+          } catch (error) {
+            logger.warn('Failed to sync attendance for event', {
+              sectionId,
+              eventId: event.eventid,
+              error: error.message,
+            }, LOG_CATEGORIES.SYNC);
+          }
+        }
+      }
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync events for section ${sectionId}`,
@@ -341,8 +379,14 @@ class SyncService {
         return;
       }
 
-      // This will fetch from server and save to database
-      await getEventAttendance(sectionId, eventId, termId, token);
+      // Use fetchEventAttendance which handles shared events and creates proper metadata
+      const { fetchEventAttendance } = await import('../../utils/eventDashboardHelpers.js');
+      const eventObj = {
+        eventid: eventId,
+        sectionid: sectionId,
+        termid: termId,
+      };
+      await fetchEventAttendance(eventObj, token);
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync attendance for event ${eventId}`,

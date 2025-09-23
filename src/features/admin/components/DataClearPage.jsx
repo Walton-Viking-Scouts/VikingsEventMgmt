@@ -7,7 +7,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 
 function DataClearPage() {
   const navigate = useNavigate();
-  const { clearNavigationData: _clearNavigationData } = useAppState();
+  useAppState(); // retain call if side-effects are required
   const [isClearing, setIsClearing] = useState(false);
   const [cleared, setCleared] = useState(false);
 
@@ -18,10 +18,9 @@ function DataClearPage() {
       // Clear IndexedDB data (where all viking data now lives)
       let clearedStores = 0;
       try {
-        for (const storeName of Object.values(IndexedDBService.STORES)) {
-          await IndexedDBService.clear(storeName);
-          clearedStores++;
-        }
+        const storeNames = Object.values(IndexedDBService.STORES);
+        const results = await Promise.allSettled(storeNames.map((s) => IndexedDBService.clear(s)));
+        clearedStores = results.filter(r => r.status === 'fulfilled').length;
         logger.info('IndexedDB cleared successfully', {
           clearedStores,
           stores: Object.values(IndexedDBService.STORES),
@@ -47,8 +46,8 @@ function DataClearPage() {
       keysToRemove.forEach(key => localStorage.removeItem(key));
 
       // Clear session storage (tokens)
-      clearToken();
-      sessionStorage.clear();
+      clearToken(); // tokenService removes all token-related keys
+      // If there are other session keys to clear, remove them selectively here
 
       logger.info('All application data cleared successfully', {
         clearedIndexedDBStores: clearedStores,

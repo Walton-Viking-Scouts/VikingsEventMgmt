@@ -456,7 +456,9 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         _cacheTimestamp: Date.now(),
       };
       if (demoMode) {
-        localStorage.setItem(cacheKey, JSON.stringify(dataToCache));
+        // Keep demo separation but use safeSetItem
+        const { safeSetItem } = await import('../../../utils/storageUtils.js');
+        safeSetItem(cacheKey, dataToCache);
       } else {
         await UnifiedStorageService.set(cacheKey, dataToCache);
       }

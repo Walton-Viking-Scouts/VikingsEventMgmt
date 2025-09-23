@@ -341,7 +341,6 @@ class DatabaseService {
 
     if (!this.isNative || !this.db) {
       // Use UnifiedStorageService for consistent storage routing
-      const { isDemoMode } = await import('../../../config/demoMode.js');
       const prefix = isDemoMode() ? 'demo_' : '';
       const key = `${prefix}viking_sections_offline`;
 

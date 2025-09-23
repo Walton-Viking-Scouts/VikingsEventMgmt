@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DraggableMover from './DraggableMover.jsx';
 import SectionDropZone from './SectionDropZone.jsx';
-import { safeSetItem } from '../../../shared/utils/storageUtils.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
@@ -44,7 +43,7 @@ function AssignmentInterface({
         },
       };
 
-      const success = safeSetItem(draftKey, draftData);
+      const success = await UnifiedStorageService.set(draftKey, draftData);
       
       if (success) {
         setDraftSaved(true);
@@ -109,9 +108,9 @@ function AssignmentInterface({
     }
   }, [draftKey, term]);
 
-  const clearDraftFromStorage = useCallback(() => {
+  const clearDraftFromStorage = useCallback(async () => {
     try {
-      localStorage.removeItem(draftKey);
+      await UnifiedStorageService.remove(draftKey);
       setDraftSaved(false);
       setLastSaveTime(null);
       

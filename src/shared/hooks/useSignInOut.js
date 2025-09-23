@@ -65,7 +65,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
     const targetName = fieldName.toLowerCase();
 
     // Handle Map format (parseFlexiStructure returns a Map)
-    if (fieldMapping && typeof fieldMapping.entries === 'function') {
+    if (fieldMapping instanceof Map) {
       for (const [fieldId, fieldInfo] of fieldMapping.entries()) {
         if (fieldInfo.name && fieldInfo.name.toLowerCase() === targetName) {
           return fieldId;
@@ -83,7 +83,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
 
     // Log available field names for debugging
     const availableFields = [];
-    if (fieldMapping && typeof fieldMapping.entries === 'function') {
+    if (fieldMapping instanceof Map) {
       for (const [fieldId, fieldInfo] of fieldMapping.entries()) {
         availableFields.push(fieldInfo.name || fieldId);
       }
@@ -222,47 +222,25 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
 
       if (structure) {
         // Successfully fetched FlexiRecord structure
-        console.log('🔍 Debug: Fetched structure from API:', {
-          hasStructure: !!structure,
-          hasVikingFlexiRecord: !!structure?.vikingFlexiRecord,
-          hasVikingFlexiRecordFieldMapping: !!structure?.vikingFlexiRecord?.fieldMapping,
-          hasNestedStructure: !!structure?._structure,
-          hasNestedVikingFlexiRecord: !!structure?._structure?.vikingFlexiRecord,
-          hasNestedFieldMapping: !!structure?._structure?.vikingFlexiRecord?.fieldMapping,
-          structureKeys: Object.keys(structure || {}),
-          rawStructure: structure, // Add full structure for debugging
-        });
 
         // Use the same parsing logic that works for Camp Group display
         let fieldMapping = null;
 
         // Always parse the structure using parseFlexiStructure() like the working Camp Group code path
         try {
-          console.log('🔍 Debug: Attempting to parse structure with parseFlexiStructure()');
           fieldMapping = parseFlexiStructure(structure);
-          console.log('🔍 Debug: parseFlexiStructure() succeeded:', {
-            fieldMappingType: typeof fieldMapping,
-            isMap: fieldMapping instanceof Map,
-            size: fieldMapping?.size || 'no size property',
-          });
         } catch (parseError) {
-          console.error('🐛 Failed to parse FlexiRecord structure with parseFlexiStructure():', parseError);
+          logger.error('Failed to parse FlexiRecord structure with parseFlexiStructure()', { error: parseError.message }, LOG_CATEGORIES.ERROR);
 
           // Fallback: try to access pre-parsed data (though this usually doesn't exist)
           if (structure?.vikingFlexiRecord?.fieldMapping) {
-            console.log('🔍 Debug: Using pre-parsed vikingFlexiRecord.fieldMapping');
             fieldMapping = structure.vikingFlexiRecord.fieldMapping;
           } else if (structure?._structure?.vikingFlexiRecord?.fieldMapping) {
-            console.log('🔍 Debug: Using pre-parsed _structure.vikingFlexiRecord.fieldMapping');
             fieldMapping = structure._structure.vikingFlexiRecord.fieldMapping;
           }
         }
 
         if (fieldMapping && fieldMapping.size > 0) {
-          console.log('🔍 Debug: Successfully parsed field mapping:', {
-            fieldMappingSize: fieldMapping.size,
-            availableFields: Array.from(fieldMapping.entries()).map(([id, info]) => `${id}: ${info.name}`),
-          });
         }
 
         return {

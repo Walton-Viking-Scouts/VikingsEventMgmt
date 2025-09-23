@@ -48,7 +48,8 @@ function AppContent() {
       const { default: syncService } = await import('../shared/services/storage/sync.js');
       await syncService.syncAll();
     } catch (error) {
-      console.error('Refresh failed:', error);
+      const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
+      logger.error('Refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
     }
   };
 

@@ -51,7 +51,7 @@ export function useAuth() {
       
       // Get last sync time from storage
       const lastSync = await UnifiedStorageService.getLastSync();
-      setLastSyncTime(lastSync);
+      setLastSyncTime(typeof lastSync === 'string' ? parseInt(lastSync, 10) : lastSync);
       
       // Check if token has expired based on stored expiration time
       const tokenExpired = isTokenExpired();

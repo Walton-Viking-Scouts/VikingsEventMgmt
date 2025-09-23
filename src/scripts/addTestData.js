@@ -3,14 +3,15 @@
 
 function addTestMigrationData() {
   console.log('Adding test localStorage data for Phase 1 migration...');
+  const now = Date.now();
 
   // Phase 1: Cache & Sync data
-  localStorage.setItem('viking_last_sync', Date.now().toString());
-  localStorage.setItem('viking_attendance_cache_time_12345', Date.now().toString());
-  localStorage.setItem('viking_attendance_cache_time_67890', (Date.now() - 86400000).toString()); // 1 day ago
+  localStorage.setItem('viking_last_sync', now.toString());
+  localStorage.setItem('viking_attendance_cache_time_12345', now.toString());
+  localStorage.setItem('viking_attendance_cache_time_67890', (now - 86400000).toString()); // 1 day ago
   localStorage.setItem('viking_shared_metadata_test', JSON.stringify({
     version: '1.0',
-    lastUpdate: Date.now(),
+    lastUpdate: now,
     type: 'metadata',
   }));
 
@@ -30,9 +31,14 @@ function addTestMigrationData() {
   console.log('\nNote: Migration is now automatic - data will be stored in IndexedDB automatically.');
 }
 
-// Auto-run when script is loaded
+// Optional auto-run: only when explicitly requested via ?seedMigrationData=1
 if (typeof window !== 'undefined') {
-  addTestMigrationData();
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('seedMigrationData')) {
+      addTestMigrationData();
+    }
+  } catch { /* no-op */ }
 }
 
 export default addTestMigrationData;
