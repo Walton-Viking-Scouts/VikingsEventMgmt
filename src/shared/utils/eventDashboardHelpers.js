@@ -1,7 +1,7 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEventSummary, getEventSharingStatus, getSharedEventAttendance } from '../services/api/api.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEventSummary, getEventSharingStatus } from '../services/api/api.js';
 import { getMostRecentTermId } from './termUtils.js';
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';

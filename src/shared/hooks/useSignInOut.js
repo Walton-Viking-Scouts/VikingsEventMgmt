@@ -240,8 +240,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
           }
         }
 
-        if (fieldMapping && fieldMapping.size > 0) {
-        }
 
         return {
           extraid: vikingRecord.extraid,
