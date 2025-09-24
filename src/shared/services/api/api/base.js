@@ -126,11 +126,6 @@ class APIQueue {
         
         const result = await apiCall();
         resolve(result);
-        
-        // Add delay between queued API calls
-        if (this.queue.length > 0) {
-          await sleep(0);
-        }
       } catch (error) {
         reject(error);
       }
