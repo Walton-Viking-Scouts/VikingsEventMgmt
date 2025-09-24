@@ -204,7 +204,7 @@ export class RateLimitQueue {
 
           // Small delay between successful requests to ensure proper ordering
           if (this.queue.length > 0) {
-            const delayMs = 50; // Minimal delay just for request ordering
+            const delayMs = 20; // Minimal delay just for request ordering
             await sleep(delayMs);
           }
 
