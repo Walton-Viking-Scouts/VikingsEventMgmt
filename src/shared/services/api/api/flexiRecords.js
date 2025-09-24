@@ -9,6 +9,7 @@ import {
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
+import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import { checkWritePermission } from '../../auth/tokenService.js';
@@ -36,15 +37,15 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       const cached = safeGetItem(cacheKey, { items: [] });
       return cached;
     }
-    
-    const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
-    
+
+    const storageKey = `viking_flexi_lists_${sectionId}_offline`;
+
     // Check network status first
     const isOnline = await checkNetworkStatus();
-    
+
     // Check if we have valid cached data (unless force refresh)
     if (!forceRefresh && isOnline) {
-      const cached = safeGetItem(storageKey, null);
+      const cached = await UnifiedStorageService.get(storageKey);
       if (cached && cached._cacheTimestamp) {
         const cacheAge = Date.now() - cached._cacheTimestamp;
         const FLEXI_RECORDS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -54,15 +55,15 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
       }
     }
     
-    // If offline, get from localStorage regardless of age
+    // If offline, get from storage regardless of age
     if (!isOnline) {
-      const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
+      const cached = await UnifiedStorageService.get(storageKey) || { identifier: null, label: null, items: [] };
       return cached;
     }
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      const cached = safeGetItem(storageKey, null);
+      const cached = await UnifiedStorageService.get(storageKey);
       // Validate cached data has meaningful content
       if (cached && cached.items && Array.isArray(cached.items)) {
         return cached;
@@ -100,11 +101,11 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
         ...flexiData,
         _cacheTimestamp: Date.now(),
       };
-      const success = safeSetItem(storageKey, cachedData);
+      const success = await UnifiedStorageService.set(storageKey, cachedData);
       if (success) {
         // FlexiRecord list successfully cached
       } else {
-        logger.error('FlexiRecord list caching failed - safeSetItem returned false', {
+        logger.error('FlexiRecord list caching failed - UnifiedStorageService returned false', {
           storageKey,
           itemCount: flexiData.items?.length || 0,
           dataSize: JSON.stringify(cachedData).length,
@@ -127,8 +128,8 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
-        const storageKey = `viking_flexi_records_${sectionId}_archived_${archived}_offline`;
-        const cached = safeGetItem(storageKey, { identifier: null, label: null, items: [] });
+        const storageKey = `viking_flexi_lists_${sectionId}_offline`;
+        const cached = await UnifiedStorageService.get(storageKey) || { identifier: null, label: null, items: [] };
         logger.info('Using cached fallback data after API error', {}, LOG_CATEGORIES.API);
         return cached;
       } catch (cacheError) {
@@ -223,13 +224,13 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     }
     
     const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
-    
+
     // Check network status first
     const isOnline = await checkNetworkStatus();
-    
+
     // Check if we have valid cached data (unless force refresh)
     if (!forceRefresh && isOnline) {
-      const cached = safeGetItem(storageKey, null);
+      const cached = demoMode ? safeGetItem(storageKey, null) : await UnifiedStorageService.get(storageKey);
       if (cached && cached._cacheTimestamp) {
         const cacheAge = Date.now() - cached._cacheTimestamp;
         const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
@@ -239,9 +240,9 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       }
     }
     
-    // If offline, get from localStorage regardless of age
+    // If offline, get from storage regardless of age
     if (!isOnline) {
-      const cached = safeGetItem(storageKey, null);
+      const cached = demoMode ? safeGetItem(storageKey, null) : await UnifiedStorageService.get(storageKey);
       if (cached) {
         logger.info('Retrieved structure from localStorage while offline', { 
           extraid,
@@ -254,7 +255,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
 
     // Simple circuit breaker - use cache if auth already failed
     if (!authHandler.shouldMakeAPICall()) {
-      const cached = safeGetItem(storageKey, null);
+      const cached = demoMode ? safeGetItem(storageKey, null) : await UnifiedStorageService.get(storageKey);
       // Validate cached data exists and has meaningful content
       if (cached && typeof cached === 'object' && cached.name) {
         return cached;
@@ -285,11 +286,11 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
           ...structureData,
           _cacheTimestamp: Date.now(),
         };
-        const success = safeSetItem(storageKey, cachedData);
+        const success = demoMode ? safeSetItem(storageKey, cachedData) : await UnifiedStorageService.set(storageKey, cachedData);
         if (success) {
           // FlexiRecord structure successfully cached
         } else {
-          logger.error('FlexiRecord structure caching failed - safeSetItem returned false', {
+          logger.error('FlexiRecord structure caching failed - storage service returned false', {
             storageKey,
             structureName: structureData.name || 'Unknown',
             dataSize: JSON.stringify(cachedData).length,
@@ -315,7 +316,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
       try {
         const demoMode = isDemoMode();
         const storageKey = demoMode ? `demo_viking_flexi_structure_${extraid}_offline` : `viking_flexi_structure_${extraid}_offline`;
-        const cacheData = safeGetItem(storageKey, null);
+        const cacheData = demoMode ? safeGetItem(storageKey, null) : await UnifiedStorageService.get(storageKey);
         logger.info('Using cached fallback data after API error, not updating cache timestamp', {}, LOG_CATEGORIES.API);
         return cacheData;
       } catch (cacheError) {

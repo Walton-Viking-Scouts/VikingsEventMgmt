@@ -1,57 +1,69 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../../../shared/contexts/app';
-import databaseService from '../../../shared/services/storage/database.js';
+import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import { clearToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function DataClearPage() {
   const navigate = useNavigate();
-  const { clearNavigationData: _clearNavigationData } = useAppState();
+  useAppState(); // retain call if side-effects are required
   const [isClearing, setIsClearing] = useState(false);
   const [cleared, setCleared] = useState(false);
 
   const handleClearData = async () => {
     setIsClearing(true);
-    
+
     try {
-      // Clear all localStorage data
+      // Clear IndexedDB data (where all viking data now lives)
+      let clearedStores = 0;
+      try {
+        const storeNames = Object.values(IndexedDBService.STORES);
+        const results = await Promise.allSettled(storeNames.map((s) => IndexedDBService.clear(s)));
+        clearedStores = results.filter(r => r.status === 'fulfilled').length;
+        logger.info('IndexedDB cleared successfully', {
+          clearedStores,
+          stores: Object.values(IndexedDBService.STORES),
+        }, LOG_CATEGORIES.APP);
+      } catch (dbError) {
+        logger.error('Failed to clear IndexedDB', { error: dbError.message }, LOG_CATEGORIES.ERROR);
+        throw dbError; // Re-throw to handle in outer catch
+      }
+
+      // Clear only viking keys from localStorage (most data is now in IndexedDB)
+      // Keep essential keys like viking_current_view and user_preferences
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && (key.startsWith('viking_') || key.startsWith('demo_viking_'))) {
-          keysToRemove.push(key);
+          // Keep essential localStorage-only keys
+          if (key !== 'viking_current_view' && key !== 'user_preferences') {
+            keysToRemove.push(key);
+          }
         }
       }
-      
+
       keysToRemove.forEach(key => localStorage.removeItem(key));
-      
+
       // Clear session storage (tokens)
-      clearToken();
-      sessionStorage.clear();
-      
-      // Clear database if available
-      try {
-        await databaseService.initialize();
-        // Note: Database clearing would need specific implementation
-        // based on the database service capabilities
-      } catch (dbError) {
-        logger.warn('Could not clear database', { error: dbError.message }, LOG_CATEGORIES.APP);
-      }
-      
+      clearToken(); // tokenService removes all token-related keys
+      // If there are other session keys to clear, remove them selectively here
+
       logger.info('All application data cleared successfully', {
+        clearedIndexedDBStores: clearedStores,
         clearedLocalStorageKeys: keysToRemove.length,
+        keptLocalStorageKeys: ['viking_current_view', 'user_preferences'],
       }, LOG_CATEGORIES.APP);
-      
+
       setCleared(true);
-      
+
       // Redirect to dashboard after a brief delay
       setTimeout(() => {
         // Don't clear navigation data - let it persist for proper state management
         // Use React Router navigate instead of window.location to maintain state
         navigate('/events', { replace: true });
       }, 2000);
-      
+
     } catch (error) {
       logger.error('Failed to clear application data', { error: error.message }, LOG_CATEGORIES.ERROR);
       setIsClearing(false);
@@ -92,14 +104,15 @@ function DataClearPage() {
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Clear All Data</h2>
           <p className="text-gray-600 mb-4">
-            This will permanently delete all cached data including:
+            This will permanently delete all stored data including:
           </p>
           <ul className="text-left text-sm text-gray-600 mb-6 space-y-1">
-            <li>• Cached events and attendance data</li>
-            <li>• Member information</li>
-            <li>• Authentication tokens</li>
-            <li>• Offline data and preferences</li>
-            <li>• Navigation history</li>
+            <li>• All events and attendance data (IndexedDB)</li>
+            <li>• Member information and records (IndexedDB)</li>
+            <li>• Flexi system data and structures (IndexedDB)</li>
+            <li>• Configuration and cached data (IndexedDB)</li>
+            <li>• Authentication tokens (SessionStorage)</li>
+            <li>• Temporary localStorage data</li>
           </ul>
           <p className="text-sm text-red-600 font-medium mb-6">
             This action cannot be undone. You will need to re-authenticate and sync data again.

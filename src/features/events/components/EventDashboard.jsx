@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  getUserRoles,
   getListOfMembers,
   getAPIQueueStats,
 } from '../../../shared/services/api/api.js';
@@ -14,6 +13,7 @@ import databaseService from '../../../shared/services/storage/database.js';
 import { Alert } from '../../../shared/components/ui';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 import {
   fetchAllSectionEvents,
   fetchEventAttendance,
@@ -94,58 +94,96 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useEffect(() => {
     let mounted = true;
     isMountedRef.current = true;
+    let cleanupFn = null;
 
-    const initializeDashboard = async () => {
-      if (!mounted) return; // Prevent duplicate calls in StrictMode
-
-      // Additional StrictMode protection: use a global flag to prevent multiple initializations
-      const initKey = 'eventdashboard_initializing';
-      if (sessionStorage.getItem(initKey) === 'true') {
-        if (import.meta.env.DEV) {
-          console.log(
-            'EventDashboard: Skipping duplicate initialization (StrictMode protection)',
-          );
-        }
-        return; // Skip duplicate initialization
-      }
-
-      // Additional protection: prevent initialization if already loading or loaded
-      if (loading === false && (sections.length > 0 || eventCards.length > 0)) {
-        if (import.meta.env.DEV) {
-          console.log(
-            'EventDashboard: Skipping initialization - data already loaded',
-          );
-        }
-        return;
-      }
+    // Unified data loading function - handles both initial load and refresh
+    const loadEventCards = async (isRefresh = false) => {
+      if (!mounted) return;
 
       try {
-        sessionStorage.setItem(initKey, 'true');
-        await loadInitialData();
+        const sectionsData = await databaseService.getSections();
+        logger.debug('loadEventCards: Loaded sections', {
+          sectionsCount: sectionsData.length,
+          isRefresh,
+        }, LOG_CATEGORIES.COMPONENT);
 
-        if (!mounted) return; // Check again after async operation
-      } finally {
-        // Clear the flag after initialization completes (success or failure)
-        sessionStorage.removeItem(initKey);
+        if (sectionsData.length > 0 && mounted) {
+          setSections(sectionsData);
+
+          // Use consistent buildEventCards approach for both initial and refresh
+          const cards = await buildEventCards(sectionsData, null); // Always cache-only
+          logger.debug('loadEventCards: Built event cards', {
+            cardsCount: cards.length,
+            isRefresh,
+          }, LOG_CATEGORIES.COMPONENT);
+
+          if (mounted) {
+            setEventCards(cards);
+            setLoading(false);
+
+            // Set last sync time from storage
+            if (!isRefresh) {
+              const lastSyncEpoch = await UnifiedStorageService.getLastSync();
+              if (lastSyncEpoch) {
+                const lastSyncMs = Number(lastSyncEpoch);
+                if (Number.isFinite(lastSyncMs)) {
+                  setLastSync(new Date(lastSyncMs));
+                } else {
+                  setLastSync(new Date(lastSyncEpoch));
+                }
+              }
+            }
+          }
+        } else {
+          logger.debug('loadEventCards: No sections found', { isRefresh }, LOG_CATEGORIES.COMPONENT);
+          if (mounted) {
+            setEventCards([]);
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        logger.error('Error loading event cards', {
+          error: error.message,
+          isRefresh,
+        }, LOG_CATEGORIES.COMPONENT);
+        if (mounted && !isRefresh) {
+          setLoading(false);
+        }
       }
     };
 
-    // Add a small delay to prevent race conditions in StrictMode
-    const timeoutId = setTimeout(() => {
-      if (mounted) {
-        initializeDashboard();
-      }
-    }, 50);
+    // Handle sync completion events
+    const handleDashboardDataComplete = async (syncStatus) => {
+      if (!mounted) return;
 
-    // Cleanup timeout if component unmounts before initialization
-    const originalCleanup = () => {
-      mounted = false;
-      isMountedRef.current = false;
-      clearTimeout(timeoutId);
-      if (backgroundSyncTimeoutIdRef.current) {
-        clearTimeout(backgroundSyncTimeoutIdRef.current);
+      if (syncStatus.status === 'dashboard_complete') {
+        logger.info('🎯 Dashboard data sync completed - refreshing event cards', {
+          timestamp: syncStatus.timestamp,
+        }, LOG_CATEGORIES.COMPONENT);
+
+        await loadEventCards(true); // Refresh with same logic
       }
     };
+
+    // Setup sync listener
+    const setupSyncListener = async () => {
+      try {
+        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
+        syncService.addSyncListener(handleDashboardDataComplete);
+        return () => syncService.removeSyncListener(handleDashboardDataComplete);
+      } catch (error) {
+        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.COMPONENT);
+        return null;
+      }
+    };
+
+    // Initialize: setup listener and load initial data
+    const initialize = async () => {
+      cleanupFn = await setupSyncListener();
+      await loadEventCards(false); // Initial load
+    };
+
+    initialize();
 
     // Update queue stats every second
     const interval = setInterval(() => {
@@ -157,112 +195,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }, 1000);
 
     return () => {
-      originalCleanup();
-      clearInterval(interval);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Listen for dashboard data completion and refresh
-  useEffect(() => {
-    let mounted = true;
-    let cleanupFn = null;
-
-    const handleDashboardDataComplete = async (syncStatus) => {
-      if (!mounted) return;
-
-      if (syncStatus.status === 'dashboard_complete') {
-        logger.info(
-          '🎯 Dashboard data sync completed - refreshing event cards',
-          {
-            timestamp: syncStatus.timestamp,
-          },
-          LOG_CATEGORIES.COMPONENT,
-        );
-
-        try {
-          const sectionsData = await databaseService.getSections();
-          if (sectionsData.length > 0 && mounted) {
-            setSections(sectionsData);
-            // Use token to enable shared events detection with freshly cached data
-            const currentToken = getToken();
-            const cards = await buildEventCards(sectionsData, currentToken);
-            if (mounted) {
-              setEventCards(cards);
-              setLoading(false);
-            }
-          }
-        } catch (error) {
-          logger.error(
-            'Error refreshing event cards after sync',
-            { error: error.message },
-            LOG_CATEGORIES.COMPONENT,
-          );
-        }
-      }
-    };
-
-    // Setup sync listener for dashboard completion
-    const setupSyncListener = async () => {
-      try {
-        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-        syncService.addSyncListener(handleDashboardDataComplete);
-
-        return () => {
-          syncService.removeSyncListener(handleDashboardDataComplete);
-        };
-      } catch (error) {
-        logger.error(
-          'Failed to setup sync listener in EventDashboard',
-          { error: error.message },
-          LOG_CATEGORIES.COMPONENT,
-        );
-        return null;
-      }
-    };
-
-    setupSyncListener().then((cleanup) => {
-      cleanupFn = cleanup;
-    });
-
-    // Also load immediately if sections are already available
-    const loadInitialCards = async () => {
-      if (!mounted) return;
-
-      try {
-        const sectionsData = await databaseService.getSections();
-        if (sectionsData.length > 0 && mounted) {
-          setSections(sectionsData);
-          // Use token for shared events detection during initial load
-          const currentToken = getToken();
-          const cards = await buildEventCards(sectionsData, currentToken);
-          if (mounted) {
-            setEventCards(cards);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        logger.error(
-          'Error loading initial event cards',
-          { error: error.message },
-          LOG_CATEGORIES.COMPONENT,
-        );
-      }
-    };
-
-    loadInitialCards();
-
-    return () => {
       mounted = false;
+      isMountedRef.current = false;
+      if (backgroundSyncTimeoutIdRef.current) {
+        clearTimeout(backgroundSyncTimeoutIdRef.current);
+      }
       if (cleanupFn) {
         cleanupFn();
       }
+      clearInterval(interval);
     };
-  }, []); // Run once - listen for sync events
+  }, []); // Run once
 
-  const loadInitialData = async () => {
+  // Background initialization - doesn't affect UI loading state
+  const loadInitialDataInBackground = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setError(null); // Clear any previous errors, but don't affect loading state
 
       // Initialize demo mode if enabled (moved from main.jsx)
       const { isDemoMode, initializeDemoMode } = await import(
@@ -280,23 +228,24 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const hasOfflineData = await databaseService.hasOfflineData();
 
       // Check if data is recent enough (less than 30 minutes old)
-      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
+      const lastSyncEpoch = await UnifiedStorageService.getLastSync();
       const lastSyncMs = Number(lastSyncEpoch);
       const isDataFresh =
         lastSyncEpoch &&
         Number.isFinite(lastSyncMs) &&
         Date.now() - lastSyncMs < 30 * 60 * 1000; // 30 minutes
 
-      // EventDashboard initialization - minimal logging
-
       if (hasOfflineData && isDataFresh) {
-        // Recent cached data available - use cache
-        // Using fresh cached data
-        await loadCachedData();
+        // Data is fresh - no need to sync
+        if (import.meta.env.DEV) {
+          logger.debug('Background check: Data is fresh, no sync needed', {}, LOG_CATEGORIES.COMPONENT);
+        }
+        return;
       } else if (hasOfflineData && !isDataFresh) {
-        // Stale cached data - load cache first, then auto-sync in background
-        // Using stale cached data, will sync in background
-        await loadCachedData();
+        // Stale cached data - auto-sync in background
+        if (import.meta.env.DEV) {
+          logger.debug('Background check: Data is stale, will sync in background', {}, LOG_CATEGORIES.COMPONENT);
+        }
 
         // Auto-sync in background only if auth hasn't failed
         backgroundSyncTimeoutIdRef.current = setTimeout(async () => {
@@ -312,10 +261,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               return;
             }
 
-            // Starting background sync
-            await syncData();
+            // No automatic sync - user must manually refresh
           } catch (error) {
-            // Error handling is now done in the API layer via simple auth handler
             // Don't show error - this is background sync
             if (import.meta.env.DEV) {
               logger.debug(
@@ -327,26 +274,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           }
         }, 1000);
       } else {
-        // No cached data - check if we should attempt sync
+        // No cached data - attempt sync but don't affect loading state if cache load already succeeded
         if (import.meta.env.DEV) {
           logger.debug(
-            'No cached data found - attempting sync',
+            'Background check: No cached data found - attempting sync',
             {},
             LOG_CATEGORIES.COMPONENT,
           );
         }
 
         if (authHandler.hasAuthFailed()) {
-          if (import.meta.env.DEV) {
-            logger.debug(
-              'Sync skipped - auth already failed',
-              {},
-              LOG_CATEGORIES.COMPONENT,
+          if (eventCards.length === 0) {
+            // Only set error if we have no cached data to show
+            setError(
+              'Authentication expired and no cached data available. Please reconnect to OSM.',
             );
           }
-          setError(
-            'Authentication expired and no cached data available. Please reconnect to OSM.',
-          );
           return;
         }
 
@@ -354,7 +297,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         if (!syncToken) {
           if (import.meta.env.DEV) {
             logger.debug(
-              'Sync skipped - no token available',
+              'Background sync skipped - no token available',
               {},
               LOG_CATEGORIES.COMPONENT,
             );
@@ -362,227 +305,37 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           return;
         }
 
-        if (import.meta.env.DEV) {
-          logger.debug(
-            'Loading data from database (sync handled by useAuth)',
-            {},
-            LOG_CATEGORIES.COMPONENT,
-          );
-        }
-        // Load data from database - useAuth handles the actual syncing
-        const sectionsData = await databaseService.getSections();
-        setSections(sectionsData);
-
-        if (sectionsData.length > 0) {
-          // In demo mode, force cache-only mode (no API calls)
-          const { isDemoMode } = await import('../../../config/demoMode.js');
-          const token = isDemoMode() ? null : syncToken;
-          const cards = await buildEventCards(sectionsData, token);
-          setEventCards(cards);
-        }
+        // No automatic sync - user must manually refresh
       }
     } catch (err) {
       logger.error(
-        'Error loading initial data',
+        'Error in background initialization',
         { error: err },
         LOG_CATEGORIES.COMPONENT,
       );
 
-      // Check if this is an auth error and we have some cached sections
-      const cachedSections = await databaseService
-        .getSections()
-        .catch(() => []);
-      if (
-        err &&
-        (err.status === 401 ||
-          err.status === 403 ||
-          (err.message && err.message.includes('Authentication failed'))) &&
-        cachedSections.length > 0
-      ) {
-        logger.info(
-          'Auth error during initial load but cached data available - enabling offline mode',
-        );
-        setSections(cachedSections);
-
-        // Try to load cached event cards
-        try {
-          const cards = await buildEventCards(cachedSections);
-          setEventCards(cards);
-        } catch (cardError) {
-          logger.warn('Failed to build cached event cards', {
-            error: cardError,
-          });
-        }
-
-        // Set last sync time from localStorage if available
-        const lastSyncEpoch = localStorage.getItem('viking_last_sync');
-        if (lastSyncEpoch) {
-          const lastSyncMs = Number(lastSyncEpoch);
-          if (Number.isFinite(lastSyncMs)) {
-            setLastSync(new Date(lastSyncMs));
-          } else {
-            // Fallback for old ISO string format
-            setLastSync(new Date(lastSyncEpoch));
-          }
-        }
-      } else {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCachedData = async () => {
-    try {
-      // Load sections from cache
-      const cachedSections = await databaseService.getSections();
-      setSections(cachedSections);
-
-      // Load events and build cards
-      const cards = await buildEventCards(cachedSections);
-      setEventCards(cards);
-
-      // Set last sync time from localStorage
-      const lastSyncEpoch = localStorage.getItem('viking_last_sync');
-      if (lastSyncEpoch) {
-        const lastSyncMs = Number(lastSyncEpoch);
-        if (Number.isFinite(lastSyncMs)) {
-          setLastSync(new Date(lastSyncMs));
-        } else {
-          // Fallback for old ISO string format
-          setLastSync(new Date(lastSyncEpoch));
-        }
-      }
-    } catch (err) {
-      logger.error(
-        'Error loading cached data',
-        { error: err },
-        LOG_CATEGORIES.COMPONENT,
-      );
-      throw err;
-    }
-  };
-
-  // Only function that triggers OSM API calls - user must explicitly click sync button
-  const syncData = async () => {
-    // Skip sync entirely in demo mode to prevent loops
-    const { isDemoMode } = await import('../../../config/demoMode.js');
-    if (isDemoMode()) {
-      logger.debug(
-        'Demo mode: Skipping syncData entirely',
-        {},
-        LOG_CATEGORIES.SYNC,
-      );
-      return;
-    }
-
-    let dataSource = 'api'; // Track whether data came from API or cache
-
-    try {
-      // Starting sync process
-      setError(null);
-
-      const syncDataToken = getToken();
-      if (import.meta.env.DEV) {
-        logger.debug(
-          'syncData: Token available',
-          { hasToken: !!syncDataToken },
-          LOG_CATEGORIES.SYNC,
-        );
-      }
-
-      // 1. Fetch all sections
-      if (import.meta.env.DEV) {
-        logger.debug(
-          'syncData: Fetching user roles/sections',
-          {},
-          LOG_CATEGORIES.SYNC,
-        );
-      }
-      // In demo mode, skip API call and return early
-      const { isDemoMode } = await import('../../../config/demoMode.js');
-      if (isDemoMode()) {
-        logger.info(
-          'Demo mode: Skipping getUserRoles API call',
-          {},
-          LOG_CATEGORIES.SYNC,
-        );
-        return loadInitialData(null);
-      }
-
-      const sectionsData = await getUserRoles(syncDataToken);
-      if (import.meta.env.DEV) {
-        logger.debug(
-          'syncData: Received sections',
-          { count: sectionsData.length },
-          LOG_CATEGORIES.SYNC,
-        );
-      }
-      setSections(sectionsData);
-      await databaseService.saveSections(sectionsData);
-
-      // 2. Fetch events for each section and build cards
-      if (import.meta.env.DEV) {
-        logger.debug('syncData: Building event cards', {}, LOG_CATEGORIES.SYNC);
-      }
-      // In demo mode, force cache-only mode (no API calls)
-      const token = isDemoMode ? null : syncDataToken;
-      const cards = await buildEventCards(sectionsData, token);
-      if (import.meta.env.DEV) {
-        logger.debug(
-          'syncData: Built event cards',
-          { count: cards.length },
-          LOG_CATEGORIES.SYNC,
-        );
-      }
-      setEventCards(cards);
-
-      // 3. Proactively load member data in background (non-blocking)
-      loadMemberDataInBackground(sectionsData, syncDataToken);
-
-      // Update last sync time
-      const now = new Date();
-      setLastSync(now);
-      localStorage.setItem('viking_last_sync', now.getTime().toString());
-
-      // Data was successfully synced from API if we reached this point
-      dataSource = 'api';
-      if (import.meta.env.DEV) {
-        logger.debug(
-          'syncData: Sync completed successfully',
-          { dataSource },
-          LOG_CATEGORIES.SYNC,
-        );
-      }
-    } catch (err) {
-      logger.error('Error syncing data', { error: err }, LOG_CATEGORIES.SYNC);
-
-      // Check if auth failed and we have cached data
-      if (authHandler.hasAuthFailed() && sections.length > 0) {
-        logger.info(
-          'Auth failed but cached data available - enabling offline mode',
-        );
-        setError(null); // Clear error since we can show cached data
-        dataSource = 'cache'; // Explicitly mark as cached data
-
-        // Load cached event cards instead of making more API calls
-        try {
-          const cards = await buildEventCards(sections); // Use cached sections, no token
-          setEventCards(cards);
-        } catch (cardError) {
-          logger.warn('Failed to build cached event cards after auth error', {
-            error: cardError,
-          });
-        }
-      } else {
+      // Only set error if we have no cached data to show
+      if (eventCards.length === 0) {
         setError(err.message);
       }
     }
   };
+
+  // Manual refresh function - runs in background without affecting UI
+  const loadInitialData = async () => {
+    // Don't change loading state - keep showing cached data during refresh
+    try {
+      await loadInitialDataInBackground();
+    } catch (error) {
+      logger.error('Manual refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+      // Don't affect UI on error - just log it
+    }
+  };
+
+
 
   // Load member data proactively in background
-  const loadMemberDataInBackground = async (sectionsData, token) => {
+  const _loadMemberDataInBackground = async (sectionsData, token) => {
     try {
       if (!token || authHandler.hasAuthFailed()) {
         return;

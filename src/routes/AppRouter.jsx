@@ -48,7 +48,8 @@ function AppContent() {
       const { default: syncService } = await import('../shared/services/storage/sync.js');
       await syncService.syncAll();
     } catch (error) {
-      console.error('Refresh failed:', error);
+      const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
+      logger.error('Refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
     }
   };
 
@@ -99,15 +100,15 @@ function AppContent() {
                 </RouteGuard>
               }
             />
-            <Route 
-              path="/clear" 
+            <Route
+              path="/clear"
               element={
                 <RouteGuard authLevel="none">
                   <DataClearPage />
                 </RouteGuard>
-              } 
+              }
             />
-            
+
             {/* Legacy route redirects */}
             <Route path="/dashboard" element={<Navigate to="/events" replace />} />
             <Route path="/" element={<Navigate to={`/events${window.location.search}`} replace />} />

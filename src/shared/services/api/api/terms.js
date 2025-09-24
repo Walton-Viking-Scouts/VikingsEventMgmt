@@ -13,6 +13,7 @@ import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { getMostRecentTermId } from '../../../utils/termUtils.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
+import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 
 // Terms cache TTL - localStorage only for persistence
 const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -50,22 +51,28 @@ export async function getTerms(token, forceRefresh = false) {
     
     // Check if we have valid cached data (unless force refresh)
     if (!forceRefresh && isOnline) {
-      const cached = safeGetItem(cacheKey, null);
+      const cached = demoMode
+        ? safeGetItem(cacheKey, null)
+        : await UnifiedStorageService.get('viking_terms_offline');
+
       if (cached && cached._cacheTimestamp) {
         const cacheAge = Date.now() - cached._cacheTimestamp;
         if (cacheAge < TERMS_CACHE_TTL) {
-          logger.info('Using cached terms data', { 
+          logger.info('Using cached terms data', {
             cacheAgeMinutes: Math.round(cacheAge / 60000),
           }, LOG_CATEGORIES.API);
           return cached;
         }
       }
     }
-    
-    // If offline, get from localStorage regardless of age
+
+    // If offline, get from storage regardless of age
     if (!isOnline) {
-      const cached = safeGetItem(cacheKey, {});
-      logger.info('Retrieved terms from localStorage while offline', {}, LOG_CATEGORIES.API);
+      const cached = demoMode
+        ? safeGetItem(cacheKey, {})
+        : await UnifiedStorageService.get('viking_terms_offline') || {};
+
+      logger.info('Retrieved terms from storage while offline', {}, LOG_CATEGORIES.API);
       return cached;
     }
 
@@ -85,36 +92,45 @@ export async function getTerms(token, forceRefresh = false) {
     });
     const terms = data || {};
     
-    // Cache terms data with timestamp - enhanced error handling for visibility  
+    // Cache terms data with timestamp - enhanced error handling for visibility
     try {
       const cachedTerms = {
         ...terms,
         _cacheTimestamp: Date.now(),
       };
-      const success = safeSetItem(cacheKey, cachedTerms);
+
+      let success;
+      if (demoMode) {
+        // Demo mode uses direct localStorage
+        success = safeSetItem(cacheKey, cachedTerms);
+      } else {
+        // Production mode uses UnifiedStorageService
+        success = await UnifiedStorageService.set('viking_terms_offline', cachedTerms);
+      }
+
       if (success) {
         logger.info('Terms successfully cached', {
-          cacheKey,
-          termCount: Array.isArray(terms) 
-            ? terms.length 
+          cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
+          termCount: Array.isArray(terms)
+            ? terms.length
             : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.API);
       } else {
-        logger.error('Terms caching failed - safeSetItem returned false', {
-          cacheKey,
-          termCount: Array.isArray(terms) 
-            ? terms.length 
+        logger.error('Terms caching failed', {
+          cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
+          termCount: Array.isArray(terms)
+            ? terms.length
             : (terms?.items?.length ?? Object.keys(terms || {}).length),
           dataSize: JSON.stringify(cachedTerms).length,
         }, LOG_CATEGORIES.ERROR);
       }
     } catch (cacheError) {
       logger.error('Terms caching error', {
-        cacheKey,
+        cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
         error: cacheError.message,
-        termCount: Array.isArray(terms) 
-          ? terms.length 
+        termCount: Array.isArray(terms)
+          ? terms.length
           : (terms?.items?.length ?? Object.keys(terms || {}).length),
       }, LOG_CATEGORIES.ERROR);
     }
@@ -127,13 +143,18 @@ export async function getTerms(token, forceRefresh = false) {
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
     
-    // If online request fails, try localStorage as fallback
+    // If online request fails, try storage as fallback
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
       try {
         const demoMode = isDemoMode();
-        const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-        const cached = safeGetItem(cacheKey, {});
+        let cached;
+        if (demoMode) {
+          const cacheKey = 'demo_viking_terms_offline';
+          cached = safeGetItem(cacheKey, {});
+        } else {
+          cached = await UnifiedStorageService.get('viking_terms_offline') || {};
+        }
         logger.warn('Using cached terms after API failure', {}, LOG_CATEGORIES.API);
         return cached;
       } catch (cacheError) {

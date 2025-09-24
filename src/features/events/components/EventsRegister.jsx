@@ -109,11 +109,11 @@ function EventsRegister() {
 
     // Group attendance data by member
     const memberStats = {};
-    
+
     attendanceData.forEach(attendance => {
       const scoutidAsNumber = parseInt(attendance.scoutid, 10);
       const member = members.find(m => m.scoutid === scoutidAsNumber);
-      
+
       if (!member) return;
 
       const memberId = member.scoutid;
@@ -123,7 +123,14 @@ function EventsRegister() {
           name: `${member.firstname} ${member.lastname}`.trim(),
           sectionname: findMemberSectionName(member, events),
           events: [],
+          vikingEventData: attendance.vikingEventData || null, // Add Viking Event data from enhanced attendance data
+          person_type: member.person_type, // Add person_type for filtering
         };
+      }
+
+      // Update Viking Event data if present in this attendance record
+      if (attendance.vikingEventData) {
+        memberStats[memberId].vikingEventData = attendance.vikingEventData;
       }
 
       memberStats[memberId].events.push(attendance);
@@ -372,6 +379,9 @@ function EventsRegister() {
                       </div>
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Camp Group
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Section
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -426,6 +436,9 @@ function EventsRegister() {
                               return 'Not Invited';
                             })()}
                           </span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+                          {member.vikingEventData?.CampGroup || '-'}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                           {member.sectionname}

@@ -11,7 +11,6 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
-import { parseFlexiStructure } from '../../../../shared/utils/flexiRecordTransforms.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
@@ -45,7 +44,7 @@ function EventAttendance({ events, members, onBack }) {
 
 
 
-  const { buttonLoading, handleSignInOut } = useSignInOut(
+  const { buttonLoading, handleSignInOut, getVikingEventFlexiRecord } = useSignInOut(
     events,
     loadVikingEventData,
     { notifyError, notifyWarning },
@@ -386,70 +385,8 @@ function EventAttendance({ events, members, onBack }) {
         try {
           const event = events.find(e => String(e.sectionid) === String(sectionId));
           const termId = event?.termid || 'current';
-          const getVikingEventFlexiRecord = async (sectionId) => {
-            try {
-              const structureKeys = Object.keys(localStorage).filter(key =>
-                key.includes('viking_flexi_structure_') && key.includes('offline'),
-              );
 
-              const dataKeys = Object.keys(localStorage).filter(key =>
-                key.includes('viking_flexi_data_') && key.includes(`_${sectionId}_`) && key.includes('offline'),
-              );
-
-              if (structureKeys.length > 0 && dataKeys.length > 0) {
-                const dataKey = dataKeys[0];
-                const keyParts = dataKey.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
-                const realFlexiRecordId = keyParts[0];
-
-                for (const structureKey of structureKeys) {
-                  try {
-                    const structureData = JSON.parse(localStorage.getItem(structureKey));
-
-                    const structureFlexiRecordId = structureData?.extraid || structureData?._structure?.extraid ||
-                                                 structureData?.flexirecordid || structureData?._structure?.flexirecordid;
-                    if (String(structureFlexiRecordId) !== String(realFlexiRecordId)) {
-                      continue;
-                    }
-
-                    const fieldMapping = {};
-                    try {
-                      const parsedMapping = parseFlexiStructure(structureData);
-                      if (parsedMapping && parsedMapping.size > 0) {
-                        parsedMapping.forEach((fieldInfo, fieldId) => {
-                          fieldMapping[fieldId] = {
-                            columnId: fieldId,
-                            ...fieldInfo,
-                          };
-                        });
-                      }
-                    } catch (error) {
-                      logger.warn('Failed to parse structure for bulk clear', { error: error.message }, LOG_CATEGORIES.API);
-                    }
-                    const hasSignInFields = Object.values(fieldMapping).some(field => {
-                      const name = field.name?.toLowerCase();
-                      return name === 'signedinby' || name === 'signed in by' ||
-                             name === 'signedoutby' || name === 'signed out by';
-                    });
-
-                    if (hasSignInFields) {
-                      return {
-                        extraid: realFlexiRecordId,
-                        structure: structureData,
-                        fieldMapping: parseFlexiStructure(structureData._structure || structureData),
-                      };
-                    }
-                  } catch (error) {
-                    logger.warn('Failed to parse Viking Event structure for bulk clear', { structureKey, error: error.message }, LOG_CATEGORIES.API);
-                  }
-                }
-              }
-            } catch (error) {
-              logger.warn('Failed to load Viking Event data from cache for bulk clear', { error: error.message }, LOG_CATEGORIES.API);
-            }
-            return null;
-          };
-
-          const vikingEventRecord = await getVikingEventFlexiRecord(sectionId);
+          const vikingEventRecord = await getVikingEventFlexiRecord(sectionId, termId, token);
 
           if (!vikingEventRecord) {
             logger.warn('No Viking Event FlexiRecord found for bulk clear', { sectionId }, LOG_CATEGORIES.API);
