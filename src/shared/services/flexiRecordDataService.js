@@ -1,5 +1,4 @@
 import { Capacitor } from '@capacitor/core';
-import { validateTokenBeforeAPICall } from './api/api/base.js';
 import databaseService from './storage/database.js';
 import logger, { LOG_CATEGORIES } from './utils/logger.js';
 import { isDemoMode } from '../../config/demoMode.js';
