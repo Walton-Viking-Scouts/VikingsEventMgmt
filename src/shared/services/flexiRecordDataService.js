@@ -408,6 +408,16 @@ class FlexiRecordDataService {
     throw new Error('SQLite retrieval for FlexiRecord data not yet implemented');
   }
 
+  async storeFlexiRecordListsInSQLite(_flexiRecordLists) {
+    // TODO: Implement SQLite storage for FlexiRecord lists
+    throw new Error('SQLite storage for FlexiRecord lists not yet implemented');
+  }
+
+  async storeFlexiRecordStructureInSQLite(_structure) {
+    // TODO: Implement SQLite storage for FlexiRecord structures
+    throw new Error('SQLite storage for FlexiRecord structures not yet implemented');
+  }
+
   async getFlexiRecordListsFromIndexedDB(sectionIds) {
     logger.debug('Reading FlexiRecord lists from IndexedDB', {
       sectionFilter: sectionIds?.length || 'all',
