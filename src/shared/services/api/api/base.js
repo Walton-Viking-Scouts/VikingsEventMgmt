@@ -13,7 +13,6 @@
 import { sentryUtils } from '../../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { authHandler } from '../../auth/authHandler.js';
-import { sleep } from '../../../utils/asyncUtils.js';
 import { checkNetworkStatus, addNetworkListener } from '../../../utils/networkUtils.js';
 // Storage utilities imported where needed
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
