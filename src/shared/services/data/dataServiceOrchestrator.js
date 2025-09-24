@@ -190,17 +190,27 @@ class DataServiceOrchestrator {
   }
 
   /**
-   * Retrieves all Viking Event data formatted for FlexiRecord API compatibility
+   * Retrieves Viking Event data formatted for FlexiRecord API compatibility
    *
+   * @param {number[]} [flexiRecordIds] - Optional array of FlexiRecord IDs to filter by
    * @returns {Promise<Array>} Array of Viking Event records with FlexiRecord-compatible field names
    * @throws {Error} If retrieval or transformation fails
    */
-  async getVikingEventDataForFlexiRecordAPI() {
+  async getVikingEventDataForFlexiRecordAPI(flexiRecordIds) {
     try {
       const allVikingData = await this.storageService.getAllVikingEventData();
-      const transformedData = this.transformationService.formatVikingEventDataForFlexiRecordAPI(allVikingData);
+
+      // Filter by FlexiRecord IDs if provided
+      const filteredData = flexiRecordIds && flexiRecordIds.length > 0
+        ? allVikingData.filter(record => flexiRecordIds.includes(record.flexirecord_id))
+        : allVikingData;
+
+      const transformedData = this.transformationService.formatVikingEventDataForFlexiRecordAPI(filteredData);
 
       logger.debug('Retrieved Viking Event data for FlexiRecord API', {
+        requestedIds: flexiRecordIds,
+        totalRecords: allVikingData.length,
+        filteredRecords: filteredData.length,
         dataCount: transformedData.length,
       }, LOG_CATEGORIES.DATA_SERVICE);
 
@@ -208,6 +218,7 @@ class DataServiceOrchestrator {
     } catch (err) {
       logger.error('Failed to get Viking Event data for FlexiRecord API', {
         error: err,
+        flexiRecordIds,
       }, LOG_CATEGORIES.DATA_SERVICE);
       throw err;
     }

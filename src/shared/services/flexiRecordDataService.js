@@ -76,8 +76,6 @@ class FlexiRecordDataService {
   async fetchAndStoreFlexiRecordLists(sectionId, termId, token) {
     await this.initialize();
 
-    validateTokenBeforeAPICall(token, 'fetchFlexiRecordLists');
-
     const _sectionInfo = await this.getSectionInfo(sectionId);
 
     const apiData = await getFlexiRecords(sectionId, token, 'n', true);
@@ -101,8 +99,6 @@ class FlexiRecordDataService {
   async fetchAndStoreFlexiRecordStructure(flexiRecordId, sectionId, termId, token) {
     await this.initialize();
 
-    validateTokenBeforeAPICall(token, 'fetchFlexiRecordStructure');
-
     const apiData = await getFlexiStructure(flexiRecordId, sectionId, termId, token, true);
 
     if (!apiData) {
@@ -123,8 +119,6 @@ class FlexiRecordDataService {
 
   async fetchAndStoreFlexiRecordData(flexiRecordId, sectionId, termId, token) {
     await this.initialize();
-
-    validateTokenBeforeAPICall(token, 'fetchFlexiRecordData');
 
     const _sectionInfo = await this.getSectionInfo(sectionId);
 
@@ -257,10 +251,16 @@ class FlexiRecordDataService {
 
 
   async storeData(flexiRecordLists, flexiRecordStructures, flexiRecordData) {
-    if (this.isNative) {
-      await this.storeInSQLite(flexiRecordLists, flexiRecordStructures, flexiRecordData);
-    } else {
-      await this.storeInIndexedDB(flexiRecordLists, flexiRecordStructures, flexiRecordData);
+    if (Array.isArray(flexiRecordLists) && flexiRecordLists.length) {
+      await this.storeFlexiRecordLists(flexiRecordLists);
+    }
+    if (Array.isArray(flexiRecordStructures) && flexiRecordStructures.length) {
+      for (const s of flexiRecordStructures) {
+        await this.storeFlexiRecordStructure(s);
+      }
+    }
+    if (Array.isArray(flexiRecordData) && flexiRecordData.length && !this.isNative) {
+      await databaseService.storageBackend.saveFlexiRecordData(flexiRecordData);
     }
   }
 
@@ -363,7 +363,7 @@ class FlexiRecordDataService {
 
       if (vikingEventRecordIds.length > 0) {
         try {
-          vikingEventData = await this.orchestrator.getVikingEventDataForFlexiRecordAPI();
+          vikingEventData = await this.orchestrator.getVikingEventDataForFlexiRecordAPI(vikingEventRecordIds);
 
           logger.debug('Retrieved Viking Event data via orchestrator', {
             vikingRecordIds: vikingEventRecordIds,
