@@ -17,6 +17,7 @@ import {
 import { getToken } from '../auth/tokenService.js';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
 import { getMostRecentTermId } from '../../utils/termUtils.js';
+import { CurrentActiveTermsService } from '../storage/CurrentActiveTermsService.js';
 import logger from '../utils/logger.js';
 
 class PageDataManager {
@@ -137,7 +138,33 @@ class PageDataManager {
         const eventsData = {};
         for (const section of sections) {
           try {
-            const termId = getMostRecentTermId(section.sectionid, terms);
+            // Try direct table lookup first
+            let termId = null;
+            try {
+              const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
+              termId = currentTerm?.currentTermId || null;
+
+              if (termId) {
+                // Term ID found, can be used for future operations
+              }
+            } catch (tableError) {
+              logger.warn('Table lookup failed, falling back to legacy method', {
+                sectionId: section.sectionid,
+                error: tableError.message,
+              });
+            }
+
+            // Fallback to legacy method if table lookup failed or returned no result
+            if (!termId) {
+              termId = getMostRecentTermId(section.sectionid, terms);
+              if (termId) {
+                logger.debug('Using fallback legacy method for term lookup', {
+                  sectionId: section.sectionid,
+                  termId,
+                });
+              }
+            }
+
             if (termId) {
               const events = await this.rateLimitQueue.add(() =>
                 getEvents(section.sectionid, termId, token),

@@ -9,12 +9,15 @@ const sessionStorageMock = {
 };
 global.sessionStorage = sessionStorageMock;
 
-// Mock localStorage
+// Mock localStorage with complete interface
 const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  storage: new Map(),
+  getItem: vi.fn((key) => localStorageMock.storage.get(key) || null),
+  setItem: vi.fn((key, value) => localStorageMock.storage.set(key, value)),
+  removeItem: vi.fn((key) => localStorageMock.storage.delete(key)),
+  clear: vi.fn(() => localStorageMock.storage.clear()),
+  get length() { return localStorageMock.storage.size; },
+  key: vi.fn((index) => Array.from(localStorageMock.storage.keys())[index] || null),
 };
 global.localStorage = localStorageMock;
 

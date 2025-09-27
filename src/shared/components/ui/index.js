@@ -32,6 +32,8 @@ export { default as ConfirmModal } from './ConfirmModal';
 
 // Feedback & Status
 export { default as Alert } from './Alert';
+export { default as RefreshButton } from './RefreshButton';
+export { default as ErrorState } from './ErrorState';
 // Badge component removed - migrated to direct Tailwind implementation
 
 // Feature Components - moved from features to shared

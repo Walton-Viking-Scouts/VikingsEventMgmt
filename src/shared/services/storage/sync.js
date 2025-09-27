@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { checkNetworkStatus } from '../../utils/networkUtils.js';
 import { UnifiedStorageService } from './unifiedStorageService.js';
+import eventSyncService from '../data/eventSyncService.js';
 
 class SyncService {
   constructor() {
@@ -151,12 +152,19 @@ class SyncService {
 
   // Stage 1: Sync core data only (fast)
   async syncDashboardData() {
+    logger.info('🎯 SYNC DASHBOARD DATA CALLED', {
+      isSyncing: this.isSyncing,
+      timestamp: Date.now(),
+    }, LOG_CATEGORIES.SYNC);
+
     if (this.isSyncing) {
+      logger.warn('🎯 SYNC ALREADY IN PROGRESS - SKIPPING', {}, LOG_CATEGORIES.SYNC);
       return;
     }
 
     try {
       this.isSyncing = true;
+      logger.info('🎯 STARTING SYNC DASHBOARD DATA', {}, LOG_CATEGORIES.SYNC);
       this.notifyListeners({ status: 'syncing', message: 'Loading core data...' });
 
       const online = await this.isOnline();
@@ -214,17 +222,56 @@ class SyncService {
         logger.warn('FlexiRecord static preloading failed', { error: error.message }, LOG_CATEGORIES.SYNC);
       }
 
+      // Sync attendance data using simplified EventSyncService
+      try {
+        logger.info('Starting attendance sync using EventSyncService', {
+          hasToken: !!token,
+          timestamp: Date.now(),
+        }, LOG_CATEGORIES.SYNC);
+
+        this.notifyListeners({
+          status: 'syncing',
+          message: 'Loading attendance data...',
+          timestamp: Date.now(),
+        });
+
+        const attendanceSyncResult = await eventSyncService.refreshAllEventAttendance();
+
+        logger.info('EventSyncService attendance sync completed', {
+          success: attendanceSyncResult.success,
+          message: attendanceSyncResult.message,
+          details: attendanceSyncResult.details,
+        }, LOG_CATEGORIES.SYNC);
+
+        if (!attendanceSyncResult.success) {
+          logger.warn('Attendance sync completed with errors', {
+            message: attendanceSyncResult.message,
+          }, LOG_CATEGORIES.SYNC);
+        }
+
+      } catch (attendanceError) {
+        logger.error('EventSyncService attendance sync failed', {
+          error: attendanceError.message,
+        }, LOG_CATEGORIES.SYNC);
+
+        this.notifyListeners({
+          status: 'attendance_sync_failed',
+          message: `Attendance sync failed: ${attendanceError.message}`,
+          timestamp: Date.now(),
+        });
+      }
+
       const completionTimestamp = Date.now();
       try {
         await UnifiedStorageService.setLastSync(String(completionTimestamp));
       } catch (e) {
         logger.warn('Failed to persist last sync timestamp', { error: e.message }, LOG_CATEGORIES.SYNC);
       }
-      
-      // Notify dashboard data is complete
-      this.notifyListeners({ 
-        status: 'dashboard_complete', 
-        message: 'Core data loaded - events loading...',
+
+      // NOW notify dashboard data is complete - attendance is fully synced
+      this.notifyListeners({
+        status: 'dashboard_complete',
+        message: 'All data loaded including attendance',
         timestamp: completionTimestamp,
       });
 
@@ -329,6 +376,12 @@ class SyncService {
       
       // Get the most recent term
       const termId = await fetchMostRecentTermId(sectionId, token);
+      logger.info('🔍 SYNC EVENTS - TERM CHECK', {
+        sectionId,
+        termId,
+        hasValidTerm: !!termId,
+      }, LOG_CATEGORIES.SYNC);
+
       if (!termId) {
         logger.info(`No term found for section ${sectionId} - skipping events sync (this is normal for waiting lists)`, {
           sectionId,
@@ -339,59 +392,22 @@ class SyncService {
       // This will fetch from server and save to database
       const events = await getEvents(sectionId, termId, token);
 
-      // Also sync attendance data for each event to populate event cards properly
-      if (events && events.length > 0) {
-        this.notifyListeners({ status: 'syncing', message: `Syncing attendance for ${events.length} events...` });
+      logger.info('🔍 SYNC EVENTS - EVENTS RETRIEVED', {
+        sectionId,
+        termId,
+        eventsCount: events ? events.length : 0,
+      }, LOG_CATEGORIES.SYNC);
 
-        for (const event of events) {
-          try {
-            await this.syncAttendance(sectionId, event.eventid, termId, token);
-          } catch (error) {
-            logger.warn('Failed to sync attendance for event', {
-              sectionId,
-              eventId: event.eventid,
-              error: error.message,
-            }, LOG_CATEGORIES.SYNC);
-          }
-        }
-      }
+      // NOTE: Attendance syncing is now handled atomically after all events are synced
+      // This prevents partial sync states and race conditions
     }, { 
       continueOnError: true,
       contextMessage: `Failed to sync events for section ${sectionId}`,
     });
   }
 
-  // Sync attendance for an event
-  async syncAttendance(sectionId, eventId, termId, token) {
-    await this.withAuthErrorHandling(async () => {
-      this.notifyListeners({ status: 'syncing', message: `Syncing attendance for event ${eventId}...` });
-      
-      if (!termId) {
-        // Try to get term ID if not provided
-        termId = await fetchMostRecentTermId(sectionId, token);
-      }
-
-      if (!termId) {
-        logger.info(`No term ID available for event ${eventId} in section ${sectionId} - skipping attendance sync (this is normal for waiting lists)`, {
-          sectionId,
-          eventId,
-        }, LOG_CATEGORIES.SYNC);
-        return;
-      }
-
-      // Use fetchEventAttendance which handles shared events and creates proper metadata
-      const { fetchEventAttendance } = await import('../../utils/eventDashboardHelpers.js');
-      const eventObj = {
-        eventid: eventId,
-        sectionid: sectionId,
-        termid: termId,
-      };
-      await fetchEventAttendance(eventObj, token);
-    }, { 
-      continueOnError: true,
-      contextMessage: `Failed to sync attendance for event ${eventId}`,
-    });
-  }
+  // NOTE: Attendance syncing is now handled by EventSyncService
+  // which provides Scout-friendly error handling and simplified operation
 
   // Sync members data for a section (includes medical information)
   async syncMembers(sectionId, token) {

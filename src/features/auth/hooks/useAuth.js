@@ -58,7 +58,8 @@ export function useAuth() {
       const hasValidToken = authService.isAuthenticated(); // This checks if token is valid (not expired)
       
       // Check if user was previously authenticated (has stored user info)
-      const hasPreviousAuth = !!authService.getUserInfo();
+      const userInfo = await authService.getUserInfo();
+      const hasPreviousAuth = !!userInfo;
       
       if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
@@ -307,7 +308,8 @@ export function useAuth() {
       if (hasValidToken) {
         // Valid token - normal authenticated state
         setIsAuthenticated(true);
-        const userInfo = authService.getUserInfo();
+        const userInfo = await authService.getUserInfo();
+        console.log('useAuth: Valid token - setting user info', { userInfo });
         setUser(userInfo);
         setIsOfflineMode(false);
         
@@ -330,7 +332,8 @@ export function useAuth() {
           if (hasCached) {
             // Expired token but we have cached data - offline mode
             setIsAuthenticated(true); // Keep authenticated for UI purposes
-            const userInfo = authService.getUserInfo();
+            const userInfo = await authService.getUserInfo();
+            console.log('useAuth: Offline mode - setting user info', { userInfo });
             setUser(userInfo);
             setIsOfflineMode(true);
             
@@ -465,7 +468,6 @@ export function useAuth() {
         // Use the timestamp from sync status, or get from storage as fallback
         const timestamp = syncStatus.timestamp || await UnifiedStorageService.getLastSync();
         setLastSyncTime(timestamp);
-        logger.debug('Updated lastSyncTime after sync completion', { timestamp }, LOG_CATEGORIES.AUTH);
       }
     };
 
@@ -590,7 +592,7 @@ export function useAuth() {
       setIsOfflineMode(true);
       // Mirror offline branch in checkAuth
       setIsAuthenticated(true);
-      const userInfo = authService.getUserInfo();
+      const userInfo = await authService.getUserInfo();
       setUser(userInfo);
       
       logger.info('Switched to offline mode per user choice', { 

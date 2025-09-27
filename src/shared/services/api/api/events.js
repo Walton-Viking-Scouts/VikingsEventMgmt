@@ -76,10 +76,18 @@ export async function getEvents(sectionId, termId, token) {
       return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
     });
 
-    // Save to local database when online (even if empty to cache the result)
-    await databaseService.saveEvents(sectionId, filteredEvents);
+    // CRITICAL FIX: Add termid to each event for consistent database storage
+    // Web storage needs termid field for attendance sync validation, but API response doesn't include it
+    const eventsWithTermId = filteredEvents.map(event => ({
+      ...event,
+      termid: event.termid || termId || null,
+      sectionid: event.sectionid || sectionId,
+    }));
 
-    return filteredEvents;
+    // Save to local database when online (even if empty to cache the result)
+    await databaseService.saveEvents(sectionId, eventsWithTermId);
+
+    return eventsWithTermId;
 
   } catch (error) {
     logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);

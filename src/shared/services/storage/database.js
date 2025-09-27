@@ -211,8 +211,14 @@ class DatabaseService {
         attending TEXT,
         patrol TEXT,
         notes TEXT,
+        version INTEGER DEFAULT 1,
+        local_version INTEGER DEFAULT 1,
+        last_sync_version INTEGER DEFAULT 0,
+        is_locally_modified BOOLEAN DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_synced_at DATETIME,
+        conflict_resolution_needed BOOLEAN DEFAULT 0,
         FOREIGN KEY (eventid) REFERENCES events (eventid)
       );
     `;
@@ -264,6 +270,14 @@ class DatabaseService {
         read_only TEXT, -- JSON array
         filter_string TEXT,
         
+        -- Versioning and sync tracking
+        version INTEGER DEFAULT 1,
+        local_version INTEGER DEFAULT 1,
+        last_sync_version INTEGER DEFAULT 0,
+        is_locally_modified BOOLEAN DEFAULT 0,
+        last_synced_at DATETIME,
+        conflict_resolution_needed BOOLEAN DEFAULT 0,
+
         -- Timestamps
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -402,43 +416,7 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      // Use UnifiedStorageService for consistent storage routing
-      const { isDemoMode } = await import('../../../config/demoMode.js');
-
-      if (isDemoMode()) {
-        // Demo mode still uses direct localStorage to maintain separation
-        const prefix = 'demo_';
-        const key = `${prefix}viking_sections_offline`;
-        const sectionsData = safeGetItem(key, []);
-
-        // In demo mode, sections are stored as flat array (already parsed by safeGetItem)
-        let sections = [];
-        if (Array.isArray(sectionsData)) {
-          sections = sectionsData;
-        } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
-          sections = sectionsData.items;
-        }
-        return sections;
-      } else {
-        // Production mode uses UnifiedStorageService for migration support
-        const sectionsData = await UnifiedStorageService.getSections();
-
-        // Handle different data formats
-        let sections = [];
-        if (Array.isArray(sectionsData)) {
-          sections = sectionsData;
-        } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
-          sections = sectionsData.items;
-        }
-
-        // Filter out demo sections if not in demo mode
-        sections = sections.filter((section) => {
-          const name = section?.sectionname;
-          return !(typeof name === 'string' && name.startsWith('Demo '));
-        });
-
-        return sections;
-      }
+      return this._getWebStorageSections();
     }
     
     const query = 'SELECT * FROM sections ORDER BY sectionname';
@@ -493,18 +471,9 @@ class DatabaseService {
    */
   async saveEvents(sectionId, events) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // Storage routing - use demo prefix if in demo mode
-      const { isDemoMode } = await import('../../../config/demoMode.js');
-      const demoMode = isDemoMode();
-      const prefix = demoMode ? 'demo_' : '';
-      const key = `${prefix}viking_events_${sectionId}_offline`;
-      if (demoMode) {
-        safeSetItem(key, events);
-      } else {
-        await UnifiedStorageService.set(key, events);
-      }
+      await this._saveWebStorageEvents(sectionId, events);
       return;
     }
     
@@ -573,33 +542,9 @@ class DatabaseService {
    */
   async getEvents(sectionId) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // Storage routing - use demo prefix if in demo mode
-      const { isDemoMode } = await import('../../../config/demoMode.js');
-      const demoMode = isDemoMode();
-      const prefix = demoMode ? 'demo_' : '';
-      const key = `${prefix}viking_events_${sectionId}_offline`;
-      const eventsData = demoMode ? safeGetItem(key, []) : await UnifiedStorageService.get(key) || [];
-      
-      // In demo mode, events are stored as flat array (already parsed by safeGetItem)
-      // In production, they might be timestamped format with {items: [...]}
-      let events = [];
-      if (Array.isArray(eventsData)) {
-        events = eventsData;
-      } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
-        events = eventsData.items;
-      }
-      
-      // Filter out demo events if not in demo mode
-      if (!isDemoMode()) {
-        events = events.filter((event) => {
-          const eid = event?.eventid;
-          return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
-        });
-      }
-      
-      return events;
+      return this._getWebStorageEvents(sectionId);
     }
     
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';
@@ -609,12 +554,12 @@ class DatabaseService {
 
   /**
    * Saves attendance records for a specific event
-   * 
+   *
    * Stores individual scout attendance information for event tracking.
    * Replaces all existing attendance records for the specified event.
    * Critical for offline functionality during events when internet may
    * be unreliable but attendance needs to be recorded.
-   * 
+   *
    * @async
    * @param {string|number} eventId - Event identifier to save attendance for
    * @param {Array<Object>} attendanceData - Array of attendance records
@@ -624,8 +569,12 @@ class DatabaseService {
    * @param {string} attendanceData[].attending - Attendance status ("Yes"/"No"/"Maybe")
    * @param {string} [attendanceData[].patrol] - Scout's patrol name
    * @param {string} [attendanceData[].notes] - Additional attendance notes
+   * @param {Object} [options] - Additional options
+   * @param {boolean} [options.isLocalModification] - Whether this is a local modification
+   * @param {number} [options.remoteVersion] - Remote version number if syncing from server
+   * @param {boolean} [options.fromSync] - Whether this save is from a sync operation
    * @returns {Promise<void>} Resolves when attendance is saved
-   * 
+   *
    * @example
    * // Record attendance for weekend camp
    * const campAttendance = [
@@ -646,40 +595,111 @@ class DatabaseService {
    *     notes: 'Family holiday'
    *   }
    * ];
-   * 
+   *
    * await databaseService.saveAttendance('camp_456', campAttendance);
    */
-  async saveAttendance(eventId, attendanceData) {
+  async saveAttendance(eventId, attendanceData, options = {}) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // Storage routing
+      // Storage routing - add versioning metadata to localStorage
       const key = `viking_attendance_${eventId}_offline`;
-      await UnifiedStorageService.set(key, attendanceData);
+      const enhancedData = Array.isArray(attendanceData) ?
+        attendanceData.map(record => ({
+          ...record,
+          version: record.version || 1,
+          local_version: options.isLocalModification ? (record.local_version || 1) + 1 : record.local_version || 1,
+          is_locally_modified: options.isLocalModification || false,
+          updated_at: Date.now(),
+          last_synced_at: options.fromSync ? Date.now() : record.last_synced_at,
+        })) : attendanceData;
+
+      await UnifiedStorageService.set(key, enhancedData);
       return;
     }
-    
-    // Delete existing attendance for this event
-    const deleteOld = 'DELETE FROM attendance WHERE eventid = ?';
-    await this.db.run(deleteOld, [eventId]);
 
-    for (const person of attendanceData) {
-      const insert = `
-        INSERT INTO attendance (eventid, scoutid, firstname, lastname, attending, patrol, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `;
-      await this.db.run(insert, [
-        eventId,
-        person.scoutid,
-        person.firstname,
-        person.lastname,
-        person.attending,
-        person.patrol,
-        person.notes,
-      ]);
+    // For SQLite, handle versioning properly
+    const currentTime = new Date().toISOString();
+    const isLocalMod = options.isLocalModification || false;
+    const fromSync = options.fromSync || false;
+
+    // Begin transaction for atomic updates
+    await this.db.execute('BEGIN TRANSACTION');
+
+    try {
+      // Get existing records to preserve version information
+      const existingQuery = 'SELECT eventid, scoutid, version, local_version, last_sync_version FROM attendance WHERE eventid = ?';
+      const existingResult = await this.db.query(existingQuery, [eventId]);
+      const existingRecords = new Map();
+
+      if (existingResult.values) {
+        for (const record of existingResult.values) {
+          existingRecords.set(record.scoutid, record);
+        }
+      }
+
+      // Delete existing attendance for this event
+      const deleteOld = 'DELETE FROM attendance WHERE eventid = ?';
+      await this.db.run(deleteOld, [eventId]);
+
+      for (const person of attendanceData) {
+        const existing = existingRecords.get(person.scoutid);
+
+        let version = person.version || 1;
+        let localVersion = person.local_version || 1;
+        let lastSyncVersion = person.last_sync_version || 0;
+
+        if (existing) {
+          if (isLocalMod) {
+            // Local modification - increment local version
+            localVersion = existing.local_version + 1;
+            version = Math.max(existing.version, version);
+          } else if (fromSync) {
+            // Sync from server - update version tracking
+            version = options.remoteVersion || version;
+            lastSyncVersion = version;
+          } else {
+            // Preserve existing versions
+            version = existing.version;
+            localVersion = existing.local_version;
+            lastSyncVersion = existing.last_sync_version;
+          }
+        }
+
+        const insert = `
+          INSERT INTO attendance (
+            eventid, scoutid, firstname, lastname, attending, patrol, notes,
+            version, local_version, last_sync_version, is_locally_modified,
+            updated_at, last_synced_at, conflict_resolution_needed
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        await this.db.run(insert, [
+          eventId,
+          person.scoutid,
+          person.firstname,
+          person.lastname,
+          person.attending,
+          person.patrol,
+          person.notes,
+          version,
+          localVersion,
+          lastSyncVersion,
+          isLocalMod ? 1 : 0,
+          currentTime,
+          fromSync ? currentTime : null,
+          person.conflict_resolution_needed ? 1 : 0,
+        ]);
+      }
+
+      await this.db.execute('COMMIT');
+      await this.updateSyncStatus('attendance');
+
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
     }
-
-    await this.updateSyncStatus('attendance');
   }
 
   /**
@@ -1085,21 +1105,291 @@ class DatabaseService {
   }
 
   /**
+   * Helper method to get sections from web storage (localStorage/IndexedDB)
+   *
+   * @async
+   * @private
+   * @returns {Promise<Array<Object>>} Array of section objects
+   */
+  async _getWebStorageSections() {
+    const { isDemoMode } = await import('../../../config/demoMode.js');
+
+    if (isDemoMode()) {
+      const key = 'demo_viking_sections_offline';
+      const sectionsData = safeGetItem(key, []);
+      return this._normalizeSectionsData(sectionsData);
+    } else {
+      const sectionsData = await UnifiedStorageService.getSections();
+      const sections = this._normalizeSectionsData(sectionsData);
+
+      // Filter out demo sections if not in demo mode
+      return sections.filter((section) => {
+        const name = section?.sectionname;
+        return !(typeof name === 'string' && name.startsWith('Demo '));
+      });
+    }
+  }
+
+  /**
+   * Normalizes sections data from different storage formats
+   *
+   * @private
+   * @param {*} sectionsData - Raw sections data from storage
+   * @returns {Array<Object>} Normalized array of section objects
+   */
+  _normalizeSectionsData(sectionsData) {
+    if (Array.isArray(sectionsData)) {
+      return sectionsData;
+    } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
+      return sectionsData.items;
+    }
+    return [];
+  }
+
+  /**
+   * Helper method to get events from web storage (localStorage/IndexedDB)
+   *
+   * @async
+   * @private
+   * @param {number} sectionId - Section identifier to get events for
+   * @returns {Promise<Array<Object>>} Array of event objects
+   */
+  async _getWebStorageEvents(sectionId) {
+    const { isDemoMode } = await import('../../../config/demoMode.js');
+    const demoMode = isDemoMode();
+    const prefix = demoMode ? 'demo_' : '';
+    const key = `${prefix}viking_events_${sectionId}_offline`;
+
+    const eventsData = demoMode
+      ? safeGetItem(key, [])
+      : await UnifiedStorageService.get(key) || [];
+
+    const events = this._normalizeEventsData(eventsData);
+
+    // Filter out demo events if not in demo mode
+    if (!demoMode) {
+      return events.filter((event) => {
+        const eid = event?.eventid;
+        return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+      });
+    }
+
+    return events;
+  }
+
+  /**
+   * Normalizes events data from different storage formats
+   *
+   * @private
+   * @param {*} eventsData - Raw events data from storage
+   * @returns {Array<Object>} Normalized array of event objects
+   */
+  _normalizeEventsData(eventsData) {
+    if (Array.isArray(eventsData)) {
+      return eventsData;
+    } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
+      return eventsData.items;
+    }
+    return [];
+  }
+
+  /**
+   * Helper method to save events to web storage (localStorage/IndexedDB)
+   *
+   * @async
+   * @private
+   * @param {number} sectionId - Section identifier to save events for
+   * @param {Array<Object>} events - Array of event objects to save
+   * @returns {Promise<void>} Resolves when events are saved
+   */
+  async _saveWebStorageEvents(sectionId, events) {
+    const { isDemoMode } = await import('../../../config/demoMode.js');
+    const demoMode = isDemoMode();
+    const prefix = demoMode ? 'demo_' : '';
+    const key = `${prefix}viking_events_${sectionId}_offline`;
+
+    if (demoMode) {
+      safeSetItem(key, events);
+    } else {
+      await UnifiedStorageService.set(key, events);
+    }
+  }
+
+  /**
+   * Get records with conflicts that need resolution
+   */
+  async getConflictRecords(tableName = 'attendance') {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return [];
+    }
+
+    const query = `SELECT * FROM ${tableName} WHERE conflict_resolution_needed = 1`;
+    const result = await this.db.query(query);
+    return result.values || [];
+  }
+
+  /**
+   * Get locally modified records that haven't been synced
+   */
+  async getLocallyModifiedRecords(tableName = 'attendance') {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return [];
+    }
+
+    const query = `SELECT * FROM ${tableName} WHERE is_locally_modified = 1 AND local_version > last_sync_version`;
+    const result = await this.db.query(query);
+    return result.values || [];
+  }
+
+  /**
+   * Mark record as having a conflict
+   */
+  async markConflict(tableName, recordId, hasConflict = true) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return;
+    }
+
+    const query = `UPDATE ${tableName} SET conflict_resolution_needed = ? WHERE id = ?`;
+    await this.db.run(query, [hasConflict ? 1 : 0, recordId]);
+  }
+
+  /**
+   * Get version information for a record
+   */
+  async getRecordVersions(tableName, recordId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return null;
+    }
+
+    const query = `
+      SELECT version, local_version, last_sync_version, is_locally_modified,
+             updated_at, last_synced_at, conflict_resolution_needed
+      FROM ${tableName} WHERE id = ?
+    `;
+    const result = await this.db.query(query, [recordId]);
+    return result.values?.[0] || null;
+  }
+
+  /**
+   * Update record versions after sync
+   */
+  async updateRecordVersions(tableName, recordId, versions) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return;
+    }
+
+    const {
+      version,
+      localVersion,
+      lastSyncVersion,
+      isLocallyModified = false,
+      conflictResolutionNeeded = false,
+    } = versions;
+
+    const query = `
+      UPDATE ${tableName} SET
+        version = ?,
+        local_version = ?,
+        last_sync_version = ?,
+        is_locally_modified = ?,
+        conflict_resolution_needed = ?,
+        last_synced_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    await this.db.run(query, [
+      version,
+      localVersion,
+      lastSyncVersion,
+      isLocallyModified ? 1 : 0,
+      conflictResolutionNeeded ? 1 : 0,
+      recordId,
+    ]);
+  }
+
+  /**
+   * Delete attendance record (used by offline operations)
+   */
+  async deleteAttendance(eventId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      const key = `viking_attendance_${eventId}_offline`;
+      await UnifiedStorageService.remove(key);
+      return;
+    }
+
+    const query = 'DELETE FROM attendance WHERE eventid = ?';
+    await this.db.run(query, [eventId]);
+  }
+
+  /**
+   * Get sync statistics
+   */
+  async getSyncStats() {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return {
+        totalRecords: 0,
+        locallyModified: 0,
+        conflicted: 0,
+        synced: 0,
+      };
+    }
+
+    const stats = {};
+
+    // Count total attendance records
+    const totalQuery = 'SELECT COUNT(*) as count FROM attendance';
+    const totalResult = await this.db.query(totalQuery);
+    stats.totalRecords = totalResult.values?.[0]?.count || 0;
+
+    // Count locally modified
+    const modifiedQuery = 'SELECT COUNT(*) as count FROM attendance WHERE is_locally_modified = 1';
+    const modifiedResult = await this.db.query(modifiedQuery);
+    stats.locallyModified = modifiedResult.values?.[0]?.count || 0;
+
+    // Count conflicts
+    const conflictQuery = 'SELECT COUNT(*) as count FROM attendance WHERE conflict_resolution_needed = 1';
+    const conflictResult = await this.db.query(conflictQuery);
+    stats.conflicted = conflictResult.values?.[0]?.count || 0;
+
+    // Count synced
+    const syncedQuery = 'SELECT COUNT(*) as count FROM attendance WHERE last_synced_at IS NOT NULL';
+    const syncedResult = await this.db.query(syncedQuery);
+    stats.synced = syncedResult.values?.[0]?.count || 0;
+
+    return stats;
+  }
+
+  /**
    * Closes database connections and cleans up resources
-   * 
+   *
    * Properly closes SQLite connections and resets service state.
    * Should be called when the application is shutting down or
    * when database access is no longer needed. Safe to call
    * multiple times or when no connection exists.
-   * 
+   *
    * @async
    * @returns {Promise<void>} Resolves when cleanup is complete
-   * 
+   *
    * @example
    * // Clean shutdown
    * await databaseService.close();
    * console.log('Database connections closed');
-   * 
+   *
    * @example
    * // In component cleanup
    * useEffect(() => {

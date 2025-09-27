@@ -327,7 +327,6 @@ export function handleTokenExpiration() {
   // DON'T clear offline cached data when token expires
   // The offline data should remain available for offline access
   // Only clear session-specific data
-  sessionStorage.removeItem('user_info');
   sessionStorage.removeItem('token_invalid');
     
   // Instead of reloading, we'll let React handle the state change
@@ -435,25 +434,34 @@ export function generateOAuthUrl(storeCurrentPath = false) {
 }
 
 // User data management
-export function getUserInfo() {
-  const userInfoStr = sessionStorage.getItem('user_info');
-  if (userInfoStr) {
-    try {
-      return JSON.parse(userInfoStr);
-    } catch (error) {
-      logger.warn('Could not parse user info from session storage', { error }, LOG_CATEGORIES.AUTH);
-      return null;
-    }
+export async function getUserInfo() {
+  const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
+  const { isDemoMode } = await import('../../../config/demoMode.js');
+
+  const demoMode = isDemoMode();
+  const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
+  const startupData = await UnifiedStorageService.get(cacheKey);
+
+  if (startupData?.globals) {
+    const globals = startupData.globals;
+    return {
+      firstname: globals.firstname,
+      lastname: globals.lastname,
+      userid: globals.userid,
+      email: globals.email,
+      fullname: `${globals.firstname || ''} ${globals.lastname || ''}`.trim(),
+    };
   }
+
   return null;
 }
 
-export function setUserInfo(userInfo) {
-  sessionStorage.setItem('user_info', JSON.stringify(userInfo));
+export function setUserInfo(_userInfo) {
+  // No longer using sessionStorage for user info - data is read from startup data
 }
 
 export function clearUserInfo() {
-  sessionStorage.removeItem('user_info');
+  // No longer using sessionStorage for user info - data is read from startup data
 }
 
 // Fetch fresh user info from OSM startup data API
@@ -568,7 +576,6 @@ export async function validateToken() {
   try {
     const token = getToken();
     if (!token) {
-      logger.info('No token found - user needs to login', {}, LOG_CATEGORIES.AUTH);
       return false;
     }
 
@@ -582,7 +589,6 @@ export async function validateToken() {
 
     // Skip meaningless backend validation - just trust we have a token
     // Real validation happens when actual API calls are made
-    logger.info('Token found - assuming valid until API calls prove otherwise', {}, LOG_CATEGORIES.AUTH);
     
     // Clear any invalid token flag since we're assuming the token is good
     sessionStorage.removeItem('token_invalid');
@@ -709,7 +715,6 @@ export function logout() {
     }
   });
   
-  sessionStorage.removeItem('user_info');
   logger.info('User logged out - all cached data cleared including FlexiRecords and shared metadata', {}, LOG_CATEGORIES.AUTH);
 }
 

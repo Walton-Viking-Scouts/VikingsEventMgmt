@@ -250,22 +250,32 @@ export class RateLimitQueue {
    */
   async handleRateLimit(request, error) {
     this.retryCount++;
-    
+
     // Use backend-provided retry-after time from 429 response
     let retryAfter = this.baseDelay; // Fallback only if no backend time provided
-    
+    let hasExplicitRetryAfter = false;
+
     // Check if error contains specific retry-after time from backend response
     if (error.retryAfter && typeof error.retryAfter === 'number') {
       retryAfter = error.retryAfter * 1000; // Convert to milliseconds
+      hasExplicitRetryAfter = true;
     } else {
       // Check if error message contains retry-after time
       const retryAfterMatch = error.message?.match(/wait (\d+) seconds?/);
       if (retryAfterMatch) {
         retryAfter = parseInt(retryAfterMatch[1]) * 1000;
+        hasExplicitRetryAfter = true;
       }
     }
-    // Enforce configured bounds
-    retryAfter = Math.min(Math.max(retryAfter, this.baseDelay), this.maxDelay);
+
+    // Only enforce maxDelay cap when there's no explicit retryAfter from backend
+    if (hasExplicitRetryAfter) {
+      // Trust the backend's retry-after value, only enforce minimum
+      retryAfter = Math.max(retryAfter, this.baseDelay);
+    } else {
+      // No explicit backend guidance, enforce both min/max bounds
+      retryAfter = Math.min(Math.max(retryAfter, this.baseDelay), this.maxDelay);
+    }
 
     // Set global rate limit timeout
     this.rateLimitedUntil = Date.now() + retryAfter;

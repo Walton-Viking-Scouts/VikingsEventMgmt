@@ -49,6 +49,15 @@ function DataClearPage() {
       clearToken(); // tokenService removes all token-related keys
       // If there are other session keys to clear, remove them selectively here
 
+      // Trigger authentication state update by broadcasting change
+      // This ensures the useAuth hook detects the token clearing
+      try {
+        localStorage.setItem('auth_sync', String(Date.now()));
+        localStorage.removeItem('auth_sync');
+      } catch {
+        // localStorage not available, silently fail
+      }
+
       logger.info('All application data cleared successfully', {
         clearedIndexedDBStores: clearedStores,
         clearedLocalStorageKeys: keysToRemove.length,

@@ -3,13 +3,14 @@ import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
 const DATABASE_NAME = 'vikings-eventmgmt';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
   SECTIONS: 'sections',
   STARTUP_DATA: 'startup_data',
   TERMS: 'terms',
+  CURRENT_ACTIVE_TERMS: 'current_active_terms',
   FLEXI_LISTS: 'flexi_lists',
   FLEXI_STRUCTURE: 'flexi_structure',
   FLEXI_DATA: 'flexi_data',
@@ -53,6 +54,11 @@ function getDB() {
         if (!db.objectStoreNames.contains(STORES.TERMS)) {
           const termsStore = db.createObjectStore(STORES.TERMS, { keyPath: 'key' });
           termsStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains(STORES.CURRENT_ACTIVE_TERMS)) {
+          const currentActiveTermsStore = db.createObjectStore(STORES.CURRENT_ACTIVE_TERMS, { keyPath: 'sectionId' });
+          currentActiveTermsStore.createIndex('lastUpdated', 'lastUpdated', { unique: false });
         }
 
         // Flexi system (Phase 3)
@@ -124,6 +130,14 @@ function getDB() {
 
 export class IndexedDBService {
   static STORES = STORES;
+
+  /**
+   * Get the database instance for advanced operations
+   * @returns {Promise<IDBDatabase>} Database instance
+   */
+  static async getDB() {
+    return await getDB();
+  }
 
   static async get(storeName, key) {
     try {
@@ -370,4 +384,5 @@ export class IndexedDBService {
   }
 }
 
+export { getDB };
 export default IndexedDBService;

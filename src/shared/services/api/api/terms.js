@@ -9,14 +9,107 @@ import {
 } from './base.js';
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
-import { safeGetItem, safeSetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { getMostRecentTermId } from '../../../utils/termUtils.js';
+import { findMostRecentTerm } from '../../../utils/termUtils.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
-import UnifiedStorageService from '../../storage/unifiedStorageService.js';
+import { CurrentActiveTermsService } from '../../storage/currentActiveTermsService.js';
 
-// Terms cache TTL - localStorage only for persistence
-const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+/**
+ * Calculate and store current active terms from API response
+ * Processes terms data to extract the current/most recent term for each section
+ * and stores them in the current_active_terms table for direct lookup
+ * @param {Object} termsData - Raw terms data from API response
+ * @returns {Promise<void>}
+ */
+async function calculateAndStoreCurrentTerms(termsData) {
+  if (!termsData || typeof termsData !== 'object') {
+    logger.warn('calculateAndStoreCurrentTerms received invalid data', {
+      hasData: !!termsData,
+      dataType: typeof termsData,
+    }, LOG_CATEGORIES.DATABASE);
+    return;
+  }
+
+  try {
+    let storedTerms = 0;
+    let skippedTerms = 0;
+    const errors = [];
+
+    // Process each section's terms
+    for (const [sectionId, sectionTerms] of Object.entries(termsData)) {
+      // Skip internal properties like _cacheTimestamp
+      if (sectionId.startsWith('_')) {
+        continue;
+      }
+
+      try {
+        // Validate section terms structure
+        if (!Array.isArray(sectionTerms) || sectionTerms.length === 0) {
+          logger.debug('Skipping section with no terms', { sectionId }, LOG_CATEGORIES.DATABASE);
+          skippedTerms++;
+          continue;
+        }
+
+        // Find the current/most recent term for this section
+        const currentTerm = findMostRecentTerm(sectionTerms);
+        if (!currentTerm) {
+          logger.debug('No current term found for section', { sectionId }, LOG_CATEGORIES.DATABASE);
+          skippedTerms++;
+          continue;
+        }
+
+        // Store the current active term in the table with error handling
+        await CurrentActiveTermsService.setCurrentActiveTerm(sectionId, {
+          currentTermId: currentTerm.termid,
+          termName: currentTerm.name,
+          startDate: currentTerm.startdate,
+          endDate: currentTerm.enddate,
+        });
+
+        storedTerms++;
+
+        logger.info('Stored current active term for section', {
+          sectionId,
+          termId: currentTerm.termid,
+          termName: currentTerm.name,
+        }, LOG_CATEGORIES.DATABASE);
+
+      } catch (sectionError) {
+        const errorInfo = {
+          sectionId,
+          error: sectionError.message,
+        };
+        logger.error('Error storing current term for section', errorInfo, LOG_CATEGORIES.ERROR);
+        errors.push(errorInfo);
+      }
+    }
+
+    logger.info('Current active terms processing completed', {
+      stored: storedTerms,
+      skipped: skippedTerms,
+      errors: errors.length,
+    }, LOG_CATEGORIES.DATABASE);
+
+    // If we had some successes but also some errors, continue but log
+    if (errors.length > 0 && storedTerms > 0) {
+      logger.warn('Some terms failed to store but others succeeded', {
+        successCount: storedTerms,
+        errorCount: errors.length,
+        firstError: errors[0],
+      }, LOG_CATEGORIES.DATABASE);
+    } else if (errors.length > 0 && storedTerms === 0) {
+      // All attempts failed
+      throw new Error(`Failed to store any terms. First error: ${errors[0].error}`);
+    }
+
+  } catch (error) {
+    logger.error('Failed to store current active terms', {
+      error: error.message,
+      stack: error.stack,
+    }, LOG_CATEGORIES.ERROR);
+    throw error;
+  }
+}
 
 /**
  * Retrieves OSM terms data with caching and offline support
@@ -31,49 +124,37 @@ const TERMS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
  */
 export async function getTerms(token, forceRefresh = false) {
   try {
-    // Skip API calls in demo mode - use cached data only
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      const cacheKey = 'demo_viking_terms_offline';
-      const cached = safeGetItem(cacheKey, { items: [] });
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached terms data', {
-          termsCount: cached.items?.length || 0,
-        }, LOG_CATEGORIES.API);
-      }
-      return cached;
-    }
-    
-    const cacheKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-    
     // Check network status first
     const isOnline = await checkNetworkStatus();
-    
-    // Check if we have valid cached data (unless force refresh)
-    if (!forceRefresh && isOnline) {
-      const cached = demoMode
-        ? safeGetItem(cacheKey, null)
-        : await UnifiedStorageService.get('viking_terms_offline');
 
-      if (cached && cached._cacheTimestamp) {
-        const cacheAge = Date.now() - cached._cacheTimestamp;
-        if (cacheAge < TERMS_CACHE_TTL) {
-          logger.info('Using cached terms data', {
-            cacheAgeMinutes: Math.round(cacheAge / 60000),
-          }, LOG_CATEGORIES.API);
-          return cached;
-        }
-      }
+    if (!isOnline) {
+      throw new Error('No network connection available for fetching terms');
     }
 
-    // If offline, get from storage regardless of age
-    if (!isOnline) {
-      const cached = demoMode
-        ? safeGetItem(cacheKey, {})
-        : await UnifiedStorageService.get('viking_terms_offline') || {};
+    // For demo mode, return mock data without API calls
+    const demoMode = isDemoMode();
+    if (demoMode && !forceRefresh) {
+      const mockTerms = {
+        '999901': [
+          {
+            termid: 'demo-term-1',
+            name: 'Demo Term 2024',
+            startdate: '2024-01-01',
+            enddate: '2024-12-31',
+          },
+        ],
+      };
 
-      logger.info('Retrieved terms from storage while offline', {}, LOG_CATEGORIES.API);
-      return cached;
+      // Store current active terms from mock data
+      try {
+        await calculateAndStoreCurrentTerms(mockTerms);
+      } catch (currentTermsError) {
+        logger.error('Demo mode: Failed to store current terms', {
+          error: currentTermsError.message,
+        }, LOG_CATEGORIES.ERROR);
+      }
+
+      return mockTerms;
     }
 
     // Validate token before making API call
@@ -91,79 +172,34 @@ export async function getTerms(token, forceRefresh = false) {
       return await handleAPIResponseWithRateLimit(response, 'getTerms');
     });
     const terms = data || {};
-    
-    // Cache terms data with timestamp - enhanced error handling for visibility
+
+    // Only store current active terms in the new table
     try {
-      const cachedTerms = {
-        ...terms,
-        _cacheTimestamp: Date.now(),
-      };
-
-      let success;
-      if (demoMode) {
-        // Demo mode uses direct localStorage
-        success = safeSetItem(cacheKey, cachedTerms);
-      } else {
-        // Production mode uses UnifiedStorageService
-        success = await UnifiedStorageService.set('viking_terms_offline', cachedTerms);
-      }
-
-      if (success) {
-        logger.info('Terms successfully cached', {
-          cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
-          termCount: Array.isArray(terms)
-            ? terms.length
-            : (terms?.items?.length ?? Object.keys(terms || {}).length),
-          dataSize: JSON.stringify(cachedTerms).length,
-        }, LOG_CATEGORIES.API);
-      } else {
-        logger.error('Terms caching failed', {
-          cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
-          termCount: Array.isArray(terms)
-            ? terms.length
-            : (terms?.items?.length ?? Object.keys(terms || {}).length),
-          dataSize: JSON.stringify(cachedTerms).length,
-        }, LOG_CATEGORIES.ERROR);
-      }
-    } catch (cacheError) {
-      logger.error('Terms caching error', {
-        cacheKey: demoMode ? cacheKey : 'viking_terms_offline',
-        error: cacheError.message,
-        termCount: Array.isArray(terms)
-          ? terms.length
-          : (terms?.items?.length ?? Object.keys(terms || {}).length),
+      await calculateAndStoreCurrentTerms(terms);
+      logger.debug('Current active terms storage completed successfully', {
+        termSectionsCount: Object.keys(terms || {}).filter(k => !k.startsWith('_')).length,
+      }, LOG_CATEGORIES.DATABASE);
+    } catch (currentTermsError) {
+      logger.error('Failed to store current active terms', {
+        error: currentTermsError.message,
+        stack: currentTermsError.stack,
       }, LOG_CATEGORIES.ERROR);
+      // Don't throw error - let the function return terms for immediate use
+      // but log it as a warning since this could affect sync
+      logger.warn('Term storage failed - sync operations may fail to find terms', {
+        affectedSections: Object.keys(terms || {}).filter(k => !k.startsWith('_')).length,
+      }, LOG_CATEGORIES.API);
     }
     
     return terms; // Return original data without timestamp
     
   } catch (error) {
-    logger.error('Error fetching terms', {
+    logger.error('Error fetching terms - no fallback available', {
       error: error.message,
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
-    
-    // If online request fails, try storage as fallback
-    const isOnline = await checkNetworkStatus();
-    if (isOnline) {
-      try {
-        const demoMode = isDemoMode();
-        let cached;
-        if (demoMode) {
-          const cacheKey = 'demo_viking_terms_offline';
-          cached = safeGetItem(cacheKey, {});
-        } else {
-          cached = await UnifiedStorageService.get('viking_terms_offline') || {};
-        }
-        logger.warn('Using cached terms after API failure', {}, LOG_CATEGORIES.API);
-        return cached;
-      } catch (cacheError) {
-        logger.error('Cache fallback also failed', {
-          error: cacheError.message,
-        }, LOG_CATEGORIES.ERROR);
-      }
-    }
-    
+
+    // No fallback storage - throw the original error
     throw error;
   }
 }
@@ -181,10 +217,37 @@ export async function getTerms(token, forceRefresh = false) {
 export async function fetchMostRecentTermId(sectionId, token) {
   return apiQueue.add(async () => {
     try {
-      const terms = await getTerms(token);
-      return getMostRecentTermId(sectionId, terms);
+      logger.debug('Fetching most recent term ID', { sectionId, sectionIdType: typeof sectionId }, LOG_CATEGORIES.API);
+
+      const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
+      const termId = currentTerm?.currentTermId || null;
+
+      if (!termId) {
+        logger.info('No cached term found, refreshing from API', { sectionId }, LOG_CATEGORIES.API);
+
+        // If no term found, try refreshing data from API and wait for storage completion
+        await getTerms(token, true);
+
+        // Add a small delay to ensure database writes complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const refreshedTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
+        const refreshedTermId = refreshedTerm?.currentTermId || null;
+
+        if (!refreshedTermId) {
+          logger.warn('Term lookup failed even after API refresh', {
+            sectionId,
+            hadCurrentTerm: !!currentTerm,
+            hadRefreshedTerm: !!refreshedTerm,
+          }, LOG_CATEGORIES.API);
+        }
+
+        return refreshedTermId;
+      }
+
+      return termId;
     } catch (error) {
-      logger.error('Error fetching most recent term ID', { sectionId, error: error.message }, LOG_CATEGORIES.API);
+      logger.error('Error fetching most recent term ID', { sectionId, error: error.message }, LOG_CATEGORIES.ERROR);
       throw error;
     }
   });
