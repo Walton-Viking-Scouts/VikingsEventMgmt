@@ -11,6 +11,7 @@ import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import { getMostRecentTermId } from '../../../utils/termUtils.js';
+import { CurrentActiveTermsService } from '../../storage/CurrentActiveTermsService.js';
 import { getTerms } from './terms.js';
 import databaseService from '../../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
@@ -250,7 +251,32 @@ export async function getListOfMembers(sections, token) {
         continue;
       }
       
-      const termId = getMostRecentTermId(section.sectionid, allTerms);
+      // Try direct table lookup first
+      let termId = null;
+      try {
+        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
+        termId = currentTerm?.currentTermId || null;
+        if (termId) {
+          // Term ID found, can be used for future operations
+        }
+      } catch (tableError) {
+        logger.warn('Table lookup failed, falling back to legacy method', {
+          sectionId: section.sectionid,
+          error: tableError.message,
+        }, LOG_CATEGORIES.API);
+      }
+
+      // Fallback to legacy method if table lookup failed or returned no result
+      if (!termId) {
+        termId = getMostRecentTermId(section.sectionid, allTerms);
+        if (termId) {
+          logger.debug('Using fallback legacy method for term lookup', {
+            sectionId: section.sectionid,
+            termId,
+          }, LOG_CATEGORIES.API);
+        }
+      }
+
       if (!termId) continue;
       
       // Use the new getMembersGrid API for comprehensive data

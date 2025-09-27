@@ -1,12 +1,10 @@
 // Event Dashboard Helper Functions
 // Extracted from EventDashboard component for better testability and reusability
 
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getTerms, getEventSummary, getEventSharingStatus } from '../services/api/api.js';
-import { getMostRecentTermId } from './termUtils.js';
+import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../services/api/api.js';
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-import { isDemoMode } from '../../config/demoMode.js';
-import { UnifiedStorageService } from '../services/storage/unifiedStorageService.js';
+import { CurrentActiveTermsService } from '../services/storage/currentActiveTermsService.js';
 
 /**
  * Fetches events for all sections with optimized terms loading
@@ -17,36 +15,11 @@ import { UnifiedStorageService } from '../services/storage/unifiedStorageService
 export const fetchAllSectionEvents = async (sections, token) => {
   const allEvents = [];
   
-  // Load terms once for all sections (major optimization!)
-  let allTerms = null;
-  if (token) {
-    try {
-      logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.COMPONENT);
-      allTerms = await getTerms(token); // This will use cache from sync process
-      logger.info('Using cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
-    } catch (err) {
-      logger.error('Error loading terms, will use individual API calls as fallback', { error: err }, LOG_CATEGORIES.COMPONENT);
-    }
-  } else {
-    // Load offline cached terms once (avoid per-section localStorage parsing)
-    try {
-      const demoMode = isDemoMode();
-      const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-      const cachedTerms = await UnifiedStorageService.get(termsKey);
-      if (cachedTerms) {
-        allTerms = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
-        logger.info('Using offline cached terms', { sectionCount: Object.keys(allTerms || {}).length }, LOG_CATEGORIES.COMPONENT);
-      }
-    } catch (err) {
-      logger.warn('Failed to parse offline terms from storage', { error: err }, LOG_CATEGORIES.COMPONENT);
-    }
-  }
-  
   // Fetch events for all sections using cached terms
   const results = await Promise.all(
     sections.map(async (section) => {
       try {
-        return await fetchSectionEvents(section, token, allTerms);
+        return await fetchSectionEvents(section, token);
       } catch (err) {
         logger.error('Error processing section {sectionId}', { 
           error: err, 
@@ -68,10 +41,9 @@ export const fetchAllSectionEvents = async (sections, token) => {
  * Fetches events for a single section from API or cache
  * @param {Object} section - Section object with sectionid and sectionname
  * @param {string|null} token - Authentication token (null for cache-only)
- * @param {Object|null} allTerms - Pre-loaded terms data (optional optimization)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const fetchSectionEvents = async (section, token, allTerms = null) => {
+export const fetchSectionEvents = async (section, token) => {
   try {
     let events = [];
     
@@ -90,12 +62,18 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
         return []; // Return empty array for invalid section
       }
       
-      let termId;
-      if (allTerms) {
-        // Use pre-loaded terms (avoids API call per section!)
-        termId = getMostRecentTermId(section.sectionid, allTerms);
-      } else {
-        // Fallback to individual API call
+      let termId = null;
+      try {
+        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
+        termId = currentTerm?.currentTermId || null;
+        if (termId) {
+          // Term ID found, can be used for future operations
+        }
+      } catch (tableError) {
+        logger.warn('Table lookup failed, using API fallback', {
+          sectionId: section.sectionid, error: tableError.message,
+        }, LOG_CATEGORIES.APP);
+        // Fallback to individual API call (will refresh the table)
         termId = await fetchMostRecentTermId(section.sectionid, token);
       }
       
@@ -119,28 +97,17 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
       const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
       
       // Get termId for cached events too (same logic as API path)
-      let termId;
-      if (allTerms) {
-        // Use pre-loaded terms (avoids API call per section!)
-        termId = getMostRecentTermId(section.sectionid, allTerms);
-      } else {
-        // Fallback: try to get from cached event or fetch from API if needed
-        termId = cachedEvents[0]?.termid;
-        
-        // If still no termId, try to get from storage terms cache
-        if (!termId) {
-          try {
-            const demoMode = isDemoMode();
-            const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-            const cachedTerms = await UnifiedStorageService.get(termsKey);
-            if (cachedTerms) {
-              const termsObj = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
-              termId = getMostRecentTermId(section.sectionid, termsObj);
-            }
-          } catch (error) {
-            logger.warn('Failed to get termId from storage terms cache', { error }, LOG_CATEGORIES.COMPONENT);
-          }
+      let termId = null;
+      try {
+        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
+        termId = currentTerm?.currentTermId || null;
+        if (termId) {
+          // Term ID found, can be used for future operations
         }
+      } catch (tableError) {
+        logger.warn('Table lookup failed, falling back to legacy method', {
+          sectionId: section.sectionid, error: tableError.message,
+        }, LOG_CATEGORIES.APP);
       }
       
       events = cachedEvents.map(event => ({
@@ -172,11 +139,14 @@ export const fetchSectionEvents = async (section, token, allTerms = null) => {
  */
 export const fetchEventAttendance = async (event, token) => {
   try {
-    // Skip all API calls in demo mode to prevent rate limiting, but still process shared events
+    // Check for demo mode
+    const { isDemoMode } = await import('../../config/demoMode.js');
     const demoMode = isDemoMode();
     if (!token && !demoMode) {
       // No token and not demo mode - load from database cache only
       const cachedAttendance = await databaseService.getAttendance(event.eventid);
+
+
       // Handle both array format (regular events) and object format (shared events)
       if (Array.isArray(cachedAttendance)) {
         return cachedAttendance;
@@ -198,11 +168,11 @@ export const fetchEventAttendance = async (event, token) => {
           const { isDemoMode } = await import('../../config/demoMode.js');
           const prefix = isDemoMode() ? 'demo_' : '';
           const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
-          const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
+          const sharedMetadata = localStorage.getItem(sharedMetadataKey);
           if (sharedMetadata) {
             try {
-              // UnifiedStorageService returns objects, not strings
-              const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
+              // Parse JSON from localStorage
+              const metadata = JSON.parse(sharedMetadata);
               if (metadata._isSharedEvent) {
                 
                 // For shared events in demo mode, we might need to combine with other sections
@@ -261,17 +231,8 @@ export const fetchEventAttendance = async (event, token) => {
     // Check for cached attendance first to avoid unnecessary API calls
     const cachedAttendance = await databaseService.getAttendance(event.eventid);
     if (cachedAttendance) {
-      // Check cache age to determine if we should refresh
-      const cacheKey = `viking_attendance_cache_time_${event.eventid}`;
-      const cacheTimeRaw = await UnifiedStorageService.get(cacheKey);
-      const cacheTime = cacheTimeRaw ? parseInt(cacheTimeRaw, 10) : null;
-      const cacheAge = cacheTime ? Date.now() - cacheTime : Infinity;
-      const maxCacheAge = 60 * 60 * 1000; // 1 hour
-      
-      if (cacheAge < maxCacheAge) {
-        // Use cached data if it's fresh
-        return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
-      }
+      // Use cached data if available (cache management now handled by IndexedDB)
+      return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
     }
     
     // If termid is missing, get it from API
@@ -309,7 +270,6 @@ export const fetchEventAttendance = async (event, token) => {
     if (!checkForSharedEvents) {
       // Save basic attendance data to cache and return it
       await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-      await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
       return sectionSpecificAttendanceData;
     }
     
@@ -344,7 +304,6 @@ export const fetchEventAttendance = async (event, token) => {
 
               // Save combined attendance data to cache
               await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
-              await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
 
               // Store shared event metadata separately for event expansion
               const { isDemoMode } = await import('../../config/demoMode.js');
@@ -354,7 +313,7 @@ export const fetchEventAttendance = async (event, token) => {
                 _allSections: sharedEventData.items,
                 _sourceEvent: event,
               };
-              await UnifiedStorageService.set(`${prefix}viking_shared_metadata_${event.eventid}`, metadata);
+              localStorage.setItem(`${prefix}viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
 
               return combinedAttendanceData;
             }
@@ -381,7 +340,6 @@ export const fetchEventAttendance = async (event, token) => {
     
     // Default: Save section-specific data to cache and return it
     await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-    await UnifiedStorageService.set(`viking_attendance_cache_time_${event.eventid}`, Date.now().toString());
     return sectionSpecificAttendanceData;
     
   } catch (err) {

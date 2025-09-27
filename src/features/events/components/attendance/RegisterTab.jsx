@@ -1,5 +1,6 @@
 import React from 'react';
 import SignInOutButton from '../SignInOutButton.jsx';
+import { RefreshButton } from '../../../../shared/components/ui';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
 
@@ -63,10 +64,31 @@ function RegisterTab({
   onSort,
   onClearSignInData,
   clearSignInDataLoading = false,
+  onRefreshAttendance,
+  refreshAttendanceLoading = false,
+  lastRefreshTime,
 }) {
   const handleSort = (key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     onSort({ key, direction });
+  };
+
+  // Format last refresh time following SimpleAttendanceViewer pattern
+  const formatLastRefresh = () => {
+    if (!lastRefreshTime) return 'Never';
+    const now = new Date();
+    const refreshTime = new Date(lastRefreshTime);
+    const diffMinutes = Math.floor((now - refreshTime) / (1000 * 60));
+
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes === 1) return '1 minute ago';
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours === 1) return '1 hour ago';
+    if (diffHours < 24) return `${diffHours} hours ago`;
+
+    return refreshTime.toLocaleDateString();
   };
 
   // Filter for Young People only (register is primarily for Young People)
@@ -96,6 +118,47 @@ function RegisterTab({
 
   return (
     <div>
+      {/* Refresh Status */}
+      {onRefreshAttendance && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">Attendance Data</h3>
+              <p className="text-xs text-gray-600 mt-1">
+                Register page for multiple user check-ins
+              </p>
+            </div>
+            <RefreshButton
+              onRefresh={onRefreshAttendance}
+              loading={refreshAttendanceLoading}
+              size="small"
+              variant="secondary"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              {refreshAttendanceLoading ? 'Refreshing...' : 'Refresh Attendance'}
+            </RefreshButton>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Last refreshed: {formatLastRefresh()}
+            {youngPeople.length > 0 && (
+              <span> • {youngPeople.length} members</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Status pills and Clear button */}
       <div className="flex justify-between items-center mb-4">
         {/* Status Pills */}

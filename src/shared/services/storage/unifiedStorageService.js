@@ -6,30 +6,25 @@ export class UnifiedStorageService {
 
   static async get(key) {
     if (this.shouldUseIndexedDB(key)) {
-      // Use IndexedDB for this record type
       const store = this.getStoreForKey(key);
       if (store) {
         try {
           const data = await IndexedDBService.get(store, key);
-
-
-          return data;
+          if (data !== null) {
+            return data;
+          }
         } catch (error) {
           logger.warn('UnifiedStorage: IndexedDB get failed, falling back to localStorage', {
             key,
             store,
             error: error.message,
           }, LOG_CATEGORIES.DATABASE);
-
-          // Fallback to localStorage
           return safeGetItem(key);
         }
       }
     }
 
-    // Use localStorage for UI state, preferences, and non-viking keys
     const data = safeGetItem(key);
-
     logger.debug('UnifiedStorage: Retrieved from localStorage', {
       key,
       hasData: !!data,
@@ -40,7 +35,6 @@ export class UnifiedStorageService {
 
   static async set(key, value) {
     if (this.shouldUseIndexedDB(key)) {
-      // Use IndexedDB for this record type
       const store = this.getStoreForKey(key);
       if (store) {
         try {
@@ -49,7 +43,6 @@ export class UnifiedStorageService {
             updatedAt: Date.now(),
           });
 
-
           return true;
         } catch (error) {
           logger.warn('UnifiedStorage: IndexedDB set failed, falling back to localStorage', {
@@ -57,16 +50,12 @@ export class UnifiedStorageService {
             store,
             error: error.message,
           }, LOG_CATEGORIES.DATABASE);
-
-          // Fallback to localStorage
           return safeSetItem(key, value);
         }
       }
     }
 
-    // Use localStorage for UI state, preferences, and non-viking keys
     const success = safeSetItem(key, value);
-
     logger.debug('UnifiedStorage: Saved to localStorage', {
       key,
       success,
@@ -76,17 +65,19 @@ export class UnifiedStorageService {
   }
 
   static async remove(key) {
-    let success = false;
+    let indexedDBSuccess = false;
+    let localStorageSuccess = false;
 
     if (this.shouldUseIndexedDB(key)) {
-      // Remove from IndexedDB
       const store = this.getStoreForKey(key);
       if (store) {
         try {
           await IndexedDBService.delete(store, key);
-
-
-          success = true;
+          indexedDBSuccess = true;
+          logger.debug('UnifiedStorage: Removed from IndexedDB', {
+            key,
+            store,
+          }, LOG_CATEGORIES.DATABASE);
         } catch (error) {
           logger.warn('UnifiedStorage: IndexedDB delete failed', {
             key,
@@ -97,23 +88,20 @@ export class UnifiedStorageService {
       }
     }
 
-    // Also remove from localStorage (cleanup or primary storage)
     try {
       localStorage.removeItem(key);
-
+      localStorageSuccess = true;
       logger.debug('UnifiedStorage: Removed from localStorage', {
         key,
       }, LOG_CATEGORIES.DATABASE);
-
-      return true;
     } catch (error) {
       logger.error('UnifiedStorage: Failed to remove from localStorage', {
         key,
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
-
-      return success; // Return IndexedDB success if localStorage failed
     }
+
+    return indexedDBSuccess || localStorageSuccess;
   }
 
   static shouldUseIndexedDB(key) {
@@ -137,9 +125,11 @@ export class UnifiedStorageService {
       key === 'viking_sections_offline' ||
       key === 'viking_startup_data_offline' ||
       key === 'viking_terms_offline' ||
+      key === 'viking_current_active_terms' ||
       key === 'demo_viking_sections_offline' ||
       key === 'demo_viking_startup_data_offline' ||
       key === 'demo_viking_terms_offline' ||
+      key === 'demo_viking_current_active_terms' ||
       // Flexi System
       key.match(/^viking_flexi_lists_.+_offline$/) ||
       key.match(/^viking_flexi_structure_.+_offline$/) ||
@@ -178,6 +168,9 @@ export class UnifiedStorageService {
     }
     if (key === 'viking_terms_offline' || key === 'demo_viking_terms_offline') {
       return IndexedDBService.STORES.TERMS;
+    }
+    if (key === 'viking_current_active_terms' || key === 'demo_viking_current_active_terms') {
+      return IndexedDBService.STORES.CURRENT_ACTIVE_TERMS;
     }
 
     // Phase 3: Flexi System
