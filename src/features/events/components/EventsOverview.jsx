@@ -78,15 +78,15 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     const allEvents = await fetchAllSectionEvents(sectionsData);
 
     // Filter for future events and events from last week
-    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
+    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo, now);
 
-    // Fetch attendance data for filtered events from IndexedDB only
+    // Fetch attendance data for filtered events from IndexedDB only (parallel execution)
     const attendanceMap = new Map();
-    for (const event of filteredEvents) {
+    const attendancePromises = filteredEvents.map(async (event) => {
       try {
         const attendanceData = await fetchEventAttendance(event);
         if (attendanceData) {
-          attendanceMap.set(event.eventid, attendanceData);
+          return { eventId: event.eventid, data: attendanceData };
         }
       } catch (err) {
         logger.error(
@@ -99,7 +99,15 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
           LOG_CATEGORIES.COMPONENT,
         );
       }
-    }
+      return null;
+    });
+
+    const attendanceResults = await Promise.all(attendancePromises);
+    attendanceResults.forEach(result => {
+      if (result) {
+        attendanceMap.set(result.eventId, result.data);
+      }
+    });
 
     // Expand shared events to include all sections
     const expandedEvents = expandSharedEvents(filteredEvents, attendanceMap);

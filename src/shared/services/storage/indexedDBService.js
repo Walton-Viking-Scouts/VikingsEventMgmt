@@ -318,9 +318,7 @@ export class IndexedDBService {
   static async getByIndex(storeName, indexName, indexValue) {
     try {
       const db = await getDB();
-      const results = await db.getAllFromIndex(storeName, indexName, indexValue);
-
-
+      const results = (await db.getAllFromIndex(storeName, indexName, indexValue)) || [];
       return results.map(result => result.data);
     } catch (error) {
       logger.error('IndexedDB getByIndex failed', {

@@ -184,7 +184,7 @@ class DatabaseService {
 
     const createEventsTable = `
       CREATE TABLE IF NOT EXISTS events (
-        eventid INTEGER PRIMARY KEY,
+        eventid TEXT PRIMARY KEY,
         sectionid INTEGER,
         termid TEXT,
         name TEXT NOT NULL,
@@ -204,7 +204,7 @@ class DatabaseService {
     const createAttendanceTable = `
       CREATE TABLE IF NOT EXISTS attendance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        eventid INTEGER,
+        eventid TEXT,
         scoutid INTEGER,
         firstname TEXT,
         lastname TEXT,
@@ -1225,7 +1225,11 @@ class DatabaseService {
       return [];
     }
 
-    const query = `SELECT * FROM ${tableName} WHERE conflict_resolution_needed = 1`;
+    // Whitelist allowed table names to prevent SQL injection
+    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
+
+    const query = `SELECT * FROM ${safeTableName} WHERE conflict_resolution_needed = 1`;
     const result = await this.db.query(query);
     return result.values || [];
   }
@@ -1240,7 +1244,11 @@ class DatabaseService {
       return [];
     }
 
-    const query = `SELECT * FROM ${tableName} WHERE is_locally_modified = 1 AND local_version > last_sync_version`;
+    // Whitelist allowed table names to prevent SQL injection
+    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
+
+    const query = `SELECT * FROM ${safeTableName} WHERE is_locally_modified = 1 AND local_version > last_sync_version`;
     const result = await this.db.query(query);
     return result.values || [];
   }
@@ -1255,7 +1263,11 @@ class DatabaseService {
       return;
     }
 
-    const query = `UPDATE ${tableName} SET conflict_resolution_needed = ? WHERE id = ?`;
+    // Whitelist allowed table names to prevent SQL injection
+    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
+
+    const query = `UPDATE ${safeTableName} SET conflict_resolution_needed = ? WHERE id = ?`;
     await this.db.run(query, [hasConflict ? 1 : 0, recordId]);
   }
 
@@ -1269,10 +1281,14 @@ class DatabaseService {
       return null;
     }
 
+    // Whitelist allowed table names to prevent SQL injection
+    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
+
     const query = `
       SELECT version, local_version, last_sync_version, is_locally_modified,
              updated_at, last_synced_at, conflict_resolution_needed
-      FROM ${tableName} WHERE id = ?
+      FROM ${safeTableName} WHERE id = ?
     `;
     const result = await this.db.query(query, [recordId]);
     return result.values?.[0] || null;
@@ -1288,6 +1304,10 @@ class DatabaseService {
       return;
     }
 
+    // Whitelist allowed table names to prevent SQL injection
+    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
+
     const {
       version,
       localVersion,
@@ -1297,7 +1317,7 @@ class DatabaseService {
     } = versions;
 
     const query = `
-      UPDATE ${tableName} SET
+      UPDATE ${safeTableName} SET
         version = ?,
         local_version = ?,
         last_sync_version = ?,

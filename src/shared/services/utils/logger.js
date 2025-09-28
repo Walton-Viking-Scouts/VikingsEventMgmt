@@ -158,7 +158,13 @@ function outputToConsole(entry) {
   if (!isDevelopment) return;
 
   // Only show warnings, errors, and fatal logs - skip debug/info/trace for simplicity
-  if (!['warn', 'error', 'fatal'].includes(entry.level)) {
+  if (
+    ![
+      LOG_LEVELS.WARN,
+      LOG_LEVELS.ERROR,
+      LOG_LEVELS.FATAL,
+    ].includes(entry.level)
+  ) {
     return;
   }
 

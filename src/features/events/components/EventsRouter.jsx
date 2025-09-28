@@ -19,7 +19,6 @@ function EventsRouter() {
         {/* Default events route - uses state-based navigation like LegacyApp */}
         <Route index element={<EventsContainer />} />
 
-        {/* Simple attendance viewer for demonstrating AttendanceDataService */}
         <Route path="attendance-viewer" element={<SimpleAttendanceViewer />} />
 
         {/* Catch-all redirect for unknown nested routes */}

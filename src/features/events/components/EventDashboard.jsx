@@ -44,12 +44,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [forceLoaded, setForceLoaded] = useState(false);
 
   useEffect(() => {
-    // Force loading to complete after any render
-    setForceLoaded(true);
+    // Only bypass loading spinner in development/design mode
+    if (import.meta.env.DEV) {
+      setForceLoaded(true);
+    }
   }, []);
 
-  // Override the loading condition completely
-  const isActuallyLoading = loading && !forceLoaded;
+  const isActuallyLoading = import.meta.env.DEV ? (loading && !forceLoaded) : loading;
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
 

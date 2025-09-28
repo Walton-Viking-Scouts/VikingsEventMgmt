@@ -318,7 +318,9 @@ export function useAuth() {
         // Valid token - normal authenticated state
         setIsAuthenticated(true);
         const userInfo = await authService.getUserInfo();
-        console.log('useAuth: Valid token - setting user info', { userInfo });
+        if (import.meta.env.DEV) {
+          logger.debug('useAuth: Valid token - setting user info', { hasUserInfo: !!userInfo }, LOG_CATEGORIES.AUTH);
+        }
         setUser(userInfo);
         setIsOfflineMode(false);
         
@@ -377,7 +379,9 @@ export function useAuth() {
             // Expired token but we have cached data - offline mode
             setIsAuthenticated(true); // Keep authenticated for UI purposes
             const userInfo = await authService.getUserInfo();
-            console.log('useAuth: Offline mode - setting user info', { userInfo });
+            if (import.meta.env.DEV) {
+              logger.debug('useAuth: Offline mode - setting user info', { hasUserInfo: !!userInfo }, LOG_CATEGORIES.AUTH);
+            }
             setUser(userInfo);
             setIsOfflineMode(true);
             

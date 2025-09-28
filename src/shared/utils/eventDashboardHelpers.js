@@ -42,12 +42,12 @@ export const fetchAllSectionEvents = async (sections) => {
 export const fetchSectionEvents = async (section) => {
   try {
     // Defensive check for section ID (allows valid falsy values like 0)
-    if (section.sectionid === null || section.sectionid === undefined) {
+    if (!section || section.sectionid === null || section.sectionid === undefined) {
       logger.warn('Skipping section with invalid ID in fetchSectionEvents', {
-        sectionid: section.sectionid,
-        sectionname: section.sectionname,
-        sectiontype: section.sectiontype,
-        section: section.section,
+        sectionid: section?.sectionid ?? null,
+        sectionname: section?.sectionname ?? null,
+        sectiontype: section?.sectiontype ?? null,
+        section: section?.section ?? null,
       }, LOG_CATEGORIES.COMPONENT);
       return []; // Return empty array for invalid section
     }
@@ -66,8 +66,8 @@ export const fetchSectionEvents = async (section) => {
   } catch (err) {
     logger.error('Error fetching events for section {sectionId}', {
       error: err,
-      sectionId: section.sectionid,
-      sectionName: section.sectionname,
+      sectionId: section?.sectionid ?? null,
+      sectionName: section?.sectionname ?? null,
     }, LOG_CATEGORIES.COMPONENT);
     return [];
   }
