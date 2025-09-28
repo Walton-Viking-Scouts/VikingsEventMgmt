@@ -32,8 +32,13 @@ function EventsLayoutContent() {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-      await syncService.syncAll();
+      const { getToken } = await import('../../../shared/services/auth/tokenService.js');
+      const { loadInitialReferenceData } = await import('../../../shared/services/referenceData/referenceDataService.js');
+
+      const token = getToken();
+      if (token) {
+        await loadInitialReferenceData(token);
+      }
     } catch (error) {
       logger.error('Manual refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
       notifyError('Refresh failed. Please try again.');

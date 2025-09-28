@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  getListOfMembers,
-} from '../../../shared/services/api/api.js';
+// Removed API imports - UI only reads from IndexedDB
 import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
 import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/useAuth.js';
@@ -92,7 +90,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useEffect(() => {
     let mounted = true;
     isMountedRef.current = true;
-    let cleanupFn = null;
 
     // Unified data loading function - handles both initial load and refresh
     const loadEventCards = async (isRefresh = false) => {
@@ -109,16 +106,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           setSections(sectionsData);
 
           // Use consistent buildEventCards approach for both initial and refresh
-          let cards = await buildEventCards(sectionsData, null); // Always cache-only
+          const cards = await buildEventCards(sectionsData); // Always cache-only
 
-          // If no cards found and we have a token, retry with API call to populate table
-          if (cards.length === 0 && !isRefresh) {
-            const token = await getToken();
-            if (token) {
-              logger.debug('No cached events found, retrying with API call', {}, LOG_CATEGORIES.COMPONENT);
-              cards = await buildEventCards(sectionsData, token);
-            }
-          }
+          // UI is cache-only - no API calls
 
           logger.debug('loadEventCards: Built event cards', {
             cardsCount: cards.length,
@@ -160,35 +150,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       }
     };
 
-    // Handle sync completion events
-    const handleDashboardDataComplete = async (syncStatus) => {
-      if (!mounted) return;
-
-      if (syncStatus.status === 'dashboard_complete') {
-        logger.info('🎯 Dashboard data sync completed - refreshing event cards', {
-          timestamp: syncStatus.timestamp,
-        }, LOG_CATEGORIES.COMPONENT);
-
-        await loadEventCards(true); // Refresh with same logic
-      }
-    };
-
-    // Setup sync listener
-    const setupSyncListener = async () => {
-      try {
-        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-        syncService.addSyncListener(handleDashboardDataComplete);
-        return () => syncService.removeSyncListener(handleDashboardDataComplete);
-      } catch (error) {
-        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.COMPONENT);
-        return null;
-      }
-    };
 
 
-    // Initialize: setup listener and load initial data
+    // Initialize: load initial data
     const initialize = async () => {
-      cleanupFn = await setupSyncListener();
       await loadEventCards(false); // Initial load
     };
 
@@ -201,10 +166,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (backgroundSyncTimeoutIdRef.current) {
         clearTimeout(backgroundSyncTimeoutIdRef.current);
       }
-      if (cleanupFn) {
-        cleanupFn();
-      }
-
     };
   }, []); // Run once
 
@@ -359,7 +320,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setSections(sectionsData);
 
         // Step 3: Build fresh event cards
-        const cards = await buildEventCards(sectionsData, null);
+        const cards = await buildEventCards(sectionsData);
         setEventCards(cards);
 
         // Step 4: Update last sync time
@@ -414,8 +375,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         return;
       }
 
-      // Use getListOfMembers which already handles caching properly
-      await getListOfMembers(sectionsData, token);
+      // Members are loaded by Reference Data Service - no need to call API here
+      // Data is already available in IndexedDB
     } catch (error) {
       // Don't show error to user - this is background loading
       logger.warn(
@@ -429,12 +390,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  const buildEventCards = async (sectionsData, token = null) => {
+  const buildEventCards = async (sectionsData) => {
     logger.debug(
-      'buildEventCards called',
+      'buildEventCards called - cache-only mode',
       {
         sectionCount: sectionsData?.length || 0,
-        mode: token ? 'API' : 'CACHE',
       },
       LOG_CATEGORIES.COMPONENT,
     );
@@ -442,8 +402,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch events for all sections with optimized terms loading
-    const allEvents = await fetchAllSectionEvents(sectionsData, token);
+    // Fetch events for all sections from IndexedDB only
+    const allEvents = await fetchAllSectionEvents(sectionsData);
 
     // Filter for future events and events from last week
     const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
@@ -452,15 +412,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const attendanceMap = new Map();
     for (const event of filteredEvents) {
       try {
-        const attendanceData = await fetchEventAttendance(
-          event,
-          token,
-        );
+        const attendanceData = await fetchEventAttendance(event);
 
         logger.debug('Attendance data fetch result', {
           eventId: event.eventid,
           eventName: event.name,
-          mode: token ? 'API' : 'CACHE',
           hasData: !!attendanceData,
           dataLength: attendanceData?.length || 0,
         }, LOG_CATEGORIES.COMPONENT);
@@ -608,9 +564,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           );
 
           try {
-            members = await getListOfMembers(involvedSections, currentToken);
+            // Get members from IndexedDB instead of API call
+            const sectionIds = involvedSections.map(s => s.sectionid);
+            members = await databaseService.getMembers(sectionIds);
             logger.info(
-              'Successfully fetched members on-demand',
+              'Successfully loaded members from IndexedDB',
               {
                 memberCount: members.length,
                 sectionCount: involvedSections.length,

@@ -1,30 +1,27 @@
 // Event Dashboard Helper Functions
-// Extracted from EventDashboard component for better testability and reusability
+// UI-only helpers for reading from IndexedDB - NO API CALLS
 
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../services/api/api.js';
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-import { CurrentActiveTermsService } from '../services/storage/currentActiveTermsService.js';
 
 /**
- * Fetches events for all sections with optimized terms loading
+ * Fetches events for all sections from IndexedDB only
  * @param {Array} sections - Array of section objects
- * @param {string|null} token - Authentication token (null for cache-only)
  * @returns {Promise<Array>} Array of all events from all sections
  */
-export const fetchAllSectionEvents = async (sections, token) => {
+export const fetchAllSectionEvents = async (sections) => {
   const allEvents = [];
-  
-  // Fetch events for all sections using cached terms
+
+  // Fetch events for all sections from IndexedDB only
   const results = await Promise.all(
     sections.map(async (section) => {
       try {
-        return await fetchSectionEvents(section, token);
+        return await fetchSectionEvents(section);
       } catch (err) {
-        logger.error('Error processing section {sectionId}', { 
-          error: err, 
+        logger.error('Error processing section {sectionId}', {
+          error: err,
           sectionId: section.sectionid,
-          sectionName: section.sectionname, 
+          sectionName: section.sectionname,
         }, LOG_CATEGORIES.COMPONENT);
         return [];
       }
@@ -33,326 +30,74 @@ export const fetchAllSectionEvents = async (sections, token) => {
   for (const sectionEvents of results) {
     allEvents.push(...sectionEvents);
   }
-  
+
   return allEvents;
 };
 
 /**
- * Fetches events for a single section from API or cache
+ * Fetches events for a single section from IndexedDB only
  * @param {Object} section - Section object with sectionid and sectionname
- * @param {string|null} token - Authentication token (null for cache-only)
  * @returns {Promise<Array>} Array of events for the section
  */
-export const fetchSectionEvents = async (section, token) => {
+export const fetchSectionEvents = async (section) => {
   try {
-    let events = [];
-    
-    if (token) {
-      // Rate limiting handled by queue
-      
-      // Fetch from API - use cached terms if available for major optimization
-      // Defensive check for section ID (allows valid falsy values like 0)
-      if (section.sectionid === null || section.sectionid === undefined) {
-        logger.warn('Skipping section with invalid ID in fetchSectionEvents', {
-          sectionid: section.sectionid,
-          sectionname: section.sectionname,
-          sectiontype: section.sectiontype,
-          section: section.section,
-        }, LOG_CATEGORIES.API);
-        return []; // Return empty array for invalid section
-      }
-      
-      let termId = null;
-      try {
-        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
-        termId = currentTerm?.currentTermId || null;
-        if (termId) {
-          // Term ID found, can be used for future operations
-        }
-      } catch (tableError) {
-        logger.warn('Table lookup failed, using API fallback', {
-          sectionId: section.sectionid, error: tableError.message,
-        }, LOG_CATEGORIES.APP);
-        // Fallback to individual API call (will refresh the table)
-        termId = await fetchMostRecentTermId(section.sectionid, token);
-      }
-      
-      if (termId) {
-        // Rate limiting now handled by RateLimitQueue
-        const sectionEvents = await getEvents(section.sectionid, termId, token);
-        if (sectionEvents && Array.isArray(sectionEvents)) {
-          events = sectionEvents.map(event => ({
-            ...event,
-            sectionid: section.sectionid,
-            sectionname: section.sectionname,
-            termid: termId,
-          }));
-          
-          // Save to cache (with termid included)
-          await databaseService.saveEvents(section.sectionid, events);
-        }
-      }
-    } else {
-      // Load from cache
-      const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
-      
-      // Get termId for cached events too (same logic as API path)
-      let termId = null;
-      try {
-        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
-        termId = currentTerm?.currentTermId || null;
-        if (termId) {
-          // Term ID found, can be used for future operations
-        }
-      } catch (tableError) {
-        logger.warn('Table lookup failed, falling back to legacy method', {
-          sectionId: section.sectionid, error: tableError.message,
-        }, LOG_CATEGORIES.APP);
-      }
-      
-      events = cachedEvents.map(event => ({
-        ...event,
-        sectionid: section.sectionid,  // CRITICAL FIX: Add missing sectionid 
+    // Defensive check for section ID (allows valid falsy values like 0)
+    if (section.sectionid === null || section.sectionid === undefined) {
+      logger.warn('Skipping section with invalid ID in fetchSectionEvents', {
+        sectionid: section.sectionid,
         sectionname: section.sectionname,
-        termid: termId || event.termid, // Use fetched termId, fallback to cached termid (don't default to null)
-      }));
-      
+        sectiontype: section.sectiontype,
+        section: section.section,
+      }, LOG_CATEGORIES.COMPONENT);
+      return []; // Return empty array for invalid section
     }
-    
+
+    // Load from IndexedDB cache only
+    const cachedEvents = (await databaseService.getEvents(section.sectionid)) || [];
+
+    const events = cachedEvents.map(event => ({
+      ...event,
+      sectionid: section.sectionid,
+      sectionname: section.sectionname,
+      termid: event.termid, // Keep existing termid from cache
+    }));
+
     return events;
   } catch (err) {
-    logger.error('Error fetching events for section {sectionId}', { 
-      error: err, 
+    logger.error('Error fetching events for section {sectionId}', {
+      error: err,
       sectionId: section.sectionid,
       sectionName: section.sectionname,
-    }, LOG_CATEGORIES.API);
+    }, LOG_CATEGORIES.COMPONENT);
     return [];
   }
 };
 
 /**
- * Fetches attendance data for a single event from API or cache
- * For shared events where user has access to owner section, fetches and merges shared attendance data
+ * Fetches attendance data for a single event from IndexedDB only
  * @param {Object} event - Event object with eventid, sectionid, termid
- * @param {string|null} token - Authentication token (null for cache-only)
- * @returns {Promise<Array|null>} Attendance data (merged for shared events) or null if failed
+ * @returns {Promise<Array>} Attendance data from cache or empty array
  */
-export const fetchEventAttendance = async (event, token) => {
+export const fetchEventAttendance = async (event) => {
   try {
-    // Check for demo mode
-    const { isDemoMode } = await import('../../config/demoMode.js');
-    const demoMode = isDemoMode();
-    if (!token && !demoMode) {
-      // No token and not demo mode - load from database cache only
-      const cachedAttendance = await databaseService.getAttendance(event.eventid);
-
-
-      // Handle both array format (regular events) and object format (shared events)
-      if (Array.isArray(cachedAttendance)) {
-        return cachedAttendance;
-      } else if (cachedAttendance && cachedAttendance.items) {
-        return cachedAttendance.items;
-      }
-      return cachedAttendance || [];
-    }
-    
-    // In demo mode, first check localStorage cache (where demo data is stored)
-    if (demoMode) {
-      try {
-        const cacheKey = `demo_viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`;
-        const cachedData = localStorage.getItem(cacheKey);
-        if (cachedData) {
-          const attendanceData = JSON.parse(cachedData);
-          
-          // Check if this is a shared event in demo mode by looking for shared metadata
-          const { isDemoMode } = await import('../../config/demoMode.js');
-          const prefix = isDemoMode() ? 'demo_' : '';
-          const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
-          const sharedMetadata = localStorage.getItem(sharedMetadataKey);
-          if (sharedMetadata) {
-            try {
-              // Parse JSON from localStorage
-              const metadata = JSON.parse(sharedMetadata);
-              if (metadata._isSharedEvent) {
-                
-                // For shared events in demo mode, we might need to combine with other sections
-                // Check if there are other sections' data to combine
-                const allSections = metadata._allSections || [];
-                const combinedAttendanceData = [...attendanceData];
-                
-                // Add synthetic attendance data for other sections if needed
-                for (const section of allSections) {
-                  if (section.sectionid !== event.sectionid && section.attendance > 0) {
-                    // Generate synthetic attendees for this section
-                    for (let i = 0; i < section.attendance; i++) {
-                      combinedAttendanceData.push({
-                        scoutid: `synthetic-${section.sectionid}-${i}`,
-                        sectionid: section.sectionid,
-                        sectionname: section.sectionname,
-                        attending: 'Yes',
-                        firstname: `Member ${i + 1}`,
-                        lastname: `(${section.sectionname})`,
-                        groupname: section.groupname,
-                      });
-                    }
-                  }
-                }
-                
-                return combinedAttendanceData;
-              }
-            } catch (metadataError) {
-              if (import.meta.env.DEV) {
-                logger.warn('Failed to parse shared metadata in demo mode', {
-                  eventId: event.eventid,
-                  error: metadataError.message,
-                }, LOG_CATEGORIES.COMPONENT);
-              }
-            }
-          }
-          
-          return attendanceData;
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          logger.warn('Failed to parse demo attendance data from localStorage', {
-            eventId: event.eventid,
-            error: error.message,
-          }, LOG_CATEGORIES.COMPONENT);
-        }
-      }
-      
-      // If no localStorage data found, return empty array for demo mode
-      return [];
-    }
-    
-    // Only log API calls, not every cache check
-    // Removed debug log to reduce console spam
-    
-    // Check for cached attendance first to avoid unnecessary API calls
+    // Load from IndexedDB cache only
     const cachedAttendance = await databaseService.getAttendance(event.eventid);
-    if (cachedAttendance) {
-      // Use cached data if available (cache management now handled by IndexedDB)
-      return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance.items || []);
-    }
-    
-    // If termid is missing, get it from API
-    let termId = event.termid;
-    if (!termId) {
-      termId = await fetchMostRecentTermId(event.sectionid, token);
-    }
-    
-    if (!termId) {
-      return cachedAttendance || [];
-    }
-    
-    // Get basic attendance data first
-    const sectionSpecificAttendanceData = await getEventAttendance(
-      event.sectionid, 
-      event.eventid, 
-      termId, 
-      token,
-    );
-    
-    if (!sectionSpecificAttendanceData) {
-      if (import.meta.env.DEV) {
-        logger.warn('No section-specific attendance data returned from API', {
-          eventId: event.eventid,
-          eventName: event.name,
-        }, LOG_CATEGORIES.COMPONENT);
-      }
-      return cachedAttendance || [];
-    }
 
-    // For production, limit shared event processing to reduce API calls
-    // Only check for shared events if explicitly enabled or in development
-    const checkForSharedEvents = import.meta.env.DEV || import.meta.env.VITE_ENABLE_SHARED_EVENT_DETECTION === 'true';
-    
-    if (!checkForSharedEvents) {
-      // Save basic attendance data to cache and return it
-      await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-      return sectionSpecificAttendanceData;
+    // Handle both array format (regular events) and object format (shared events)
+    if (Array.isArray(cachedAttendance)) {
+      return cachedAttendance;
+    } else if (cachedAttendance && cachedAttendance.items) {
+      return cachedAttendance.items;
     }
-    
-    // Check for shared event only if enabled (reduces API calls significantly)
-    try {
-      const eventSummary = await getEventSummary(event.eventid, token);
-      
-      // Check if this event has sharing information
-      if (eventSummary?.data?.sharing) {
-        
-        // If this section is the owner or participant of a shared event
-        if (eventSummary.data.sharing.is_owner || eventSummary.data.sharing.is_owner === false) {
-          try {
-            // Get shared event data with section attendance counts for event card stats
-            const sharedEventData = await getEventSharingStatus(event.eventid, event.sectionid, token);
+    return cachedAttendance || [];
 
-            if (sharedEventData) {
-              // For event cards, create attendance records from section-level counts
-              const sharedAttendanceData = convertSharedEventToAttendanceFormat(sharedEventData);
-
-              // Combine section-specific and shared data for event card summary stats
-              const userSectionId = event.sectionid;
-              const combinedAttendanceData = [
-                // Include real section-specific data (has No/Invited/NotInvited details)
-                ...sectionSpecificAttendanceData,
-                // Include attendance records for ALL other sections in the shared event
-                ...sharedAttendanceData.items.filter(item =>
-                  item.scoutid && item.scoutid.startsWith('synthetic-') &&
-                  item.sectionid !== userSectionId,
-                ),
-              ];
-
-              // Save combined attendance data to cache
-              await databaseService.saveAttendance(event.eventid, combinedAttendanceData);
-
-              // Store shared event metadata separately for event expansion
-              const { isDemoMode } = await import('../../config/demoMode.js');
-              const prefix = isDemoMode() ? 'demo_' : '';
-              const metadata = {
-                _isSharedEvent: true,
-                _allSections: sharedEventData.items,
-                _sourceEvent: event,
-              };
-              localStorage.setItem(`${prefix}viking_shared_metadata_${event.eventid}`, JSON.stringify(metadata));
-
-              return combinedAttendanceData;
-            }
-          } catch (sharedErr) {
-            if (import.meta.env.DEV) {
-              logger.warn('Failed to fetch shared event data, falling back to section-specific data', {
-                eventId: event.eventid,
-                error: sharedErr.message,
-              }, LOG_CATEGORIES.API);
-            }
-            // Fall through to use section-specific data only
-          }
-        }
-      }
-    } catch (summaryErr) {
-      if (import.meta.env.DEV) {
-        logger.warn('Failed to fetch event summary, treating as regular event', {
-          eventId: event.eventid,
-          error: summaryErr.message,
-        }, LOG_CATEGORIES.API);
-      }
-      // Continue to return section-specific data for regular events
-    }
-    
-    // Default: Save section-specific data to cache and return it
-    await databaseService.saveAttendance(event.eventid, sectionSpecificAttendanceData);
-    return sectionSpecificAttendanceData;
-    
   } catch (err) {
-    logger.error('Error fetching attendance for event {eventId}', { 
-      error: err, 
+    logger.error('Error fetching attendance from cache', {
+      error: err.message,
       eventId: event.eventid,
       eventName: event.name,
-      sectionId: event.sectionid,
-    }, LOG_CATEGORIES.API);
-    
-    // Return cached data as fallback
-    const cachedAttendance = await databaseService.getAttendance(event.eventid);
-    return Array.isArray(cachedAttendance) ? cachedAttendance : (cachedAttendance?.items || []);
+    }, LOG_CATEGORIES.COMPONENT);
+    return [];
   }
 };
 
@@ -363,7 +108,7 @@ export const fetchEventAttendance = async (event, token) => {
  */
 export const groupEventsByName = (events) => {
   const eventGroups = new Map();
-  
+
   for (const event of events) {
     const eventName = event.name;
     if (!eventGroups.has(eventName)) {
@@ -371,7 +116,7 @@ export const groupEventsByName = (events) => {
     }
     eventGroups.get(eventName).push(event);
   }
-  
+
   return eventGroups;
 };
 
@@ -384,7 +129,7 @@ export const groupEventsByName = (events) => {
 export const buildEventCard = (eventName, events) => {
   // Sort events within group by date
   const sorted = [...events].sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
-  
+
   // Create card with earliest event date for sorting
   return {
     id: `${eventName}-${sorted[0].eventid}`,
@@ -392,282 +137,35 @@ export const buildEventCard = (eventName, events) => {
     events: sorted,
     earliestDate: new Date(sorted[0].startdate),
     sections: [...new Set(sorted.map(e => e.sectionname))],
+    sectionIds: [...new Set(sorted.map(e => e.sectionid))],
   };
 };
 
 /**
- * Filters events to include only future events and events from the past week
+ * Filters events by date range
  * @param {Array} events - Array of event objects
- * @param {Date} oneWeekAgo - Date representing one week ago
+ * @param {Date} startDate - Start date for filtering
+ * @param {Date} endDate - End date for filtering
  * @returns {Array} Filtered events
  */
-export const filterEventsByDateRange = (events, oneWeekAgo) => {
+export const filterEventsByDateRange = (events, startDate, endDate) => {
   return events.filter(event => {
     const eventDate = new Date(event.startdate);
-    return eventDate >= oneWeekAgo;
+    return eventDate >= startDate && eventDate <= endDate;
   });
 };
 
 /**
- * Detects if an event is a shared event owner based on attendance data
- * @param {Object} attendanceData - Attendance data response from API
- * @returns {boolean} True if this section owns a shared event
+ * Expands shared events (placeholder - cache-only implementation)
+ * @param {Array} events - Array of event objects
+ * @returns {Array} Events array (unchanged in cache-only mode)
  */
-export const isSharedEventOwner = (attendanceData) => {
-  // Check if the response has sharing info and is_owner is true
-  if (attendanceData && attendanceData.sharing && attendanceData.sharing.is_owner === true) {
-    return true;
-  }
-  return false;
-};
-
-/**
- * Extracts sections that the user has direct access to from events
- * @param {Array} events - Array of event objects with sectionid  
- * @returns {Set} Set of section IDs the user has access to
- */
-export const getUserAccessibleSections = (events) => {
-  return new Set(events.map(event => event.sectionid));
-};
-
-/**
- * Converts shared event data from getEventSharingStatus to attendance format for EventCard compatibility
- * @param {Object} sharedEventData - Response from getEventSharingStatus API with section-level counts
- * @returns {Object} Attendance data compatible with EventCard component
- */
-export const convertSharedEventToAttendanceFormat = (sharedEventData) => {
-  try {
-    // Filter out null/empty section entries (these are totals/summaries)
-    const sections = (sharedEventData?.items || []).filter(section => 
-      section.sectionid && section.sectionname && 
-      section.sectionid !== null && section.sectionid !== 'null' &&
-      section.sectionname !== null && section.sectionname !== 'null',
-    );
-    
-    // Create synthetic attendance records for each section based on their counts
-    const attendanceItems = [];
-    const attendanceSummary = { Yes: 0, No: 0, 'Not invited': 0, total_members: 0 };
-    const sectionsInfo = [];
-    
-    sections.forEach(section => {
-      // Add section info
-      sectionsInfo.push({
-        sectionid: parseInt(section.sectionid),
-        section_name: section.sectionname,
-        member_count: section.attendance || 0,
-        hasDirectAccess: false, // For shared events, access level doesn't matter for display
-        status: section.status, // Owner, Accepted, Pending
-      });
-      
-      // For each attending member, create a synthetic attendance record  
-      for (let i = 0; i < (section.attendance || 0); i++) {
-        attendanceItems.push({
-          scoutid: `synthetic-${section.sectionid}-${i}`,
-          sectionid: section.sectionid,
-          sectionname: section.sectionname,
-          attending: 'Yes',
-          firstname: `Member ${i + 1}`, // Synthetic name for display count
-          lastname: `(${section.sectionname})`,
-          groupname: section.groupname,
-        });
-      }
-      
-      // Add to summary counts
-      attendanceSummary.Yes += section.attendance || 0;
-      attendanceSummary['Not invited'] += section.none || 0;
-      attendanceSummary.total_members += (section.attendance || 0) + (section.none || 0);
-    });
-    
-    if (import.meta.env.DEV) {
-      logger.info('Converted shared event data to attendance format', {
-        totalSections: sections.length,
-        totalAttendees: attendanceSummary.Yes,
-        totalNotInvited: attendanceSummary['Not invited'],
-        sectionsWithAttendance: sections.filter(s => s.attendance > 0).length,
-        attendanceItemsCreated: attendanceItems.length,
-        sectionsInfo: sectionsInfo.map(s => `${s.section_name}: ${s.member_count}`),
-        allSectionsData: sections.map(s => `${s.sectionname} (${s.sectionid}): ${s.attendance || 0} attending`),
-      }, LOG_CATEGORIES.COMPONENT);
-    }
-    
-    return {
-      items: attendanceItems,
-      summary: attendanceSummary,
-      sections: sectionsInfo,
-      sharing: {
-        isSharedEvent: true,
-        hasSharedData: true,
-      },
-    };
-    
-  } catch (error) {
-    logger.error('Error converting shared event data to attendance format', {
-      error: error.message,
-      hasData: !!sharedEventData,
-    }, LOG_CATEGORIES.COMPONENT);
-    
-    // Return empty structure on error
-    return {
-      items: [],
-      summary: { Yes: 0, No: 0, 'Not invited': 0, total_members: 0 },
-      sections: [],
-      sharing: { isSharedEvent: true, hasSharedData: false },
-    };
-  }
-};
-
-/**
- * Expands shared events to include synthetic events for all participating sections
- * This allows EventCard to display attendance for all sections in shared events
- * @param {Array} events - Original events array (only user-accessible sections)
- * @param {Map} _attendanceMap - Map of event IDs to attendance data
- * @returns {Array} Expanded events array including synthetic events for shared event sections
- */
-export const expandSharedEvents = (events, _attendanceMap) => {
-  // For shared events, we DON'T want to create synthetic events for each section
-  // Instead, we want the EventCard to handle displaying all sections within a single card
-  // So we'll just return the original events array without expansion
-  
-
-  // The shared event data is already combined in the attendance data
-  // EventCard will handle displaying all sections using the combined attendance data
+export const expandSharedEvents = (events) => {
+  // In cache-only mode, just return events as-is
+  // Shared event expansion should be handled by Reference Data Service
   return events;
 };
 
-/**
- * Merges shared event attendance with section-specific attendance data
- * Combines attendee names from shared API with complete counts from section-specific APIs
- * @param {Object} sharedAttendanceData - Response from getSharedEventAttendance API
- * @param {Array} sectionSpecificAttendanceData - Array of attendance data from section-specific APIs
- * @param {Set} sectionsToShow - Set of section IDs to include in the output (all shared sections for shared events)
- * @returns {Object} Merged attendance data with combined attendees and accurate counts
- */
-export const mergeSharedAndSectionAttendance = (sharedAttendanceData, sectionSpecificAttendanceData, sectionsToShow) => {
-  try {
-    // Get shared attendees (all "Yes" responses from all sections)
-    // The shared API returns combined attendance in 'items' property
-    const sharedAttendees = sharedAttendanceData?.items || [];
-    
-    // Get section-specific attendees (includes No/Maybe/Not invited for accessible sections)
-    const sectionAttendees = sectionSpecificAttendanceData.flatMap(data => data.items || []);
-    
-    logger.info('Merging attendance data', {
-      sharedCount: sharedAttendees.length,
-      sectionCount: sectionAttendees.length,
-      sectionsToShow: Array.from(sectionsToShow),
-    }, LOG_CATEGORIES.COMPONENT);
-    
-    // Create a map for quick lookup of shared attendees
-    const sharedAttendeesMap = new Map();
-    sharedAttendees.forEach(attendee => {
-      // Shared API uses scoutid, section API might use memberid
-      const id = attendee.scoutid || attendee.memberid;
-      const key = `${id}-${attendee.sectionid}`;
-      sharedAttendeesMap.set(key, attendee);
-    });
-    
-    // Merge logic: start with shared attendees, then add section-specific data that's not already included
-    const mergedAttendees = [...sharedAttendees];
-    
-    // Add section-specific attendees that aren't already in shared data
-    sectionAttendees.forEach(attendee => {
-      // Section API might use different ID field than shared API
-      const id = attendee.scoutid || attendee.memberid;
-      const key = `${id}-${attendee.sectionid}`;
-      
-      // If not already in shared data, add it
-      if (!sharedAttendeesMap.has(key)) {
-        mergedAttendees.push(attendee);
-      }
-    });
-    
-    // Calculate merged summary counts
-    const attendanceCountMap = {};
-    mergedAttendees.forEach(attendee => {
-      const attendance = attendee.attending || 'Unknown';
-      attendanceCountMap[attendance] = (attendanceCountMap[attendance] || 0) + 1;
-    });
-    
-    // Build sections summary from shared data and fill in gaps from section-specific data
-    const sectionsMap = new Map();
-    
-    // Extract sections from shared attendee data (since no separate sections array)
-    sharedAttendees.forEach(attendee => {
-      const sectionId = parseInt(attendee.sectionid);
-      if (!sectionsMap.has(sectionId)) {
-        sectionsMap.set(sectionId, {
-          sectionid: sectionId,
-          section_name: attendee.sectionname,
-          member_count: 0, // Will be calculated below
-          hasDirectAccess: false, // For shared events, we show all sections regardless of access
-        });
-      }
-    });
-    
-    // Count members per section from shared data
-    sharedAttendees.forEach(attendee => {
-      const sectionId = parseInt(attendee.sectionid);
-      if (sectionsMap.has(sectionId)) {
-        sectionsMap.get(sectionId).member_count += 1;
-      }
-    });
-    
-    // Add/update sections from section-specific data
-    sectionSpecificAttendanceData.forEach(data => {
-      if (data.items && data.items.length > 0) {
-        const firstItem = data.items[0];
-        const sectionId = firstItem.sectionid;
-        
-        // For shared events, include all sections that have data
-        if (sectionsToShow.has(sectionId)) {
-          sectionsMap.set(sectionId, {
-            sectionid: sectionId,
-            section_name: firstItem.sectionname,
-            member_count: data.items.length,
-            hasDirectAccess: false, // For shared events, access level doesn't matter for display
-          });
-        }
-      }
-    });
-    
-    const mergedData = {
-      items: mergedAttendees,
-      summary: {
-        total_members: mergedAttendees.length,
-        ...attendanceCountMap,
-      },
-      sections: Array.from(sectionsMap.values()),
-      sharing: {
-        isSharedEvent: true,
-        hasSharedData: true,
-      },
-    };
-    
-    logger.info('Attendance merge completed', {
-      totalAttendees: mergedAttendees.length,
-      sectionsCount: mergedData.sections.length,
-      summaryBreakdown: attendanceCountMap,
-    }, LOG_CATEGORIES.COMPONENT);
-    
-    return mergedData;
-    
-  } catch (error) {
-    logger.error('Error merging shared and section attendance data', {
-      error: error.message,
-      sharedDataAvailable: !!sharedAttendanceData,
-      sectionDataCount: sectionSpecificAttendanceData?.length || 0,
-    }, LOG_CATEGORIES.COMPONENT);
-    
-    // Fallback to section-specific data only (preserve shape)
-    const items = sectionSpecificAttendanceData.flatMap(data => data.items || []);
-    return {
-      items,
-      summary: { total_members: items.length },
-      sections: [],
-      sharing: { isSharedEvent: true, hasSharedData: false },
-    };
-  }
-};
 export default {
   fetchAllSectionEvents,
   fetchSectionEvents,
@@ -675,9 +173,5 @@ export default {
   groupEventsByName,
   buildEventCard,
   filterEventsByDateRange,
-  isSharedEventOwner,
-  getUserAccessibleSections,
-  convertSharedEventToAttendanceFormat,
   expandSharedEvents,
-  mergeSharedAndSectionAttendance,
 };

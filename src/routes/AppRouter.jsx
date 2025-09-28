@@ -45,8 +45,13 @@ function AppContent() {
       return;
     }
     try {
-      const { default: syncService } = await import('../shared/services/storage/sync.js');
-      await syncService.syncAll();
+      const { getToken } = await import('../shared/services/auth/tokenService.js');
+      const { loadInitialReferenceData } = await import('../shared/services/referenceData/referenceDataService.js');
+
+      const token = getToken();
+      if (token) {
+        await loadInitialReferenceData(token);
+      }
     } catch (error) {
       const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
       logger.error('Refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);

@@ -265,25 +265,34 @@ export function useAuth() {
           });
         }
         
-        // Try to get fresh user info from API after successful OAuth
+        // Load initial reference data after successful OAuth (non-blocking)
         try {
-          const userInfo = await authService.fetchUserInfoFromAPI();
-          if (userInfo) {
-            authService.setUserInfo(userInfo);
-            logger.info('User info fetched from API after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
-          }
-        } catch (userError) {
-          logger.warn('Could not fetch fresh user info after OAuth, will use cached data if available', { error: userError?.message }, LOG_CATEGORIES.AUTH);
-        }
+          const { loadInitialReferenceData, getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
+          logger.info('Starting initial reference data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
 
-        // Trigger dashboard data sync after successful OAuth (fast)
-        try {
-          const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-          logger.info('Starting dashboard data sync after successful OAuth', {}, LOG_CATEGORIES.AUTH);
-          await syncService.syncDashboardData();
-          logger.info('Dashboard data sync completed after OAuth', {}, LOG_CATEGORIES.AUTH);
-        } catch (syncError) {
-          logger.warn('Could not sync dashboard data after OAuth, using cached data', { error: syncError?.message }, LOG_CATEGORIES.AUTH);
+          const referenceResults = await loadInitialReferenceData(accessToken);
+
+          if (referenceResults.success) {
+            logger.info('Initial reference data load completed', {
+              summary: referenceResults.summary,
+            }, LOG_CATEGORIES.AUTH);
+          } else {
+            logger.warn('Initial reference data load had issues', {
+              summary: referenceResults.summary,
+              hasErrors: referenceResults.hasErrors,
+            }, LOG_CATEGORIES.AUTH);
+          }
+
+          // Show user message only if critical
+          const userMessage = getLoadingResultMessage(referenceResults);
+          if (userMessage) {
+            const { notifyWarning } = await import('../../../shared/utils/notifications.js');
+            notifyWarning(userMessage);
+          }
+        } catch (referenceError) {
+          logger.warn('Could not load initial reference data after OAuth', {
+            error: referenceError?.message,
+          }, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first
@@ -325,6 +334,41 @@ export function useAuth() {
             isOfflineMode: false,
           },
         });
+
+        // Load initial reference data for existing valid session (non-blocking)
+        try {
+          const { loadInitialReferenceData, getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
+          const currentToken = sessionStorage.getItem('access_token');
+
+          if (currentToken) {
+            logger.info('Starting initial reference data load for existing session', {}, LOG_CATEGORIES.AUTH);
+
+            const referenceResults = await loadInitialReferenceData(currentToken);
+
+            if (referenceResults.success) {
+              logger.info('Initial reference data load completed for existing session', {
+                summary: referenceResults.summary,
+              }, LOG_CATEGORIES.AUTH);
+            } else {
+              logger.warn('Initial reference data load had issues for existing session', {
+                summary: referenceResults.summary,
+                hasErrors: referenceResults.hasErrors,
+              }, LOG_CATEGORIES.AUTH);
+            }
+
+            // Show user message only if critical
+            const userMessage = getLoadingResultMessage(referenceResults);
+            if (userMessage) {
+              const { notifyWarning } = await import('../../../shared/utils/notifications.js');
+              notifyWarning(userMessage);
+            }
+          }
+        } catch (referenceError) {
+          logger.warn('Could not load initial reference data for existing session', {
+            error: referenceError?.message,
+          }, LOG_CATEGORIES.AUTH);
+        }
+
       } else if (hasStoredToken && tokenExpired) {
         try {
           const cachedSections = await databaseService.getSections();
@@ -459,43 +503,6 @@ export function useAuth() {
     };
   }, [checkAuth]);
 
-  // Listen for sync completion to update lastSyncTime
-  useEffect(() => {
-    let cleanupFn = null;
-    
-    const handleSyncComplete = async (syncStatus) => {
-      if (syncStatus.status === 'completed') {
-        // Use the timestamp from sync status, or get from storage as fallback
-        const timestamp = syncStatus.timestamp || await UnifiedStorageService.getLastSync();
-        setLastSyncTime(timestamp);
-      }
-    };
-
-    // Import and setup sync listener
-    const setupSyncListener = async () => {
-      try {
-        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-        syncService.addSyncListener(handleSyncComplete);
-        
-        return () => {
-          syncService.removeSyncListener(handleSyncComplete);
-        };
-      } catch (error) {
-        logger.error('Failed to setup sync listener in useAuth', { error: error.message }, LOG_CATEGORIES.ERROR);
-        return null;
-      }
-    };
-
-    setupSyncListener().then((cleanup) => {
-      cleanupFn = cleanup;
-    });
-
-    return () => {
-      if (cleanupFn) {
-        cleanupFn();
-      }
-    };
-  }, []);
 
   // Helper function to check cached data and show expiration dialog
   const checkAndShowExpirationDialog = useCallback(async () => {
