@@ -78,12 +78,14 @@ return isMobile ? <MobileView /> : <DesktopView />;
 ```
 
 ### 3. **Service Layer Pattern**
-Business logic is separated into dedicated services:
+Business logic is separated into dedicated services following the new three-service architecture:
 
 - `services/api.js` - API communication with offline fallbacks
 - `services/database.js` - SQLite/localStorage abstraction
 - `services/auth.js` - Authentication and token management
-- `services/sync.js` - Data synchronization logic
+- `services/referenceData/referenceDataService.js` - Static data loaded once at login
+- `services/data/eventsService.js` - Event definitions with cache-only UI access
+- `services/data/eventSyncService.js` - Attendance data with refresh capabilities
 
 ### 4. **Custom Hooks for State Management**
 Complex state logic is encapsulated in custom hooks:

@@ -40,10 +40,21 @@ Mobile-first web application for Scout leaders to manage event attendance, membe
 │                     Viking Event Management                      │
 │                     Mobile Web Application                       │
 │                    (React + Capacitor)                          │
-└─────────────────────────────────────────────────────────────────┘
-                                  │
-                                  │ HTTPS/OAuth
-                                  ▼
+│                                                                 │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐    │
+│  │ Reference Data  │ │ Events Service  │ │ EventSyncService│    │
+│  │ Service (NEW)   │ │    (NEW)        │ │   (ENHANCED)    │    │
+│  │                 │ │                 │ │                 │    │
+│  │ • Static Data   │ │ • Event Defs    │ │ • Attendance    │    │
+│  │ • Load Once     │ │ • Cache-Only UI │ │ • Session Sync  │    │
+│  │ • Session Cache │ │ • Manual Refresh│ │ • Manual Refresh│    │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘    │
+│           │                   │                   │             │
+│           └───────────────────┼───────────────────┘             │
+│                               │                                 │
+└───────────────────────────────┼─────────────────────────────────┘
+                                │ HTTPS/OAuth
+                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Express.js Proxy Server                        │
 │                    (Code.run)                                   │
@@ -51,9 +62,9 @@ Mobile-first web application for Scout leaders to manage event attendance, membe
 │              • OAuth Handling                                   │
 │              • Request Proxying                                 │
 └─────────────────────────────────────────────────────────────────┘
-                                  │
-                                  │ Authenticated API Calls
-                                  ▼
+                                │
+                                │ Authenticated API Calls
+                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                Online Scout Manager (OSM)                       │
 │                   External API Service                          │
@@ -62,10 +73,11 @@ Mobile-first web application for Scout leaders to manage event attendance, membe
 │              • FlexiRecord System                               │
 └─────────────────────────────────────────────────────────────────┘
 
-Local Storage Components:
+Data Storage (Service-Specific):
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   SQLite DB     │    │   localStorage  │    │  sessionStorage │
-│  (Offline)      │    │    (Cache)      │    │    (Auth)       │
+│  (Events &      │    │ (Reference Data │    │    (Auth)       │
+│   Attendance)   │    │  Session Cache) │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -98,33 +110,44 @@ Local Storage Components:
 
 ## Data Flow Summary
 
+**NEW: Session-Based Three-Service Architecture**
+
 1. **Authentication** → OAuth with OSM → Token stored in sessionStorage
-2. **Data Loading** → API calls with fallback to local cache
-3. **User Interaction** → Local updates with background sync
-4. **Offline Operation** → Full functionality from cached data
-5. **Online Sync** → Background refresh when connectivity restored
+2. **Reference Data Loading** → Static data loaded once at login (terms, user roles, startup data, members, FlexiRecord metadata)
+3. **Events Loading** → Event definitions loaded separately (moderately dynamic)
+4. **Attendance Sync** → Only EventSyncService refreshes during session (highly dynamic)
+5. **UI Access** → All components cache-only, manual refresh controls
+6. **Offline Operation** → Full functionality from cached data
 
 ## Key Business Capabilities
 
-### Event Management
+### Event Management (Events Service)
 - View events across multiple Scout sections
-- Real-time attendance tracking
+- Cache-only UI access for instant loading
+- Manual refresh control for Scout leaders
 - Offline event data access
 
-### Member Management  
-- Comprehensive member directories
+### Member Management (Reference Data Service)
+- Comprehensive member directories loaded at login
 - Contact information and patrol assignments
 - Cross-section member handling
+- Session-based caching (no refresh needed)
 
-### Camp Group System
-- Drag-and-drop group assignments
-- Sign-in/out tracking with timestamps
+### Attendance Management (EventSyncService)
+- Real-time attendance tracking
+- Only service that refreshes during session
+- Manual sync control for Scout leaders
+
+### Camp Group System (Integrated across services)
+- FlexiRecord metadata from Reference Data Service
+- Camp group data from EventSyncService
 - Visual group organization and status
 
-### Responsive UI
+### Responsive UI (Cache-Only)
 - Desktop: Full-featured dashboard layout
 - Tablet: Optimized for field usage
 - Mobile: Compact efficient interface
+- All components use cache-only access patterns
 
 ## Integration Points
 
@@ -134,10 +157,12 @@ Local Storage Components:
 - **GitHub**: Source control and CI/CD
 
 ### Internal Systems
-- **FlexiRecord Service**: Camp group and sign-in data
-- **Database Service**: Local SQLite operations
-- **Sync Service**: Online/offline data coordination
+- **Reference Data Service**: Static data loaded once at login (NEW)
+- **Events Service**: Event definitions with cache-only UI access (NEW)
+- **EventSyncService**: Attendance data with refresh capabilities (ENHANCED)
+- **Database Service**: Local SQLite operations and localStorage fallbacks
 - **Auth Service**: Session and token management
+- **FlexiRecord Integration**: Camp group and sign-in data via services above
 
 ---
 
