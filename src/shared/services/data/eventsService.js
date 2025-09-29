@@ -114,7 +114,14 @@ export async function loadEventsForSections(sections, token) {
 
   // After all sections processed, detect shared events
   if (results.length > 1) {
+    logger.info('Starting shared event detection after events loaded', {
+      sectionCount: results.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
     await detectAndStoreSharedEventsAcrossSections(results, token);
+  } else {
+    logger.debug('Skipping shared event detection - only one section loaded', {
+      sectionCount: results.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
   }
 
   const hasErrors = errors.length > 0;
@@ -270,12 +277,13 @@ async function detectAndStoreSharedEventsAcrossSections(results, token) {
           await UnifiedStorageService.set(metadataKey, sharedMetadata);
         }
 
-        logger.info('Detected and stored shared event metadata', {
+        logger.info('🔄 SHARED EVENT DETECTED AND STORED', {
           eventName: firstEvent.name,
           eventDate: firstEvent.startdate,
           participatingSectionCount: allParticipatingSections.length,
           participatingSections: allParticipatingSections.map(s => s.sectionname),
           eventIds: eventInstances.map(e => e.eventid),
+          metadataKeys: eventInstances.map(e => `viking_shared_metadata_${e.eventid}`),
         }, LOG_CATEGORIES.DATA_SERVICE);
       }
     }
