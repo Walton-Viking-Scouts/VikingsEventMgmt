@@ -124,16 +124,20 @@ export async function loadEventsForSections(sections, token) {
     })),
   }, LOG_CATEGORIES.DATA_SERVICE);
 
-  if (results.length > 1) {
+  // Run shared event detection if we have any results with events
+  const resultsWithEvents = results.filter(r => r.events && r.events.length > 0);
+
+  if (resultsWithEvents.length >= 1) {
     logger.info('✅ Starting shared event detection after events loaded', {
       sectionCount: results.length,
+      sectionsWithEvents: resultsWithEvents.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
     await detectAndStoreSharedEventsAcrossSections(results, token);
   } else {
-    logger.warn('❌ Skipping shared event detection - not enough sections', {
+    logger.warn('❌ Skipping shared event detection - no sections with events', {
       sectionCount: results.length,
       totalSections: sections.length,
-      reason: results.length <= 1 ? 'results.length <= 1' : 'unknown',
+      sectionsWithEvents: resultsWithEvents.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
   }
 
