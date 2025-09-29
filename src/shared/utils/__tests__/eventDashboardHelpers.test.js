@@ -387,6 +387,42 @@ describe('EventDashboard Helper Functions', () => {
       expect(result).toHaveLength(1);
       expect(result[0].eventid).toBe(2);
     });
+
+    it('should handle missing endDate parameter', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+        { eventid: 2, startdate: '2024-02-15' },
+      ];
+
+      // This would have caught the bug we just fixed!
+      const result = filterEventsByDateRange(events, startDate);
+
+      // Without endDate, should return empty array (not crash)
+      expect(result).toEqual([]);
+    });
+
+    it('should handle missing startDate parameter', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+        { eventid: 2, startdate: '2024-02-15' },
+      ];
+
+      const result = filterEventsByDateRange(events, null, endDate);
+
+      // Without startDate, should return empty array (not crash)
+      expect(result).toEqual([]);
+    });
+
+    it('should require both startDate and endDate parameters', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+      ];
+
+      const result = filterEventsByDateRange(events);
+
+      // Without both parameters, should return empty array
+      expect(result).toEqual([]);
+    });
   });
 
   describe('expandSharedEvents', () => {

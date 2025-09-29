@@ -149,8 +149,17 @@ export const buildEventCard = (eventName, events) => {
  * @returns {Array} Filtered events
  */
 export const filterEventsByDateRange = (events, startDate, endDate) => {
+  // Defensive parameter validation - return empty array if missing required params
+  if (!events || !Array.isArray(events) || !startDate || !endDate) {
+    return [];
+  }
+
   return events.filter(event => {
     const eventDate = new Date(event.startdate);
+    // Handle invalid dates by filtering them out
+    if (isNaN(eventDate.getTime())) {
+      return false;
+    }
     return eventDate >= startDate && eventDate <= endDate;
   });
 };
