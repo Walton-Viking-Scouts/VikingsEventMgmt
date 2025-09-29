@@ -103,8 +103,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           isRefresh,
           sampleSections: sectionsData.slice(0, 3).map(s => ({
             id: s.sectionid,
-            name: s.sectionname
-          }))
+            name: s.sectionname,
+          })),
         }, LOG_CATEGORIES.COMPONENT);
 
         if (sectionsData.length > 0 && mounted) {
@@ -429,8 +429,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         id: e.eventid,
         name: e.name,
         startdate: e.startdate,
-        sectionid: e.sectionid
-      }))
+        sectionid: e.sectionid,
+      })),
     }, LOG_CATEGORIES.COMPONENT);
 
     // Filter for events from last week to 3 months from now
@@ -440,7 +440,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       totalCount: allEvents.length,
       oneWeekAgo: oneWeekAgo.toISOString(),
       threeMonthsFromNow: threeMonthsFromNow.toISOString(),
-      now: now.toISOString()
+      now: now.toISOString(),
     }, LOG_CATEGORIES.COMPONENT);
 
     // Fetch attendance data for filtered events (with shared event checking)
@@ -503,8 +503,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         id: c.id,
         name: c.name,
         eventCount: c.events?.length || 0,
-        earliestDate: c.earliestDate
-      }))
+        earliestDate: c.earliestDate,
+      })),
     }, LOG_CATEGORIES.COMPONENT);
 
     return cards;
