@@ -1012,14 +1012,14 @@ class DatabaseService {
         if (!members.length) {
           return [];
         }
-        
+
         // Filter members by requested sections
         // Now that section IDs are standardized as numbers, filtering is simple
         const filteredMembers = members.filter(member => {
           const memberSectionId = member.section_id || member.sectionid;
           return memberSectionId && sectionIds.includes(memberSectionId);
         });
-        
+
         return filteredMembers;
         
       } catch (error) {
