@@ -26,7 +26,31 @@ export function useAttendanceData(events) {
     try {
       setLoading(true);
       setError(null);
-      
+
+      // First try to get attendance data from attendanceDataService cache
+      // which might already have the data loaded by the dashboard
+      const attendanceDataService = (await import('../../../shared/services/data/attendanceDataService.js')).default;
+      const cachedAttendanceData = await attendanceDataService.getAttendanceData(false);
+
+      if (cachedAttendanceData && cachedAttendanceData.length > 0) {
+        // Filter the cached data to only include events we're interested in
+        const eventIds = new Set(events.map(e => e.eventid));
+        const relevantAttendance = cachedAttendanceData.filter(record => eventIds.has(record.eventid));
+
+        if (relevantAttendance.length > 0) {
+          logger.info('Using attendanceDataService cached data for attendance view', {
+            totalCached: cachedAttendanceData.length,
+            relevantRecords: relevantAttendance.length,
+            eventIds: Array.from(eventIds),
+          }, LOG_CATEGORIES.COMPONENT);
+
+          setAttendanceData(relevantAttendance);
+          // Still load Viking Event data
+          await loadVikingEventData();
+          return;
+        }
+      }
+
       // Skip API calls in demo mode - only use cached data
       if (isDemoMode()) {
         logger.debug('Demo mode: Skipping API calls, using cached attendance only', {}, LOG_CATEGORIES.COMPONENT);
