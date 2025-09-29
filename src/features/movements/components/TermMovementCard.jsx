@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import SectionTypeGroup from './SectionTypeGroup.jsx';
 import { groupSectionsByType, mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
+import { multiUpdateFlexiRecord } from '../../../shared/services/api/api/flexiRecords.js';
 import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversContext } from '../../events/services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';

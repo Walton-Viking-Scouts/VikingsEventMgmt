@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance } from '../../../shared/services/api/api.js';
+import { getEventAttendance } from '../../../shared/services/api/api/events.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';

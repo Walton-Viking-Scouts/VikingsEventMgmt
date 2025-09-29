@@ -72,7 +72,7 @@ import {
   getFlexiRecords,
   getFlexiStructure,
   getSingleFlexiRecord,
-} from '../../../shared/services/api/api.js';
+} from '../../../shared/services/api/api/flexiRecords.js';
 
 /**
  * Cache TTL constants for different types of FlexiRecord data

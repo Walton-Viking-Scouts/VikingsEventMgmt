@@ -1,4 +1,4 @@
-import { getEventAttendance } from '../api/api.js';
+import { getEventAttendance } from '../api/api/events.js';
 import { getToken } from '../auth/tokenService.js';
 import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
