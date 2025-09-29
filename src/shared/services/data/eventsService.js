@@ -113,14 +113,27 @@ export async function loadEventsForSections(sections, token) {
   }
 
   // After all sections processed, detect shared events
+  logger.info('📊 EVENTS LOADING COMPLETED - checking shared event detection conditions', {
+    totalSections: sections.length,
+    resultsCount: results.length,
+    successCount,
+    results: results.map(r => ({
+      sectionId: r.sectionId,
+      sectionName: r.sectionName,
+      eventCount: r.events?.length || 0,
+    })),
+  }, LOG_CATEGORIES.DATA_SERVICE);
+
   if (results.length > 1) {
-    logger.info('Starting shared event detection after events loaded', {
+    logger.info('✅ Starting shared event detection after events loaded', {
       sectionCount: results.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
     await detectAndStoreSharedEventsAcrossSections(results, token);
   } else {
-    logger.debug('Skipping shared event detection - only one section loaded', {
+    logger.warn('❌ Skipping shared event detection - not enough sections', {
       sectionCount: results.length,
+      totalSections: sections.length,
+      reason: results.length <= 1 ? 'results.length <= 1' : 'unknown',
     }, LOG_CATEGORIES.DATA_SERVICE);
   }
 
