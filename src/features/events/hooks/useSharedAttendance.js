@@ -13,15 +13,38 @@ export function useSharedAttendance(events, viewMode) {
   const checkForSharedEvents = async (eventsList) => {
     if (!eventsList) return false;
 
+    console.log('🔍 Checking for shared events:', {
+      eventCount: eventsList.length,
+      eventIds: eventsList.map(e => e.eventid),
+      isDemoMode: isDemoMode(),
+    });
+
     for (const event of eventsList) {
       const prefix = isDemoMode() ? 'demo_' : '';
       const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
+
+      console.log('🔍 Checking shared metadata key:', sharedMetadataKey);
+
       const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
+
+      console.log('🔍 Found shared metadata:', {
+        key: sharedMetadataKey,
+        hasData: !!sharedMetadata,
+        dataType: typeof sharedMetadata,
+        data: sharedMetadata,
+      });
 
       if (sharedMetadata) {
         try {
           const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
+          console.log('🔍 Parsed shared metadata:', {
+            eventId: event.eventid,
+            isSharedEvent: metadata._isSharedEvent,
+            metadata,
+          });
+
           if (metadata._isSharedEvent === true) {
+            console.log('✅ Found shared event!', event.eventid);
             return true;
           }
         } catch (error) {
@@ -30,6 +53,7 @@ export function useSharedAttendance(events, viewMode) {
       }
     }
 
+    console.log('❌ No shared events found');
     return false;
   };
 
