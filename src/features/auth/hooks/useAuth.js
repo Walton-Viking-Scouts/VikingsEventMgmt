@@ -6,6 +6,7 @@ import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 
 // Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
@@ -265,33 +266,35 @@ export function useAuth() {
           });
         }
         
-        // Load initial reference data after successful OAuth (non-blocking)
+        // Load all data after successful OAuth (non-blocking)
         try {
-          const { loadInitialReferenceData, getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
-          logger.info('Starting initial reference data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
+          logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
 
-          const referenceResults = await loadInitialReferenceData(accessToken);
+          const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken);
 
-          if (referenceResults.success) {
-            logger.info('Initial reference data load completed', {
-              summary: referenceResults.summary,
+          if (allDataResults.success) {
+            logger.info('Comprehensive data load completed', {
+              summary: allDataResults.summary,
             }, LOG_CATEGORIES.AUTH);
           } else {
-            logger.warn('Initial reference data load had issues', {
-              summary: referenceResults.summary,
-              hasErrors: referenceResults.hasErrors,
+            logger.warn('Comprehensive data load had issues', {
+              summary: allDataResults.summary,
+              hasErrors: allDataResults.hasErrors,
             }, LOG_CATEGORIES.AUTH);
           }
 
-          // Show user message only if critical
-          const userMessage = getLoadingResultMessage(referenceResults);
-          if (userMessage) {
-            const { notifyWarning } = await import('../../../shared/utils/notifications.js');
-            notifyWarning(userMessage);
+          // Show user message only if critical errors exist
+          if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
+            const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
+            const userMessage = getLoadingResultMessage(allDataResults.results.reference || allDataResults);
+            if (userMessage) {
+              const { notifyWarning } = await import('../../../shared/utils/notifications.js');
+              notifyWarning(userMessage);
+            }
           }
-        } catch (referenceError) {
-          logger.warn('Could not load initial reference data after OAuth', {
-            error: referenceError?.message,
+        } catch (dataLoadError) {
+          logger.warn('Could not load application data after OAuth', {
+            error: dataLoadError?.message,
           }, LOG_CATEGORIES.AUTH);
         }
       }
@@ -337,39 +340,6 @@ export function useAuth() {
           },
         });
 
-        // Load initial reference data for existing valid session (non-blocking)
-        try {
-          const { loadInitialReferenceData, getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
-          const currentToken = sessionStorage.getItem('access_token');
-
-          if (currentToken) {
-            logger.info('Starting initial reference data load for existing session', {}, LOG_CATEGORIES.AUTH);
-
-            const referenceResults = await loadInitialReferenceData(currentToken);
-
-            if (referenceResults.success) {
-              logger.info('Initial reference data load completed for existing session', {
-                summary: referenceResults.summary,
-              }, LOG_CATEGORIES.AUTH);
-            } else {
-              logger.warn('Initial reference data load had issues for existing session', {
-                summary: referenceResults.summary,
-                hasErrors: referenceResults.hasErrors,
-              }, LOG_CATEGORIES.AUTH);
-            }
-
-            // Show user message only if critical
-            const userMessage = getLoadingResultMessage(referenceResults);
-            if (userMessage) {
-              const { notifyWarning } = await import('../../../shared/utils/notifications.js');
-              notifyWarning(userMessage);
-            }
-          }
-        } catch (referenceError) {
-          logger.warn('Could not load initial reference data for existing session', {
-            error: referenceError?.message,
-          }, LOG_CATEGORIES.AUTH);
-        }
 
       } else if (hasStoredToken && tokenExpired) {
         try {

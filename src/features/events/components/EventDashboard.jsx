@@ -19,7 +19,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import eventSyncService from '../../../shared/services/data/eventSyncService.js';
+import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
@@ -101,6 +101,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         logger.debug('loadEventCards: Loaded sections', {
           sectionsCount: sectionsData.length,
           isRefresh,
+          sampleSections: sectionsData.slice(0, 3).map(s => ({
+            id: s.sectionid,
+            name: s.sectionname
+          }))
         }, LOG_CATEGORIES.COMPONENT);
 
         if (sectionsData.length > 0 && mounted) {
@@ -297,7 +301,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  // Manual refresh handler following Task 2 SimpleAttendanceViewer pattern
+  // Manual refresh handler using dataLoadingService orchestrator
   const handleManualRefresh = async () => {
     if (refreshing) return;
 
@@ -307,13 +311,18 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Step 1: Sync event attendance data using EventSyncService
-      const syncResult = await eventSyncService.refreshAllEventAttendance();
+      // Get authentication token
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
 
-      if (syncResult.success) {
-        logger.info('Event sync completed successfully', {
-          message: syncResult.message,
-          details: syncResult.details,
+      // Step 1: Use dataLoadingService to refresh event and attendance data
+      const refreshResult = await dataLoadingService.refreshEventData(token);
+
+      if (refreshResult.success) {
+        logger.info('Event data refresh completed successfully', {
+          summary: refreshResult.summary,
         }, LOG_CATEGORIES.COMPONENT);
 
         // Step 2: Reload sections data and trigger rebuild of event cards
@@ -327,14 +336,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         // Step 4: Update last sync time
         setLastSync(new Date());
 
-        // Step 5: Show success notification
-        const message = syncResult.details
-          ? `Refreshed ${syncResult.details.syncedEvents}/${syncResult.details.totalEvents} events`
-          : 'Event data refreshed successfully';
+        // Step 5: Show success notification based on orchestrator results
+        let message = 'Event data refreshed successfully';
+
+        // Try to extract attendance details if available
+        const attendanceResult = refreshResult.results?.attendance;
+        if (attendanceResult?.details) {
+          message = `Refreshed ${attendanceResult.details.syncedEvents}/${attendanceResult.details.totalEvents} events`;
+        } else if (refreshResult.hasErrors && refreshResult.summary?.successful > 0) {
+          message = `Partially refreshed (${refreshResult.summary.successful}/${refreshResult.summary.total} operations succeeded)`;
+        }
 
         notifySuccess(message);
       } else {
-        throw new Error(syncResult.message || 'Sync failed');
+        // Handle errors from orchestrator
+        const errorMessages = refreshResult.errors?.map(err => err.message) || ['Refresh failed'];
+        throw new Error(errorMessages.join(', '));
       }
 
     } catch (error) {
@@ -402,12 +419,29 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
     // Fetch events for all sections from IndexedDB only
     const allEvents = await fetchAllSectionEvents(sectionsData);
+    logger.debug('buildEventCards: Raw events from IndexedDB', {
+      allEventsCount: allEvents.length,
+      sampleEvents: allEvents.slice(0, 3).map(e => ({
+        id: e.eventid,
+        name: e.name,
+        startdate: e.startdate,
+        sectionid: e.sectionid
+      }))
+    }, LOG_CATEGORIES.COMPONENT);
 
-    // Filter for future events and events from last week
-    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
+    // Filter for events from last week to 3 months from now
+    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo, threeMonthsFromNow);
+    logger.debug('buildEventCards: Filtered events by date range', {
+      filteredCount: filteredEvents.length,
+      totalCount: allEvents.length,
+      oneWeekAgo: oneWeekAgo.toISOString(),
+      threeMonthsFromNow: threeMonthsFromNow.toISOString(),
+      now: now.toISOString()
+    }, LOG_CATEGORIES.COMPONENT);
 
     // Fetch attendance data for filtered events (with shared event checking)
     const attendanceMap = new Map();
@@ -462,6 +496,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
     // Sort cards by earliest event date
     cards.sort((a, b) => a.earliestDate - b.earliestDate);
+
+    logger.debug('buildEventCards: Final cards result', {
+      cardsCount: cards.length,
+      sampleCards: cards.slice(0, 3).map(c => ({
+        id: c.id,
+        name: c.name,
+        eventCount: c.events?.length || 0,
+        earliestDate: c.earliestDate
+      }))
+    }, LOG_CATEGORIES.COMPONENT);
 
     return cards;
   };
