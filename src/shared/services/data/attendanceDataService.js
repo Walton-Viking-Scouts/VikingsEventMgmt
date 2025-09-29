@@ -13,8 +13,9 @@ class AttendanceDataService {
   }
 
   async getAttendanceData(forceRefresh = false) {
+    // First check in-memory cache
     if (!forceRefresh && this.attendanceCache.length > 0) {
-      logger.debug('Returning cached attendance data', {
+      logger.debug('Returning in-memory cached attendance data', {
         recordCount: this.attendanceCache.length,
         cacheAge: this.lastFetchTime ? Date.now() - this.lastFetchTime : null,
       }, LOG_CATEGORIES.DATA_SERVICE);
@@ -22,7 +23,40 @@ class AttendanceDataService {
       return this.attendanceCache;
     }
 
-    return await this.refreshAttendanceData();
+    // If no in-memory cache, try to load from IndexedDB cache first
+    if (!forceRefresh) {
+      try {
+        const cachedData = await this.loadAttendanceFromCache();
+        if (cachedData.length > 0) {
+          logger.debug('Loaded attendance data from IndexedDB cache', {
+            recordCount: cachedData.length,
+          }, LOG_CATEGORIES.DATA_SERVICE);
+
+          this.attendanceCache = cachedData;
+          this.lastFetchTime = Date.now();
+          return this.attendanceCache;
+        }
+      } catch (error) {
+        logger.warn('Failed to load attendance from cache, will try refresh if token available', {
+          error: error.message,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+      }
+    }
+
+    // Only refresh from API if token is available and forceRefresh is requested
+    const token = getToken();
+    if (forceRefresh && token) {
+      return await this.refreshAttendanceData();
+    }
+
+    // If no token or not forcing refresh, return whatever we have (could be empty)
+    logger.debug('No token available or refresh not requested, returning cached data', {
+      hasToken: !!token,
+      forceRefresh,
+      cacheLength: this.attendanceCache.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+    return this.attendanceCache;
   }
 
   async refreshAttendanceData() {
@@ -205,6 +239,65 @@ class AttendanceDataService {
         error: error.message,
       }, LOG_CATEGORIES.DATA_SERVICE);
       return this.getCachedEvents();
+    }
+  }
+
+  async loadAttendanceFromCache() {
+    try {
+      // Get all events from cached data
+      const cachedEvents = await this.getCachedEventsOptimized();
+      if (cachedEvents.length === 0) {
+        logger.debug('No cached events found for attendance loading', {}, LOG_CATEGORIES.DATA_SERVICE);
+        return [];
+      }
+
+      // Get attendance data for each event from IndexedDB
+      const attendancePromises = cachedEvents.map(async (event) => {
+        try {
+          const attendanceRecords = await databaseService.getAttendance(event.eventid);
+          if (!attendanceRecords || attendanceRecords.length === 0) {
+            return [];
+          }
+
+          // Handle both array and object formats
+          const records = Array.isArray(attendanceRecords)
+            ? attendanceRecords
+            : (attendanceRecords.items || []);
+
+          return records.map(record => ({
+            ...record,
+            eventid: event.eventid,
+            eventname: event.name,
+            eventdate: event.startdate,
+            sectionid: event.sectionid,
+            sectionname: event.sectionname,
+          }));
+        } catch (error) {
+          logger.debug('No cached attendance found for event', {
+            eventId: event.eventid,
+            eventName: event.name,
+          }, LOG_CATEGORIES.DATA_SERVICE);
+          return [];
+        }
+      });
+
+      const results = await Promise.allSettled(attendancePromises);
+      const allAttendance = results
+        .filter(result => result.status === 'fulfilled')
+        .flatMap(result => result.value);
+
+      logger.debug('Loaded attendance data from IndexedDB cache', {
+        eventCount: cachedEvents.length,
+        recordCount: allAttendance.length,
+        successfulEvents: results.filter(r => r.status === 'fulfilled').length,
+      }, LOG_CATEGORIES.DATA_SERVICE);
+
+      return allAttendance;
+    } catch (error) {
+      logger.warn('Failed to load attendance from IndexedDB cache', {
+        error: error.message,
+      }, LOG_CATEGORIES.DATA_SERVICE);
+      return [];
     }
   }
 
