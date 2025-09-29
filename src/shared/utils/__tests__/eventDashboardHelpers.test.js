@@ -16,6 +16,12 @@ vi.mock('../../services/storage/database.js', () => ({
   },
 }));
 
+vi.mock('../../services/data/attendanceDataService.js', () => ({
+  default: {
+    getAttendanceData: vi.fn(),
+  },
+}));
+
 vi.mock('../../services/utils/logger.js', () => ({
   default: {
     error: vi.fn(),
@@ -30,6 +36,7 @@ vi.mock('../../services/utils/logger.js', () => ({
 
 // Import mocked modules for assertions
 import databaseService from '../../services/storage/database.js';
+import attendanceDataService from '../../services/data/attendanceDataService.js';
 import logger from '../../services/utils/logger.js';
 
 describe('EventDashboard Helper Functions', () => {
@@ -148,56 +155,60 @@ describe('EventDashboard Helper Functions', () => {
       termid: 'term-123',
     };
 
-    const mockAttendanceData = [
-      { scoutid: 1, attended: true },
-      { scoutid: 2, attended: false },
+    const mockAllAttendanceData = [
+      { scoutid: 1, eventid: 101, attended: true },
+      { scoutid: 2, eventid: 101, attended: false },
+      { scoutid: 3, eventid: 102, attended: true }, // Different event
     ];
 
-    it('should load attendance from cache only', async () => {
-      databaseService.getAttendance.mockResolvedValue(mockAttendanceData);
+    const mockEventAttendanceData = [
+      { scoutid: 1, eventid: 101, attended: true },
+      { scoutid: 2, eventid: 101, attended: false },
+    ];
+
+    it('should load attendance from attendanceDataService and filter for event', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
 
       const result = await fetchEventAttendance(mockEvent);
 
-      expect(databaseService.getAttendance).toHaveBeenCalledWith(101);
-      expect(result).toEqual(mockAttendanceData);
+      expect(attendanceDataService.getAttendanceData).toHaveBeenCalledWith(false);
+      expect(result).toEqual(mockEventAttendanceData);
     });
 
-    it('should handle array format attendance data', async () => {
-      databaseService.getAttendance.mockResolvedValue(mockAttendanceData);
+    it('should filter attendance data for specific event only', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
 
       const result = await fetchEventAttendance(mockEvent);
 
-      expect(result).toEqual(mockAttendanceData);
-    });
-
-    it('should handle object format attendance data (shared events)', async () => {
-      const objectFormatData = {
-        items: mockAttendanceData,
-        metadata: { shared: true },
-      };
-      databaseService.getAttendance.mockResolvedValue(objectFormatData);
-
-      const result = await fetchEventAttendance(mockEvent);
-
-      expect(result).toEqual(mockAttendanceData);
+      // Should only return records for eventid 101
+      expect(result).toHaveLength(2);
+      expect(result.every(record => record.eventid === 101)).toBe(true);
     });
 
     it('should handle null/undefined cache gracefully', async () => {
-      databaseService.getAttendance.mockResolvedValue(null);
+      attendanceDataService.getAttendanceData.mockResolvedValue(null);
 
       const result = await fetchEventAttendance(mockEvent);
 
       expect(result).toEqual([]);
     });
 
-    it('should handle database errors gracefully', async () => {
-      const error = new Error('Database failure');
-      databaseService.getAttendance.mockRejectedValue(error);
+    it('should handle empty cache gracefully', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue([]);
+
+      const result = await fetchEventAttendance(mockEvent);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should handle service errors gracefully', async () => {
+      const error = new Error('Service failure');
+      attendanceDataService.getAttendanceData.mockRejectedValue(error);
 
       const result = await fetchEventAttendance(mockEvent);
 
       expect(logger.error).toHaveBeenCalledWith(
-        'Error fetching attendance from cache',
+        'Error fetching attendance via attendanceDataService',
         {
           error: error.message,
           eventId: 101,
