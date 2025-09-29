@@ -3,6 +3,7 @@
 
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
+import attendanceDataService from '../services/data/attendanceDataService.js';
 
 /**
  * Fetches events for all sections from IndexedDB only
@@ -74,25 +75,39 @@ export const fetchSectionEvents = async (section) => {
 };
 
 /**
- * Fetches attendance data for a single event from IndexedDB only
- * @param {Object} event - Event object with eventid, sectionid, termid
- * @returns {Promise<Array>} Attendance data from cache or empty array
+ * Fetches attendance data for an event using attendanceDataService
+ * This ensures consistency with the attendance view and eliminates duplicate data access
+ * @param {Object} event - Event object with eventid property
+ * @returns {Promise<Array>} Array of attendance records or empty array
  */
 export const fetchEventAttendance = async (event) => {
   try {
-    // Load from IndexedDB cache only
-    const cachedAttendance = await databaseService.getAttendance(event.eventid);
+    // Use attendanceDataService as the single source of truth for attendance data
+    const allAttendanceData = await attendanceDataService.getAttendanceData(false);
 
-    // Handle both array format (regular events) and object format (shared events)
-    if (Array.isArray(cachedAttendance)) {
-      return cachedAttendance;
-    } else if (cachedAttendance && cachedAttendance.items) {
-      return cachedAttendance.items;
+    if (allAttendanceData && allAttendanceData.length > 0) {
+      // Filter to only include records for this specific event
+      const eventAttendance = allAttendanceData.filter(record => record.eventid === event.eventid);
+
+      logger.debug('Fetched attendance data via service', {
+        eventId: event.eventid,
+        eventName: event.name,
+        totalCached: allAttendanceData.length,
+        eventSpecific: eventAttendance.length,
+      }, LOG_CATEGORIES.COMPONENT);
+
+      return eventAttendance;
     }
-    return cachedAttendance || [];
+
+    logger.debug('No attendance data available in service cache', {
+      eventId: event.eventid,
+      eventName: event.name,
+    }, LOG_CATEGORIES.COMPONENT);
+
+    return [];
 
   } catch (err) {
-    logger.error('Error fetching attendance from cache', {
+    logger.error('Error fetching attendance via attendanceDataService', {
       error: err.message,
       eventId: event.eventid,
       eventName: event.name,

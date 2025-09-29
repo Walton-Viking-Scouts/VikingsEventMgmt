@@ -96,6 +96,22 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const loadEventCards = async (isRefresh = false) => {
       if (!mounted) return;
 
+      // Initialize demo mode if enabled BEFORE loading sections
+      if (!isRefresh) {
+        try {
+          const { isDemoMode, initializeDemoMode } = await import(
+            '../../../config/demoMode.js'
+          );
+          if (isDemoMode()) {
+            await initializeDemoMode();
+          }
+        } catch (demoError) {
+          logger.warn('Demo mode initialization failed', {
+            error: demoError.message,
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+      }
+
       try {
         const sectionsData = await databaseService.getSections();
         logger.debug('loadEventCards: Loaded sections', {

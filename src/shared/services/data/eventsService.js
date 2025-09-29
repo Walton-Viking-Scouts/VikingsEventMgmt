@@ -14,6 +14,7 @@ import { getEvents, fetchMostRecentTermId } from '../api/index.js';
 import { handleScoutError, isOfflineError } from '../../utils/scoutErrorHandler.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import databaseService from '../storage/database.js';
+import { UnifiedStorageService } from '../storage/unifiedStorageService.js';
 
 /**
  * Loads events for all sections
@@ -76,6 +77,7 @@ export async function loadEventsForSections(sections, token) {
           sectionName: section.sectionname,
           eventCount: events?.length || 0,
         }, LOG_CATEGORIES.DATA_SERVICE);
+
       } else {
         logger.info(`No term found for section ${section.sectionid} - skipping events loading`, {
           sectionId: section.sectionid,
@@ -108,6 +110,11 @@ export async function loadEventsForSections(sections, token) {
         error: error.message,
       }, LOG_CATEGORIES.DATA_SERVICE);
     }
+  }
+
+  // After all sections processed, detect shared events
+  if (results.length > 1) {
+    await detectAndStoreSharedEventsAcrossSections(results, token);
   }
 
   const hasErrors = errors.length > 0;
@@ -200,6 +207,89 @@ export async function loadEventsFromCache(sections) {
  */
 export function hasOfflineErrors(errors) {
   return errors.some(error => isOfflineError(error.originalError));
+}
+
+/**
+ * Detects shared events by comparing events across all sections and stores shared metadata
+ * @param {Array} results - All results array from loadEventsForSections
+ * @param {string} token - OSM authentication token
+ */
+async function detectAndStoreSharedEventsAcrossSections(results, token) {
+  try {
+    logger.debug('Starting shared event detection across sections', {
+      sectionCount: results.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+    // Create a map to group events by name and date
+    const eventGroups = new Map();
+
+    // First pass: group events by name and similar dates
+    for (const sectionResult of results) {
+      if (!sectionResult.events || sectionResult.events.length === 0) continue;
+
+      for (const event of sectionResult.events) {
+        const eventKey = `${event.name}|${event.startdate}`;
+
+        if (!eventGroups.has(eventKey)) {
+          eventGroups.set(eventKey, []);
+        }
+
+        eventGroups.get(eventKey).push({
+          ...event,
+          _sectionId: sectionResult.sectionId,
+          _sectionName: sectionResult.sectionName,
+        });
+      }
+    }
+
+    // Second pass: find groups with multiple sections (shared events)
+    for (const [eventKey, eventInstances] of eventGroups) {
+      if (eventInstances.length > 1) {
+        // This is a shared event
+        const firstEvent = eventInstances[0];
+        const allParticipatingSections = eventInstances.map(evt => ({
+          sectionid: evt._sectionId,
+          sectionname: evt._sectionName,
+          eventid: evt.eventid,
+        }));
+
+        // Store shared metadata for each instance of the event
+        for (const eventInstance of eventInstances) {
+          const sharedMetadata = {
+            _isSharedEvent: true,
+            _ownerSection: firstEvent._sectionId, // First section is considered owner
+            _sharedWithSections: allParticipatingSections.length,
+            _allSections: allParticipatingSections,
+            _detectedAt: new Date().toISOString(),
+            eventName: eventInstance.name,
+            eventDate: eventInstance.startdate,
+          };
+
+          // Store metadata using the key pattern that useSharedAttendance expects
+          const metadataKey = `viking_shared_metadata_${eventInstance.eventid}`;
+          await UnifiedStorageService.set(metadataKey, sharedMetadata);
+        }
+
+        logger.info('Detected and stored shared event metadata', {
+          eventName: firstEvent.name,
+          eventDate: firstEvent.startdate,
+          participatingSectionCount: allParticipatingSections.length,
+          participatingSections: allParticipatingSections.map(s => s.sectionname),
+          eventIds: eventInstances.map(e => e.eventid),
+        }, LOG_CATEGORIES.DATA_SERVICE);
+      }
+    }
+
+    logger.debug('Shared event detection completed', {
+      totalEventGroups: eventGroups.size,
+      sharedEventGroups: Array.from(eventGroups.values()).filter(group => group.length > 1).length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+  } catch (error) {
+    logger.warn('Failed to detect shared events across sections', {
+      error: error.message,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+  }
 }
 
 export default {
