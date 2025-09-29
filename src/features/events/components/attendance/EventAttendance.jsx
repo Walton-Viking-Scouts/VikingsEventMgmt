@@ -251,14 +251,71 @@ function EventAttendance({ events, members, onBack }) {
   }, [attendanceData, attendanceFilters, sectionFilters, membersById]);
 
   const simplifiedSummaryStatsForOverview = useMemo(() => {
-    console.log('DEBUG: attendanceData length:', attendanceData?.length || 0);
-    console.log('DEBUG: Raw attendanceData sample:', attendanceData?.slice(0, 2));
-
     const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
-    console.log('DEBUG: overviewData after filters length:', overviewData?.length || 0);
+
+    // If no attendance data but we have members, show sections with member counts but no attendance data
+    if ((!overviewData || overviewData.length === 0) && members && members.length > 0) {
+
+      const sectionMap = new Map();
+
+      // Initialize sections from unique sections
+      uniqueSections.forEach(section => {
+        if (sectionFilters[section.sectionid] !== false) {
+          sectionMap.set(section.sectionid, {
+            name: section.sectionname,
+            yes: { yp: 0, yl: 0, l: 0, total: 0 },
+            no: { yp: 0, yl: 0, l: 0, total: 0 },
+            invited: { yp: 0, yl: 0, l: 0, total: 0 },
+            notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
+            total: { yp: 0, yl: 0, l: 0, total: 0 },
+          });
+        }
+      });
+
+      // Count members by section and role
+      members.forEach(member => {
+        const section = sectionMap.get(member.sectionid);
+        if (!section) return;
+
+        const personType = member.person_type;
+        let roleType = 'l';
+        if (personType === 'Young People') {
+          roleType = 'yp';
+        } else if (personType === 'Young Leaders') {
+          roleType = 'yl';
+        } else if (personType === 'Leaders') {
+          roleType = 'l';
+        }
+
+        // Since we don't have attendance data, put all members in "notInvited"
+        section.notInvited[roleType]++;
+        section.notInvited.total++;
+        section.total[roleType]++;
+        section.total.total++;
+      });
+
+      const sections = Array.from(sectionMap.values());
+
+      const totals = sections.reduce((acc, section) => {
+        ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(category => {
+          acc[category].yp += section[category].yp;
+          acc[category].yl += section[category].yl;
+          acc[category].l += section[category].l;
+          acc[category].total += section[category].total;
+        });
+        return acc;
+      }, {
+        yes: { yp: 0, yl: 0, l: 0, total: 0 },
+        no: { yp: 0, yl: 0, l: 0, total: 0 },
+        invited: { yp: 0, yl: 0, l: 0, total: 0 },
+        notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
+        total: { yp: 0, yl: 0, l: 0, total: 0 },
+      });
+
+      return { sections, totals };
+    }
 
     if (!overviewData || overviewData.length === 0) {
-      console.log('DEBUG: No overview data available - returning empty sections');
       return { sections: [], totals: null };
     }
 
@@ -315,7 +372,6 @@ function EventAttendance({ events, members, onBack }) {
       total: { yp: 0, yl: 0, l: 0, total: 0 },
     });
 
-    console.log('DEBUG: Final overview result - sections:', sections.length, 'first section:', sections[0]);
     return { sections, totals };
   }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById]);
 

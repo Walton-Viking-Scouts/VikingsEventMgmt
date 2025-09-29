@@ -6,9 +6,6 @@ function OverviewTab({
   onResetFilters,
   uniqueSections: _uniqueSections,
 }) {
-  console.log('DEBUG OverviewTab: summaryStats sections length:', summaryStats?.sections?.length || 0);
-  console.log('DEBUG OverviewTab: summaryStats.sections:', summaryStats?.sections);
-
   if (!summaryStats || !summaryStats.sections) {
     return (
       <div className="text-center py-12">

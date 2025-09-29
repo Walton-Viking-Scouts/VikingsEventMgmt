@@ -46,9 +46,6 @@ export function useAttendanceData(events) {
       const sectionSpecificAttendanceData = [];
       const token = getToken();
 
-      console.log('DEBUG useAttendanceData: Available localStorage keys:', Object.keys(localStorage).filter(key => key.includes('attendance')));
-      
-      
       // Load attendance data for each event
       for (const event of events) {
         // Validate that event has required fields (should be included from eventDashboardHelpers)
@@ -76,18 +73,9 @@ export function useAttendanceData(events) {
         
         let attendanceResponse = null;
 
-        console.log('DEBUG useAttendanceData: Searching for attendance data for event:', {
-          eventName: event.name,
-          sectionid: event.sectionid,
-          termid: event.termid,
-          eventid: event.eventid,
-          cacheKeys
-        });
-
         for (const cacheKey of cacheKeys) {
           try {
             const cached = localStorage.getItem(cacheKey);
-            console.log(`DEBUG useAttendanceData: Checking key "${cacheKey}":`, cached ? 'FOUND' : 'NOT FOUND');
             if (cached) {
               const parsed = JSON.parse(cached);
               // Safely handle null, arrays, and objects with/without items
