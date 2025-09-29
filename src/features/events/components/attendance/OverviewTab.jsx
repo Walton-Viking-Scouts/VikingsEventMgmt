@@ -1,11 +1,14 @@
 import React from 'react';
 
-function OverviewTab({ 
+function OverviewTab({
   summaryStats,
   members,
   onResetFilters,
-  uniqueSections: _uniqueSections, 
+  uniqueSections: _uniqueSections,
 }) {
+  console.log('DEBUG OverviewTab: summaryStats sections length:', summaryStats?.sections?.length || 0);
+  console.log('DEBUG OverviewTab: summaryStats.sections:', summaryStats?.sections);
+
   if (!summaryStats || !summaryStats.sections) {
     return (
       <div className="text-center py-12">

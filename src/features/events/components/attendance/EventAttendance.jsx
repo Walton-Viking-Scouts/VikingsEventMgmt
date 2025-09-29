@@ -251,9 +251,14 @@ function EventAttendance({ events, members, onBack }) {
   }, [attendanceData, attendanceFilters, sectionFilters, membersById]);
 
   const simplifiedSummaryStatsForOverview = useMemo(() => {
+    console.log('DEBUG: attendanceData length:', attendanceData?.length || 0);
+    console.log('DEBUG: Raw attendanceData sample:', attendanceData?.slice(0, 2));
+
     const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
+    console.log('DEBUG: overviewData after filters length:', overviewData?.length || 0);
 
     if (!overviewData || overviewData.length === 0) {
+      console.log('DEBUG: No overview data available - returning empty sections');
       return { sections: [], totals: null };
     }
 
@@ -310,6 +315,7 @@ function EventAttendance({ events, members, onBack }) {
       total: { yp: 0, yl: 0, l: 0, total: 0 },
     });
 
+    console.log('DEBUG: Final overview result - sections:', sections.length, 'first section:', sections[0]);
     return { sections, totals };
   }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById]);
 
