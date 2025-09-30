@@ -156,16 +156,24 @@ function formatMessage(template, ...args) {
 // Console output with styling for development
 function outputToConsole(entry) {
   if (!isDevelopment) return;
-  
+
+  // Only show warnings, errors, and fatal logs - skip debug/info/trace for simplicity
+  if (
+    ![
+      LOG_LEVELS.WARN,
+      LOG_LEVELS.ERROR,
+      LOG_LEVELS.FATAL,
+    ].includes(entry.level)
+  ) {
+    return;
+  }
+
   const styles = {
-    [LOG_LEVELS.TRACE]: 'color: #gray',
-    [LOG_LEVELS.DEBUG]: 'color: #blue', 
-    [LOG_LEVELS.INFO]: 'color: #green',
     [LOG_LEVELS.WARN]: 'color: #orange',
     [LOG_LEVELS.ERROR]: 'color: #red',
     [LOG_LEVELS.FATAL]: 'color: #red; font-weight: bold',
   };
-  
+
   const categoryEmojis = {
     [LOG_CATEGORIES.APP]: '🏠',
     [LOG_CATEGORIES.API]: '🌐',
@@ -179,11 +187,10 @@ function outputToConsole(entry) {
     [LOG_CATEGORIES.HOOK]: '🪝',
     [LOG_CATEGORIES.ERROR]: '❌',
   };
-  
+
   const emoji = categoryEmojis[entry.category] || '📝';
   const style = styles[entry.level] || '';
-  
-  // Simple console log - no detailed object logging to prevent data leakage
+
   console.log(`%c${emoji} [${entry.level.toUpperCase()}] ${entry.message}`, style);
 }
 

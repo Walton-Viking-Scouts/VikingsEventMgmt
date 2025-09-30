@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
+import { getSharedEventAttendance } from '../../../shared/services/api/api/events.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';

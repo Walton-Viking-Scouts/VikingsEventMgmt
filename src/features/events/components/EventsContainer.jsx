@@ -20,7 +20,7 @@ function EventsContainer() {
         const sectionsInvolved = Array.from(
           new Set(events.map((e) => e.sectionid)),
         );
-        
+
         membersData = await databaseService.getMembers(sectionsInvolved);
 
         // If no cached members found, show warning

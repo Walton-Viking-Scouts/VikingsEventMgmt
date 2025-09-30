@@ -12,7 +12,6 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { useAuth } from '../../auth/hooks/useAuth.js';
 
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
@@ -39,9 +38,8 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
             sectionsCount: sections.length,
           }, LOG_CATEGORIES.APP);
           
-          // Use token if available for shared event detection, otherwise cache-only mode
-          const currentToken = getToken();
-          const cards = await buildEventCards(sections, currentToken);
+          // UI is cache-only - no API calls
+          const cards = await buildEventCards(sections);
           setEventCards(cards);
           
           logger.debug('Event cards built successfully', {
@@ -63,13 +61,12 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     buildEventCardsFromCache();
   }, [location.state, lastSyncTime]);
 
-  // Build event cards function - copied from EventDashboard
-  const buildEventCards = async (sectionsData, token = null) => {
+  // Build event cards function - cache-only mode
+  const buildEventCards = async (sectionsData) => {
     logger.debug(
-      'buildEventCards called',
+      'buildEventCards called - cache-only mode',
       {
         sectionCount: sectionsData?.length || 0,
-        mode: token ? 'API' : 'CACHE',
       },
       LOG_CATEGORIES.COMPONENT,
     );
@@ -77,22 +74,19 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch events for all sections with optimized terms loading
-    const allEvents = await fetchAllSectionEvents(sectionsData, token);
+    // Fetch events for all sections from IndexedDB only
+    const allEvents = await fetchAllSectionEvents(sectionsData);
 
     // Filter for future events and events from last week
-    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
+    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo, now);
 
-    // Fetch attendance data for filtered events (with shared event checking)
+    // Fetch attendance data for filtered events from IndexedDB only (parallel execution)
     const attendanceMap = new Map();
-    for (const event of filteredEvents) {
+    const attendancePromises = filteredEvents.map(async (event) => {
       try {
-        const attendanceData = await fetchEventAttendance(
-          event,
-          token,
-        );
+        const attendanceData = await fetchEventAttendance(event);
         if (attendanceData) {
-          attendanceMap.set(event.eventid, attendanceData);
+          return { eventId: event.eventid, data: attendanceData };
         }
       } catch (err) {
         logger.error(
@@ -105,7 +99,15 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
           LOG_CATEGORIES.COMPONENT,
         );
       }
-    }
+      return null;
+    });
+
+    const attendanceResults = await Promise.all(attendancePromises);
+    attendanceResults.forEach(result => {
+      if (result) {
+        attendanceMap.set(result.eventId, result.data);
+      }
+    });
 
     // Expand shared events to include all sections
     const expandedEvents = expandSharedEvents(filteredEvents, attendanceMap);

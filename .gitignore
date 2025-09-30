@@ -79,13 +79,15 @@ dev-debug.log
 # Environment variables
 # OS specific
 
-# Task files
-tasks.json
-tasks/ 
-
 # Real OSM data examples
 api_examples/
 
 # JSDoc generated documentation
 docs/api/
 docs/jsdoc-validation.json
+
+# keep .vscode/* ignore with explicit allow-list above
+
+# Task files
+# tasks.json
+# tasks/ 

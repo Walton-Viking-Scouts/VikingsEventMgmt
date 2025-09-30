@@ -1,72 +1,114 @@
 ---
-title: "SQLite Database Schema Documentation"
-description: "Complete database schema for offline data storage in the mobile application"
+title: "Database Schema Documentation"
+description: "Complete database schema for the new 3-service architecture"
 created: "2025-09-06"
-last_updated: "2025-09-06"
-version: "1.0.0"
-tags: ["database", "schema", "sqlite", "reference"]
-related_docs: ["../architecture/data-management.md", "../features/offline-capabilities/"]
+last_updated: "2025-01-22"
+version: "2.0.0"
+tags: ["database", "schema", "sqlite", "reference", "three-service-architecture"]
+related_docs: ["../architecture/data-management.md", "../architecture/simplified-sync-architecture.md"]
 ---
 
-# SQLite Database Schema Documentation
+# Database Schema Documentation
 
-This document describes the SQLite database schema used by the Vikings Event Management mobile app for offline data storage.
+**Updated for New Three-Service Architecture**
+
+This document describes the database schema and storage patterns used by the Vikings Event Management mobile app's new simplified architecture.
 
 ## 📋 Overview
 
 - **Database Name**: `vikings_db`
-- **Current Version**: 1
+- **Current Version**: 2
 - **Platform**: Capacitor SQLite (native) with localStorage fallback (web)
 - **Encryption**: None (`"no-encryption"`)
-- **Architecture**: Offline-first with background sync
+- **Architecture**: Three-service model with session-based caching
+- **New Pattern**: Service-specific storage responsibilities
 
-## 🗄️ Database Schema
+## 🗄️ Service-Specific Storage Pattern
 
-### Table: `sections`
-Stores Scout sections that the user has access to.
+### Storage Responsibility by Service
 
-```sql
-CREATE TABLE IF NOT EXISTS sections (
-  sectionid INTEGER PRIMARY KEY,
-  sectionname TEXT NOT NULL,
-  sectiontype TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+```javascript
+// Reference Data Service - localStorage (session-based)
+const REFERENCE_DATA_STORAGE = {
+  terms: 'viking_terms_offline',
+  userRoles: 'viking_user_roles_offline',
+  startupData: 'viking_startup_data_offline',
+  members: 'viking_members_offline',
+  flexiRecords: 'viking_flexi_records_offline'
+};
+
+// Events Service - SQLite + localStorage fallback
+const EVENTS_STORAGE = {
+  native: 'events table in SQLite',
+  web: 'viking_events_{sectionId}_offline'
+};
+
+// EventSyncService - SQLite + localStorage fallback
+const ATTENDANCE_STORAGE = {
+  native: 'attendance table in SQLite',
+  web: 'viking_attendance_{eventId}_offline'
+};
 ```
 
-**Columns:**
-- `sectionid` - Unique identifier from OSM API (Primary Key)
-- `sectionname` - Display name of the section (NOT NULL)
-- `sectiontype` - Type/category of section (e.g., "Beavers", "Cubs", "Scouts")
-- `created_at` - Record creation timestamp
-- `updated_at` - Record update timestamp
+## 🗄️ Database Schema (SQLite Native)
 
-**Relationships:** Referenced by `events.sectionid`
+### Reference Data (localStorage Only)
+
+**Managed by Reference Data Service** - No SQLite tables needed, stored in localStorage with session-based caching:
+
+```javascript
+// Terms data (static for session)
+localStorage.setItem('viking_terms_offline', JSON.stringify(termsData));
+
+// User roles/sections (static for session)
+localStorage.setItem('viking_user_roles_offline', JSON.stringify(userRoles));
+
+// Startup data (static for session)
+localStorage.setItem('viking_startup_data_offline', JSON.stringify(startupData));
+
+// Members data (static for session)
+localStorage.setItem('viking_members_offline', JSON.stringify(membersData));
+
+// FlexiRecord metadata (static for session)
+localStorage.setItem('viking_flexi_records_offline', JSON.stringify(flexiRecords));
+```
+
+**Data Structure Example:**
+```javascript
+const userRoles = [
+  {
+    sectionid: 12345,
+    sectionname: "1st Example Scout Group",
+    sectiontype: "scouts",
+    isDefault: true
+  }
+];
+```
 
 ---
 
 ### Table: `events`
-Stores events for each section.
+**Managed by Events Service** - Event definitions (not attendance data).
 
 ```sql
 CREATE TABLE IF NOT EXISTS events (
   eventid INTEGER PRIMARY KEY,
-  sectionid INTEGER,
+  sectionid INTEGER NOT NULL,
+  termid INTEGER,
   name TEXT NOT NULL,
   startdate TEXT,
   enddate TEXT,
   location TEXT,
   notes TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (sectionid) REFERENCES sections (sectionid)
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 **Columns:**
 - `eventid` - Unique identifier from OSM API (Primary Key)
-- `sectionid` - References `sections.sectionid` (Foreign Key)
+- `sectionid` - Section identifier (NOTE: No FK constraint - sections in localStorage)
+- `termid` - Term identifier for the event
 - `name` - Event name (NOT NULL)
 - `startdate` - Event start date (TEXT format: YYYY-MM-DD)
 - `enddate` - Event end date (TEXT format: YYYY-MM-DD)
@@ -75,19 +117,20 @@ CREATE TABLE IF NOT EXISTS events (
 - `created_at` - Record creation timestamp
 - `updated_at` - Record update timestamp
 
-**Relationships:** 
-- References `sections.sectionid`
+**Service Integration:**
+- Managed by Events Service
 - Referenced by `attendance.eventid`
+- Section data comes from Reference Data Service (localStorage)
 
 ---
 
 ### Table: `attendance`
-Stores attendance records for events.
+**Managed by EventSyncService** - Real-time attendance data.
 
 ```sql
 CREATE TABLE IF NOT EXISTS attendance (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  eventid INTEGER,
+  eventid INTEGER NOT NULL,
   scoutid INTEGER,
   firstname TEXT,
   lastname TEXT,
@@ -112,104 +155,179 @@ CREATE TABLE IF NOT EXISTS attendance (
 - `created_at` - Record creation timestamp
 - `updated_at` - Record update timestamp
 
-**Relationships:** References `events.eventid`
+**Service Integration:**
+- Managed by EventSyncService (only service that refreshes during session)
+- References events from Events Service
+- Member data comes from Reference Data Service (localStorage)
 
 ---
 
-### Table: `sync_status`
-Tracks synchronization status for offline/online data management.
+### Table: `flexi_data` (NEW)
+**Managed by EventSyncService** - FlexiRecord member data (camp groups, sign-in/out).
 
 ```sql
-CREATE TABLE IF NOT EXISTS sync_status (
-  table_name TEXT PRIMARY KEY,
-  last_sync DATETIME,
-  needs_sync INTEGER DEFAULT 0
+CREATE TABLE IF NOT EXISTS flexi_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  eventid INTEGER NOT NULL,
+  scoutid INTEGER,
+  camp_group TEXT,
+  signed_in_by TEXT,
+  signed_in_when TEXT,
+  signed_out_by TEXT,
+  signed_out_when TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (eventid) REFERENCES events (eventid)
 );
 ```
 
 **Columns:**
-- `table_name` - Name of the table being tracked (Primary Key)
-- `last_sync` - Timestamp of last successful sync
-- `needs_sync` - Boolean flag (0/1) indicating if sync is needed
+- `id` - Internal unique identifier (Auto-increment Primary Key)
+- `eventid` - References `events.eventid` (Foreign Key)
+- `scoutid` - Scout's unique identifier from OSM
+- `camp_group` - Transformed from FlexiRecord f_1 field
+- `signed_in_by` - Transformed from FlexiRecord f_2 field
+- `signed_in_when` - Transformed from FlexiRecord f_3 field
+- `signed_out_by` - Transformed from FlexiRecord f_4 field
+- `signed_out_when` - Transformed from FlexiRecord f_5 field
+- `created_at` - Record creation timestamp
+- `updated_at` - Record update timestamp
 
-**Usage:** Used by sync service to track when each table was last synchronized with the server.
+**Service Integration:**
+- Managed by EventSyncService (dynamic data)
+- FlexiRecord metadata comes from Reference Data Service
+- Transforms OSM generic fields (f_1, f_2, etc.) to meaningful names
 
-## 🔄 Data Flow & Relationships
+## 🔄 Data Flow & Service Relationships
 
 ```
-sections (1) -----> (N) events
-                        |
-                        v
-                    (N) attendance
-
-sync_status --------> tracks all tables
+Reference Data Service (localStorage)
+    |
+    ├── userRoles/sections ──┐
+    ├── terms               │
+    ├── startupData         │
+    ├── members             │
+    └── flexiRecords        │
+                            │
+                            ▼
+Events Service (SQLite)     │
+    └── events ─────────────┘
+            |
+            ▼
+EventSyncService (SQLite)
+    ├── attendance
+    └── flexi_data
 ```
 
-**Relationship Details:**
-- One section can have many events
-- One event can have many attendance records
-- Sync status tracks synchronization state for each table
+**Service Relationship Details:**
+- **Reference Data Service**: Provides static data for entire session
+- **Events Service**: Uses section data from Reference Data Service
+- **EventSyncService**: Uses event data from Events Service
+- **No direct database relationships** between services - data flows through service interfaces
 
 ## 📱 Platform Implementation
 
 ### Native Platforms (iOS/Android)
-- Uses `@capacitor-community/sqlite` plugin
-- Persistent SQLite database file
-- Full SQL feature support
-- Transaction capabilities
+- **SQLite**: Events and attendance data via `@capacitor-community/sqlite` plugin
+- **localStorage**: Reference data (session-based)
+- Full SQL feature support for events and attendance
+- Transaction capabilities for data integrity
 
 ### Web Browser Fallback
-- Uses localStorage with JSON serialization
-- Storage keys:
-  - `viking_sections_offline` - Sections data
-  - `viking_events_{sectionId}_offline` - Events per section  
-  - `viking_attendance_{eventId}_offline` - Attendance per event
-- Limited to localStorage size constraints
-
-## 🚀 Migration System (Recommended)
-
-### Current State: No Migration System
-The current implementation has no versioning or migration system. Here's a recommended migration framework:
-
-### Proposed Migration Structure
+- **localStorage**: All data stored as JSON
+- **Storage Keys by Service:**
 
 ```javascript
-// Database migrations
-const migrations = {
+// Reference Data Service (session-based)
+const REFERENCE_KEYS = {
+  terms: 'viking_terms_offline',
+  userRoles: 'viking_user_roles_offline',
+  startupData: 'viking_startup_data_offline',
+  members: 'viking_members_offline',
+  flexiRecords: 'viking_flexi_records_offline'
+};
+
+// Events Service (until manual refresh)
+const EVENT_KEYS = {
+  events: 'viking_events_{sectionId}_offline'
+};
+
+// EventSyncService (can refresh during session)
+const ATTENDANCE_KEYS = {
+  attendance: 'viking_attendance_{eventId}_offline',
+  flexiData: 'viking_flexi_data_{eventId}_offline'
+};
+```
+
+- Limited to localStorage size constraints (~5-10MB typically)
+
+## 🚀 Service Migration Considerations
+
+### New Architecture Migration Completed
+The three-service architecture has been implemented with the following migration considerations:
+
+### Service-Specific Migration Strategy
+
+```javascript
+// Reference Data Service - No migration needed
+// Uses localStorage with session-based lifecycle
+const referenceDataMigration = {
+  // Data is loaded fresh at each login
+  // No persistent storage migration required
+};
+
+// Events Service - Standard SQLite migration
+const eventsMigration = {
   1: async (db) => {
-    // Initial schema creation (current implementation)
-    await createInitialSchema(db);
+    // Initial events table creation
+    await createEventsTable(db);
   },
   2: async (db) => {
-    // Add indexes for performance
-    await addPerformanceIndexes(db);
+    // Add termid column for better event management
+    await addTermIdColumn(db);
+  }
+};
+
+// EventSyncService - Enhanced with FlexiRecord data
+const attendanceMigration = {
+  1: async (db) => {
+    // Initial attendance table
+    await createAttendanceTable(db);
   },
-  3: async (db) => {
-    // Convert date columns to proper DATE type
-    await migrateDateColumns(db);
+  2: async (db) => {
+    // Add flexi_data table for camp groups
+    await createFlexiDataTable(db);
   }
 };
 ```
 
-### Migration Implementation
+### Service-Based Data Loading
 
 ```javascript
-class DatabaseMigrator {
-  async migrate(db, targetVersion) {
-    const currentVersion = await this.getCurrentVersion(db);
-    
-    for (let version = currentVersion + 1; version <= targetVersion; version++) {
-      if (migrations[version]) {
-        await db.execute('BEGIN TRANSACTION');
-        try {
-          await migrations[version](db);
-          await this.setVersion(db, version);
-          await db.execute('COMMIT');
-        } catch (error) {
-          await db.execute('ROLLBACK');
-          throw error;
-        }
-      }
+// NEW: Service-based data loading pattern
+class DataLoadingOrchestrator {
+  async initializeAllServices(token) {
+    try {
+      // 1. Reference Data - Load once at login
+      const referenceResults = await referenceDataService.loadInitialReferenceData(token);
+
+      // 2. Events - Load definitions separately
+      const eventsResults = await eventsService.loadEventsForSections(
+        referenceResults.results.userRoles,
+        token
+      );
+
+      // 3. Attendance - Manual refresh only during session
+      // eventSyncService.syncAllEventAttendance() called by user action
+
+      return {
+        reference: referenceResults,
+        events: eventsResults,
+        // attendance loaded on demand
+      };
+    } catch (error) {
+      logger.error('Service initialization failed', { error: error.message });
+      throw error;
     }
   }
 }
@@ -217,48 +335,78 @@ class DatabaseMigrator {
 
 ## 🔧 Performance Optimizations
 
-### Recommended Indexes
+### Service-Optimized Indexes
 
 ```sql
--- Performance indexes for common queries
+-- Events Service indexes
 CREATE INDEX IF NOT EXISTS idx_events_sectionid ON events(sectionid);
+CREATE INDEX IF NOT EXISTS idx_events_termid ON events(termid);
 CREATE INDEX IF NOT EXISTS idx_events_startdate ON events(startdate);
+
+-- EventSyncService indexes
 CREATE INDEX IF NOT EXISTS idx_attendance_eventid ON attendance(eventid);
 CREATE INDEX IF NOT EXISTS idx_attendance_scoutid ON attendance(scoutid);
 CREATE INDEX IF NOT EXISTS idx_attendance_lastname ON attendance(lastname);
+
+-- FlexiRecord data indexes
+CREATE INDEX IF NOT EXISTS idx_flexi_data_eventid ON flexi_data(eventid);
+CREATE INDEX IF NOT EXISTS idx_flexi_data_scoutid ON flexi_data(scoutid);
+CREATE INDEX IF NOT EXISTS idx_flexi_data_camp_group ON flexi_data(camp_group);
 ```
 
-### Query Optimization
+### Service-Specific Query Patterns
 
-**Current Queries (Examples):**
 ```sql
--- Get events for a section (sorted by start date)
+-- Events Service queries
 SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC;
+SELECT * FROM events WHERE termid = ? ORDER BY startdate DESC;
 
--- Get attendance for an event (sorted by name)
+-- EventSyncService queries
 SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname;
+SELECT * FROM flexi_data WHERE eventid = ? ORDER BY camp_group, scoutid;
 
--- Get sections (sorted by name)
-SELECT * FROM sections ORDER BY sectionname;
+-- Combined attendance and camp group data
+SELECT
+  a.*,
+  f.camp_group,
+  f.signed_in_by,
+  f.signed_in_when
+FROM attendance a
+LEFT JOIN flexi_data f ON a.eventid = f.eventid AND a.scoutid = f.scoutid
+WHERE a.eventid = ?
+ORDER BY a.lastname, a.firstname;
 ```
 
-## 🐛 Current Limitations & Issues
+```javascript
+// Reference Data Service queries (localStorage)
+const getUserRoles = () => {
+  return JSON.parse(localStorage.getItem('viking_user_roles_offline') || '[]');
+};
 
-### Schema Design Issues
-- ❌ **No Indexes**: Missing performance indexes on foreign keys
-- ❌ **Text Dates**: Dates stored as TEXT instead of DATE/DATETIME
-- ❌ **Missing Constraints**: No unique constraints or data validation
-- ❌ **No Cascading**: Foreign keys don't specify CASCADE behavior
+const getMembers = () => {
+  return JSON.parse(localStorage.getItem('viking_members_offline') || '[]');
+};
+```
 
-### Version Management
-- ❌ **No Migration System**: No schema versioning framework
-- ❌ **Hardcoded Version**: Database version hardcoded to 1
-- ❌ **No Upgrade Path**: No mechanism for schema changes
+## 🎯 New Architecture Benefits
 
-### Transaction Management  
-- ❌ **No Transactions**: Bulk operations not wrapped in transactions
-- ❌ **Replace Pattern**: Uses DELETE + INSERT instead of UPSERT
-- ❌ **No Rollback**: No rollback mechanism for failed operations
+### Service Separation Benefits
+- ✅ **Clear Responsibilities**: Each service owns specific data types
+- ✅ **No Service Conflicts**: Eliminated duplicate API calls between services
+- ✅ **Simple Storage Patterns**: localStorage for static, SQLite for dynamic
+- ✅ **Independent Testing**: Each service can be tested in isolation
+
+### Performance Improvements
+- ✅ **Session-Based Caching**: Reference data loaded once at login
+- ✅ **Reduced API Calls**: Eliminated 10x get-startup-data duplication
+- ✅ **Cache-Only UI**: Components never wait for API calls
+- ✅ **Manual Refresh Control**: Scout leaders control when data updates
+
+### Data Consistency
+- ✅ **Single Source of Truth**: Each data type owned by one service
+- ✅ **Clear Data Flow**: Reference → Events → Attendance
+- ✅ **No Sync Conflicts**: Services don't duplicate each other's work
+- ✅ **Isolated Failures**: One service failing doesn't break others
 
 ## 🎯 Recommended Improvements
 
@@ -322,25 +470,46 @@ async saveAttendanceRecords(eventId, records) {
 }
 ```
 
-## 📊 Data Management Patterns
+## 📊 Service-Based Data Management
 
-### Offline-First Strategy
-1. **Local Storage**: All data stored locally first
-2. **Background Sync**: Syncs with server when online
-3. **Conflict Resolution**: Server data takes precedence
-4. **Graceful Degradation**: App functions offline
+### Session-Based Strategy
+1. **Reference Data**: Load once at login, cache for entire session
+2. **Events Data**: Load separately, cache until manual refresh
+3. **Attendance Data**: Only service that refreshes during session
+4. **Cache-Only UI**: All components read from cache, never API
 
-### Sync Process
-1. **Network Detection**: Monitor connection status
-2. **Hierarchical Sync**: Sections → Events → Attendance
-3. **Error Handling**: Continue with other data if one fails
-4. **Status Tracking**: Real-time sync notifications
+### Service Loading Process
+1. **Login Trigger**: Reference Data Service loads static data
+2. **Navigation Trigger**: Events Service loads event definitions
+3. **User Trigger**: EventSyncService refreshes attendance on demand
+4. **Manual Control**: Scout leaders control all refresh operations
 
-### Data Lifecycle
-1. **Initial Load**: Fetch from server and cache locally
-2. **Updates**: Server changes sync to local database
-3. **Offline Changes**: Store locally, sync when online
-4. **Cleanup**: No automatic cleanup implemented (opportunity for improvement)
+### Data Lifecycle by Service
+```javascript
+// Reference Data Service
+const referenceLifecycle = {
+  load: 'Once at login',
+  refresh: 'Never during session',
+  cache: 'Entire session',
+  storage: 'localStorage only'
+};
+
+// Events Service
+const eventsLifecycle = {
+  load: 'Separate from login',
+  refresh: 'Manual by user',
+  cache: 'Until manual refresh',
+  storage: 'SQLite + localStorage fallback'
+};
+
+// EventSyncService
+const attendanceLifecycle = {
+  load: 'On demand',
+  refresh: 'Manual during session',
+  cache: 'Until next refresh',
+  storage: 'SQLite + localStorage fallback'
+};
+```
 
 ## 🔍 Debugging & Maintenance
 
@@ -366,5 +535,9 @@ const syncStatus = await db.query('SELECT * FROM sync_status');
 
 - [Capacitor SQLite Plugin](https://github.com/capacitor-community/sqlite)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
-- [Database Service Implementation](../src/services/database.js)
-- [Sync Service Implementation](../src/services/sync.js)
+- [Three-Service Architecture Documentation](../architecture/simplified-sync-architecture.md)
+- [Data Management Architecture](../architecture/data-management.md)
+- [Reference Data Service](../src/shared/services/referenceData/referenceDataService.js)
+- [Events Service](../src/shared/services/data/eventsService.js)
+- [EventSyncService](../src/shared/services/data/eventSyncService.js)
+- [Database Service](../src/shared/services/storage/database.js)

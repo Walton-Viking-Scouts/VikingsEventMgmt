@@ -57,13 +57,16 @@ export async function getEvents(sectionId, termId, token) {
       // Online and allowed – validate now
       validateTokenBeforeAPICall(token, 'getEvents');
       
-      const response = await fetch(`${BACKEND_URL}/get-events?sectionid=${sectionId}&termid=${termId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const response = await fetch(
+        `${BACKEND_URL}/get-events?sectionid=${encodeURIComponent(sectionId)}&termid=${encodeURIComponent(termId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       return await handleAPIResponseWithRateLimit(response, 'getEvents');
     });
@@ -76,10 +79,18 @@ export async function getEvents(sectionId, termId, token) {
       return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
     });
 
-    // Save to local database when online (even if empty to cache the result)
-    await databaseService.saveEvents(sectionId, filteredEvents);
+    // CRITICAL FIX: Add termid to each event for consistent database storage
+    // Web storage needs termid field for attendance sync validation, but API response doesn't include it
+    const eventsWithTermId = filteredEvents.map((event) => ({
+      ...event,
+      termid: event.termid ?? termId ?? null,
+      sectionid: event.sectionid ?? sectionId ?? null,
+    }));
 
-    return filteredEvents;
+    // Save to local database when online (even if empty to cache the result)
+    await databaseService.saveEvents(sectionId, eventsWithTermId);
+
+    return eventsWithTermId;
 
   } catch (error) {
     logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);

@@ -1,210 +1,88 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEventAttendance } from '../../../shared/services/api/api.js';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { isDemoMode } from '../../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
 
 /**
  * Custom hook for loading and managing attendance data
- * 
+ *
  * @param {Array} events - Array of event data
+ * @param {number} refreshTrigger - Optional trigger to force reload
  * @returns {Object} Hook state and functions
  */
-export function useAttendanceData(events) {
+export function useAttendanceData(events, refreshTrigger = 0) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [vikingEventData, setVikingEventData] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load attendance data when events change
+  // Load attendance data when events change or refresh is triggered
   useEffect(() => {
     loadAttendance();
-  }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [events, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Skip API calls in demo mode - only use cached data
-      if (isDemoMode()) {
-        logger.debug('Demo mode: Skipping API calls, using cached attendance only', {}, LOG_CATEGORIES.COMPONENT);
-      }
-      
-      // Validate event data integrity
-      const hasInvalidEvents = events.some(event => !event.sectionid || event.termid === null || event.termid === undefined);
-      if (events.length > 0 && hasInvalidEvents) {
-        if (import.meta.env.DEV) {
-          console.error('🚫 Invalid events detected:', events.filter(event => !event.sectionid || event.termid === null || event.termid === undefined));
-        }
-        setError('Invalid event data detected. Please refresh the page to reload.');
-        return;
-      }
-      
-      const allAttendance = [];
-      const sectionSpecificAttendanceData = [];
-      const token = getToken();
-      
-      
-      // Load attendance data for each event
-      for (const event of events) {
-        // Validate that event has required fields (should be included from eventDashboardHelpers)
-        if (!event.sectionid || !event.termid || !event.eventid) {
-          if (import.meta.env.DEV) {
-            console.warn('Event missing required fields:', {
-              name: event.name,
-              sectionid: event.sectionid,
-              termid: event.termid,
-              eventid: event.eventid,
-              availableKeys: Object.keys(event),
-            });
-          }
-          continue; // Skip this event
-        }
-        
-        // Check if we have cached attendance data for this specific event
-        // Try multiple cache key formats for backward compatibility
-        const demoMode = isDemoMode();
-        const prefix = demoMode ? 'demo_' : '';
-        const cacheKeys = [
-          `${prefix}viking_attendance_${event.sectionid}_${event.termid}_${event.eventid}_offline`, // API format with demo prefix
-          `viking_attendance_${event.eventid}_offline`, // Database service format
-        ];
-        
-        let attendanceResponse = null;
-        
-        for (const cacheKey of cacheKeys) {
-          try {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              // Safely handle null, arrays, and objects with/without items
-              const attendanceItems = Array.isArray(parsed) ? parsed : 
-                (parsed && Array.isArray(parsed.items) ? parsed.items : []);
-              attendanceResponse = { items: attendanceItems };
-              if (import.meta.env.DEV) {
-                console.log(`Found cached attendance for event ${event.name} with key ${cacheKey}:`, attendanceItems.length, 'records');
-              }
-              break; // Found data, stop trying other keys
-            }
-          } catch (error) {
-            if (import.meta.env.DEV) {
-              console.warn(`Failed to parse cached attendance data for key ${cacheKey}:`, error);
-            }
-          }
-        }
-        
-        if (!attendanceResponse && token && !isDemoMode()) {
-          // Fallback to API call if no cached data (skip in demo mode)
-          try {
-            const attendanceItems = await getEventAttendance(
-              event.sectionid, 
-              event.eventid, 
-              event.termid,
-              token,
-            );
-            
-            attendanceResponse = { items: attendanceItems || [] };
-          } catch (eventError) {
-            if (import.meta.env.DEV) {
-              console.warn(`Error loading attendance for event ${event.name}:`, eventError);
-            }
-            attendanceResponse = { items: [] };
-          }
-        }
-        
-        if (attendanceResponse && attendanceResponse.items) {
-          // Add event info to each attendance record
-          const attendanceWithEvent = attendanceResponse.items.map(record => ({
-            ...record,
-            eventid: event.eventid,
-            eventname: event.name,
-            eventdate: event.startdate,
-            sectionid: event.sectionid,
-            sectionname: event.sectionname,
-          }));
-          
-          // Store section-specific data for potential shared event merging
-          sectionSpecificAttendanceData.push({
-            ...attendanceResponse,
-            items: attendanceWithEvent,
-            eventId: event.eventid,
-            sectionId: event.sectionid,
-          });
-          
-          allAttendance.push(...attendanceWithEvent);
-        }
-      }
-      
-      // Process attendance data for events
-      if (sectionSpecificAttendanceData.length > 0) {
-        await processAttendanceData(
-          sectionSpecificAttendanceData, 
-          allAttendance,
-          events,
-        );
+
+      // Use attendanceDataService as the single source of truth
+      // This ensures consistency with dashboard and eliminates duplicate API calls
+      logger.info('Loading attendance data via attendanceDataService', {
+        eventCount: events.length,
+        eventIds: events.map(e => e.eventid),
+      }, LOG_CATEGORIES.COMPONENT);
+
+      const allAttendanceData = await attendanceDataService.getAttendanceData(false);
+
+      if (allAttendanceData && allAttendanceData.length > 0) {
+        // Filter to only include events we're interested in
+        const eventIds = new Set(events.map(e => String(e.eventid)));
+        const relevantAttendance = allAttendanceData.filter(record => eventIds.has(String(record.eventid)));
+
+        logger.info('Filtered attendance data for current events', {
+          totalCached: allAttendanceData.length,
+          relevantRecords: relevantAttendance.length,
+          eventIds: Array.from(eventIds),
+        }, LOG_CATEGORIES.COMPONENT);
+
+        setAttendanceData(relevantAttendance);
       } else {
-        setAttendanceData(allAttendance);
+        // No cached data available - force refresh from API
+        logger.info('No cached attendance data found, forcing refresh', {}, LOG_CATEGORIES.COMPONENT);
+
+        const refreshedData = await attendanceDataService.getAttendanceData(true);
+
+        if (refreshedData && refreshedData.length > 0) {
+          const eventIds = new Set(events.map(e => String(e.eventid)));
+          const relevantAttendance = refreshedData.filter(record => eventIds.has(String(record.eventid)));
+
+          logger.info('Loaded fresh attendance data', {
+            totalFresh: refreshedData.length,
+            relevantRecords: relevantAttendance.length,
+          }, LOG_CATEGORIES.COMPONENT);
+
+          setAttendanceData(relevantAttendance);
+        } else {
+          setAttendanceData([]);
+        }
       }
-      
+
       // Load Viking Event Management data (fresh when possible, cache as fallback)
       await loadVikingEventData();
-      
+
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error('Error loading attendance:', err);
-      }
+      logger.error('Error loading attendance via attendanceDataService', {
+        error: err.message,
+        eventCount: events.length,
+      }, LOG_CATEGORIES.COMPONENT);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Process attendance data for events
-  const processAttendanceData = async (
-    sectionSpecificAttendanceData, 
-    allAttendance,
-    events,
-  ) => {
-    try {
-      // Group attendance data by event ID
-      const eventAttendanceMap = new Map();
-      sectionSpecificAttendanceData.forEach(data => {
-        if (!eventAttendanceMap.has(data.eventId)) {
-          eventAttendanceMap.set(data.eventId, []);
-        }
-        eventAttendanceMap.get(data.eventId).push(data);
-      });
-      
-      const finalAttendanceData = [];
-      
-      // Process each unique event
-      for (const [eventId, eventAttendanceDataArray] of eventAttendanceMap.entries()) {
-        const eventData = events.find(e => e.eventid === eventId);
-        if (!eventData) continue;
-        
-        // Process event attendance data (shared events are handled in eventDashboardHelpers)
-        const sectionAttendees = eventAttendanceDataArray.flatMap(data => data.items || []);
-        finalAttendanceData.push(...sectionAttendees);
-      }
-      
-      logger.info('Attendance data processing completed', {
-        totalAttendees: finalAttendanceData.length,
-        originalCount: allAttendance.length,
-      }, LOG_CATEGORIES.COMPONENT);
-      
-      setAttendanceData(finalAttendanceData);
-      
-    } catch (error) {
-      logger.error('Error in shared event merging, using original data', {
-        error: error.message,
-      }, LOG_CATEGORIES.COMPONENT);
-      
-      // Fallback to original attendance data
-      setAttendanceData(allAttendance);
-    }
-  };
 
   // Load Viking Event Management flexirecord data (fresh preferred, cache fallback)
   const loadVikingEventData = async () => {
@@ -314,3 +192,5 @@ export function useAttendanceData(events) {
     getVikingEventDataForMember,
   };
 }
+
+export default useAttendanceData;

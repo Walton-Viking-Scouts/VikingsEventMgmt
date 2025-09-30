@@ -49,6 +49,13 @@ function DataClearPage() {
       clearToken(); // tokenService removes all token-related keys
       // If there are other session keys to clear, remove them selectively here
 
+      // Dispatch custom event to notify auth system of logout
+      // This works in the same window/tab (storage events only fire in other tabs)
+      const authClearEvent = new window.CustomEvent('auth:clear', {
+        detail: { source: 'data_clear' },
+      });
+      window.dispatchEvent(authClearEvent);
+
       logger.info('All application data cleared successfully', {
         clearedIndexedDBStores: clearedStores,
         clearedLocalStorageKeys: keysToRemove.length,

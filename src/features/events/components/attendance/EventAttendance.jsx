@@ -11,6 +11,7 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
+import attendanceDataService from '../../../../shared/services/data/attendanceDataService.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
@@ -34,13 +35,15 @@ const hasSignInData = (vikingEventData) => {
 };
 
 function EventAttendance({ events, members, onBack }) {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const {
     attendanceData,
     vikingEventData,
     loading,
     error,
     loadVikingEventData,
-  } = useAttendanceData(events);
+  } = useAttendanceData(events, refreshTrigger);
 
 
 
@@ -79,6 +82,8 @@ function EventAttendance({ events, members, onBack }) {
 
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearingSignInData, setClearingSignInData] = useState(false);
+  const [refreshingAttendance, setRefreshingAttendance] = useState(false);
+  const [lastAttendanceRefresh, setLastAttendanceRefresh] = useState(null);
 
   const [sectionFilters, setSectionFilters] = useState(() => {
     const filters = {};
@@ -491,6 +496,52 @@ function EventAttendance({ events, members, onBack }) {
     }
   };
 
+  // Manual attendance refresh handler following Task 2 SimpleAttendanceViewer pattern
+  const handleRefreshAttendance = async () => {
+    if (refreshingAttendance) return;
+
+    try {
+      setRefreshingAttendance(true);
+
+      logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
+
+      // Use AttendanceDataService to refresh attendance data
+      const refreshedData = await attendanceDataService.getAttendanceData(true);
+
+      // Update last refresh time
+      setLastAttendanceRefresh(attendanceDataService.getLastFetchTime());
+
+      logger.info('Attendance data refreshed successfully', {
+        recordCount: refreshedData.length,
+      }, LOG_CATEGORIES.COMPONENT);
+
+      notifySuccess(`Refreshed attendance data - ${refreshedData.length} records loaded`);
+
+      // Reload Viking Event data to get the latest sign-in/out information
+      if (loadVikingEventData) {
+        try {
+          await loadVikingEventData();
+        } catch (vikingError) {
+          logger.warn('Failed to refresh Viking Event data after attendance refresh', {
+            error: vikingError.message,
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+      }
+
+      // Force re-render by triggering useAttendanceData hook
+      setRefreshTrigger(prev => prev + 1);
+
+    } catch (error) {
+      logger.error('Manual attendance refresh failed', {
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+
+      notifyError(`Failed to refresh attendance: ${error.message}`);
+    } finally {
+      setRefreshingAttendance(false);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading attendance data..." />;
   }
@@ -532,6 +583,9 @@ function EventAttendance({ events, members, onBack }) {
           onSort={setSortConfig}
           onClearSignInData={handleClearSignInData}
           clearSignInDataLoading={clearingSignInData}
+          onRefreshAttendance={handleRefreshAttendance}
+          refreshAttendanceLoading={refreshingAttendance}
+          lastRefreshTime={lastAttendanceRefresh}
         />
       );
       
@@ -677,9 +731,12 @@ function EventAttendance({ events, members, onBack }) {
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <AttendanceHeader 
+          <AttendanceHeader
             events={events}
             onBack={onBack}
+            onRefresh={handleRefreshAttendance}
+            canRefresh={true}
+            refreshLoading={refreshingAttendance}
           />
 
           <div className="p-4">

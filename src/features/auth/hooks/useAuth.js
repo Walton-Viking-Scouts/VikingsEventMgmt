@@ -6,6 +6,7 @@ import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 
 // Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
@@ -58,7 +59,8 @@ export function useAuth() {
       const hasValidToken = authService.isAuthenticated(); // This checks if token is valid (not expired)
       
       // Check if user was previously authenticated (has stored user info)
-      const hasPreviousAuth = !!authService.getUserInfo();
+      const userInfo = await authService.getUserInfo();
+      const hasPreviousAuth = !!userInfo;
       
       if (isAuth && hasValidToken && !tokenExpired) {
         return 'authenticated';
@@ -264,25 +266,37 @@ export function useAuth() {
           });
         }
         
-        // Try to get fresh user info from API after successful OAuth
+        // Load all data after successful OAuth (non-blocking)
         try {
-          const userInfo = await authService.fetchUserInfoFromAPI();
-          if (userInfo) {
-            authService.setUserInfo(userInfo);
-            logger.info('User info fetched from API after OAuth', { userFirstname: userInfo.firstname }, LOG_CATEGORIES.AUTH);
-          }
-        } catch (userError) {
-          logger.warn('Could not fetch fresh user info after OAuth, will use cached data if available', { error: userError?.message }, LOG_CATEGORIES.AUTH);
-        }
+          logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
 
-        // Trigger dashboard data sync after successful OAuth (fast)
-        try {
-          const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-          logger.info('Starting dashboard data sync after successful OAuth', {}, LOG_CATEGORIES.AUTH);
-          await syncService.syncDashboardData();
-          logger.info('Dashboard data sync completed after OAuth', {}, LOG_CATEGORIES.AUTH);
-        } catch (syncError) {
-          logger.warn('Could not sync dashboard data after OAuth, using cached data', { error: syncError?.message }, LOG_CATEGORIES.AUTH);
+          const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken);
+
+          if (allDataResults.success) {
+            logger.info('Comprehensive data load completed', {
+              summary: allDataResults.summary,
+            }, LOG_CATEGORIES.AUTH);
+          } else {
+            logger.warn('Comprehensive data load had issues', {
+              summary: allDataResults.summary,
+              hasErrors: allDataResults.hasErrors,
+            }, LOG_CATEGORIES.AUTH);
+          }
+
+          // Show user message only if critical errors exist
+          if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
+            const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
+            const referenceData = allDataResults?.results?.reference ?? allDataResults;
+            const userMessage = getLoadingResultMessage(referenceData);
+            if (userMessage) {
+              const { notifyWarning } = await import('../../../shared/utils/notifications.js');
+              notifyWarning(userMessage);
+            }
+          }
+        } catch (dataLoadError) {
+          logger.warn('Could not load application data after OAuth', {
+            error: dataLoadError?.message,
+          }, LOG_CATEGORIES.AUTH);
         }
       }
       // Check if blocked first
@@ -307,7 +321,10 @@ export function useAuth() {
       if (hasValidToken) {
         // Valid token - normal authenticated state
         setIsAuthenticated(true);
-        const userInfo = authService.getUserInfo();
+        const userInfo = await authService.getUserInfo();
+        if (import.meta.env.DEV) {
+          logger.debug('useAuth: Valid token - setting user info', { hasUserInfo: !!userInfo }, LOG_CATEGORIES.AUTH);
+        }
         setUser(userInfo);
         setIsOfflineMode(false);
         
@@ -323,6 +340,8 @@ export function useAuth() {
             isOfflineMode: false,
           },
         });
+
+
       } else if (hasStoredToken && tokenExpired) {
         try {
           const cachedSections = await databaseService.getSections();
@@ -330,7 +349,10 @@ export function useAuth() {
           if (hasCached) {
             // Expired token but we have cached data - offline mode
             setIsAuthenticated(true); // Keep authenticated for UI purposes
-            const userInfo = authService.getUserInfo();
+            const userInfo = await authService.getUserInfo();
+            if (import.meta.env.DEV) {
+              logger.debug('useAuth: Offline mode - setting user info', { hasUserInfo: !!userInfo }, LOG_CATEGORIES.AUTH);
+            }
             setUser(userInfo);
             setIsOfflineMode(true);
             
@@ -449,51 +471,26 @@ export function useAuth() {
       }
     };
 
+    // Listen for custom auth clear events (from data clear page or other components)
+    const handleAuthClear = async (e) => {
+      if (!mounted) return;
+      logger.info('Auth clear event received', {
+        source: e.detail?.source || 'unknown',
+      }, LOG_CATEGORIES.AUTH);
+
+      // Execute logout logic directly
+      await logout();
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth:clear', handleAuthClear);
     return () => {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth:clear', handleAuthClear);
     };
-  }, [checkAuth]);
+  }, [checkAuth, logout]);
 
-  // Listen for sync completion to update lastSyncTime
-  useEffect(() => {
-    let cleanupFn = null;
-    
-    const handleSyncComplete = async (syncStatus) => {
-      if (syncStatus.status === 'completed') {
-        // Use the timestamp from sync status, or get from storage as fallback
-        const timestamp = syncStatus.timestamp || await UnifiedStorageService.getLastSync();
-        setLastSyncTime(timestamp);
-        logger.debug('Updated lastSyncTime after sync completion', { timestamp }, LOG_CATEGORIES.AUTH);
-      }
-    };
-
-    // Import and setup sync listener
-    const setupSyncListener = async () => {
-      try {
-        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-        syncService.addSyncListener(handleSyncComplete);
-        
-        return () => {
-          syncService.removeSyncListener(handleSyncComplete);
-        };
-      } catch (error) {
-        logger.error('Failed to setup sync listener in useAuth', { error: error.message }, LOG_CATEGORIES.ERROR);
-        return null;
-      }
-    };
-
-    setupSyncListener().then((cleanup) => {
-      cleanupFn = cleanup;
-    });
-
-    return () => {
-      if (cleanupFn) {
-        cleanupFn();
-      }
-    };
-  }, []);
 
   // Helper function to check cached data and show expiration dialog
   const checkAndShowExpirationDialog = useCallback(async () => {
@@ -590,7 +587,7 @@ export function useAuth() {
       setIsOfflineMode(true);
       // Mirror offline branch in checkAuth
       setIsAuthenticated(true);
-      const userInfo = authService.getUserInfo();
+      const userInfo = await authService.getUserInfo();
       setUser(userInfo);
       
       logger.info('Switched to offline mode per user choice', { 

@@ -1,3 +1,13 @@
+---
+title: "Directory Structure"
+description: "Feature-based architecture organization for maintainability and scalability"
+created: "2025-09-10"
+last_updated: "2025-09-30"
+version: "1.0.0"
+tags: ["architecture", "organization", "structure"]
+related_docs: ["system-design.md"]
+---
+
 # Directory Structure
 
 **Feature-Based Architecture for Viking Event Management**
@@ -251,6 +261,6 @@ The following ESLint rules enforce directory boundaries:
 
 ---
 
-**Last Updated**: September 2024  
+**Last Updated**: 30 September 2025  
 **Maintained By**: Development Team  
 **Review Schedule**: Monthly architecture reviews

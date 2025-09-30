@@ -1,4 +1,4 @@
-import { updateFlexiRecord, multiUpdateFlexiRecord } from '../../../shared/services/api/api.js';
+import { updateFlexiRecord, multiUpdateFlexiRecord } from '../../../shared/services/api/api/flexiRecords.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { isDemoMode } from '../../../config/demoMode.js';

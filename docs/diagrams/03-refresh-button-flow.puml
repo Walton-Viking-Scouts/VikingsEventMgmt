@@ -1,0 +1,107 @@
+@startuml Refresh Button Flow
+!theme plain
+title Refresh Button - Data Synchronization Flow
+
+actor "Scout Leader" as User
+participant "EventDashboard\nComponent" as Dashboard
+participant "EventSync\nService" as SyncSvc
+participant "OSM API" as OSM
+database "SQLite/IndexedDB" as DB
+database "localStorage" as LocalStore
+
+== User Clicks Refresh Button ==
+User -> Dashboard: Click refresh button
+activate Dashboard
+Dashboard -> Dashboard: Set loading state\nsetIsRefreshing(true)
+Dashboard -> SyncSvc: doSync(forceRefresh=true)
+activate SyncSvc
+
+note right of SyncSvc: Only EventSyncService\nmakes API calls during refresh\nReference Data & Events use cache
+
+== Step 1: Get Cached Events ==
+SyncSvc -> DB: getEvents()
+activate DB
+DB --> SyncSvc: Cached events list
+deactivate DB
+
+note right of SyncSvc: No API call to re-fetch events\nUse existing cached event definitions
+
+== Step 2: Sync Regular Attendance (Batched) ==
+note right of SyncSvc: Batch API calls to respect\nOSM rate limits (100 req/min)
+
+SyncSvc -> SyncSvc: syncEventsBatched(events, token)
+loop For each event in batch
+    SyncSvc -> OSM: getEventAttendance(section, event, term, token)
+    activate OSM
+    OSM --> SyncSvc: Latest attendance data
+    deactivate OSM
+
+    SyncSvc -> DB: saveAttendance(eventId, attendance)
+    activate DB
+    DB --> SyncSvc: Updated
+    deactivate DB
+
+    note right of SyncSvc: 200ms delay between requests\nto prevent rate limiting
+    SyncSvc -> SyncSvc: sleep(200ms)
+end
+
+note right of SyncSvc: API call count: ~5-20\n(one per event)
+
+== Step 3: Sync Shared Event Attendance ==
+SyncSvc -> SyncSvc: syncSharedAttendance(events, token)
+
+loop For each event
+    SyncSvc -> LocalStore: Get viking_shared_metadata_${eventid}
+    activate LocalStore
+    LocalStore --> SyncSvc: Check if shared event
+    deactivate LocalStore
+
+    alt Is Shared Event (multi-section)
+        note right of SyncSvc: Event like JOTI/Group Camp\nwith 8+ participating sections
+
+        SyncSvc -> OSM: getSharedEventAttendance(eventId, section, token)
+        activate OSM
+        OSM --> SyncSvc: Shared attendance\nfrom all sections
+        deactivate OSM
+
+        SyncSvc -> LocalStore: Update cache\nviking_shared_attendance_${eventid}_${sectionid}_offline
+        activate LocalStore
+        LocalStore --> SyncSvc: Cached
+        deactivate LocalStore
+
+        note right of SyncSvc: API call count: +1-3\n(one per shared event)
+    else Regular Event
+        note right of SyncSvc: Skip - already synced\nin Step 2
+    end
+end
+
+== Sync Complete ==
+SyncSvc --> Dashboard: ✅ Sync complete\n{apiCallCount, successCount, errorCount}
+deactivate SyncSvc
+
+Dashboard -> Dashboard: setIsRefreshing(false)
+Dashboard -> DB: Reload events from cache
+activate DB
+DB --> Dashboard: Updated events with fresh attendance
+deactivate DB
+
+Dashboard -> Dashboard: Re-render with new data
+Dashboard --> User: Show updated attendance\n+ success notification
+
+note right of User: Total API calls: 5-25\nDepends on: number of events\nand shared events present
+
+== If Sync Fails ==
+alt Network Error
+    SyncSvc -> Dashboard: ❌ Sync failed (offline)
+    Dashboard --> User: Show error notification\n"Unable to refresh - offline"
+    Dashboard -> Dashboard: Continue showing cached data
+else API Rate Limited
+    SyncSvc -> Dashboard: ⚠️ Partial sync (rate limited)
+    Dashboard --> User: Show warning\n"Some data may be stale"
+else Auth Failed
+    SyncSvc -> Dashboard: ❌ Auth error (401/403)
+    Dashboard -> Dashboard: authHandler.handleAPIResponse()
+    Dashboard --> User: Show "Session Expired" dialog
+end
+
+@enduml

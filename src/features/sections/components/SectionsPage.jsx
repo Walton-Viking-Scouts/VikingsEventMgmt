@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { SectionsList } from '../components';
+import { RefreshButton } from '../../../shared/components/ui';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
+import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function SectionsPage() {
   const navigate = useNavigate();
@@ -13,34 +16,91 @@ function SectionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingSection] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(null);
 
   const handleNavigateToSectionMovements = () => {
     navigate('/movers');
   };
 
-  // Load sections data on component mount
-  useEffect(() => {
-    const loadSections = async () => {
-      try {
+  // Load sections data function (reusable for refresh)
+  const loadSections = async (isRefresh = false) => {
+    try {
+      if (!isRefresh) {
         setLoading(true);
-        setError(null);
-        
-        const sectionsData = await databaseService.getSections();
-        setSections(sectionsData || []);
-        
-        logger.debug('Sections loaded from cache', {
-          sectionsCount: sectionsData?.length || 0,
-        }, LOG_CATEGORIES.APP);
-      } catch (err) {
-        logger.error('Failed to load sections from cache', { error: err.message }, LOG_CATEGORIES.ERROR);
+      }
+      setError(null);
+
+      const sectionsData = await databaseService.getSections();
+      setSections(sectionsData || []);
+
+      logger.debug('Sections loaded from cache', {
+        sectionsCount: sectionsData?.length || 0,
+        isRefresh,
+      }, LOG_CATEGORIES.APP);
+
+      return { success: true, count: sectionsData?.length || 0 };
+    } catch (err) {
+      logger.error('Failed to load sections from cache', {
+        error: err.message,
+        isRefresh,
+      }, LOG_CATEGORIES.ERROR);
+
+      if (!isRefresh) {
         setError(err.message);
         setSections([]);
-      } finally {
+      }
+
+      return { success: false, error: err.message };
+    } finally {
+      if (!isRefresh) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    loadSections();
+  // Manual refresh handler following Task 2 SimpleAttendanceViewer pattern
+  const handleManualRefresh = async () => {
+    if (refreshing) return;
+
+    try {
+      setRefreshing(true);
+
+      logger.info('Manual sections refresh initiated', {}, LOG_CATEGORIES.COMPONENT);
+
+      const result = await loadSections(true);
+
+      if (result.success) {
+        setLastRefresh(new Date());
+        notifySuccess(`Refreshed sections data - ${result.count} sections loaded`);
+
+        logger.info('Sections refresh completed successfully', {
+          sectionsCount: result.count,
+        }, LOG_CATEGORIES.COMPONENT);
+      } else {
+        notifyError(`Failed to refresh sections: ${result.error}`);
+
+        logger.error('Manual sections refresh failed', {
+          error: result.error,
+        }, LOG_CATEGORIES.ERROR);
+      }
+
+    } catch (error) {
+      logger.error('Manual sections refresh failed', {
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+
+      notifyError(`Refresh failed: ${error.message}`);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Format last refresh time following SimpleAttendanceViewer pattern
+
+  // Load sections data on component mount
+  useEffect(() => {
+    loadSections(false);
   }, []);
 
   // Handle section selection
@@ -86,10 +146,25 @@ function SectionsPage() {
       {/* Sections Content */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Sections</h2>
-          <p className="text-gray-600 mt-1">
-            View and manage section information and member data
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Sections</h2>
+              <p className="text-gray-600 mt-1">
+                View and manage section information and member data
+              </p>
+            </div>
+            <RefreshButton
+              onRefresh={handleManualRefresh}
+              loading={refreshing}
+              size="default"
+            />
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Last refreshed: {formatLastRefresh(lastRefresh)}
+            {sections.length > 0 && (
+              <span> • {sections.length} sections</span>
+            )}
+          </div>
         </div>
 
         {sections.length === 0 ? (
