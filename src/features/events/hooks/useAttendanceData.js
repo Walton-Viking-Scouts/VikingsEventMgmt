@@ -6,20 +6,21 @@ import attendanceDataService from '../../../shared/services/data/attendanceDataS
 
 /**
  * Custom hook for loading and managing attendance data
- * 
+ *
  * @param {Array} events - Array of event data
+ * @param {number} refreshTrigger - Optional trigger to force reload
  * @returns {Object} Hook state and functions
  */
-export function useAttendanceData(events) {
+export function useAttendanceData(events, refreshTrigger = 0) {
   const [attendanceData, setAttendanceData] = useState([]);
   const [vikingEventData, setVikingEventData] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load attendance data when events change
+  // Load attendance data when events change or refresh is triggered
   useEffect(() => {
     loadAttendance();
-  }, [events]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [events, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {

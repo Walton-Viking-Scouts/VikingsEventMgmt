@@ -35,13 +35,15 @@ const hasSignInData = (vikingEventData) => {
 };
 
 function EventAttendance({ events, members, onBack }) {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const {
     attendanceData,
     vikingEventData,
     loading,
     error,
     loadVikingEventData,
-  } = useAttendanceData(events);
+  } = useAttendanceData(events, refreshTrigger);
 
 
 
@@ -525,6 +527,9 @@ function EventAttendance({ events, members, onBack }) {
           }, LOG_CATEGORIES.COMPONENT);
         }
       }
+
+      // Force re-render by triggering useAttendanceData hook
+      setRefreshTrigger(prev => prev + 1);
 
     } catch (error) {
       logger.error('Manual attendance refresh failed', {
