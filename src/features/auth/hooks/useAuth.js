@@ -286,7 +286,8 @@ export function useAuth() {
           // Show user message only if critical errors exist
           if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
             const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
-            const userMessage = getLoadingResultMessage(allDataResults.results.reference || allDataResults);
+            const referenceData = allDataResults?.results?.reference ?? allDataResults;
+            const userMessage = getLoadingResultMessage(referenceData);
             if (userMessage) {
               const { notifyWarning } = await import('../../../shared/utils/notifications.js');
               notifyWarning(userMessage);
