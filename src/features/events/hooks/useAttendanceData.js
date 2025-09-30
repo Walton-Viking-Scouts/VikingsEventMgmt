@@ -38,8 +38,8 @@ export function useAttendanceData(events, refreshTrigger = 0) {
 
       if (allAttendanceData && allAttendanceData.length > 0) {
         // Filter to only include events we're interested in
-        const eventIds = new Set(events.map(e => e.eventid));
-        const relevantAttendance = allAttendanceData.filter(record => eventIds.has(record.eventid));
+        const eventIds = new Set(events.map(e => String(e.eventid)));
+        const relevantAttendance = allAttendanceData.filter(record => eventIds.has(String(record.eventid)));
 
         logger.info('Filtered attendance data for current events', {
           totalCached: allAttendanceData.length,
@@ -55,8 +55,8 @@ export function useAttendanceData(events, refreshTrigger = 0) {
         const refreshedData = await attendanceDataService.getAttendanceData(true);
 
         if (refreshedData && refreshedData.length > 0) {
-          const eventIds = new Set(events.map(e => e.eventid));
-          const relevantAttendance = refreshedData.filter(record => eventIds.has(record.eventid));
+          const eventIds = new Set(events.map(e => String(e.eventid)));
+          const relevantAttendance = refreshedData.filter(record => eventIds.has(String(record.eventid)));
 
           logger.info('Loaded fresh attendance data', {
             totalFresh: refreshedData.length,
@@ -192,3 +192,5 @@ export function useAttendanceData(events, refreshTrigger = 0) {
     getVikingEventDataForMember,
   };
 }
+
+export default useAttendanceData;
