@@ -4,7 +4,6 @@ function OverviewTab({
   summaryStats,
   members,
   onResetFilters,
-  uniqueSections: _uniqueSections,
 }) {
   if (!summaryStats || !summaryStats.sections) {
     return (

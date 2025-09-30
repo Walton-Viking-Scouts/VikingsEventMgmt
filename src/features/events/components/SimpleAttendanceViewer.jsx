@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
 import Alert from '../../../shared/components/ui/Alert.jsx';
 import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
+import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function SimpleAttendanceViewer() {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -39,23 +40,6 @@ function SimpleAttendanceViewer() {
   useEffect(() => {
     loadAttendance(false);
   }, []);
-
-  const formatLastRefresh = () => {
-    if (!lastRefreshTime) return 'Never';
-    const now = new Date();
-    const refreshTime = new Date(lastRefreshTime);
-    const diffMinutes = Math.floor((now - refreshTime) / (1000 * 60));
-
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes === 1) return '1 minute ago';
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours === 1) return '1 hour ago';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-
-    return refreshTime.toLocaleDateString();
-  };
 
   const groupedByEvent = attendanceData.reduce((acc, record) => {
     const eventKey = `${record.eventid}-${record.eventname}`;
@@ -108,7 +92,7 @@ function SimpleAttendanceViewer() {
             </div>
 
             <div className="mt-2 text-xs text-gray-500">
-              Last refreshed: {formatLastRefresh()}
+              Last refreshed: {formatLastRefresh(lastRefreshTime)}
               {attendanceData.length > 0 && (
                 <span> • {attendanceData.length} records</span>
               )}

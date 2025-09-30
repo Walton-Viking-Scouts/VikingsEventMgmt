@@ -46,7 +46,7 @@ Complete data loading sequence after successful login:
 - `getListOfMembers()` - Member lists for all sections
 - `getFlexiRecords()` - FlexiRecord lists and structures
 
-**Storage:** localStorage (session cache)
+**Storage:** IndexedDB (UnifiedStorageService)
 **API Calls:** 5
 
 #### Phase 2: Events Service
@@ -54,14 +54,14 @@ Complete data loading sequence after successful login:
 - `getEvents()` - Event definitions per section
 - `detectAndStoreSharedEventsAcrossSections()` - Multi-section event detection
 
-**Storage:** SQLite/IndexedDB + localStorage (shared metadata)
+**Storage:** IndexedDB (events + shared metadata)
 **API Calls:** 2-6 (depending on number of sections)
 
 #### Phase 3: EventSync Service
 - `getEventAttendance()` - Regular attendance per event (batched)
 - `getSharedEventAttendance()` - Multi-section event attendance
 
-**Storage:** SQLite/IndexedDB + localStorage (shared attendance)
+**Storage:** IndexedDB (attendance + shared attendance)
 **API Calls:** 5-20 (depending on number of events)
 
 **Total API Calls:** 12-31 calls at login
@@ -102,10 +102,10 @@ User clicks the blue refresh button on event dashboard:
 User clicks an event card to view attendance:
 
 #### Data Loading (All from Cache):
-1. **Regular Attendance** - From SQLite/IndexedDB
-2. **Shared Event Check** - From localStorage metadata
-3. **Shared Attendance** - From localStorage (if shared event)
-4. **Camp Groups** - From localStorage FlexiRecord data
+1. **Regular Attendance** - From IndexedDB
+2. **Shared Event Check** - From IndexedDB metadata
+3. **Shared Attendance** - From IndexedDB (if shared event)
+4. **Camp Groups** - From IndexedDB FlexiRecord data
 
 **API Calls:** 0 (100% cache-only)
 **Load Time:** <100ms (instant)
@@ -129,9 +129,9 @@ User presses F5 or reloads the page:
 
 #### Session Preservation:
 - ✅ **Token** - Survives in sessionStorage
-- ✅ **Reference Data** - Loaded from localStorage cache
-- ✅ **Events** - Loaded from SQLite/IndexedDB cache
-- ✅ **Attendance** - Loaded from cache (last synced)
+- ✅ **Reference Data** - Loaded from IndexedDB cache
+- ✅ **Events** - Loaded from IndexedDB cache
+- ✅ **Attendance** - Loaded from IndexedDB cache (last synced)
 
 **API Calls:** 0 (everything from cache)
 **Load Time:** <1 second

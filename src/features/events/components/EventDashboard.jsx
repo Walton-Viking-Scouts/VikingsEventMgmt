@@ -21,6 +21,7 @@ import {
 } from '../../../shared/utils/eventDashboardHelpers.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useAuth(); // Initialize auth hook
@@ -383,22 +384,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   };
 
   // Format last refresh time following SimpleAttendanceViewer pattern
-  const formatLastRefresh = () => {
-    if (!lastSync) return 'Never';
-    const now = new Date();
-    const refreshTime = new Date(lastSync);
-    const diffMinutes = Math.floor((now - refreshTime) / (1000 * 60));
-
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes === 1) return '1 minute ago';
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours === 1) return '1 hour ago';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-
-    return refreshTime.toLocaleDateString();
-  };
 
 
 
@@ -760,7 +745,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 />
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                Last refreshed: {formatLastRefresh()}
+                Last refreshed: {formatLastRefresh(lastSync)}
                 {eventCards.length > 0 && (
                   <span> • {eventCards.length} events</span>
                 )}

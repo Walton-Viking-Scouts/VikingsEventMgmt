@@ -261,6 +261,6 @@ The following ESLint rules enforce directory boundaries:
 
 ---
 
-**Last Updated**: September 2024  
+**Last Updated**: 30 September 2025  
 **Maintained By**: Development Team  
 **Review Schedule**: Monthly architecture reviews

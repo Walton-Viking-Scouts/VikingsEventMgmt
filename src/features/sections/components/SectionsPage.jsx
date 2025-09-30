@@ -7,6 +7,7 @@ import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function SectionsPage() {
   const navigate = useNavigate();
@@ -90,22 +91,6 @@ function SectionsPage() {
   };
 
   // Format last refresh time following SimpleAttendanceViewer pattern
-  const formatLastRefresh = () => {
-    if (!lastRefresh) return 'Never';
-    const now = new Date();
-    const refreshTime = new Date(lastRefresh);
-    const diffMinutes = Math.floor((now - refreshTime) / (1000 * 60));
-
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes === 1) return '1 minute ago';
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours === 1) return '1 hour ago';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-
-    return refreshTime.toLocaleDateString();
-  };
 
   // Load sections data on component mount
   useEffect(() => {
@@ -169,7 +154,7 @@ function SectionsPage() {
             />
           </div>
           <div className="mt-2 text-xs text-gray-500">
-            Last refreshed: {formatLastRefresh()}
+            Last refreshed: {formatLastRefresh(lastRefresh)}
             {sections.length > 0 && (
               <span> • {sections.length} sections</span>
             )}

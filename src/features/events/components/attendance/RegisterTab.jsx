@@ -3,6 +3,7 @@ import SignInOutButton from '../SignInOutButton.jsx';
 import { RefreshButton } from '../../../../shared/components/ui';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
+import { formatLastRefresh } from '../../../../shared/utils/timeFormatting.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -73,23 +74,6 @@ function RegisterTab({
     onSort({ key, direction });
   };
 
-  // Format last refresh time following SimpleAttendanceViewer pattern
-  const formatLastRefresh = () => {
-    if (!lastRefreshTime) return 'Never';
-    const now = new Date();
-    const refreshTime = new Date(lastRefreshTime);
-    const diffMinutes = Math.floor((now - refreshTime) / (1000 * 60));
-
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes === 1) return '1 minute ago';
-    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours === 1) return '1 hour ago';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-
-    return refreshTime.toLocaleDateString();
-  };
 
   // Filter for Young People only (register is primarily for Young People)
   const youngPeople = summaryStats.filter(member => member.person_type === 'Young People');
@@ -150,7 +134,7 @@ function RegisterTab({
             </RefreshButton>
           </div>
           <div className="mt-2 text-xs text-gray-500">
-            Last refreshed: {formatLastRefresh()}
+            Last refreshed: {formatLastRefresh(lastRefreshTime)}
             {youngPeople.length > 0 && (
               <span> • {youngPeople.length} members</span>
             )}

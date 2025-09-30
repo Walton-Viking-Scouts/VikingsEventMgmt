@@ -8,8 +8,8 @@ participant "Reference Data\nService" as RefData
 participant "Events\nService" as EventsSvc
 participant "EventSync\nService" as SyncSvc
 participant "OSM API" as OSM
-database "IndexedDB\n(UnifiedStorageService)" as Storage
-database "IndexedDB\n(CURRENT_ACTIVE_TERMS)" as TermsDB
+database "IndexedDB\n(Key-Value Store)" as Storage
+database "IndexedDB\n(Structured Tables)" as TableDB
 
 == After Successful OAuth Authentication ==
 User -> Frontend: Login successful\n(token received)
@@ -29,10 +29,10 @@ RefData -> Storage: Cache terms (viking_terms_offline)
 activate Storage
 Storage --> RefData: Cached
 deactivate Storage
-RefData -> TermsDB: Store per-section term IDs\n(CURRENT_ACTIVE_TERMS table)
-activate TermsDB
-TermsDB --> RefData: Stored
-deactivate TermsDB
+RefData -> TableDB: Store per-section term IDs\n(CURRENT_ACTIVE_TERMS table)
+activate TableDB
+TableDB --> RefData: Stored
+deactivate TableDB
 
 RefData -> OSM: getUserRoles(token)
 activate OSM
@@ -105,11 +105,11 @@ activate EventsSvc
 note right of EventsSvc: Event definitions change weekly\nNo API calls after initial load
 
 loop For each section
-    EventsSvc -> TermsDB: getCurrentActiveTerm(section.sectionid)
-    activate TermsDB
+    EventsSvc -> TableDB: getCurrentActiveTerm(section.sectionid)
+    activate TableDB
     note right of EventsSvc: Use cached term IDs\nNo API call needed!
-    TermsDB --> EventsSvc: termId (from CURRENT_ACTIVE_TERMS)
-    deactivate TermsDB
+    TableDB --> EventsSvc: termId (from CURRENT_ACTIVE_TERMS)
+    deactivate TableDB
 
     EventsSvc -> OSM: getEvents(section, termId, token)
     activate OSM
