@@ -86,7 +86,7 @@ api_examples/
 docs/api/
 docs/jsdoc-validation.json
 
-.vscode
+# keep .vscode/* ignore with explicit allow-list above
 
 # Task files
 # tasks.json

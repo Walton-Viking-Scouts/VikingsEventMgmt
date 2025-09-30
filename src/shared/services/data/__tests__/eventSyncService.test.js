@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import eventSyncService from '../eventSyncService.js';
-import * as api from '../../api/api.js';
+import * as api from '../../api/api/events.js';
 import * as tokenService from '../../auth/tokenService.js';
 import databaseService from '../../storage/database.js';
 
-vi.mock('../../api/api.js');
+vi.mock('../../api/api/events.js');
 vi.mock('../../auth/tokenService.js');
 vi.mock('../../storage/database.js');
 

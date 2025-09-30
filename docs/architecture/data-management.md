@@ -1,283 +1,560 @@
+---
+title: "Data Management Architecture"
+description: "Simplified session-based architecture with three data services for reliable offline access"
+created: "2025-09-06"
+last_updated: "2025-09-30"
+version: "2.0.0"
+tags: ["architecture", "data-management", "sync", "offline", "shared-events"]
+related_docs: ["system-design.md", "authentication.md"]
+---
+
 # Data Management Architecture
-**Three-Tier Caching with FlexiRecord Integration**
+**Simplified Session-Based Architecture with Three Data Services**
 
 ## Purpose
-Efficient data management system that provides reliable offline access while respecting OSM API rate limits and maintaining data consistency.
+Clean, maintainable data management system that provides reliable offline access while respecting OSM API rate limits. Implements a session-based approach where static data is loaded once at login and cached for the entire session.
 
-## Three-Tier Data Strategy
+## New Three-Service Architecture
+
+Data is classified by how frequently it changes during a user session:
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SIMPLIFIED DATA SERVICES                    │
+└─────────────────────────────────────────────────────────────────┘
+
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   OSM API       │    │   Local Cache   │    │   Offline DB    │
-│ (Authoritative) │◄──►│ (Performance)   │◄──►│  (Persistence)  │
+│  Reference Data │    │  Events Service │    │ EventSyncService│
+│    Service      │    │                 │    │                 │
 │                 │    │                 │    │                 │
-│ • Live Data     │    │ • localStorage  │    │ • SQLite        │
-│ • Rate Limited  │    │ • TTL Management│    │ • Structured    │
-│ • Requires Auth │    │ • Fast Access   │    │ • Offline First │
+│ • Static Data   │    │ • Event Defs    │    │ • Attendance    │
+│ • Load Once     │    │ • Weekly Change │    │ • Shared Events │
+│ • Session Cache │    │ • Cache Only    │    │ • Real-time     │
+│ • No Refresh    │    │ • No API calls  │    │ • Only Service  │
+│                 │    │                 │    │   That Syncs    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
+     ↓ Login              ↓ Separate Load       ↓ During Session
+     OSM API              OSM API              OSM API
 ```
 
-## Caching Strategy
+## Session-Based Data Strategy
 
-### Current TTL Configuration
+### Data Classification by Change Frequency During Session
 ```javascript
-const CACHE_DURATIONS = {
-  terms: 30 * 60 * 1000,        // 30 minutes (moderate change frequency)
-  sections: 24 * 60 * 60 * 1000, // 24 hours (rarely change)
-  events: 5 * 60 * 1000,         // 5 minutes (can change frequently)
-  attendance: 2 * 60 * 1000,     // 2 minutes (real-time updates)
-  flexiStructure: 60 * 60 * 1000, // 60 minutes (structure definitions)
-  flexiData: 5 * 60 * 1000       // 5 minutes (member data changes)
+// STATIC DATA (Reference Data Service)
+// Loaded once at login, cached for entire session
+const REFERENCE_DATA = {
+  terms: 'Never changes during session',
+  userRoles: 'Never changes during session',
+  startupData: 'Never changes during session',
+  members: 'Never changes during session',
+  flexiRecords: {
+    lists: 'Never changes during session',
+    structures: 'Never changes during session'
+  }
+};
+
+// MODERATELY DYNAMIC DATA (Events Service)
+// Changes weekly, separate loading service
+const EVENTS_DATA = {
+  eventDefinitions: 'Weekly changes, cached for session'
+};
+
+// HIGHLY DYNAMIC DATA (EventSyncService)
+// Can change during session, only service that refreshes
+const ATTENDANCE_DATA = {
+  attendance: 'Real-time updates during session',
+  sharedAttendance: 'Real-time updates for multi-section events during session'
 };
 ```
 
-### Context-Aware Cache Access
+### Cache-Only Access Pattern
 ```javascript
-// Smart Cache Strategy
-const getCachedData = (key, isOnline, authState) => {
+// NEW: All UI components are cache-only
+// No API calls from UI - only from dedicated loading services
+
+const getCachedData = (key) => {
+  // Simple cache access - no TTL checks, no API calls
   const cached = safeGetItem(key);
-  if (!cached) return null;
-  
-  // Always use cache when offline
-  if (!isOnline) return cached;
-  
-  // Always use cache when not authenticated
-  if (authState !== 'authenticated') return cached;
-  
-  // Check TTL only when online + authenticated
-  const cacheAge = Date.now() - cached._cacheTimestamp;
-  const ttl = CACHE_DURATIONS[getCacheType(key)];
-  
-  return cacheAge < ttl ? cached : null;
+  return cached || null;
+};
+
+// Data loading happens in dedicated services
+const loadDataViaService = async (dataType) => {
+  switch (dataType) {
+    case 'reference':
+      return await referenceDataService.loadInitialReferenceData(token);
+    case 'events':
+      return await eventsService.loadEventsForSections(sections, token);
+    case 'attendance':
+      return await eventSyncService.syncAllEventAttendance(forceRefresh);
+  }
 };
 ```
 
-### Data Synchronization Flow
+### New Data Loading Flow
 ```javascript
-// Sync Priority Order
-const performSync = async (token) => {
+// SIMPLIFIED: One load per service, clear separation
+const loadAllData = async (token) => {
   try {
-    // 1. Essential Data (blocking)
-    const userRoles = await syncUserRoles(token);
-    const terms = await syncTerms(token);
-    
-    // 2. Core Data (parallel)
-    await Promise.all([
-      syncSections(userRoles, token),
-      syncStartupData(token)
-    ]);
-    
-    // 3. Event Data (on-demand when user navigates)
-    // 4. FlexiRecord Data (lazy load when viewing attendance)
-    
-    return { success: true, syncTime: Date.now() };
+    // 1. Reference Data (once at login)
+    const referenceResults = await referenceDataService.loadInitialReferenceData(token);
+
+    // 2. Events Data (separate loading)
+    const eventsResults = await eventsService.loadEventsForSections(
+      referenceResults.results.userRoles,
+      token
+    );
+
+    // 3. Attendance Data (only when user requests refresh)
+    // eventSyncService.syncAllEventAttendance() - called manually
+
+    return {
+      reference: referenceResults,
+      events: eventsResults,
+      // attendance loaded on-demand
+    };
   } catch (error) {
-    logger.error('Sync failed', { error: error.message });
+    logger.error('Data loading failed', { error: error.message });
     return { success: false, error: error.message };
   }
 };
 ```
 
-## FlexiRecord System
+## Service Responsibilities
 
-### Architecture Overview
-FlexiRecords are OSM's flexible database system for custom member data. The Viking system uses them for camp group assignments and sign-in/out tracking.
-
+### 1. Reference Data Service
 ```javascript
-// Three-Component FlexiRecord System
-const FLEXIRECORD_COMPONENTS = {
-  lists: 'Available FlexiRecords per section',
-  structure: 'Field definitions and types',
-  data: 'Actual member values'
-};
+// LOADS ONCE AT LOGIN - Static for entire session
+class ReferenceDataService {
+  async loadInitialReferenceData(token) {
+    // Load all static data that never changes during session
+    const results = {
+      terms: await getTerms(token, false),
+      userRoles: await getUserRoles(token),
+      startupData: await getStartupData(token),
+      members: await getListOfMembers(userRoles, token),
+      flexiRecords: {
+        lists: await getFlexiRecords(sectionId, token),
+        structures: await getFlexiStructure(extraid, sectionId, null, token)
+      }
+    };
+    return results;
+  }
+}
 ```
 
-### Field Mapping System
+### 2. Events Service
 ```javascript
-// OSM Generic Fields → Meaningful Names
-const FIELD_MAPPINGS = {
-  'f_1': 'CampGroup',      // e.g., "Blue Group", "Red Group"
-  'f_2': 'SignedInBy',     // Leader who signed member in
-  'f_3': 'SignedInWhen',   // Timestamp of sign-in
-  'f_4': 'SignedOutBy',    // Leader who signed member out
-  'f_5': 'SignedOutWhen'   // Timestamp of sign-out
-};
+// EVENT DEFINITIONS - Moderately dynamic (weekly changes)
+class EventsService {
+  async loadEventsForSections(sections, token) {
+    // Load event definitions (not attendance)
+    // Separate from attendance data
+    const results = [];
+    for (const section of sections) {
+      const termId = await fetchMostRecentTermId(section.sectionid, token);
+      const events = await getEvents(section.sectionid, termId, token);
+      results.push({ sectionId: section.sectionid, events });
+    }
+    return results;
+  }
 
-// Transformation Process
-const transformFlexiRecordData = (flexiData, fieldMapping) => {
-  return flexiData.items.map(item => ({
-    scoutid: item.scoutid,
-    firstname: item.firstname,
-    lastname: item.lastname,
-    CampGroup: item.f_1 || 'Unassigned',
-    SignedInBy: item.f_2 || '',
-    SignedInWhen: item.f_3 || '',
-    SignedOutBy: item.f_4 || '',
-    SignedOutWhen: item.f_5 || ''
-  }));
-};
+  // Cache-only method for UI components
+  async loadEventsFromCache(sections) {
+    // No API calls - cache only
+    return await databaseService.getEvents(sections);
+  }
+}
 ```
 
-### Cache Management Strategy
+### 3. EventSyncService
 ```javascript
-// FlexiRecord Cache Keys
-const CACHE_KEYS = {
-  list: (sectionId, archived) => 
-    `viking_flexi_records_${sectionId}_archived_${archived}_offline`,
-  structure: (flexirecordId) => 
-    `viking_flexi_structure_${flexirecordId}_offline`,
-  data: (flexirecordId, sectionId, termId) => 
-    `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`
-};
+// ATTENDANCE DATA - Highly dynamic (real-time during session)
+class EventSyncService {
+  async syncAllEventAttendance(forceRefresh = false) {
+    // ONLY service that refreshes data during session
+    // All others are cache-only after initial load
+    const events = await databaseService.getEvents(); // from cache
 
-// Cache Strategy by Data Type
-const FLEXIRECORD_CACHE_STRATEGY = {
-  // Static data - long TTL, rarely changes
-  lists: { ttl: 30 * 60 * 1000, forceRefresh: false },
-  structure: { ttl: 60 * 60 * 1000, forceRefresh: false },
-  
-  // Dynamic data - short TTL, force refresh on operations
-  data: { ttl: 5 * 60 * 1000, forceRefresh: true }
-};
-```
-
-### Service Layer Architecture
-```javascript
-// FlexiRecord Service Structure
-const flexiRecordService = {
-  // High-level business operations
-  getVikingEventDataForEvents: async (events, token, forceRefresh = true) => {
-    // Optimized multi-event data loading
-    const eventData = {};
-    
+    // Sync regular attendance
     for (const event of events) {
-      try {
-        const data = await getVikingEventData(
-          event.sectionid, 
-          event.termid, 
-          token, 
-          forceRefresh
+      const attendance = await getEventAttendance(
+        event.sectionid, event.eventid, event.termid, token
+      );
+      await databaseService.saveAttendance(event.eventid, attendance);
+    }
+
+    // Sync shared event attendance for multi-section events
+    await this.syncSharedAttendance(events, token);
+  }
+
+  async syncSharedAttendance(events, token) {
+    // Check each event for shared metadata
+    for (const event of events) {
+      const metadataKey = `viking_shared_metadata_${event.eventid}`;
+      const sharedMetadata = await UnifiedStorageService.get(metadataKey);
+
+      if (sharedMetadata?._isSharedEvent === true) {
+        // Fetch shared attendance for multi-section event
+        const sharedAttendanceData = await getSharedEventAttendance(
+          event.eventid,
+          event.sectionid,
+          token
         );
-        eventData[event.eventid] = data;
-      } catch (error) {
-        logger.warn('Failed to load FlexiRecord data for event', {
-          eventid: event.eventid,
-          error: error.message
-        });
+
+        // Cache the shared attendance data
+        const cacheKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+        localStorage.setItem(cacheKey, JSON.stringify(sharedAttendanceData));
       }
     }
-    
-    return eventData;
-  },
-  
-  // Individual section data
-  getVikingEventData: async (sectionId, termId, token, forceRefresh = false) => {
-    // 1. Get FlexiRecord list
-    const flexiRecords = await getFlexiRecordsList(sectionId, token, forceRefresh);
-    
-    // 2. Find Viking Event FlexiRecord
-    const vikingRecord = findVikingEventRecord(flexiRecords);
-    if (!vikingRecord) return null;
-    
-    // 3. Get structure and data
-    const [structure, data] = await Promise.all([
-      getFlexiRecordStructure(vikingRecord.extraid, sectionId, termId, token, forceRefresh),
-      getFlexiRecordData(vikingRecord.extraid, sectionId, termId, token, forceRefresh)
-    ]);
-    
-    // 4. Transform and return
-    return transformConsolidatedData(structure, data);
+  }
+}
+```
+
+## UI Layer Changes
+
+### All UI Components Now Cache-Only
+```javascript
+// OLD: UI components made API calls directly
+const EventDashboard = () => {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    // BAD: API call from UI component
+    getEvents(sectionId, termId, token).then(setEvents);
+  }, []);
+};
+
+// NEW: UI components are cache-only
+const EventDashboard = () => {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    // GOOD: Cache-only access
+    eventsService.loadEventsFromCache(sections).then(setEvents);
+  }, []);
+
+  const handleRefresh = async () => {
+    // Only refresh services can make API calls
+    await eventsService.loadEventsForSections(sections, token);
+    // Then reload from cache
+    const updated = await eventsService.loadEventsFromCache(sections);
+    setEvents(updated);
+  };
+};
+```
+
+## Benefits of New Architecture
+
+### Eliminated SyncService Complexity
+```javascript
+// REMOVED: Complex sync service that was causing issues
+// - sync.js (eliminated entirely)
+// - pageDataManager.js (no longer needed)
+// - usePageData.js (no longer needed)
+
+// REASON FOR REMOVAL:
+// SyncService was duplicating API calls with Reference Data Service
+// causing 10x get-startup-data and 5x get-user-roles calls
+
+// NEW APPROACH:
+// Each service has clear responsibility
+// No duplication of API calls
+// Simple, predictable data flow
+```
+
+### Cache Strategy Simplification
+```javascript
+// OLD: Complex TTL-based cache management
+const getCachedData = (key, ttl, forceRefresh) => { /* complex logic */ };
+
+// NEW: Session-based cache strategy
+const getCachedData = (key) => {
+  // Reference data: Cached for entire session
+  if (key.includes('reference_')) {
+    return safeGetItem(key); // No TTL check
+  }
+
+  // Events: Cached until manual refresh
+  if (key.includes('events_')) {
+    return safeGetItem(key); // No TTL check
+  }
+
+  // Attendance: Can be refreshed during session
+  if (key.includes('attendance_')) {
+    return safeGetItem(key); // Refreshed by EventSyncService
   }
 };
 ```
 
-## Database Schema (SQLite)
+## FlexiRecord Integration
 
-### Core Tables
+### Reference Data Service Handles FlexiRecord Metadata
+```javascript
+// FlexiRecord lists and structures loaded once at login
+class ReferenceDataService {
+  async loadInitialReferenceData(token) {
+    const flexiRecordData = {
+      lists: [],     // Available FlexiRecords per section
+      structures: [] // Field definitions for Viking FlexiRecords
+    };
+
+    // Load FlexiRecord lists for all sections (static reference data)
+    for (const section of userRoles) {
+      const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false);
+      flexiRecordData.lists.push({
+        sectionId: section.sectionid,
+        records: flexiRecords.items
+      });
+    }
+
+    // Load structures only for Viking FlexiRecords (static reference data)
+    const vikingRecords = findVikingRecords(flexiRecordData.lists);
+    for (const record of vikingRecords) {
+      const structure = await getFlexiStructure(record.extraid, sectionId, null, token);
+      flexiRecordData.structures.push({
+        extraid: record.extraid,
+        name: record.name,
+        structure: structure
+      });
+    }
+
+    return { flexiRecords: flexiRecordData };
+  }
+}
+```
+
+### EventSyncService Handles FlexiRecord Data
+```javascript
+// FlexiRecord member data (camp groups, sign-in/out) handled by EventSyncService
+// This is dynamic data that can change during session
+class EventSyncService {
+  async syncFlexiRecordData(events, token) {
+    for (const event of events) {
+      const flexiData = await getFlexiRecordData(
+        vikingRecord.extraid,
+        event.sectionid,
+        event.termid,
+        token
+      );
+
+      // Transform f_1, f_2, etc. to meaningful field names
+      const transformedData = this.transformFlexiRecordData(flexiData);
+      await databaseService.saveFlexiData(event.eventid, transformedData);
+    }
+  }
+
+  transformFlexiRecordData(flexiData) {
+    return flexiData.items.map(item => ({
+      scoutid: item.scoutid,
+      firstname: item.firstname,
+      lastname: item.lastname,
+      CampGroup: item.f_1 || 'Unassigned',
+      SignedInBy: item.f_2 || '',
+      SignedInWhen: item.f_3 || '',
+      SignedOutBy: item.f_4 || '',
+      SignedOutWhen: item.f_5 || ''
+    }));
+  }
+}
+```
+
+## Database Integration with Services
+
+### Service-Specific Storage Patterns
+```javascript
+// Reference Data Service uses localStorage for session data
+class ReferenceDataService {
+  async storeReferenceData(data) {
+    // Static data stored for entire session
+    safeSetItem('viking_terms_offline', data.terms);
+    safeSetItem('viking_user_roles_offline', data.userRoles);
+    safeSetItem('viking_startup_data_offline', data.startupData);
+    safeSetItem('viking_members_offline', data.members);
+    safeSetItem('viking_flexi_records_offline', data.flexiRecords);
+  }
+}
+
+// Events Service uses database for event definitions
+class EventsService {
+  async storeEvents(sectionId, events) {
+    if (isCapacitorNative()) {
+      await databaseService.saveEvents(sectionId, events);
+    } else {
+      safeSetItem(`viking_events_${sectionId}_offline`, events);
+    }
+  }
+}
+
+// EventSyncService manages attendance in database
+class EventSyncService {
+  async storeAttendance(eventId, attendance) {
+    if (isCapacitorNative()) {
+      await databaseService.saveAttendance(eventId, attendance);
+    } else {
+      safeSetItem(`viking_attendance_${eventId}_offline`, attendance);
+    }
+  }
+}
+```
+
+### Core Database Tables (SQLite Native)
 ```sql
--- Sections (User Access)
-CREATE TABLE sections (
-  sectionid INTEGER PRIMARY KEY,
-  sectionname TEXT NOT NULL,
-  section TEXT,
-  sectiontype TEXT,
-  isDefault INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Events 
+-- Events (managed by EventsService)
 CREATE TABLE events (
   eventid INTEGER PRIMARY KEY,
   sectionid INTEGER NOT NULL,
+  termid INTEGER,
   name TEXT NOT NULL,
   startdate TEXT,
   enddate TEXT,
   location TEXT,
-  FOREIGN KEY (sectionid) REFERENCES sections(sectionid)
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Members
-CREATE TABLE members (
-  scoutid INTEGER PRIMARY KEY,
-  sectionid INTEGER NOT NULL,
-  firstname TEXT NOT NULL,
-  lastname TEXT NOT NULL,
-  person_type TEXT,
-  patrol TEXT,
-  patrol_id INTEGER,
-  active INTEGER DEFAULT 1,
-  started TEXT,
-  date_of_birth TEXT,
-  FOREIGN KEY (sectionid) REFERENCES sections(sectionid)
-);
-
--- Attendance
+-- Attendance (managed by EventSyncService)
 CREATE TABLE attendance (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   eventid INTEGER NOT NULL,
   scoutid INTEGER NOT NULL,
-  attendance TEXT,
-  FOREIGN KEY (eventid) REFERENCES events(eventid),
-  FOREIGN KEY (scoutid) REFERENCES members(scoutid)
+  firstname TEXT,
+  lastname TEXT,
+  attending TEXT,
+  patrol TEXT,
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (eventid) REFERENCES events(eventid)
+);
+
+-- FlexiRecord Data (managed by EventSyncService)
+CREATE TABLE flexi_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  eventid INTEGER NOT NULL,
+  scoutid INTEGER NOT NULL,
+  camp_group TEXT,
+  signed_in_by TEXT,
+  signed_in_when TEXT,
+  signed_out_by TEXT,
+  signed_out_when TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (eventid) REFERENCES events(eventid)
 );
 ```
 
-### Database Service Pattern
+### Database Service Updated for New Architecture
 ```javascript
-// Database Service Implementation
+// Database Service - Updated for service separation
 const databaseService = {
-  // Section Management
-  saveSections: async (sections) => {
+  // Events Management (Events Service)
+  saveEvents: async (sectionId, events) => {
     try {
       if (isCapacitorNative()) {
-        await executeSQLiteQuery('DELETE FROM sections');
-        for (const section of sections) {
+        // Delete existing events for section
+        await executeSQLiteQuery('DELETE FROM events WHERE sectionid = ?', [sectionId]);
+
+        // Insert new events
+        for (const event of events) {
           await executeSQLiteQuery(
-            'INSERT INTO sections (sectionid, sectionname, section, sectiontype, isDefault) VALUES (?, ?, ?, ?, ?)',
-            [section.sectionid, section.sectionname, section.section, section.sectiontype, section.isDefault ? 1 : 0]
+            'INSERT INTO events (eventid, sectionid, termid, name, startdate, enddate, location) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [event.eventid, event.sectionid, event.termid, event.name, event.startdate, event.enddate, event.location]
           );
         }
       } else {
-        // Fallback to localStorage for web
-        safeSetItem('viking_sections_offline', sections);
+        // Web fallback
+        safeSetItem(`viking_events_${sectionId}_offline`, events);
       }
     } catch (error) {
-      logger.error('Failed to save sections', { error: error.message });
+      logger.error('Failed to save events', { error: error.message });
       throw error;
     }
   },
-  
-  getSections: async () => {
+
+  getEvents: async (sectionId = null) => {
     try {
       if (isCapacitorNative()) {
-        const result = await executeSQLiteQuery('SELECT * FROM sections ORDER BY sectionname');
+        const query = sectionId
+          ? 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC'
+          : 'SELECT * FROM events ORDER BY startdate DESC';
+        const params = sectionId ? [sectionId] : [];
+        const result = await executeSQLiteQuery(query, params);
         return result.values || [];
       } else {
-        return safeGetItem('viking_sections_offline', []);
+        if (sectionId) {
+          return safeGetItem(`viking_events_${sectionId}_offline`, []);
+        } else {
+          // Get all cached events from localStorage
+          const allEvents = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.includes('viking_events_') && key.endsWith('_offline')) {
+              const events = safeGetItem(key, []);
+              allEvents.push(...events);
+            }
+          }
+          return allEvents;
+        }
       }
     } catch (error) {
-      logger.error('Failed to get sections', { error: error.message });
+      logger.error('Failed to get events', { error: error.message });
+      return [];
+    }
+  },
+
+  // Attendance Management (EventSyncService)
+  saveAttendance: async (eventId, attendanceRecords) => {
+    try {
+      if (isCapacitorNative()) {
+        // Delete existing attendance for event
+        await executeSQLiteQuery('DELETE FROM attendance WHERE eventid = ?', [eventId]);
+
+        // Insert new attendance records
+        for (const record of attendanceRecords) {
+          await executeSQLiteQuery(
+            'INSERT INTO attendance (eventid, scoutid, firstname, lastname, attending, patrol, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [eventId, record.scoutid, record.firstname, record.lastname, record.attending, record.patrol, record.notes]
+          );
+        }
+      } else {
+        // Web fallback
+        safeSetItem(`viking_attendance_${eventId}_offline`, attendanceRecords);
+      }
+    } catch (error) {
+      logger.error('Failed to save attendance', { error: error.message });
+      throw error;
+    }
+  },
+
+  getAttendance: async (eventId = null) => {
+    try {
+      if (isCapacitorNative()) {
+        const query = eventId
+          ? 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname'
+          : 'SELECT * FROM attendance ORDER BY eventid, lastname, firstname';
+        const params = eventId ? [eventId] : [];
+        const result = await executeSQLiteQuery(query, params);
+        return result.values || [];
+      } else {
+        if (eventId) {
+          return safeGetItem(`viking_attendance_${eventId}_offline`, []);
+        } else {
+          // Get all cached attendance from localStorage
+          const allAttendance = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.includes('viking_attendance_') && key.endsWith('_offline')) {
+              const attendance = safeGetItem(key, []);
+              allAttendance.push(...attendance);
+            }
+          }
+          return allAttendance;
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to get attendance', { error: error.message });
       return [];
     }
   }
@@ -428,19 +705,72 @@ const loadDataForSections = async (sections, token) => {
 
 ## Integration Points
 
-### Service Dependencies
-- **API Service**: Handles HTTP requests and rate limiting
-- **Auth Service**: Provides authentication state and tokens
-- **Database Service**: Manages SQLite operations and localStorage fallbacks
-- **Sync Service**: Coordinates online/offline data synchronization
-- **Utility Services**: Network status, storage operations, error handling
+### NEW Service Dependencies
+- **Reference Data Service**: Static data loaded once at login
+- **Events Service**: Event definitions with cache-only UI access
+- **EventSyncService**: Attendance data with refresh capabilities
+- **Database Service**: SQLite operations and localStorage fallbacks
+- **Auth Service**: Authentication state and tokens
+- **API Service**: HTTP requests and rate limiting
 
-### Component Integration
-- **Data Loading**: Components request data through service layer
-- **State Management**: React hooks manage data state with cache integration
-- **Error Boundaries**: Components handle data loading failures gracefully
-- **Offline Indicators**: UI shows data staleness and sync status
+### NEW Component Integration Pattern
+```javascript
+// All UI components follow cache-only pattern
+const EventComponent = () => {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    // CACHE-ONLY access
+    const loadFromCache = async () => {
+      const cachedData = await databaseService.getEvents();
+      setData(cachedData);
+    };
+    loadFromCache();
+  }, []);
+
+  const handleRefresh = async () => {
+    // Only dedicated services make API calls
+    await eventsService.loadEventsForSections(sections, token);
+    // Then reload from cache
+    const updated = await databaseService.getEvents();
+    setData(updated);
+  };
+
+  return (
+    <div>
+      <button onClick={handleRefresh}>Refresh Events</button>
+      {/* Render cached data */}
+    </div>
+  );
+};
+```
+
+### Service Communication
+- **No Cross-Service Dependencies**: Each service is independent
+- **Clear Data Ownership**: Each service owns specific data types
+- **UI Layer Isolation**: Components never make direct API calls
+- **Manual Refresh Control**: Users control when data updates happen
+
+## Key Benefits of New Architecture
+
+### Eliminated Issues
+- **10x API Call Reduction**: Removed duplicate calls between SyncService and Reference Data Service
+- **Clear Error Messages**: No more complex sync failures
+- **Predictable Behavior**: UI components always work from cache
+- **Simplified Debugging**: Each service has single responsibility
+
+### Scout-Appropriate Design
+- **Manual Control**: Leaders control when data refreshes
+- **Session-Based Caching**: Static data stays cached for entire session
+- **Cache-Only UI**: Components never fail due to network issues
+- **Single Responsibility**: Each service does one thing well
+
+### Performance Improvements
+- **Faster Initial Load**: Reference data loaded once at login
+- **Reduced Network Usage**: No redundant API calls
+- **Better Offline Experience**: All UI works from cache
+- **Predictable Memory Usage**: Simple caching patterns
 
 ---
 
-*This data management system provides reliable, performant access to OSM data while maintaining offline capabilities and respecting API constraints.*
+*This simplified data management system provides reliable, maintainable access to OSM data with Scout-appropriate complexity levels.*

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { fetchMostRecentTermId, updateFlexiRecord } from '../services/api/api.js';
+import { fetchMostRecentTermId } from '../services/api/api/terms.js';
+import { updateFlexiRecord } from '../services/api/api/flexiRecords.js';
 import { getFlexiRecordsList } from '../../features/events/services/flexiRecordService.js';
 // TODO: Move getFlexiRecordStructure to shared layer to avoid circular dependency
 // import { getFlexiRecordStructure } from '../../features/events/services/flexiRecordService.js';

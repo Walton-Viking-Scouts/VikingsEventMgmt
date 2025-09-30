@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSharedEventAttendance } from '../../../shared/services/api/api.js';
+import { getSharedEventAttendance } from '../../../shared/services/api/api/events.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
@@ -13,15 +13,33 @@ export function useSharedAttendance(events, viewMode) {
   const checkForSharedEvents = async (eventsList) => {
     if (!eventsList) return false;
 
+    console.log('🔍 useSharedAttendance: Checking for shared events', {
+      eventCount: eventsList.length,
+      eventIds: eventsList.map(e => e.eventid),
+    });
+
     for (const event of eventsList) {
       const prefix = isDemoMode() ? 'demo_' : '';
       const sharedMetadataKey = `${prefix}viking_shared_metadata_${event.eventid}`;
       const sharedMetadata = await UnifiedStorageService.get(sharedMetadataKey);
 
+      console.log('🔍 useSharedAttendance: Checking metadata for event', {
+        eventId: event.eventid,
+        eventName: event.name,
+        metadataKey: sharedMetadataKey,
+        hasMetadata: !!sharedMetadata,
+        metadata: sharedMetadata,
+      });
+
       if (sharedMetadata) {
         try {
           const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
           if (metadata._isSharedEvent === true) {
+            console.log('✅ useSharedAttendance: Found shared event!', {
+              eventId: event.eventid,
+              eventName: event.name,
+              metadata,
+            });
             return true;
           }
         } catch (error) {
@@ -30,6 +48,7 @@ export function useSharedAttendance(events, viewMode) {
       }
     }
 
+    console.log('❌ useSharedAttendance: No shared events found');
     return false;
   };
 

@@ -2,10 +2,10 @@
 title: "System Design Overview"
 description: "Comprehensive technical architecture and system design documentation"
 created: "2025-09-06"
-last_updated: "2025-09-06"
-version: "1.0.0"
-tags: ["architecture", "system-design", "technical-overview"]
-related_docs: ["data-management.md", "ui-architecture.md", "performance.md"]
+last_updated: "2025-09-30"
+version: "1.1.0"
+tags: ["architecture", "system-design", "technical-overview", "shared-events"]
+related_docs: ["data-management.md", "ui-architecture.md"]
 ---
 
 # System Design Overview
@@ -78,12 +78,14 @@ return isMobile ? <MobileView /> : <DesktopView />;
 ```
 
 ### 3. **Service Layer Pattern**
-Business logic is separated into dedicated services:
+Business logic is separated into dedicated services following the new three-service architecture:
 
 - `services/api.js` - API communication with offline fallbacks
 - `services/database.js` - SQLite/localStorage abstraction
 - `services/auth.js` - Authentication and token management
-- `services/sync.js` - Data synchronization logic
+- `services/referenceData/referenceDataService.js` - Static data loaded once at login
+- `services/data/eventsService.js` - Event definitions with cache-only UI access
+- `services/data/eventSyncService.js` - Attendance data and shared event attendance with refresh capabilities
 
 ### 4. **Custom Hooks for State Management**
 Complex state logic is encapsulated in custom hooks:

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import attendanceDataService from '../attendanceDataService.js';
 
-vi.mock('../../api/api.js', () => ({
+vi.mock('../../api/api/events.js', () => ({
   getEventAttendance: vi.fn(),
 }));
 
@@ -68,7 +68,7 @@ describe('AttendanceDataService', () => {
 
   it('should handle force refresh with token and cached events', async () => {
     const { getToken } = await import('../../auth/tokenService.js');
-    const { getEventAttendance } = await import('../../api/api.js');
+    const { getEventAttendance } = await import('../../api/api/events.js');
 
     getToken.mockReturnValue('test-token');
     getEventAttendance.mockResolvedValue([

@@ -1,0 +1,104 @@
+@startuml Opening Attendance Card
+!theme plain
+title Opening Event Attendance Card - Cache-Only Access
+
+actor "Scout Leader" as User
+participant "EventCard\nComponent" as Card
+participant "AttendanceData\nHook" as Hook
+participant "Attendance\nData Service" as AttendanceSvc
+participant "EventSync\nService" as SyncSvc
+database "SQLite/IndexedDB" as DB
+database "localStorage" as LocalStore
+
+== User Clicks Event Card ==
+User -> Card: Click event card\n"Group Camp 2025"
+activate Card
+
+Card -> Card: Navigate to\n/events/:eventId/attendance
+Card -> Hook: useAttendanceData(eventId)
+activate Hook
+
+note right of Hook: ❌ NO API CALLS\nCache-only access pattern
+
+== Step 1: Load Regular Attendance (Cache Only) ==
+Hook -> AttendanceSvc: getEventAttendance(eventId)
+activate AttendanceSvc
+
+AttendanceSvc -> DB: SELECT * FROM attendance\nWHERE eventid = ?
+activate DB
+DB --> AttendanceSvc: Cached attendance records
+deactivate DB
+
+AttendanceSvc --> Hook: Regular attendance data
+deactivate AttendanceSvc
+
+note right of Hook: Data from last sync\n(login or refresh button)
+
+== Step 2: Check for Shared Event ==
+Hook -> LocalStore: Get viking_shared_metadata_${eventid}
+activate LocalStore
+LocalStore --> Hook: Shared metadata
+deactivate LocalStore
+
+alt Is Shared Event
+    note right of Hook: Multi-section event detected\n(e.g., JOTI, Group Camp)
+
+    == Step 3: Load Shared Attendance (Cache Only) ==
+    Hook -> LocalStore: Get viking_shared_attendance_${eventid}_${sectionid}_offline
+    activate LocalStore
+    LocalStore --> Hook: Shared attendance from all sections
+    deactivate LocalStore
+
+    Hook -> Hook: Transform shared data\ncombined_attendance array
+    note right of Hook: Data structure:\n[\n  {section: "Beavers", attendees: [...]},\n  {section: "Cubs", attendees: [...]},\n  {section: "Scouts", attendees: [...]}\n]
+
+else Regular Event
+    note right of Hook: Single-section event\nNo shared data needed
+end
+
+== Step 4: Load Camp Groups (Cache Only) ==
+alt Has Viking FlexiRecord
+    Hook -> LocalStore: Get viking_flexi_data_${eventid}_offline
+    activate LocalStore
+    LocalStore --> Hook: Camp group assignments\nand sign-in/out data
+    deactivate LocalStore
+    note right of Hook: FlexiRecord data:\n{\n  CampGroup: "Vikings 1",\n  SignedInBy: "Leader Name",\n  SignedInWhen: "10:00"\n}
+end
+
+== Render Attendance Card ==
+Hook --> Card: ✅ All data loaded from cache\n{attendance, sharedAttendance, campGroups}
+deactivate Hook
+
+Card -> Card: Render attendance tabs
+note right of Card: Tabs shown:\n- Attendance (always)\n- Shared Attendance (if shared event)\n- Camp Groups (if flexi data exists)
+
+Card --> User: Display attendance card\nwith all sections
+
+note right of User: ✅ Zero API calls\nAll data from cache\nInstant display
+
+== User Interactions ==
+User -> Card: Toggle attendance status
+Card -> Card: Update local state\n(optimistic update)
+Card -> AttendanceSvc: updateAttendance(scoutId, status)
+activate AttendanceSvc
+
+AttendanceSvc -> DB: UPDATE attendance\nSET attending = ?\nWHERE scoutid = ?
+activate DB
+DB --> AttendanceSvc: Updated
+deactivate DB
+
+AttendanceSvc -> SyncSvc: Queue sync to OSM API
+note right of SyncSvc: Background sync\nwhen network available
+AttendanceSvc --> Card: ✅ Local update complete
+deactivate AttendanceSvc
+
+Card --> User: UI updated immediately
+
+== Switching Tabs ==
+User -> Card: Click "Shared Attendance" tab
+Card -> Card: Switch tab (cached data already loaded)
+Card --> User: Show attendance from all sections
+
+note right of User: No API call needed\nData loaded when card opened
+
+@enduml

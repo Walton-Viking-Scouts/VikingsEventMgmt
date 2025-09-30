@@ -5,23 +5,20 @@ import {
   groupEventsByName,
   buildEventCard,
   filterEventsByDateRange,
+  expandSharedEvents,
 } from '../eventDashboardHelpers.js';
 
-// Mock external dependencies
-vi.mock('../../services/api/api.js', () => ({
-  fetchMostRecentTermId: vi.fn(),
-  getEvents: vi.fn(),
-  getEventAttendance: vi.fn(),
-  getEventSummary: vi.fn(),
-  getEventSharingStatus: vi.fn(),
-}));
-
+// Mock external dependencies - cache-only implementation
 vi.mock('../../services/storage/database.js', () => ({
   default: {
-    saveEvents: vi.fn(),
     getEvents: vi.fn(),
-    saveAttendance: vi.fn(),
     getAttendance: vi.fn(),
+  },
+}));
+
+vi.mock('../../services/data/attendanceDataService.js', () => ({
+  default: {
+    getAttendanceData: vi.fn(),
   },
 }));
 
@@ -33,32 +30,18 @@ vi.mock('../../services/utils/logger.js', () => ({
     debug: vi.fn(),
   },
   LOG_CATEGORIES: {
-    API: 'api',
     COMPONENT: 'component',
   },
 }));
 
-vi.mock('../../config/demoMode.js', () => ({
-  isDemoMode: vi.fn(() => false),
-}));
-
 // Import mocked modules for assertions
-import { fetchMostRecentTermId, getEvents, getEventAttendance, getEventSummary, getEventSharingStatus } from '../../services/api/api.js';
 import databaseService from '../../services/storage/database.js';
+import attendanceDataService from '../../services/data/attendanceDataService.js';
 import logger from '../../services/utils/logger.js';
 
 describe('EventDashboard Helper Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock setTimeout to resolve immediately in tests
-    vi.spyOn(global, 'setTimeout').mockImplementation((callback) => {
-      callback();
-      return 123; // Return a fake timer ID
-    });
-
-    // Setup default mocks for new API functions
-    getEventSummary.mockResolvedValue(null);
-    getEventSharingStatus.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -71,88 +54,50 @@ describe('EventDashboard Helper Functions', () => {
       sectionname: 'Beavers',
     };
 
-    const mockApiEvents = [
+    const mockCachedEvents = [
       {
         eventid: 101,
         name: 'Camp Weekend',
         startdate: '2024-02-15',
+        termid: 'term-123',
       },
       {
         eventid: 102,
         name: 'Badge Workshop',
         startdate: '2024-02-20',
+        termid: 'term-123',
       },
     ];
 
-    it('should fetch events from API when token provided', async () => {
-      const token = 'mock-token';
-      const termId = 'term-123';
+    it('should load events from cache only', async () => {
+      databaseService.getEvents.mockResolvedValue(mockCachedEvents);
 
-      fetchMostRecentTermId.mockResolvedValue(termId);
-      getEvents.mockResolvedValue(mockApiEvents);
-      databaseService.saveEvents.mockResolvedValue();
+      const result = await fetchSectionEvents(mockSection);
 
-      const result = await fetchSectionEvents(mockSection, token);
-
-      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
-      expect(getEvents).toHaveBeenCalledWith(1, termId, token);
-      expect(databaseService.saveEvents).toHaveBeenCalledWith(1, [
-        {
-          ...mockApiEvents[0],
-          sectionid: 1,
-          sectionname: 'Beavers',
-          termid: termId,
-        },
-        {
-          ...mockApiEvents[1],
-          sectionid: 1,
-          sectionname: 'Beavers',
-          termid: termId,
-        },
-      ]);
-
+      expect(databaseService.getEvents).toHaveBeenCalledWith(1);
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({
         eventid: 101,
         sectionid: 1,
         sectionname: 'Beavers',
-        termid: termId,
+        termid: 'term-123',
       });
     });
 
-    it('should load from cache when no token provided', async () => {
-      const cachedEvents = [
-        {
-          eventid: 201,
-          name: 'Cached Event',
-          startdate: '2024-02-25',
-          termid: 'term-456',
-        },
-      ];
+    it('should handle null/undefined cache gracefully', async () => {
+      databaseService.getEvents.mockResolvedValue(null);
 
-      databaseService.getEvents.mockResolvedValue(cachedEvents);
-
-      const result = await fetchSectionEvents(mockSection, null);
+      const result = await fetchSectionEvents(mockSection);
 
       expect(databaseService.getEvents).toHaveBeenCalledWith(1);
-      expect(fetchMostRecentTermId).not.toHaveBeenCalled();
-      expect(getEvents).not.toHaveBeenCalled();
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        eventid: 201,
-        sectionname: 'Beavers',
-        termid: 'term-456',
-      });
+      expect(result).toEqual([]);
     });
 
-    it('should handle API failures gracefully', async () => {
-      const token = 'mock-token';
-      const error = new Error('API failure');
+    it('should handle database errors gracefully', async () => {
+      const error = new Error('Database failure');
+      databaseService.getEvents.mockRejectedValue(error);
 
-      fetchMostRecentTermId.mockRejectedValue(error);
-
-      const result = await fetchSectionEvents(mockSection, token);
+      const result = await fetchSectionEvents(mockSection);
 
       expect(logger.error).toHaveBeenCalledWith(
         'Error fetching events for section {sectionId}',
@@ -161,47 +106,44 @@ describe('EventDashboard Helper Functions', () => {
           sectionId: 1,
           sectionName: 'Beavers',
         },
-        'api',
+        'component',
       );
 
       expect(result).toEqual([]);
     });
 
-    it('should return empty array when no termId found', async () => {
-      const token = 'mock-token';
+    it('should skip sections with invalid IDs', async () => {
+      const invalidSection = {
+        sectionid: null,
+        sectionname: 'Invalid Section',
+      };
 
-      fetchMostRecentTermId.mockResolvedValue(null);
+      const result = await fetchSectionEvents(invalidSection);
 
-      const result = await fetchSectionEvents(mockSection, token);
-
-      expect(getEvents).not.toHaveBeenCalled();
+      expect(databaseService.getEvents).not.toHaveBeenCalled();
       expect(result).toEqual([]);
     });
 
-    it('should handle invalid API response', async () => {
-      const token = 'mock-token';
-      const termId = 'term-123';
+    it('should enrich events with section data', async () => {
+      const eventsWithoutSectionData = [
+        {
+          eventid: 101,
+          name: 'Camp Weekend',
+          startdate: '2024-02-15',
+          termid: 'existing-term',
+        },
+      ];
 
-      fetchMostRecentTermId.mockResolvedValue(termId);
-      getEvents.mockResolvedValue(null); // Invalid response
+      databaseService.getEvents.mockResolvedValue(eventsWithoutSectionData);
 
-      const result = await fetchSectionEvents(mockSection, token);
+      const result = await fetchSectionEvents(mockSection);
 
-      expect(result).toEqual([]);
-    });
-
-    it('should make API calls when token provided', async () => {
-      const token = 'mock-token';
-      const termId = 'term-123';
-
-      fetchMostRecentTermId.mockResolvedValue(termId);
-      getEvents.mockResolvedValue([]);
-
-      await fetchSectionEvents(mockSection, token);
-
-      // Verify API calls were made (rate limiting handled by queue)
-      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
-      expect(getEvents).toHaveBeenCalledWith(1, termId, token);
+      expect(result[0]).toMatchObject({
+        eventid: 101,
+        sectionid: 1,
+        sectionname: 'Beavers',
+        termid: 'existing-term', // Preserved from cache
+      });
     });
   });
 
@@ -213,91 +155,69 @@ describe('EventDashboard Helper Functions', () => {
       termid: 'term-123',
     };
 
-    const mockAttendanceData = [
-      { scoutid: 1, attended: true },
-      { scoutid: 2, attended: false },
+    const mockAllAttendanceData = [
+      { scoutid: 1, eventid: 101, attended: true },
+      { scoutid: 2, eventid: 101, attended: false },
+      { scoutid: 3, eventid: 102, attended: true }, // Different event
     ];
 
-    it('should fetch attendance from API when token provided', async () => {
-      const token = 'mock-token';
+    const mockEventAttendanceData = [
+      { scoutid: 1, eventid: 101, attended: true },
+      { scoutid: 2, eventid: 101, attended: false },
+    ];
 
-      getEventAttendance.mockResolvedValue(mockAttendanceData);
-      databaseService.saveAttendance.mockResolvedValue();
+    it('should load attendance from attendanceDataService and filter for event', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
 
-      const result = await fetchEventAttendance(mockEvent, token);
+      const result = await fetchEventAttendance(mockEvent);
 
-      expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
-      expect(databaseService.saveAttendance).toHaveBeenCalledWith(101, mockAttendanceData);
-      expect(result).toEqual(mockAttendanceData);
+      expect(attendanceDataService.getAttendanceData).toHaveBeenCalledWith(false);
+      expect(result).toEqual(mockEventAttendanceData);
     });
 
-    it('should resolve missing termId from API', async () => {
-      const token = 'mock-token';
-      const eventWithoutTerm = { ...mockEvent, termid: null };
+    it('should filter attendance data for specific event only', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
 
-      fetchMostRecentTermId.mockResolvedValue('resolved-term');
-      getEventAttendance.mockResolvedValue(mockAttendanceData);
+      const result = await fetchEventAttendance(mockEvent);
 
-      const result = await fetchEventAttendance(eventWithoutTerm, token, []);
-
-      expect(fetchMostRecentTermId).toHaveBeenCalledWith(1, token);
-      expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'resolved-term', token);
-      expect(result).toEqual(mockAttendanceData);
+      // Should only return records for eventid 101
+      expect(result).toHaveLength(2);
+      expect(result.every(record => record.eventid === 101)).toBe(true);
     });
 
-    it('should load from cache when no token provided', async () => {
-      databaseService.getAttendance.mockResolvedValue(mockAttendanceData);
+    it('should handle null/undefined cache gracefully', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue(null);
 
-      const result = await fetchEventAttendance(mockEvent, null, []);
+      const result = await fetchEventAttendance(mockEvent);
 
-      expect(databaseService.getAttendance).toHaveBeenCalledWith(101);
-      expect(getEventAttendance).not.toHaveBeenCalled();
-      expect(result).toEqual(mockAttendanceData);
+      expect(result).toEqual([]);
     });
 
-    it('should handle API failures gracefully', async () => {
-      const token = 'mock-token';
-      const error = new Error('API failure');
+    it('should handle empty cache gracefully', async () => {
+      attendanceDataService.getAttendanceData.mockResolvedValue([]);
 
-      getEventAttendance.mockRejectedValue(error);
+      const result = await fetchEventAttendance(mockEvent);
 
-      const result = await fetchEventAttendance(mockEvent, token);
+      expect(result).toEqual([]);
+    });
+
+    it('should handle service errors gracefully', async () => {
+      const error = new Error('Service failure');
+      attendanceDataService.getAttendanceData.mockRejectedValue(error);
+
+      const result = await fetchEventAttendance(mockEvent);
 
       expect(logger.error).toHaveBeenCalledWith(
-        'Error fetching attendance for event {eventId}',
+        'Error fetching attendance via attendanceDataService',
         {
-          error,
+          error: error.message,
           eventId: 101,
           eventName: 'Camp Weekend',
-          sectionId: 1,
         },
-        'api',
+        'component',
       );
 
       expect(result).toEqual([]);
-    });
-
-    it('should return null when no termId can be resolved', async () => {
-      const token = 'mock-token';
-      const eventWithoutTerm = { ...mockEvent, termid: null };
-
-      fetchMostRecentTermId.mockResolvedValue(null);
-
-      const result = await fetchEventAttendance(eventWithoutTerm, token, []);
-
-      expect(getEventAttendance).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
-    });
-
-    it('should make API calls when token provided', async () => {
-      const token = 'mock-token';
-
-      getEventAttendance.mockResolvedValue([]);
-
-      await fetchEventAttendance(mockEvent, token);
-
-      // Verify API calls were made (rate limiting handled by queue)
-      expect(getEventAttendance).toHaveBeenCalledWith(1, 101, 'term-123', token);
     });
   });
 
@@ -434,34 +354,36 @@ describe('EventDashboard Helper Functions', () => {
   });
 
   describe('filterEventsByDateRange', () => {
-    const oneWeekAgo = new Date('2024-02-10');
+    const startDate = new Date('2024-02-10');
+    const endDate = new Date('2024-03-10');
 
     it('should filter events to include only those within date range', () => {
       const events = [
         { eventid: 1, startdate: '2024-02-05' }, // Too old
         { eventid: 2, startdate: '2024-02-12' }, // Within range
         { eventid: 3, startdate: '2024-02-15' }, // Within range
-        { eventid: 4, startdate: '2024-03-01' }, // Future (within range)
+        { eventid: 4, startdate: '2024-03-15' }, // Too future
       ];
 
-      const result = filterEventsByDateRange(events, oneWeekAgo);
+      const result = filterEventsByDateRange(events, startDate, endDate);
 
-      expect(result).toHaveLength(3);
-      expect(result.map(e => e.eventid)).toEqual([2, 3, 4]);
+      expect(result).toHaveLength(2);
+      expect(result.map(e => e.eventid)).toEqual([2, 3]);
     });
 
     it('should handle empty array', () => {
-      const result = filterEventsByDateRange([], oneWeekAgo);
+      const result = filterEventsByDateRange([], startDate, endDate);
       expect(result).toEqual([]);
     });
 
     it('should include events exactly at the boundary', () => {
       const events = [
-        { eventid: 1, startdate: '2024-02-10T00:00:00.000Z' }, // Exactly at boundary
+        { eventid: 1, startdate: '2024-02-10T00:00:00.000Z' }, // Exactly at start boundary
+        { eventid: 2, startdate: '2024-03-10T00:00:00.000Z' }, // Exactly at end boundary
       ];
 
-      const result = filterEventsByDateRange(events, oneWeekAgo);
-      expect(result).toHaveLength(1);
+      const result = filterEventsByDateRange(events, startDate, endDate);
+      expect(result).toHaveLength(2);
     });
 
     it('should handle invalid dates gracefully', () => {
@@ -470,11 +392,67 @@ describe('EventDashboard Helper Functions', () => {
         { eventid: 2, startdate: '2024-02-15' },
       ];
 
-      const result = filterEventsByDateRange(events, oneWeekAgo);
-      
+      const result = filterEventsByDateRange(events, startDate, endDate);
+
       // Invalid date should be filtered out, valid one should remain
       expect(result).toHaveLength(1);
       expect(result[0].eventid).toBe(2);
+    });
+
+    it('should handle missing endDate parameter', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+        { eventid: 2, startdate: '2024-02-15' },
+      ];
+
+      // This would have caught the bug we just fixed!
+      const result = filterEventsByDateRange(events, startDate);
+
+      // Without endDate, should return empty array (not crash)
+      expect(result).toEqual([]);
+    });
+
+    it('should handle missing startDate parameter', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+        { eventid: 2, startdate: '2024-02-15' },
+      ];
+
+      const result = filterEventsByDateRange(events, null, endDate);
+
+      // Without startDate, should return empty array (not crash)
+      expect(result).toEqual([]);
+    });
+
+    it('should require both startDate and endDate parameters', () => {
+      const events = [
+        { eventid: 1, startdate: '2024-02-12' },
+      ];
+
+      const result = filterEventsByDateRange(events);
+
+      // Without both parameters, should return empty array
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('expandSharedEvents', () => {
+    it('should return events unchanged in cache-only mode', () => {
+      const events = [
+        { eventid: 1, name: 'Event 1' },
+        { eventid: 2, name: 'Event 2' },
+      ];
+      const attendanceMap = new Map();
+
+      const result = expandSharedEvents(events, attendanceMap);
+
+      expect(result).toEqual(events);
+      expect(result).toBe(events); // Should return the same reference
+    });
+
+    it('should handle empty events array', () => {
+      const result = expandSharedEvents([]);
+      expect(result).toEqual([]);
     });
   });
 });

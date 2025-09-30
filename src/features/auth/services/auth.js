@@ -501,7 +501,7 @@ export async function fetchUserInfoFromAPI() {
     }
     
     try {
-      const apiModule = await import('../../../shared/services/api/api.js');
+      const apiModule = await import('../../../shared/services/api/api/auth.js');
       
       if (typeof apiModule.getStartupData !== 'function') {
         throw new Error('getStartupData function not available');
@@ -567,8 +567,8 @@ export async function fetchUserInfoFromAPI() {
 
 // Get user info from cache or return null
 // This function never makes API calls - it's for retrieving cached data only
-export function fetchUserInfo() {
-  return getUserInfo();
+export async function fetchUserInfo() {
+  return await getUserInfo();
 }
 
 // Simple token validation - just check if we have a token

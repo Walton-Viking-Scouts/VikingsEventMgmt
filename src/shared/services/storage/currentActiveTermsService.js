@@ -1,6 +1,6 @@
 import { IndexedDBService } from './indexedDBService.js';
 import { UnifiedStorageService } from './unifiedStorageService.js';
-import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { logger, LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 /* global IDBKeyRange */

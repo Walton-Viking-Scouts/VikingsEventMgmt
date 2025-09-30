@@ -11,6 +11,7 @@ function RefreshButton({
   showErrorNotification = true,
 }) {
   const [hasError, setHasError] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
   const sizeClasses = {
@@ -31,9 +32,10 @@ function RefreshButton({
   const combinedClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[currentVariant]} ${className}`;
 
   const handleClick = async () => {
-    if (loading || !onRefresh) return;
+    if (loading || isPending || !onRefresh) return;
 
     try {
+      setIsPending(true);
       setHasError(false);
       await onRefresh();
     } catch (error) {
@@ -41,11 +43,13 @@ function RefreshButton({
       if (showErrorNotification) {
         handleScoutError(error, 'refresh data');
       }
+    } finally {
+      setIsPending(false);
     }
   };
 
   const getIcon = () => {
-    if (loading) {
+    if (loading || isPending) {
       return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>;
     }
 
@@ -65,7 +69,7 @@ function RefreshButton({
   };
 
   const getText = () => {
-    if (loading) return 'Refreshing...';
+    if (loading || isPending) return 'Refreshing...';
     if (hasError) return 'Try Again';
     return 'Refresh Data';
   };
@@ -80,7 +84,7 @@ function RefreshButton({
   return (
     <button
       onClick={handleClick}
-      disabled={loading}
+      disabled={loading || isPending}
       className={combinedClasses}
       type="button"
       title={hasError ? 'An error occurred. Click to try again.' : undefined}

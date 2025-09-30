@@ -1,3 +1,13 @@
+---
+title: "State Management Architecture"
+description: "Hybrid state management with React Context and URL-based routing"
+created: "2025-09-10"
+last_updated: "2025-09-30"
+version: "1.0.0"
+tags: ["architecture", "state-management", "react-context"]
+related_docs: ["system-design.md"]
+---
+
 # State Management Architecture
 
 ## Overview

@@ -1,0 +1,83 @@
+@startuml Authentication Flow
+!theme plain
+title Authentication Flow - OAuth 2.0 with OSM
+
+actor "Scout Leader" as User
+participant "Frontend\n(React App)" as Frontend
+participant "Backend\n(Express Proxy)" as Backend
+participant "OSM API" as OSM
+database "sessionStorage" as Session
+
+== Initial Login ==
+User -> Frontend: Access app
+activate Frontend
+Frontend -> Session: Check for access_token
+Session --> Frontend: No token found
+Frontend --> User: Show login button
+
+User -> Frontend: Click "Login with OSM"
+Frontend -> Backend: GET /auth/login
+activate Backend
+Backend -> Backend: Generate OAuth URL\n(client_id, redirect_uri)
+Backend --> Frontend: Redirect to OSM OAuth
+deactivate Backend
+
+Frontend -> OSM: Redirect user to\nhttps://osm.com/oauth/authorize
+activate OSM
+OSM --> User: Show OAuth consent screen
+User -> OSM: Approve access
+OSM -> Backend: Redirect with auth code\n/auth/callback?code=ABC123
+deactivate OSM
+
+== Token Exchange ==
+activate Backend
+Backend -> OSM: POST /oauth/token\n(code, client_secret)
+activate OSM
+OSM --> Backend: access_token + user data
+deactivate OSM
+
+Backend -> Backend: Validate token
+Backend --> Frontend: Redirect to app\n?access_token=XYZ789
+deactivate Backend
+
+== Token Storage ==
+Frontend -> Frontend: Extract token from URL
+Frontend -> Session: Store access_token
+Frontend -> Frontend: authHandler.reset()
+Frontend -> Frontend: sentryUtils.setUser()
+Frontend -> Frontend: logger.info('User authenticated')
+Frontend --> User: Redirect to dashboard
+
+== Token Validation ==
+User -> Frontend: Any API call needed
+Frontend -> Session: getToken()
+Session --> Frontend: access_token
+
+alt Token Valid
+    Frontend -> Backend: API call with token
+    Backend -> OSM: Forward request
+    OSM --> Backend: Success response
+    Backend --> Frontend: Data returned
+    Frontend --> User: Display data
+else Token Expired/Invalid
+    Frontend -> Backend: API call with token
+    Backend -> OSM: Forward request
+    OSM --> Backend: 401/403 Unauthorized
+    Backend --> Frontend: 401/403 status
+    Frontend -> Frontend: authHandler.handleAPIResponse()
+    Frontend -> Session: Set token_expired = true
+    Frontend --> User: Show "Session Expired" dialog
+    User -> Frontend: Click "Login Again"
+    Frontend -> Session: Clear token
+    Frontend -> Backend: Restart OAuth flow
+end
+
+== Logout ==
+User -> Frontend: Click logout
+Frontend -> Session: Clear access_token
+Frontend -> Session: Clear token_expired flag
+Frontend -> Frontend: authHandler.reset()
+Frontend -> Frontend: sentryUtils.clearUser()
+Frontend --> User: Redirect to login
+
+@enduml

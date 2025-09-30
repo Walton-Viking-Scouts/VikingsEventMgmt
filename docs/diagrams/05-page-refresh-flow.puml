@@ -1,0 +1,153 @@
+@startuml Page Refresh (F5 / Browser Reload)
+!theme plain
+title Page Refresh - Session-Based Cache Strategy
+
+actor "Scout Leader" as User
+participant "Frontend" as Frontend
+participant "Auth Service" as Auth
+participant "Reference Data\nService" as RefData
+participant "Events\nService" as EventsSvc
+participant "EventSync\nService" as SyncSvc
+database "sessionStorage" as Session
+database "localStorage" as LocalStore
+database "SQLite/IndexedDB" as DB
+
+== User Refreshes Browser (F5) ==
+User -> Frontend: Press F5 / Reload page
+activate Frontend
+
+note right of Frontend: Browser clears all\nJavaScript state\nBUT preserves storage
+
+== Step 1: Check Authentication ==
+Frontend -> Session: getItem('access_token')
+activate Session
+Session --> Frontend: token (if exists)
+deactivate Session
+
+alt Token Exists
+    note right of Frontend: User still logged in\nToken survives page refresh
+
+    Frontend -> Auth: getToken()
+    Auth --> Frontend: Valid token
+
+    note right of Frontend: ✅ Authentication preserved\nNo re-login needed
+
+else No Token
+    note right of Frontend: User logged out\nor session expired
+
+    Frontend --> User: Redirect to login page
+    note right: User must re-authenticate\nusing OAuth flow
+    Frontend -> Frontend: Stop here
+end
+
+== Step 2: Load Reference Data (Cache Only) ==
+Frontend -> RefData: Load reference data
+activate RefData
+
+note right of RefData: ❌ NO API CALLS\nAll data from cache
+
+RefData -> LocalStore: getItem('viking_terms_offline')
+activate LocalStore
+LocalStore --> RefData: Cached terms
+deactivate LocalStore
+
+RefData -> LocalStore: getItem('viking_user_roles_offline')
+activate LocalStore
+LocalStore --> RefData: Cached user roles
+deactivate LocalStore
+
+RefData -> LocalStore: getItem('viking_startup_data_offline')
+activate LocalStore
+LocalStore --> RefData: Cached startup data
+deactivate LocalStore
+
+RefData -> LocalStore: getItem('viking_members_offline')
+activate LocalStore
+LocalStore --> RefData: Cached members
+deactivate LocalStore
+
+RefData -> LocalStore: getItem('viking_flexi_records_offline')
+activate LocalStore
+LocalStore --> RefData: Cached FlexiRecords
+deactivate LocalStore
+
+RefData --> Frontend: ✅ Reference data loaded\n(0 API calls - all from cache)
+deactivate RefData
+
+note right of Frontend: Session-based cache strategy:\nStatic data cached until\nuser logs out
+
+== Step 3: Load Events (Cache Only) ==
+Frontend -> EventsSvc: loadEventsFromCache()
+activate EventsSvc
+
+note right of EventsSvc: ❌ NO API CALLS\nUI components use cache only
+
+EventsSvc -> DB: getEvents()
+activate DB
+DB --> EventsSvc: Cached events list
+deactivate DB
+
+EventsSvc -> LocalStore: Get shared metadata
+activate LocalStore
+LocalStore --> EventsSvc: Shared event flags
+deactivate LocalStore
+
+EventsSvc --> Frontend: ✅ Events loaded\n(0 API calls - all from cache)
+deactivate EventsSvc
+
+== Step 4: Load Attendance (Cache Only) ==
+Frontend -> SyncSvc: Load cached attendance
+activate SyncSvc
+
+note right of SyncSvc: ❌ NO API CALLS\nLast synced data displayed
+
+SyncSvc -> DB: getAttendance()
+activate DB
+DB --> SyncSvc: Cached attendance for all events
+deactivate DB
+
+SyncSvc -> LocalStore: Get shared attendance
+activate LocalStore
+LocalStore --> SyncSvc: Cached shared attendance
+deactivate LocalStore
+
+SyncSvc --> Frontend: ✅ Attendance loaded\n(0 API calls - all from cache)
+deactivate SyncSvc
+
+== Page Fully Loaded ==
+Frontend --> User: Show dashboard\nwith cached data
+
+note right of User: ✅ Zero API calls on page refresh\nAll data from cache\n\nData freshness:\n- Reference Data: From login\n- Events: From login\n- Attendance: From last sync
+
+== User Wants Fresh Data ==
+User -> Frontend: Click refresh button
+note right of Frontend: Only NOW do we make API calls\nSee diagram 03-refresh-button-flow.puml
+
+== Key Differences: Page Refresh vs. Initial Login ==
+note left of Frontend
+**Page Refresh (F5)**
+- Token: From sessionStorage
+- Reference Data: From cache (0 API calls)
+- Events: From cache (0 API calls)
+- Attendance: From cache (0 API calls)
+- Total API calls: 0
+- Load time: <1 second
+
+**Initial Login (First Time)**
+- Token: OAuth flow
+- Reference Data: Fresh from API (5 calls)
+- Events: Fresh from API (2-6 calls)
+- Attendance: Fresh from API (5-20 calls)
+- Total API calls: 12-31
+- Load time: 3-10 seconds
+
+**Manual Refresh Button**
+- Token: Existing sessionStorage
+- Reference Data: Cache only (0 calls)
+- Events: Cache only (0 calls)
+- Attendance: Fresh from API (5-25 calls)
+- Total API calls: 5-25
+- Load time: 2-5 seconds
+end note
+
+@enduml

@@ -1,0 +1,159 @@
+@startuml Initial Login Data Load
+!theme plain
+title Post-Authentication Data Loading - Three Service Architecture
+
+actor "Scout Leader" as User
+participant "Frontend" as Frontend
+participant "Reference Data\nService" as RefData
+participant "Events\nService" as EventsSvc
+participant "EventSync\nService" as SyncSvc
+participant "OSM API" as OSM
+database "localStorage" as LocalStore
+database "SQLite/IndexedDB" as DB
+
+== After Successful OAuth Authentication ==
+User -> Frontend: Login successful\n(token received)
+activate Frontend
+note right of Frontend: Token stored in sessionStorage
+
+== Phase 1: Load Reference Data (Static - Session Cache) ==
+Frontend -> RefData: loadInitialReferenceData(token)
+activate RefData
+note right of RefData: Static data loaded ONCE at login\nCached for entire session
+
+RefData -> OSM: getTerms(token)
+activate OSM
+OSM --> RefData: Terms data
+deactivate OSM
+RefData -> LocalStore: Cache terms\nviking_terms_offline
+activate LocalStore
+LocalStore --> RefData: Cached
+deactivate LocalStore
+
+RefData -> OSM: getUserRoles(token)
+activate OSM
+OSM --> RefData: User roles (sections)
+deactivate OSM
+RefData -> LocalStore: Cache user_roles\nviking_user_roles_offline
+activate LocalStore
+LocalStore --> RefData: Cached
+deactivate LocalStore
+
+RefData -> OSM: getStartupData(token)
+activate OSM
+OSM --> RefData: Startup data
+deactivate OSM
+RefData -> LocalStore: Cache startup_data\nviking_startup_data_offline
+activate LocalStore
+LocalStore --> RefData: Cached
+deactivate LocalStore
+
+RefData -> OSM: getListOfMembers(sections, token)
+activate OSM
+OSM --> RefData: Members for all sections
+deactivate OSM
+RefData -> LocalStore: Cache members\nviking_members_offline
+activate LocalStore
+LocalStore --> RefData: Cached
+deactivate LocalStore
+
+RefData -> OSM: getFlexiRecords(section, token)
+activate OSM
+OSM --> RefData: FlexiRecord lists
+deactivate OSM
+RefData -> OSM: getFlexiStructure(extraid, token)
+activate OSM
+OSM --> RefData: Viking FlexiRecord structures
+deactivate OSM
+RefData -> LocalStore: Cache flexi_records\nviking_flexi_records_offline
+activate LocalStore
+LocalStore --> RefData: Cached
+deactivate LocalStore
+
+RefData --> Frontend: ✅ Reference data loaded\n(5 API calls)
+deactivate RefData
+note right of Frontend: Static data now cached\nNo further API calls this session
+
+== Phase 2: Load Events (Moderately Dynamic - Cache Only) ==
+Frontend -> EventsSvc: loadEventsForSections(sections, token)
+activate EventsSvc
+note right of EventsSvc: Event definitions change weekly\nNo API calls after initial load
+
+loop For each section
+    EventsSvc -> OSM: fetchMostRecentTermId(section, token)
+    activate OSM
+    OSM --> EventsSvc: termId
+    deactivate OSM
+
+    EventsSvc -> OSM: getEvents(section, termId, token)
+    activate OSM
+    OSM --> EventsSvc: Events list
+    deactivate OSM
+
+    EventsSvc -> DB: saveEvents(sectionId, events)
+    activate DB
+    DB --> EventsSvc: Stored
+    deactivate DB
+
+    EventsSvc -> EventsSvc: detectAndStoreSharedEventsAcrossSections()
+    EventsSvc -> LocalStore: Store shared metadata\nviking_shared_metadata_${eventid}
+    activate LocalStore
+    LocalStore --> EventsSvc: Cached
+    deactivate LocalStore
+end
+
+EventsSvc --> Frontend: ✅ Events loaded\n(~2-6 API calls depending on sections)
+deactivate EventsSvc
+note right of Frontend: Events cached\nUI will use cache only
+
+== Phase 3: Load Attendance (Highly Dynamic - Can Refresh) ==
+Frontend -> SyncSvc: syncAllEventAttendance(token)
+activate SyncSvc
+note right of SyncSvc: ONLY service that refreshes during session
+
+SyncSvc -> DB: getEvents()
+activate DB
+DB --> SyncSvc: Cached events list
+deactivate DB
+
+loop For each event (batched)
+    SyncSvc -> OSM: getEventAttendance(section, event, term, token)
+    activate OSM
+    OSM --> SyncSvc: Attendance data
+    deactivate OSM
+
+    SyncSvc -> DB: saveAttendance(eventId, attendance)
+    activate DB
+    DB --> SyncSvc: Stored
+    deactivate DB
+end
+
+note right of SyncSvc: Check for shared events
+SyncSvc -> SyncSvc: syncSharedAttendance(events, token)
+loop For each shared event
+    SyncSvc -> LocalStore: Get viking_shared_metadata_${eventid}
+    activate LocalStore
+    LocalStore --> SyncSvc: Shared metadata
+    deactivate LocalStore
+
+    alt Is Shared Event
+        SyncSvc -> OSM: getSharedEventAttendance(eventId, section, token)
+        activate OSM
+        OSM --> SyncSvc: Shared attendance data
+        deactivate OSM
+
+        SyncSvc -> LocalStore: Cache shared attendance\nviking_shared_attendance_${eventid}_${sectionid}_offline
+        activate LocalStore
+        LocalStore --> SyncSvc: Cached
+        deactivate LocalStore
+    end
+end
+
+SyncSvc --> Frontend: ✅ Attendance synced\n(~5-20 API calls depending on events)
+deactivate SyncSvc
+
+== All Data Loaded ==
+Frontend --> User: Show dashboard with data
+note right of User: Total API calls: 12-31\ndepending on sections/events\nAll data now cached
+
+@enduml

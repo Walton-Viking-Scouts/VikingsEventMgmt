@@ -12,8 +12,12 @@ global.sessionStorage = sessionStorageMock;
 // Mock localStorage with complete interface
 const localStorageMock = {
   storage: new Map(),
-  getItem: vi.fn((key) => localStorageMock.storage.get(key) || null),
-  setItem: vi.fn((key, value) => localStorageMock.storage.set(key, value)),
+  getItem: vi.fn((key) => (
+    localStorageMock.storage.has(key)
+      ? localStorageMock.storage.get(key)
+      : null
+  )),
+  setItem: vi.fn((key, value) => localStorageMock.storage.set(key, String(value))),
   removeItem: vi.fn((key) => localStorageMock.storage.delete(key)),
   clear: vi.fn(() => localStorageMock.storage.clear()),
   get length() { return localStorageMock.storage.size; },

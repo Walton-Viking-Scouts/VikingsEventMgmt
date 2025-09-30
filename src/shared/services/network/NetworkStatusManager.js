@@ -84,7 +84,7 @@ export class NetworkStatusManager {
   }
 
   async fallbackToWebStatus() {
-    if (navigator.onLine !== undefined) {
+    if (typeof navigator !== 'undefined' && navigator.onLine !== undefined) {
       this.updateStatus(navigator.onLine ? NetworkStatus.ONLINE : NetworkStatus.OFFLINE);
       this.updateConnectionType(this.detectWebConnectionType());
 
@@ -224,7 +224,7 @@ export class NetworkStatusManager {
   }
 
   detectWebConnectionType() {
-    if (navigator.connection) {
+    if (typeof navigator !== 'undefined' && navigator.connection) {
       const connection = navigator.connection;
       const type = connection.effectiveType || connection.type;
 

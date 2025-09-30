@@ -1,4 +1,4 @@
-import { getEventAttendance } from '../api/api.js';
+import { getEventAttendance, getSharedEventAttendance } from '../api/api/events.js';
 import { getToken } from '../auth/tokenService.js';
 import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
@@ -83,6 +83,10 @@ class EventSyncService {
       // Process events in batches to respect OSM API rate limits
       const results = await this.syncEventsBatched(validEvents, token);
       apiCallCount = validEvents.length;
+
+      // Sync shared attendance data for shared events
+      const sharedAttendanceResults = await this.syncSharedAttendance(validEvents, token);
+      apiCallCount += sharedAttendanceResults.apiCallCount;
 
       const syncResults = {
         totalEvents: allEvents.length,
@@ -331,6 +335,88 @@ class EventSyncService {
     this.lastSyncTime = null;
     this.resetPerformanceMetrics();
     logger.debug('Event sync cache and metrics cleared', {}, LOG_CATEGORIES.DATA_SERVICE);
+  }
+
+  async syncSharedAttendance(events, token) {
+    const { UnifiedStorageService } = await import('../storage/unifiedStorageService.js');
+    let apiCallCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    logger.info('🌐 Starting shared attendance sync', {
+      totalEvents: events.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+    // Check each event for shared metadata
+    for (const event of events) {
+      try {
+        const metadataKey = `viking_shared_metadata_${event.eventid}`;
+        const sharedMetadata = await UnifiedStorageService.get(metadataKey);
+
+        if (sharedMetadata) {
+          const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
+
+          if (metadata._isSharedEvent === true) {
+            logger.info('🔄 Syncing shared attendance for shared event', {
+              eventName: event.name,
+              eventId: event.eventid,
+              sectionId: event.sectionid,
+            }, LOG_CATEGORIES.DATA_SERVICE);
+
+            try {
+              const sharedAttendanceData = await getSharedEventAttendance(
+                event.eventid,
+                event.sectionid,
+                token,
+              );
+
+              // Cache the shared attendance data
+              const cacheKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+              localStorage.setItem(cacheKey, JSON.stringify(sharedAttendanceData));
+
+              apiCallCount++;
+              successCount++;
+
+              logger.info('✅ Shared attendance synced and cached', {
+                eventName: event.name,
+                eventId: event.eventid,
+                cacheKey,
+                attendeeCount: sharedAttendanceData?.items?.length || sharedAttendanceData?.combined_attendance?.length || 0,
+              }, LOG_CATEGORIES.DATA_SERVICE);
+
+            } catch (apiError) {
+              apiCallCount++;
+              errorCount++;
+              logger.warn('❌ Failed to sync shared attendance', {
+                eventName: event.name,
+                eventId: event.eventid,
+                error: apiError.message,
+              }, LOG_CATEGORIES.DATA_SERVICE);
+            }
+          }
+        }
+      } catch (metadataError) {
+        logger.debug('No shared metadata found for event', {
+          eventId: event.eventid,
+          eventName: event.name,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+      }
+    }
+
+    logger.info('🌐 Shared attendance sync completed', {
+      totalEvents: events.length,
+      sharedEvents: successCount + errorCount,
+      successCount,
+      errorCount,
+      apiCallCount,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+    return {
+      apiCallCount,
+      successCount,
+      errorCount,
+      sharedEvents: successCount + errorCount,
+    };
   }
 }
 

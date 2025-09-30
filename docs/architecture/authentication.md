@@ -1,3 +1,13 @@
+---
+title: "Authentication Architecture"
+description: "OAuth 2.0 integration with Online Scout Manager for secure authentication"
+created: "2025-09-06"
+last_updated: "2025-09-30"
+version: "1.0.0"
+tags: ["architecture", "authentication", "oauth", "security"]
+related_docs: ["system-design.md", "data-management.md"]
+---
+
 # Authentication Architecture
 **OAuth 2.0 Integration with Online Scout Manager**
 

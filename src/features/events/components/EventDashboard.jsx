@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  getListOfMembers,
-} from '../../../shared/services/api/api.js';
+// Removed API imports - UI only reads from IndexedDB
 import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
 import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/useAuth.js';
@@ -21,7 +19,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import eventSyncService from '../../../shared/services/data/eventSyncService.js';
+import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
@@ -46,12 +44,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const [forceLoaded, setForceLoaded] = useState(false);
 
   useEffect(() => {
-    // Force loading to complete after any render
-    setForceLoaded(true);
+    // Only bypass loading spinner in development/design mode
+    if (import.meta.env.DEV) {
+      setForceLoaded(true);
+    }
   }, []);
 
-  // Override the loading condition completely
-  const isActuallyLoading = loading && !forceLoaded;
+  const isActuallyLoading = import.meta.env.DEV ? (loading && !forceLoaded) : loading;
   const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
   const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
 
@@ -92,33 +91,45 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   useEffect(() => {
     let mounted = true;
     isMountedRef.current = true;
-    let cleanupFn = null;
 
     // Unified data loading function - handles both initial load and refresh
     const loadEventCards = async (isRefresh = false) => {
       if (!mounted) return;
+
+      // Initialize demo mode if enabled BEFORE loading sections
+      if (!isRefresh) {
+        try {
+          const { isDemoMode, initializeDemoMode } = await import(
+            '../../../config/demoMode.js'
+          );
+          if (isDemoMode()) {
+            await initializeDemoMode();
+          }
+        } catch (demoError) {
+          logger.warn('Demo mode initialization failed', {
+            error: demoError.message,
+          }, LOG_CATEGORIES.COMPONENT);
+        }
+      }
 
       try {
         const sectionsData = await databaseService.getSections();
         logger.debug('loadEventCards: Loaded sections', {
           sectionsCount: sectionsData.length,
           isRefresh,
+          sampleSections: sectionsData.slice(0, 3).map(s => ({
+            id: s.sectionid,
+            name: s.sectionname,
+          })),
         }, LOG_CATEGORIES.COMPONENT);
 
         if (sectionsData.length > 0 && mounted) {
           setSections(sectionsData);
 
           // Use consistent buildEventCards approach for both initial and refresh
-          let cards = await buildEventCards(sectionsData, null); // Always cache-only
+          const cards = await buildEventCards(sectionsData); // Always cache-only
 
-          // If no cards found and we have a token, retry with API call to populate table
-          if (cards.length === 0 && !isRefresh) {
-            const token = await getToken();
-            if (token) {
-              logger.debug('No cached events found, retrying with API call', {}, LOG_CATEGORIES.COMPONENT);
-              cards = await buildEventCards(sectionsData, token);
-            }
-          }
+          // UI is cache-only - no API calls
 
           logger.debug('loadEventCards: Built event cards', {
             cardsCount: cards.length,
@@ -160,35 +171,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       }
     };
 
-    // Handle sync completion events
-    const handleDashboardDataComplete = async (syncStatus) => {
-      if (!mounted) return;
-
-      if (syncStatus.status === 'dashboard_complete') {
-        logger.info('🎯 Dashboard data sync completed - refreshing event cards', {
-          timestamp: syncStatus.timestamp,
-        }, LOG_CATEGORIES.COMPONENT);
-
-        await loadEventCards(true); // Refresh with same logic
-      }
-    };
-
-    // Setup sync listener
-    const setupSyncListener = async () => {
-      try {
-        const { default: syncService } = await import('../../../shared/services/storage/sync.js');
-        syncService.addSyncListener(handleDashboardDataComplete);
-        return () => syncService.removeSyncListener(handleDashboardDataComplete);
-      } catch (error) {
-        logger.error('Failed to setup sync listener', { error: error.message }, LOG_CATEGORIES.COMPONENT);
-        return null;
-      }
-    };
 
 
-    // Initialize: setup listener and load initial data
+    // Initialize: load initial data
     const initialize = async () => {
-      cleanupFn = await setupSyncListener();
       await loadEventCards(false); // Initial load
     };
 
@@ -201,10 +187,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (backgroundSyncTimeoutIdRef.current) {
         clearTimeout(backgroundSyncTimeoutIdRef.current);
       }
-      if (cleanupFn) {
-        cleanupFn();
-      }
-
     };
   }, []); // Run once
 
@@ -335,7 +317,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  // Manual refresh handler following Task 2 SimpleAttendanceViewer pattern
+  // Manual refresh handler using dataLoadingService orchestrator
   const handleManualRefresh = async () => {
     if (refreshing) return;
 
@@ -345,13 +327,18 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Step 1: Sync event attendance data using EventSyncService
-      const syncResult = await eventSyncService.refreshAllEventAttendance();
+      // Get authentication token
+      const token = getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
 
-      if (syncResult.success) {
-        logger.info('Event sync completed successfully', {
-          message: syncResult.message,
-          details: syncResult.details,
+      // Step 1: Use dataLoadingService to refresh event and attendance data
+      const refreshResult = await dataLoadingService.refreshEventData(token);
+
+      if (refreshResult.success) {
+        logger.info('Event data refresh completed successfully', {
+          summary: refreshResult.summary,
         }, LOG_CATEGORIES.COMPONENT);
 
         // Step 2: Reload sections data and trigger rebuild of event cards
@@ -359,20 +346,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setSections(sectionsData);
 
         // Step 3: Build fresh event cards
-        const cards = await buildEventCards(sectionsData, null);
+        const cards = await buildEventCards(sectionsData);
         setEventCards(cards);
 
         // Step 4: Update last sync time
         setLastSync(new Date());
 
-        // Step 5: Show success notification
-        const message = syncResult.details
-          ? `Refreshed ${syncResult.details.syncedEvents}/${syncResult.details.totalEvents} events`
-          : 'Event data refreshed successfully';
+        // Step 5: Show success notification based on orchestrator results
+        let message = 'Event data refreshed successfully';
+
+        // Try to extract attendance details if available
+        const attendanceResult = refreshResult.results?.attendance;
+        if (attendanceResult?.details) {
+          message = `Refreshed ${attendanceResult.details.syncedEvents}/${attendanceResult.details.totalEvents} events`;
+        } else if (refreshResult.hasErrors && refreshResult.summary?.successful > 0) {
+          message = `Partially refreshed (${refreshResult.summary.successful}/${refreshResult.summary.total} operations succeeded)`;
+        }
 
         notifySuccess(message);
       } else {
-        throw new Error(syncResult.message || 'Sync failed');
+        // Handle errors from orchestrator
+        const errorMessages = refreshResult.errors?.map(err => err.message) || ['Refresh failed'];
+        throw new Error(errorMessages.join(', '));
       }
 
     } catch (error) {
@@ -414,8 +409,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         return;
       }
 
-      // Use getListOfMembers which already handles caching properly
-      await getListOfMembers(sectionsData, token);
+      // Members are loaded by Reference Data Service - no need to call API here
+      // Data is already available in IndexedDB
     } catch (error) {
       // Don't show error to user - this is background loading
       logger.warn(
@@ -429,38 +424,50 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  const buildEventCards = async (sectionsData, token = null) => {
+  const buildEventCards = async (sectionsData) => {
     logger.debug(
-      'buildEventCards called',
+      'buildEventCards called - cache-only mode',
       {
         sectionCount: sectionsData?.length || 0,
-        mode: token ? 'API' : 'CACHE',
       },
       LOG_CATEGORIES.COMPONENT,
     );
 
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-    // Fetch events for all sections with optimized terms loading
-    const allEvents = await fetchAllSectionEvents(sectionsData, token);
+    // Fetch events for all sections from IndexedDB only
+    const allEvents = await fetchAllSectionEvents(sectionsData);
+    logger.debug('buildEventCards: Raw events from IndexedDB', {
+      allEventsCount: allEvents.length,
+      sampleEvents: allEvents.slice(0, 3).map(e => ({
+        id: e.eventid,
+        name: e.name,
+        startdate: e.startdate,
+        sectionid: e.sectionid,
+      })),
+    }, LOG_CATEGORIES.COMPONENT);
 
-    // Filter for future events and events from last week
-    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo);
+    // Filter for events from last week to 3 months from now
+    const filteredEvents = filterEventsByDateRange(allEvents, oneWeekAgo, threeMonthsFromNow);
+    logger.debug('buildEventCards: Filtered events by date range', {
+      filteredCount: filteredEvents.length,
+      totalCount: allEvents.length,
+      oneWeekAgo: oneWeekAgo.toISOString(),
+      threeMonthsFromNow: threeMonthsFromNow.toISOString(),
+      now: now.toISOString(),
+    }, LOG_CATEGORIES.COMPONENT);
 
     // Fetch attendance data for filtered events (with shared event checking)
     const attendanceMap = new Map();
     for (const event of filteredEvents) {
       try {
-        const attendanceData = await fetchEventAttendance(
-          event,
-          token,
-        );
+        const attendanceData = await fetchEventAttendance(event);
 
         logger.debug('Attendance data fetch result', {
           eventId: event.eventid,
           eventName: event.name,
-          mode: token ? 'API' : 'CACHE',
           hasData: !!attendanceData,
           dataLength: attendanceData?.length || 0,
         }, LOG_CATEGORIES.COMPONENT);
@@ -505,6 +512,16 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
     // Sort cards by earliest event date
     cards.sort((a, b) => a.earliestDate - b.earliestDate);
+
+    logger.debug('buildEventCards: Final cards result', {
+      cardsCount: cards.length,
+      sampleCards: cards.slice(0, 3).map(c => ({
+        id: c.id,
+        name: c.name,
+        eventCount: c.events?.length || 0,
+        earliestDate: c.earliestDate,
+      })),
+    }, LOG_CATEGORIES.COMPONENT);
 
     return cards;
   };
@@ -608,9 +625,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           );
 
           try {
-            members = await getListOfMembers(involvedSections, currentToken);
+            // Get members from IndexedDB instead of API call
+            const sectionIds = involvedSections.map(s => s.sectionid);
+            members = await databaseService.getMembers(sectionIds);
             logger.info(
-              'Successfully fetched members on-demand',
+              'Successfully loaded members from IndexedDB',
               {
                 memberCount: members.length,
                 sectionCount: involvedSections.length,

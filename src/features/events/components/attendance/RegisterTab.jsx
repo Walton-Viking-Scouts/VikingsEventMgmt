@@ -118,7 +118,6 @@ function RegisterTab({
 
   return (
     <div>
-      {/* Refresh Status */}
       {onRefreshAttendance && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
