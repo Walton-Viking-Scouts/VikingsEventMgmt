@@ -331,12 +331,14 @@ describe('Test Setup Configuration', () => {
     });
 
     it('should allow multiple calls to reload', () => {
+      vi.clearAllMocks();
       window.location.reload();
       window.location.reload();
       expect(window.location.reload).toHaveBeenCalledTimes(2);
     });
 
     it('should allow multiple calls to assign', () => {
+      vi.clearAllMocks();
       window.location.assign('http://first.com');
       window.location.assign('http://second.com');
       expect(window.location.assign).toHaveBeenCalledTimes(2);
@@ -351,13 +353,14 @@ describe('Test Setup Configuration', () => {
     });
 
     it('should provide extended matchers from jest-dom', () => {
-      // Create a simple DOM element to test jest-dom matchers
       const div = document.createElement('div');
       div.textContent = 'Hello World';
-      
-      // Test that jest-dom matchers are available
-      expect(div).toBeInTheDocument;
-      expect(div).toHaveTextContent;
+      document.body.appendChild(div);
+
+      expect(div).toBeInTheDocument();
+      expect(div).toHaveTextContent('Hello World');
+
+      document.body.removeChild(div);
     });
   });
 
@@ -395,7 +398,7 @@ describe('Test Setup Configuration', () => {
     });
 
     it('should handle special characters in keys', () => {
-      const specialKey = 'key-with-special_chars@123\!';
+      const specialKey = 'key-with-special_chars@123!';
       global.localStorage.setItem(specialKey, 'value');
       expect(global.localStorage.getItem(specialKey)).toBe('value');
     });
@@ -518,7 +521,7 @@ describe('Test Setup Configuration', () => {
       const preferences = JSON.stringify({
         theme: 'dark',
         language: 'en',
-        notifications: true
+        notifications: true,
       });
       
       global.localStorage.setItem('userPreferences', preferences);

@@ -39,22 +39,19 @@ function SectionsPage() {
         isRefresh,
       }, LOG_CATEGORIES.APP);
 
-      if (isRefresh) {
-        setLastRefresh(new Date());
-        notifySuccess(`Refreshed sections data - ${sectionsData?.length || 0} sections loaded`);
-      }
+      return { success: true, count: sectionsData?.length || 0 };
     } catch (err) {
       logger.error('Failed to load sections from cache', {
         error: err.message,
         isRefresh,
       }, LOG_CATEGORIES.ERROR);
 
-      if (isRefresh) {
-        notifyError(`Failed to refresh sections: ${err.message}`);
-      } else {
+      if (!isRefresh) {
         setError(err.message);
         setSections([]);
       }
+
+      return { success: false, error: err.message };
     } finally {
       if (!isRefresh) {
         setLoading(false);
@@ -71,13 +68,22 @@ function SectionsPage() {
 
       logger.info('Manual sections refresh initiated', {}, LOG_CATEGORIES.COMPONENT);
 
-      // For sections, we mainly refresh the cached data since this is member lists
-      // The actual sync would happen at a higher level (through sync services)
-      await loadSections(true);
+      const result = await loadSections(true);
 
-      logger.info('Sections refresh completed successfully', {
-        sectionsCount: sections.length,
-      }, LOG_CATEGORIES.COMPONENT);
+      if (result.success) {
+        setLastRefresh(new Date());
+        notifySuccess(`Refreshed sections data - ${result.count} sections loaded`);
+
+        logger.info('Sections refresh completed successfully', {
+          sectionsCount: result.count,
+        }, LOG_CATEGORIES.COMPONENT);
+      } else {
+        notifyError(`Failed to refresh sections: ${result.error}`);
+
+        logger.error('Manual sections refresh failed', {
+          error: result.error,
+        }, LOG_CATEGORIES.ERROR);
+      }
 
     } catch (error) {
       logger.error('Manual sections refresh failed', {
