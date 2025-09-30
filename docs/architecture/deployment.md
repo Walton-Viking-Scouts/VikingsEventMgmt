@@ -1,3 +1,13 @@
+---
+title: "Deployment Architecture"
+description: "Automated deployment pipeline with release management and monitoring integration"
+created: "2025-09-06"
+last_updated: "2025-09-30"
+version: "1.0.0"
+tags: ["architecture", "deployment", "ci-cd", "releases"]
+related_docs: ["system-design.md"]
+---
+
 # Deployment Architecture
 **Dual Auto-Deploy System with Release Management**
 

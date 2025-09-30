@@ -1,3 +1,13 @@
+---
+title: "Data Management Architecture"
+description: "Simplified session-based architecture with three data services for reliable offline access"
+created: "2025-09-06"
+last_updated: "2025-09-30"
+version: "2.0.0"
+tags: ["architecture", "data-management", "sync", "offline", "shared-events"]
+related_docs: ["system-design.md", "authentication.md"]
+---
+
 # Data Management Architecture
 **Simplified Session-Based Architecture with Three Data Services**
 
@@ -18,9 +28,10 @@ Data is classified by how frequently it changes during a user session:
 │    Service      │    │                 │    │                 │
 │                 │    │                 │    │                 │
 │ • Static Data   │    │ • Event Defs    │    │ • Attendance    │
-│ • Load Once     │    │ • Weekly Change │    │ • Real-time     │
-│ • Session Cache │    │ • Cache Only    │    │ • Only Service  │
-│ • No Refresh    │    │ • No API calls  │    │   That Syncs    │
+│ • Load Once     │    │ • Weekly Change │    │ • Shared Events │
+│ • Session Cache │    │ • Cache Only    │    │ • Real-time     │
+│ • No Refresh    │    │ • No API calls  │    │ • Only Service  │
+│                 │    │                 │    │   That Syncs    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
      ↓ Login              ↓ Separate Load       ↓ During Session
      OSM API              OSM API              OSM API
@@ -52,7 +63,8 @@ const EVENTS_DATA = {
 // HIGHLY DYNAMIC DATA (EventSyncService)
 // Can change during session, only service that refreshes
 const ATTENDANCE_DATA = {
-  attendance: 'Real-time updates during session'
+  attendance: 'Real-time updates during session',
+  sharedAttendance: 'Real-time updates for multi-section events during session'
 };
 ```
 
@@ -165,11 +177,36 @@ class EventSyncService {
     // All others are cache-only after initial load
     const events = await databaseService.getEvents(); // from cache
 
+    // Sync regular attendance
     for (const event of events) {
       const attendance = await getEventAttendance(
         event.sectionid, event.eventid, event.termid, token
       );
       await databaseService.saveAttendance(event.eventid, attendance);
+    }
+
+    // Sync shared event attendance for multi-section events
+    await this.syncSharedAttendance(events, token);
+  }
+
+  async syncSharedAttendance(events, token) {
+    // Check each event for shared metadata
+    for (const event of events) {
+      const metadataKey = `viking_shared_metadata_${event.eventid}`;
+      const sharedMetadata = await UnifiedStorageService.get(metadataKey);
+
+      if (sharedMetadata?._isSharedEvent === true) {
+        // Fetch shared attendance for multi-section event
+        const sharedAttendanceData = await getSharedEventAttendance(
+          event.eventid,
+          event.sectionid,
+          token
+        );
+
+        // Cache the shared attendance data
+        const cacheKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+        localStorage.setItem(cacheKey, JSON.stringify(sharedAttendanceData));
+      }
     }
   }
 }
