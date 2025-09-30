@@ -470,12 +470,25 @@ export function useAuth() {
       }
     };
 
+    // Listen for custom auth clear events (from data clear page or other components)
+    const handleAuthClear = async (e) => {
+      if (!mounted) return;
+      logger.info('Auth clear event received', {
+        source: e.detail?.source || 'unknown',
+      }, LOG_CATEGORIES.AUTH);
+
+      // Execute logout logic directly
+      await logout();
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth:clear', handleAuthClear);
     return () => {
       mounted = false;
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth:clear', handleAuthClear);
     };
-  }, [checkAuth]);
+  }, [checkAuth, logout]);
 
 
   // Helper function to check cached data and show expiration dialog
