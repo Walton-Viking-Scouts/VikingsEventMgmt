@@ -243,9 +243,8 @@ export function hasOfflineErrors(errors) {
 /**
  * Detects shared events by comparing events across all sections and stores shared metadata
  * @param {Array} results - All results array from loadEventsForSections
- * @param {string} token - OSM authentication token
  */
-async function detectAndStoreSharedEventsAcrossSections(results, token) {
+async function detectAndStoreSharedEventsAcrossSections(results) {
   try {
     logger.debug('Starting shared event detection across sections', {
       sectionCount: results.length,
@@ -274,7 +273,7 @@ async function detectAndStoreSharedEventsAcrossSections(results, token) {
     }
 
     // Second pass: find groups with multiple sections (shared events)
-    for (const [eventKey, eventInstances] of eventGroups) {
+    for (const [_eventKey, eventInstances] of eventGroups) {
       if (eventInstances.length > 1) {
         // This is a shared event
         const firstEvent = eventInstances[0];

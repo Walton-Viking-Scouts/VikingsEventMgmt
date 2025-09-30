@@ -367,7 +367,7 @@ class EventSyncService {
               const sharedAttendanceData = await getSharedEventAttendance(
                 event.eventid,
                 event.sectionid,
-                token
+                token,
               );
 
               // Cache the shared attendance data

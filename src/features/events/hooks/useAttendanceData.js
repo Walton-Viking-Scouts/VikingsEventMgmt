@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { isDemoMode } from '../../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
 
