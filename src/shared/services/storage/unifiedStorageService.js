@@ -111,11 +111,11 @@ export class UnifiedStorageService {
     }
 
     // Non-viking keys stay in localStorage
-    if (!key.startsWith('viking_') && !key.startsWith('demo_viking_')) {
+    if (!key.startsWith('viking_')) {
       return false;
     }
 
-    // All other viking_* and demo_viking_* keys use IndexedDB
+    // All other viking_* keys use IndexedDB
     // (Cache & Sync, Configuration, Flexi System, Events, Members)
     return (
       // Cache & Sync
@@ -126,29 +126,17 @@ export class UnifiedStorageService {
       key === 'viking_startup_data_offline' ||
       key === 'viking_terms_offline' ||
       key === 'viking_current_active_terms' ||
-      key === 'demo_viking_sections_offline' ||
-      key === 'demo_viking_startup_data_offline' ||
-      key === 'demo_viking_terms_offline' ||
-      key === 'demo_viking_current_active_terms' ||
       // Flexi System
       key.match(/^viking_flexi_lists_.+_offline$/) ||
       key.match(/^viking_flexi_structure_.+_offline$/) ||
       key.match(/^viking_flexi_data_.+_offline$/) ||
-      key.match(/^demo_viking_flexi_lists_.+_offline$/) ||
-      key.match(/^demo_viking_flexi_structure_.+_offline$/) ||
-      key.match(/^demo_viking_flexi_data_.+_offline$/) ||
       // Events
       key.match(/^viking_events_.+_offline$/) ||
       key.match(/^viking_attendance_.+_offline$/) ||
       key.match(/^viking_shared_attendance_.+_offline$/) ||
       key.startsWith('viking_shared_metadata_') ||
-      key.match(/^demo_viking_events_.+_offline$/) ||
-      key.match(/^demo_viking_attendance_.+_offline$/) ||
-      key.match(/^demo_viking_shared_attendance_.+_offline$/) ||
-      key.startsWith('demo_viking_shared_metadata_') ||
       // Members
-      key === 'viking_members_comprehensive_offline' ||
-      key === 'demo_viking_members_comprehensive_offline'
+      key === 'viking_members_comprehensive_offline'
     );
   }
 
@@ -160,46 +148,46 @@ export class UnifiedStorageService {
     }
 
     // Phase 2: Configuration
-    if (key === 'viking_sections_offline' || key === 'demo_viking_sections_offline') {
+    if (key === 'viking_sections_offline') {
       return IndexedDBService.STORES.SECTIONS;
     }
-    if (key === 'viking_startup_data_offline' || key === 'demo_viking_startup_data_offline') {
+    if (key === 'viking_startup_data_offline') {
       return IndexedDBService.STORES.STARTUP_DATA;
     }
-    if (key === 'viking_terms_offline' || key === 'demo_viking_terms_offline') {
+    if (key === 'viking_terms_offline') {
       return IndexedDBService.STORES.TERMS;
     }
-    if (key === 'viking_current_active_terms' || key === 'demo_viking_current_active_terms') {
+    if (key === 'viking_current_active_terms') {
       return IndexedDBService.STORES.CURRENT_ACTIVE_TERMS;
     }
 
     // Phase 3: Flexi System
-    if (key.match(/^viking_flexi_lists_.+_offline$/) || key.match(/^demo_viking_flexi_lists_.+_offline$/)) {
+    if (key.match(/^viking_flexi_lists_.+_offline$/)) {
       return IndexedDBService.STORES.FLEXI_LISTS;
     }
-    if (key.match(/^viking_flexi_structure_.+_offline$/) || key.match(/^demo_viking_flexi_structure_.+_offline$/)) {
+    if (key.match(/^viking_flexi_structure_.+_offline$/)) {
       return IndexedDBService.STORES.FLEXI_STRUCTURE;
     }
-    if (key.match(/^viking_flexi_data_.+_offline$/) || key.match(/^demo_viking_flexi_data_.+_offline$/)) {
+    if (key.match(/^viking_flexi_data_.+_offline$/)) {
       return IndexedDBService.STORES.FLEXI_DATA;
     }
 
     // Phase 4: Events
-    if (key.match(/^viking_events_.+_offline$/) || key.match(/^demo_viking_events_.+_offline$/)) {
+    if (key.match(/^viking_events_.+_offline$/)) {
       return IndexedDBService.STORES.EVENTS;
     }
-    if (key.match(/^viking_attendance_.+_offline$/) || key.match(/^demo_viking_attendance_.+_offline$/)) {
+    if (key.match(/^viking_attendance_.+_offline$/)) {
       return IndexedDBService.STORES.ATTENDANCE;
     }
-    if (key.match(/^viking_shared_attendance_.+_offline$/) || key.match(/^demo_viking_shared_attendance_.+_offline$/)) {
+    if (key.match(/^viking_shared_attendance_.+_offline$/)) {
       return IndexedDBService.STORES.SHARED_ATTENDANCE;
     }
-    if (key.startsWith('viking_shared_metadata_') || key.startsWith('demo_viking_shared_metadata_')) {
+    if (key.startsWith('viking_shared_metadata_')) {
       return IndexedDBService.STORES.SHARED_ATTENDANCE;
     }
 
     // Phase 5: Members
-    if (key === 'viking_members_comprehensive_offline' || key === 'demo_viking_members_comprehensive_offline') {
+    if (key === 'viking_members_comprehensive_offline') {
       return IndexedDBService.STORES.MEMBERS;
     }
 
