@@ -124,13 +124,6 @@ export async function loadEventsForSections(sections, token) {
     })),
   }, LOG_CATEGORIES.DATA_SERVICE);
 
-  console.log('📊 EVENTS LOADING COMPLETED - debugging shared event detection', {
-    totalSections: sections.length,
-    resultsCount: results.length,
-    successCount,
-    callstack: new Error().stack,
-  });
-
   // Run shared event detection if we have any results with events
   const resultsWithEvents = results.filter(r => r.events && r.events.length > 0);
 

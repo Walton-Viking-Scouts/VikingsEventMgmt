@@ -9,7 +9,6 @@ class EventSyncService {
     this.isLoading = false;
     this.refreshPromise = null;
     this.lastSyncTime = null;
-    this.maxConcurrentApiCalls = 5; // Limit concurrent API calls to respect OSM rate limits
     this.performanceMetrics = {
       lastSyncDuration: null,
       totalApiCalls: 0,
@@ -74,30 +73,49 @@ class EventSyncService {
         return { success: false, message: 'No valid events found to sync.' };
       }
 
+      // Filter to only events we'll display (last week to 3 months from now)
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const threeMonthsFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      const displayableEvents = validEvents.filter(event => {
+        const eventDate = new Date(event.startdate);
+        if (isNaN(eventDate.getTime())) return false;
+        return eventDate >= oneWeekAgo && eventDate <= threeMonthsFromNow;
+      });
+
       logger.info('Starting concurrent attendance sync', {
         totalEvents: allEvents.length,
         validEvents: validEvents.length,
-        invalidEvents: allEvents.length - validEvents.length,
+        displayableEvents: displayableEvents.length,
+        skippedEvents: validEvents.length - displayableEvents.length,
+        dateRange: {
+          from: oneWeekAgo.toISOString().split('T')[0],
+          to: threeMonthsFromNow.toISOString().split('T')[0],
+        },
       }, LOG_CATEGORIES.DATA_SERVICE);
 
-      // Process events in batches to respect OSM API rate limits
-      const results = await this.syncEventsBatched(validEvents, token);
-      apiCallCount = validEvents.length;
+      // Sync all displayable events (rate limiting handled by smart queue)
+      const syncPromises = displayableEvents.map(event => this.syncEventAttendanceSafe(event, token));
+      const results = await Promise.allSettled(syncPromises);
+      apiCallCount = displayableEvents.length;
 
-      // Sync shared attendance data for shared events
-      const sharedAttendanceResults = await this.syncSharedAttendance(validEvents, token);
+      // Sync shared attendance data for shared events (only displayable events)
+      const sharedAttendanceResults = await this.syncSharedAttendance(displayableEvents, token);
       apiCallCount += sharedAttendanceResults.apiCallCount;
 
       const syncResults = {
         totalEvents: allEvents.length,
         validEvents: validEvents.length,
+        displayableEvents: displayableEvents.length,
+        skippedEvents: validEvents.length - displayableEvents.length,
         syncedEvents: 0,
         failedEvents: 0,
         errors: [],
       };
 
       results.forEach((result, index) => {
-        const event = validEvents[index];
+        const event = displayableEvents[index];
         if (result.status === 'fulfilled') {
           syncResults.syncedEvents++;
           logger.debug('Synced attendance for event', {
@@ -132,10 +150,10 @@ class EventSyncService {
         ...syncResults,
         duration: `${Math.round(duration)}ms`,
         apiCalls: apiCallCount,
-        avgTimePerEvent: validEvents.length > 0 ? `${Math.round(duration / validEvents.length)}ms` : '0ms',
+        avgTimePerEvent: displayableEvents.length > 0 ? `${Math.round(duration / displayableEvents.length)}ms` : '0ms',
       }, LOG_CATEGORIES.DATA_SERVICE);
 
-      const successMessage = `Synced ${syncResults.syncedEvents}/${syncResults.totalEvents} events in ${Math.round(duration)}ms`;
+      const successMessage = `Synced ${syncResults.syncedEvents}/${syncResults.displayableEvents} displayable events (${syncResults.skippedEvents} skipped) in ${Math.round(duration)}ms`;
       return {
         success: true,
         message: successMessage,
@@ -144,7 +162,7 @@ class EventSyncService {
           performance: {
             duration,
             apiCalls: apiCallCount,
-            avgTimePerEvent: validEvents.length > 0 ? duration / validEvents.length : 0,
+            avgTimePerEvent: displayableEvents.length > 0 ? duration / displayableEvents.length : 0,
           },
         },
       };
@@ -183,32 +201,6 @@ class EventSyncService {
     }
 
     return attendanceRecords;
-  }
-
-  /**
-   * Process events in batches to respect OSM API rate limits
-   * @private
-   * @param {Array} events - Events to sync
-   * @param {string} token - Authentication token
-   * @returns {Promise<Array>} Array of Promise.allSettled results
-   */
-  async syncEventsBatched(events, token) {
-    const results = [];
-
-    // Process events in batches of maxConcurrentApiCalls
-    for (let i = 0; i < events.length; i += this.maxConcurrentApiCalls) {
-      const batch = events.slice(i, i + this.maxConcurrentApiCalls);
-      const batchPromises = batch.map(event => this.syncEventAttendanceSafe(event, token));
-      const batchResults = await Promise.allSettled(batchPromises);
-      results.push(...batchResults);
-
-      // Small delay between batches to be respectful to OSM API
-      if (i + this.maxConcurrentApiCalls < events.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    return results;
   }
 
   async syncEventAttendanceSafe(event, token) {

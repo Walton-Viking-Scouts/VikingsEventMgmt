@@ -26,13 +26,17 @@ deactivate DB
 
 note right of SyncSvc: No API call to re-fetch events\nUse existing cached event definitions
 
-== Step 2: Sync Regular Attendance (Batched) ==
-note right of SyncSvc: Batch API calls to respect\nOSM rate limits (100 req/min)
+== Step 2: Sync Regular Attendance (Parallel) ==
+note right of SyncSvc: Smart Rate Limit Queue handles\nall rate limiting automatically\n(100 req/min OSM limit)
 
-SyncSvc -> SyncSvc: syncEventsBatched(events, token)
-loop For each event in batch
-    SyncSvc -> OSM: getEventAttendance(section, event, term, token)
+SyncSvc -> SyncSvc: Fire all requests in parallel\nPromise.allSettled()
+
+loop For each displayable event (last week to 3 months)
+    SyncSvc -> OSM: getEventAttendance(section, event, term, token)\n[via Smart Rate Queue]
     activate OSM
+
+    note right of OSM: Queue intelligently:\n- Manages request timing\n- Handles 429 responses\n- Exponential backoff\n- No manual delays needed
+
     OSM --> SyncSvc: Latest attendance data
     deactivate OSM
 
@@ -40,12 +44,9 @@ loop For each event in batch
     activate DB
     DB --> SyncSvc: Updated
     deactivate DB
-
-    note right of SyncSvc: 200ms delay between requests\nto prevent rate limiting
-    SyncSvc -> SyncSvc: sleep(200ms)
 end
 
-note right of SyncSvc: API call count: ~5-20\n(one per event)
+note right of SyncSvc: API call count: 5-20\n(only displayable events)\nOld events skipped for speed
 
 == Step 3: Sync Shared Event Attendance ==
 SyncSvc -> SyncSvc: syncSharedAttendance(events, token)

@@ -56,12 +56,16 @@ describe('EventSyncService', () => {
       const mockSections = [
         { sectionid: 1, sectionname: 'Beavers' },
       ];
+      // Create event date within displayable range (within last week to 3 months from now)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
       const mockEvents = [
         {
           eventid: 'event1',
           name: 'Test Event',
           sectionid: 1,
           termid: 'term1',
+          startdate: tomorrow.toISOString().split('T')[0], // Tomorrow's date
         },
       ];
       const mockAttendance = [

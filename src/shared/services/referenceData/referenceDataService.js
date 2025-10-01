@@ -1,11 +1,13 @@
 /**
  * Reference Data Service
  *
- * Loads essential reference data (terms, user-roles, startup-data) after authentication.
+ * Loads essential reference data (terms, user-roles, startup-data, members) after authentication.
+ * FlexiRecord data is loaded separately after events/attendance for better performance.
  * Designed for Scout-friendly error handling with non-blocking loads.
  *
  * @module referenceDataService
- * @version 2.3.7
+ * @version 2.4.0
+ * @since 2.4.0 - Split FlexiRecord loading into separate function
  * @since 2.3.7 - Created during auth flow simplification
  * @author Vikings Event Management Team
  */
@@ -15,8 +17,9 @@ import { handleScoutError, isOfflineError } from '../../utils/scoutErrorHandler.
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
 /**
- * Loads initial reference data after successful authentication
+ * Loads core reference data after successful authentication
  * Non-blocking - user can continue if some data fails to load
+ * Does NOT load FlexiRecord data - use loadFlexiRecordData() after events/attendance
  *
  * @param {string} token - OSM authentication token
  * @returns {Promise<Object>} Results object with success/failure details
@@ -38,14 +41,13 @@ export async function loadInitialReferenceData(token) {
     };
   }
 
-  logger.info('Starting initial reference data load after authentication', {}, LOG_CATEGORIES.AUTH);
+  logger.info('Starting core reference data load after authentication', {}, LOG_CATEGORIES.AUTH);
 
   const results = {
     terms: null,
     userRoles: null,
     startupData: null,
     members: null,
-    flexiRecords: null,
   };
   const errors = [];
   let successCount = 0;
@@ -147,119 +149,28 @@ export async function loadInitialReferenceData(token) {
     logger.warn('Members data loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
   }
 
-  // Load FlexiRecord lists and structures (static reference data)
-  try {
-    logger.debug('Loading FlexiRecord reference data', {}, LOG_CATEGORIES.AUTH);
-    if (results.userRoles && results.userRoles.length > 0) {
-      const flexiRecordData = {
-        lists: [],
-        structures: [],
-      };
-
-      // Load FlexiRecord lists for all sections
-      for (const section of results.userRoles) {
-        try {
-          const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false);
-          if (flexiRecords && flexiRecords.items) {
-            flexiRecordData.lists.push({
-              sectionId: section.sectionid,
-              sectionName: section.sectionname,
-              records: flexiRecords.items,
-            });
-          }
-        } catch (sectionError) {
-          logger.warn('Failed to load FlexiRecord list for section', {
-            sectionId: section.sectionid,
-            sectionName: section.sectionname,
-            error: sectionError.message,
-          }, LOG_CATEGORIES.AUTH);
-        }
-      }
-
-      // Load structures for Viking-specific FlexiRecords
-      const allFlexiRecords = new Map();
-      flexiRecordData.lists.forEach(({ sectionId, records }) => {
-        records.forEach(record => {
-          if (record.extraid && record.name && record.archived !== '1' && record.soft_deleted !== '1') {
-            if (!allFlexiRecords.has(record.extraid)) {
-              allFlexiRecords.set(record.extraid, {
-                extraid: record.extraid,
-                name: record.name,
-                sectionIds: [],
-              });
-            }
-            allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
-          }
-        });
-      });
-
-      // Load structures only for Viking Event Mgmt and Viking Section Movers
-      const vikingRecords = Array.from(allFlexiRecords.values()).filter(record =>
-        record.name === 'Viking Event Mgmt' || record.name === 'Viking Section Movers',
-      );
-
-      for (const record of vikingRecords) {
-        try {
-          const sectionId = record.sectionIds[0]; // Use first section for request
-          const structure = await getFlexiStructure(record.extraid, sectionId, null, token);
-          if (structure) {
-            flexiRecordData.structures.push({
-              extraid: record.extraid,
-              name: record.name,
-              structure: structure,
-              sectionIds: record.sectionIds,
-            });
-          }
-        } catch (structureError) {
-          logger.warn('Failed to load FlexiRecord structure', {
-            recordName: record.name,
-            extraid: record.extraid,
-            error: structureError.message,
-          }, LOG_CATEGORIES.AUTH);
-        }
-      }
-
-      results.flexiRecords = flexiRecordData;
-      successCount++;
-      logger.info('FlexiRecord reference data loaded successfully', {
-        sectionsProcessed: flexiRecordData.lists.length,
-        totalRecords: flexiRecordData.lists.reduce((sum, section) => sum + section.records.length, 0),
-        vikingStructures: flexiRecordData.structures.length,
-      }, LOG_CATEGORIES.AUTH);
-    } else {
-      logger.warn('No sections available for FlexiRecord loading', {}, LOG_CATEGORIES.AUTH);
-    }
-  } catch (error) {
-    const message = handleScoutError(error, 'loading FlexiRecord reference data', {
-      showNotification: false,
-      isWarning: true,
-    });
-    errors.push({ type: 'flexiRecords', message, originalError: error.message });
-    logger.warn('FlexiRecord reference data loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
-  }
-
   const hasErrors = errors.length > 0;
   const isCompleteFailure = successCount === 0;
 
   // Log summary
   if (isCompleteFailure) {
-    logger.error('All reference data loading failed', {
-      totalAttempts: 5,
+    logger.error('All core reference data loading failed', {
+      totalAttempts: 4,
       successCount,
       errorCount: errors.length,
       errors: errors.map(e => e.type),
     }, LOG_CATEGORIES.ERROR);
   } else if (hasErrors) {
-    logger.warn('Partial reference data loading failure', {
-      totalAttempts: 5,
+    logger.warn('Partial core reference data loading failure', {
+      totalAttempts: 4,
       successCount,
       errorCount: errors.length,
       successfulTypes: Object.keys(results).filter(k => results[k] !== null),
       failedTypes: errors.map(e => e.type),
     }, LOG_CATEGORIES.AUTH);
   } else {
-    logger.info('All reference data loaded successfully', {
-      totalAttempts: 5,
+    logger.info('All core reference data loaded successfully', {
+      totalAttempts: 4,
       successCount,
     }, LOG_CATEGORIES.AUTH);
   }
@@ -270,11 +181,175 @@ export async function loadInitialReferenceData(token) {
     errors,
     results,
     summary: {
-      total: 5,
+      total: 4,
       successful: successCount,
       failed: errors.length,
     },
   };
+}
+
+/**
+ * Loads FlexiRecord data (lists and structures) for Viking Event Management
+ * Should be called after events and attendance data are loaded
+ *
+ * @param {Array} sections - User sections/roles with sectionid and sectionname
+ * @param {string} token - OSM authentication token
+ * @returns {Promise<Object>} Results object with FlexiRecord data
+ *
+ * @example
+ * const flexiResults = await loadFlexiRecordData(userRoles, token);
+ * if (flexiResults.success) {
+ *   console.log('FlexiRecords loaded:', flexiResults.results);
+ * }
+ */
+export async function loadFlexiRecordData(sections, token) {
+  if (!token) {
+    logger.warn('No token provided for FlexiRecord data loading', {}, LOG_CATEGORIES.DATA_SERVICE);
+    return {
+      success: false,
+      hasErrors: true,
+      errors: ['No authentication token available'],
+      results: null,
+    };
+  }
+
+  if (!sections || sections.length === 0) {
+    logger.warn('No sections provided for FlexiRecord data loading', {}, LOG_CATEGORIES.DATA_SERVICE);
+    return {
+      success: false,
+      hasErrors: true,
+      errors: ['No sections available for FlexiRecord loading'],
+      results: null,
+    };
+  }
+
+  logger.info('Starting FlexiRecord data load', {
+    sectionCount: sections.length,
+  }, LOG_CATEGORIES.DATA_SERVICE);
+
+  const errors = [];
+
+  try {
+    const flexiRecordData = {
+      lists: [],
+      structures: [],
+    };
+
+    // Load FlexiRecord lists for all sections
+    for (const section of sections) {
+      try {
+        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false);
+        if (flexiRecords && flexiRecords.items) {
+          flexiRecordData.lists.push({
+            sectionId: section.sectionid,
+            sectionName: section.sectionname,
+            records: flexiRecords.items,
+          });
+        }
+      } catch (sectionError) {
+        logger.warn('Failed to load FlexiRecord list for section', {
+          sectionId: section.sectionid,
+          sectionName: section.sectionname,
+          error: sectionError.message,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+        errors.push({
+          type: 'flexiRecordList',
+          sectionId: section.sectionid,
+          message: `Failed to load FlexiRecord list for ${section.sectionname}`,
+          originalError: sectionError.message,
+        });
+      }
+    }
+
+    // Load structures for Viking-specific FlexiRecords
+    const allFlexiRecords = new Map();
+    flexiRecordData.lists.forEach(({ sectionId, records }) => {
+      records.forEach(record => {
+        if (record.extraid && record.name && record.archived !== '1' && record.soft_deleted !== '1') {
+          if (!allFlexiRecords.has(record.extraid)) {
+            allFlexiRecords.set(record.extraid, {
+              extraid: record.extraid,
+              name: record.name,
+              sectionIds: [],
+            });
+          }
+          allFlexiRecords.get(record.extraid).sectionIds.push(sectionId);
+        }
+      });
+    });
+
+    // Load structures only for Viking Event Mgmt and Viking Section Movers
+    const vikingRecords = Array.from(allFlexiRecords.values()).filter(record =>
+      record.name === 'Viking Event Mgmt' || record.name === 'Viking Section Movers',
+    );
+
+    for (const record of vikingRecords) {
+      try {
+        const sectionId = record.sectionIds[0]; // Use first section for request
+        const structure = await getFlexiStructure(record.extraid, sectionId, null, token);
+        if (structure) {
+          flexiRecordData.structures.push({
+            extraid: record.extraid,
+            name: record.name,
+            structure: structure,
+            sectionIds: record.sectionIds,
+          });
+        }
+      } catch (structureError) {
+        logger.warn('Failed to load FlexiRecord structure', {
+          recordName: record.name,
+          extraid: record.extraid,
+          error: structureError.message,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+        errors.push({
+          type: 'flexiRecordStructure',
+          recordName: record.name,
+          message: `Failed to load structure for ${record.name}`,
+          originalError: structureError.message,
+        });
+      }
+    }
+
+    const hasErrors = errors.length > 0;
+    const hasData = flexiRecordData.lists.length > 0 || flexiRecordData.structures.length > 0;
+
+    logger.info('FlexiRecord data loading completed', {
+      sectionsProcessed: flexiRecordData.lists.length,
+      totalRecords: flexiRecordData.lists.reduce((sum, section) => sum + section.records.length, 0),
+      vikingStructures: flexiRecordData.structures.length,
+      hasErrors,
+      errorCount: errors.length,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+
+    return {
+      success: hasData,
+      hasErrors,
+      errors,
+      results: flexiRecordData,
+      summary: {
+        sectionsProcessed: flexiRecordData.lists.length,
+        totalRecords: flexiRecordData.lists.reduce((sum, section) => sum + section.records.length, 0),
+        vikingStructures: flexiRecordData.structures.length,
+      },
+    };
+
+  } catch (error) {
+    const message = handleScoutError(error, 'loading FlexiRecord data', {
+      showNotification: false,
+      isWarning: true,
+    });
+
+    logger.error('Critical error during FlexiRecord data loading', {
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+
+    return {
+      success: false,
+      hasErrors: true,
+      errors: [{ type: 'flexiRecords', message, originalError: error.message }],
+      results: null,
+    };
+  }
 }
 
 /**
@@ -317,6 +392,7 @@ export function getLoadingResultMessage(results) {
 
 export default {
   loadInitialReferenceData,
+  loadFlexiRecordData,
   hasOfflineErrors,
   getLoadingResultMessage,
 };

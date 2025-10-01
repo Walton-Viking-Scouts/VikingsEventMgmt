@@ -623,7 +623,22 @@ function EventAttendance({ events, members, onBack }) {
               {(() => {
                 const isYoungPerson = (age) => {
                   if (!age) return true;
-                  return age !== '25+';
+
+                  if (age === '25+') return false;
+
+                  const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
+                  if (match) {
+                    const years = parseInt(match[1], 10);
+                    return years < 18;
+                  }
+
+                  const singleMatch = age.match(/^(\d+)/);
+                  if (singleMatch) {
+                    const years = parseInt(singleMatch[1], 10);
+                    return years < 18;
+                  }
+
+                  return true;
                 };
 
                 const getNumericAge = (age) => {

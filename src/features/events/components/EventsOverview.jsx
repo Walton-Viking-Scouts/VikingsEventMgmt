@@ -12,7 +12,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { useAuth } from '../../auth/hooks/useAuth.js';
+import { useAuth } from '../../auth/hooks/useAuth.jsx';
 
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();
@@ -26,6 +26,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   // Build event cards similar to EventDashboard
   useEffect(() => {
     const buildEventCardsFromCache = async () => {
+      console.log('🔄 EventsOverview useEffect triggered', { lastSyncTime, locationState: location.state });
       try {
         setLoading(true);
         setError(null);

@@ -111,7 +111,7 @@ class DatabaseService {
     try {
       // Only initialize SQLite on native platforms
       if (!this.isNative) {
-        console.log('Running in browser - SQLite not available, using localStorage fallback');
+        console.log('Running in browser - SQLite not available, using IndexedDB via UnifiedStorageService');
         this.isInitialized = true;
         return;
       }

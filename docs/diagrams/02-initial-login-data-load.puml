@@ -16,10 +16,10 @@ User -> Frontend: Login successful\n(token received)
 activate Frontend
 note right of Frontend: Token stored in sessionStorage
 
-== Phase 1: Load Reference Data (Static - Session Cache) ==
+== Phase 1A: Load Core Reference Data (Before Events) ==
 Frontend -> RefData: loadInitialReferenceData(token)
 activate RefData
-note right of RefData: Static data loaded ONCE at login\nCached for entire session
+note right of RefData: Core static data loaded FIRST\nCached for entire session
 
 RefData -> OSM: getTerms(token)
 activate OSM
@@ -36,7 +36,6 @@ deactivate TableDB
 
 RefData -> OSM: getUserRoles(token)
 activate OSM
-note right of RefData: No longer calls getStartupData() here\nUser info extracted by caller
 OSM --> RefData: User roles (sections)
 deactivate OSM
 RefData -> Storage: Cache sections (viking_user_roles_offline)
@@ -58,46 +57,14 @@ activate OSM
 note right of RefData: forceRefresh=true bypasses cache on login
 OSM --> RefData: Members for all sections
 deactivate OSM
-alt forceRefresh=true
-    note right of RefData: Login refresh - always fetch from API
-    RefData -> Storage: Save fresh members
-    activate Storage
-    Storage --> RefData: Cached
-    deactivate Storage
-else forceRefresh=false (normal operation)
-    note right of RefData: Check cache first, use if available
-    RefData -> Storage: Try cache first
-    activate Storage
-    Storage --> RefData: Cached members (if available)
-    deactivate Storage
-end
+RefData -> Storage: Save fresh members
+activate Storage
+Storage --> RefData: Cached
+deactivate Storage
 
-RefData -> OSM: getFlexiRecords(section, token, forceRefresh=true)
-activate OSM
-note right of RefData: forceRefresh=true bypasses cache on login
-OSM --> RefData: FlexiRecord lists
-deactivate OSM
-RefData -> OSM: getFlexiStructure(extraid, token)
-activate OSM
-OSM --> RefData: Viking FlexiRecord structures
-deactivate OSM
-alt forceRefresh=true
-    note right of RefData: Login refresh - always fetch from API
-    RefData -> Storage: Save fresh FlexiRecords
-    activate Storage
-    Storage --> RefData: Cached
-    deactivate Storage
-else forceRefresh=false (normal operation)
-    note right of RefData: Check cache first, use if available
-    RefData -> Storage: Try cache first
-    activate Storage
-    Storage --> RefData: Cached FlexiRecords (if available)
-    deactivate Storage
-end
-
-RefData --> Frontend: ✅ Reference data loaded\n(4 API calls: terms, roles, startup, members/flexi)
+RefData --> Frontend: ✅ Core reference data loaded\n(4 API calls: terms, roles, startup, members)
 deactivate RefData
-note right of Frontend: Fresh data loaded on login\nCache bypassed via forceRefresh
+note right of Frontend: FlexiRecords deferred to Phase 3\nfor faster initial render
 
 == Phase 2: Load Events (Moderately Dynamic - Cache Only) ==
 Frontend -> EventsSvc: loadEventsForSections(sections, token)
@@ -135,16 +102,20 @@ note right of Frontend: Events cached\nTerm IDs from cache = faster loading!
 == Phase 3: Load Attendance (Highly Dynamic - Can Refresh) ==
 Frontend -> SyncSvc: syncAllEventAttendance(token)
 activate SyncSvc
-note right of SyncSvc: ONLY service that refreshes during session
+note right of SyncSvc: Smart Rate Limit Queue handles all timing\nNo manual batching or delays
 
 SyncSvc -> Storage: getEvents()
 activate Storage
 Storage --> SyncSvc: Cached events list
 deactivate Storage
 
-loop For each event (batched)
-    SyncSvc -> OSM: getEventAttendance(section, event, term, token)
+SyncSvc -> SyncSvc: Filter to displayable events\n(last week to 3 months from now)
+note right of SyncSvc: Performance optimization:\nOnly sync events that will be displayed
+
+loop For each displayable event (parallel)
+    SyncSvc -> OSM: getEventAttendance(section, event, term, token)\n[via Smart Rate Queue]
     activate OSM
+    note right of OSM: Queue handles:\n- Rate limiting (100 req/min)\n- 429 retry with backoff\n- Request timing
     OSM --> SyncSvc: Attendance data
     deactivate OSM
 
@@ -155,7 +126,7 @@ loop For each event (batched)
 end
 
 note right of SyncSvc: Check for shared events
-SyncSvc -> SyncSvc: syncSharedAttendance(events, token)
+SyncSvc -> SyncSvc: syncSharedAttendance(displayableEvents, token)
 loop For each shared event
     SyncSvc -> Storage: Get viking_shared_metadata_${eventid}
     activate Storage
@@ -175,11 +146,32 @@ loop For each shared event
     end
 end
 
-SyncSvc --> Frontend: ✅ Attendance synced\n(~5-20 API calls depending on events)
+SyncSvc --> Frontend: ✅ Attendance synced\n(~5-20 API calls, only displayable events)
 deactivate SyncSvc
 
+== Phase 1B: Load FlexiRecords (After Attendance) ==
+Frontend -> RefData: loadFlexiRecordData(sections, token)
+activate RefData
+note right of RefData: Deferred to end for faster initial render
+
+RefData -> OSM: getFlexiRecords(section, token, forceRefresh=true)
+activate OSM
+OSM --> RefData: FlexiRecord lists
+deactivate OSM
+RefData -> OSM: getFlexiStructure(extraid, token)
+activate OSM
+OSM --> RefData: Viking FlexiRecord structures\n(Event Mgmt & Section Movers)
+deactivate OSM
+RefData -> Storage: Save fresh FlexiRecords
+activate Storage
+Storage --> RefData: Cached
+deactivate Storage
+
+RefData --> Frontend: ✅ FlexiRecords loaded
+deactivate RefData
+
 == All Data Loaded ==
-Frontend --> User: Show dashboard with data
-note right of User: Total API calls: 10-25\n(reduced from 12-31!)\nAll data now cached in IndexedDB
+Frontend --> User: Show dashboard with complete data
+note right of User: Total API calls: 10-25\nOptimized flow:\n1. Core ref data (4 calls)\n2. Events (2-3 calls)\n3. Attendance (5-20 calls, displayable only)\n4. FlexiRecords (1-2 calls)
 
 @enduml
