@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // Removed API imports - UI only reads from IndexedDB
 import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
 import { authHandler } from '../../../shared/services/auth/authHandler.js';
-import { useAuth } from '../../auth/hooks/useAuth.jsx';
+import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
 import { SectionsList } from '../../sections';

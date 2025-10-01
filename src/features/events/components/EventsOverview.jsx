@@ -26,7 +26,6 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   // Build event cards similar to EventDashboard
   useEffect(() => {
     const buildEventCardsFromCache = async () => {
-      console.log('🔄 EventsOverview useEffect triggered', { lastSyncTime, locationState: location.state });
       try {
         setLoading(true);
         setError(null);

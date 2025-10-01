@@ -983,9 +983,25 @@ class DatabaseService {
           return [];
         }
 
+        const normalisedSectionIds = new Set(sectionIds.map(id => String(id)));
         const filteredMembers = members.filter(member => {
-          const memberSectionId = member.section_id || member.sectionid;
-          return memberSectionId && sectionIds.includes(memberSectionId);
+          const primaryId = member.section_id ?? member.sectionid;
+          if (primaryId != null && normalisedSectionIds.has(String(primaryId))) {
+            return true;
+          }
+
+          if (Array.isArray(member.sections)) {
+            return member.sections.some(section => {
+              if (!section) return false;
+              if (typeof section === 'object') {
+                const candidate = section.section_id ?? section.sectionid ?? section.id;
+                return candidate != null && normalisedSectionIds.has(String(candidate));
+              }
+              return normalisedSectionIds.has(String(section));
+            });
+          }
+
+          return false;
         });
 
         return filteredMembers;
