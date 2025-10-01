@@ -1,8 +1,9 @@
 import { openDB } from 'idb';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { isDemoMode } from '../../../config/demoMode.js';
 
-const DATABASE_NAME = 'vikings-eventmgmt';
+const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
 const DATABASE_VERSION = 3;
 
 const STORES = {
@@ -21,13 +22,22 @@ const STORES = {
 };
 
 let dbPromise = null;
+let currentDatabaseName = null;
 
 function getDB() {
+  const dbName = getDatabaseName();
+
+  if (currentDatabaseName && currentDatabaseName !== dbName) {
+    dbPromise = null;
+    currentDatabaseName = null;
+  }
+
   if (!dbPromise) {
-    dbPromise = openDB(DATABASE_NAME, DATABASE_VERSION, {
+    currentDatabaseName = dbName;
+    dbPromise = openDB(dbName, DATABASE_VERSION, {
       upgrade(db, oldVersion, newVersion, _transaction) {
         logger.info('IndexedDB upgrade started', {
-          dbName: DATABASE_NAME,
+          dbName,
           oldVersion,
           newVersion,
         }, LOG_CATEGORIES.DATABASE);
@@ -102,26 +112,27 @@ function getDB() {
         }
 
         logger.info('IndexedDB upgrade completed', {
-          dbName: DATABASE_NAME,
+          dbName,
           version: newVersion,
           stores: Array.from(db.objectStoreNames),
         }, LOG_CATEGORIES.DATABASE);
       },
       blocked() {
         logger.warn('IndexedDB opening blocked by another connection', {
-          dbName: DATABASE_NAME,
+          dbName,
         }, LOG_CATEGORIES.DATABASE);
       },
       blocking() {
         logger.warn('IndexedDB blocking another connection', {
-          dbName: DATABASE_NAME,
+          dbName,
         }, LOG_CATEGORIES.DATABASE);
       },
       terminated() {
         logger.error('IndexedDB connection terminated unexpectedly', {
-          dbName: DATABASE_NAME,
+          dbName,
         }, LOG_CATEGORIES.DATABASE);
-        dbPromise = null; // Reset so next call reopens
+        dbPromise = null;
+        currentDatabaseName = null;
       },
     });
   }
