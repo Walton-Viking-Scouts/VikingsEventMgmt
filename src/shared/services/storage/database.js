@@ -21,8 +21,6 @@
 
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
-import { safeGetItem, safeSetItem } from '../../utils/storageUtils.js';
-import { isDemoMode } from '../../../config/demoMode.js';
 import UnifiedStorageService from './unifiedStorageService.js';
 
 /**
@@ -354,17 +352,7 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      // Use UnifiedStorageService for consistent storage routing
-      const prefix = isDemoMode() ? 'demo_' : '';
-      const key = `${prefix}viking_sections_offline`;
-
-      if (isDemoMode()) {
-        // Demo mode still uses direct localStorage to maintain separation
-        safeSetItem(key, sections);
-      } else {
-        // Production mode uses UnifiedStorageService for migration support
-        await UnifiedStorageService.setSections(sections);
-      }
+      await UnifiedStorageService.setSections(sections);
       return;
     }
     
@@ -843,39 +831,28 @@ class DatabaseService {
    */
   async saveMembers(sectionIds, members) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive key with demo mode awareness
-      const demoMode = isDemoMode();
-      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
-      
-      // Get existing members
+      const key = 'viking_members_comprehensive_offline';
+
       let existingMembers = [];
       try {
-        if (demoMode) {
-          existingMembers = safeGetItem(key, []);
-        } else {
-          existingMembers = await UnifiedStorageService.get(key) || [];
-        }
+        existingMembers = await UnifiedStorageService.get(key) || [];
       } catch (error) {
         console.warn('Failed to get existing members cache:', error);
         existingMembers = [];
       }
-      
-      // Create member map for deduplication
+
       const memberMap = new Map();
-      
-      // Add existing members first
+
       existingMembers.forEach(member => {
         if (member.scoutid) {
           memberMap.set(member.scoutid, member);
         }
       });
-      
-      // Add/update new members (overwrites existing with same scoutid)
+
       members.forEach(member => {
         if (member.scoutid) {
-          // Ensure sections array is properly maintained for multi-section members
           if (memberMap.has(member.scoutid)) {
             const existing = memberMap.get(member.scoutid);
             const combinedSections = [...new Set([
@@ -887,14 +864,9 @@ class DatabaseService {
           memberMap.set(member.scoutid, member);
         }
       });
-      
-      // Save comprehensive member list
+
       const allMembers = Array.from(memberMap.values());
-      if (demoMode) {
-        safeSetItem(key, allMembers);
-      } else {
-        await UnifiedStorageService.set(key, allMembers);
-      }
+      await UnifiedStorageService.set(key, allMembers);
       return;
     }
     
@@ -1001,27 +973,23 @@ class DatabaseService {
    */
   async getMembers(sectionIds) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use single comprehensive cache with demo mode awareness
-      const demoMode = isDemoMode();
-      const key = demoMode ? 'demo_viking_members_comprehensive_offline' : 'viking_members_comprehensive_offline';
-      
+      const key = 'viking_members_comprehensive_offline';
+
       try {
-        const members = demoMode ? safeGetItem(key, []) : await UnifiedStorageService.get(key) || [];
+        const members = await UnifiedStorageService.get(key) || [];
         if (!members.length) {
           return [];
         }
 
-        // Filter members by requested sections
-        // Now that section IDs are standardized as numbers, filtering is simple
         const filteredMembers = members.filter(member => {
           const memberSectionId = member.section_id || member.sectionid;
           return memberSectionId && sectionIds.includes(memberSectionId);
         });
 
         return filteredMembers;
-        
+
       } catch (error) {
         console.warn('Failed to parse comprehensive members cache:', error);
         return [];
@@ -1089,16 +1057,12 @@ class DatabaseService {
    */
   async hasOfflineData() {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // localStorage fallback - use demo prefix if in demo mode
-      const { isDemoMode } = await import('../../../config/demoMode.js');
-      const prefix = isDemoMode() ? 'demo_' : '';
-      const key = `${prefix}viking_sections_offline`;
-      const sections = safeGetItem(key, []);
-      return sections.length > 0;
+      const sections = await UnifiedStorageService.getSections();
+      return Array.isArray(sections) && sections.length > 0;
     }
-    
+
     const sectionsQuery = 'SELECT COUNT(*) as count FROM sections';
     const result = await this.db.query(sectionsQuery);
     return result.values?.[0]?.count > 0;
@@ -1112,22 +1076,19 @@ class DatabaseService {
    * @returns {Promise<Array<Object>>} Array of section objects
    */
   async _getWebStorageSections() {
+    const sectionsData = await UnifiedStorageService.getSections();
+    const sections = this._normalizeSectionsData(sectionsData);
+
     const { isDemoMode } = await import('../../../config/demoMode.js');
 
-    if (isDemoMode()) {
-      const key = 'demo_viking_sections_offline';
-      const sectionsData = safeGetItem(key, []);
-      return this._normalizeSectionsData(sectionsData);
-    } else {
-      const sectionsData = await UnifiedStorageService.getSections();
-      const sections = this._normalizeSectionsData(sectionsData);
-
-      // Filter out demo sections if not in demo mode
+    if (!isDemoMode()) {
       return sections.filter((section) => {
         const name = section?.sectionname;
         return !(typeof name === 'string' && name.startsWith('Demo '));
       });
     }
+
+    return sections;
   }
 
   /**
@@ -1155,19 +1116,13 @@ class DatabaseService {
    * @returns {Promise<Array<Object>>} Array of event objects
    */
   async _getWebStorageEvents(sectionId) {
-    const { isDemoMode } = await import('../../../config/demoMode.js');
-    const demoMode = isDemoMode();
-    const prefix = demoMode ? 'demo_' : '';
-    const key = `${prefix}viking_events_${sectionId}_offline`;
-
-    const eventsData = demoMode
-      ? safeGetItem(key, [])
-      : await UnifiedStorageService.get(key) || [];
-
+    const key = `viking_events_${sectionId}_offline`;
+    const eventsData = await UnifiedStorageService.get(key) || [];
     const events = this._normalizeEventsData(eventsData);
 
-    // Filter out demo events if not in demo mode
-    if (!demoMode) {
+    const { isDemoMode } = await import('../../../config/demoMode.js');
+
+    if (!isDemoMode()) {
       return events.filter((event) => {
         const eid = event?.eventid;
         return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
@@ -1203,16 +1158,8 @@ class DatabaseService {
    * @returns {Promise<void>} Resolves when events are saved
    */
   async _saveWebStorageEvents(sectionId, events) {
-    const { isDemoMode } = await import('../../../config/demoMode.js');
-    const demoMode = isDemoMode();
-    const prefix = demoMode ? 'demo_' : '';
-    const key = `${prefix}viking_events_${sectionId}_offline`;
-
-    if (demoMode) {
-      safeSetItem(key, events);
-    } else {
-      await UnifiedStorageService.set(key, events);
-    }
+    const key = `viking_events_${sectionId}_offline`;
+    await UnifiedStorageService.set(key, events);
   }
 
   /**
