@@ -64,7 +64,7 @@ deactivate Storage
 
 RefData --> Frontend: ✅ Core reference data loaded\n(4 API calls: terms, roles, startup, members)
 deactivate RefData
-note right of Frontend: FlexiRecords deferred to Phase 3\nfor faster initial render
+note right of Frontend: FlexiRecords deferred to Phase 1B\nfor faster initial render
 
 == Phase 2: Load Events (Moderately Dynamic - Cache Only) ==
 Frontend -> EventsSvc: loadEventsForSections(sections, token)

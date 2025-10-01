@@ -60,6 +60,7 @@ class DataLoadingService {
             reference: null,
             events: null,
             attendance: null,
+            flexiRecords: null,
           },
         };
       }
