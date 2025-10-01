@@ -283,6 +283,11 @@ export function useAuth() {
             }, LOG_CATEGORIES.AUTH);
           }
 
+          // Update last sync time after data load completes
+          const syncTime = Date.now();
+          await UnifiedStorageService.setLastSync(syncTime);
+          setLastSyncTime(syncTime);
+
           // Show user message only if critical errors exist
           if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
             const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
