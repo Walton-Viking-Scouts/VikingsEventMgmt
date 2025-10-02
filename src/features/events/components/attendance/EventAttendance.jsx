@@ -11,7 +11,7 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
-import attendanceDataService from '../../../../shared/services/data/attendanceDataService.js';
+import eventSyncService from '../../../../shared/services/data/eventSyncService.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
@@ -505,24 +505,23 @@ function EventAttendance({ events, members, onBack }) {
 
       logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Use AttendanceDataService to refresh attendance data
-      const refreshedData = await attendanceDataService.getAttendanceData(true);
+      const result = await eventSyncService.syncAllEventAttendance(true);
 
-      // Update last refresh time
-      setLastAttendanceRefresh(attendanceDataService.getLastFetchTime());
+      if (!result.success) {
+        throw new Error(result.message);
+      }
 
-      logger.info('Attendance data refreshed successfully', {
-        recordCount: refreshedData.length,
-      }, LOG_CATEGORIES.COMPONENT);
+      setLastAttendanceRefresh(Date.now());
 
-      notifySuccess(`Refreshed attendance data - ${refreshedData.length} records loaded`);
+      logger.info('Attendance data synced successfully', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Reload Viking Event data to get the latest sign-in/out information
+      notifySuccess('Attendance data synced successfully');
+
       if (loadVikingEventData) {
         try {
           await loadVikingEventData();
         } catch (vikingError) {
-          logger.warn('Failed to refresh Viking Event data after attendance refresh', {
+          logger.warn('Failed to refresh Viking Event data after attendance sync', {
             error: vikingError.message,
           }, LOG_CATEGORIES.COMPONENT);
         }

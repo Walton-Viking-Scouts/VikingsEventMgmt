@@ -19,7 +19,6 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
@@ -319,7 +318,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  // Manual refresh handler using dataLoadingService orchestrator
+  // Manual refresh handler - simple direct calls
   const handleManualRefresh = async () => {
     if (refreshing) return;
 
@@ -335,42 +334,32 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         throw new Error('No authentication token available');
       }
 
-      // Step 1: Use dataLoadingService to refresh event and attendance data
-      const refreshResult = await dataLoadingService.refreshEventData(token);
+      // Get current sections
+      const sectionsData = await databaseService.getSections();
 
-      if (refreshResult.success) {
-        logger.info('Event data refresh completed successfully', {
-          summary: refreshResult.summary,
-        }, LOG_CATEGORIES.COMPONENT);
+      // Step 1: Load events (includes shared event metadata setup)
+      const { loadEventsForSections } = await import('../../../shared/services/data/eventsService.js');
+      await loadEventsForSections(sectionsData, token);
 
-        // Step 2: Reload sections data and trigger rebuild of event cards
-        const sectionsData = await databaseService.getSections();
-        setSections(sectionsData);
+      // Step 2: Sync all attendance (includes shared attendance)
+      const eventSyncService = (await import('../../../shared/services/data/eventSyncService.js')).default;
+      const attendanceResult = await eventSyncService.syncAllEventAttendance(true);
 
-        // Step 3: Build fresh event cards
-        const cards = await buildEventCards(sectionsData);
-        setEventCards(cards);
+      // Step 3: Reload sections and rebuild event cards
+      setSections(sectionsData);
+      const cards = await buildEventCards(sectionsData);
+      setEventCards(cards);
 
-        // Step 4: Update last sync time
-        setLastSync(new Date());
+      // Step 4: Update last sync time
+      setLastSync(new Date());
 
-        // Step 5: Show success notification based on orchestrator results
-        let message = 'Event data refreshed successfully';
-
-        // Try to extract attendance details if available
-        const attendanceResult = refreshResult.results?.attendance;
-        if (attendanceResult?.details) {
-          message = `Refreshed ${attendanceResult.details.syncedEvents}/${attendanceResult.details.totalEvents} events`;
-        } else if (refreshResult.hasErrors && refreshResult.summary?.successful > 0) {
-          message = `Partially refreshed (${refreshResult.summary.successful}/${refreshResult.summary.total} operations succeeded)`;
-        }
-
-        notifySuccess(message);
-      } else {
-        // Handle errors from orchestrator
-        const errorMessages = refreshResult.errors?.map(err => err.message) || ['Refresh failed'];
-        throw new Error(errorMessages.join(', '));
+      // Step 5: Show success notification
+      let message = 'Event data refreshed successfully';
+      if (attendanceResult?.details) {
+        message = `Refreshed ${attendanceResult.details.syncedEvents}/${attendanceResult.details.totalEvents} events`;
       }
+
+      notifySuccess(message);
 
     } catch (error) {
       logger.error('Manual refresh failed', {

@@ -87,12 +87,6 @@ loop For each section
     activate Storage
     Storage --> EventsSvc: Stored
     deactivate Storage
-
-    EventsSvc -> EventsSvc: detectAndStoreSharedEventsAcrossSections()
-    EventsSvc -> Storage: Store shared metadata\n(viking_shared_metadata_${eventid})
-    activate Storage
-    Storage --> EventsSvc: Cached
-    deactivate Storage
 end
 
 EventsSvc --> Frontend: ✅ Events loaded\n(~2-3 API calls - only getEvents per section)
@@ -125,25 +119,19 @@ loop For each displayable event (parallel)
     deactivate Storage
 end
 
-note right of SyncSvc: Check for shared events
+note right of SyncSvc: Sync shared attendance for all events
 SyncSvc -> SyncSvc: syncSharedAttendance(displayableEvents, token)
-loop For each shared event
-    SyncSvc -> Storage: Get viking_shared_metadata_${eventid}
+loop For each displayable event
+    SyncSvc -> OSM: getSharedEventAttendance(eventId, section, token)
+    activate OSM
+    note right of OSM: API checks if event is shared\nReturns data or error
+    OSM --> SyncSvc: Shared attendance data (if shared)
+    deactivate OSM
+
+    SyncSvc -> Storage: Cache shared attendance\n(viking_shared_attendance_${eventid}_${sectionid}_offline)
     activate Storage
-    Storage --> SyncSvc: Shared metadata
+    Storage --> SyncSvc: Cached
     deactivate Storage
-
-    alt Is Shared Event
-        SyncSvc -> OSM: getSharedEventAttendance(eventId, section, token)
-        activate OSM
-        OSM --> SyncSvc: Shared attendance data
-        deactivate OSM
-
-        SyncSvc -> Storage: Cache shared attendance\n(viking_shared_attendance_${eventid}_${sectionid}_offline)
-        activate Storage
-        Storage --> SyncSvc: Cached
-        deactivate Storage
-    end
 end
 
 SyncSvc --> Frontend: ✅ Attendance synced\n(~5-20 API calls, only displayable events)

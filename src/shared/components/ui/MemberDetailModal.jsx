@@ -402,7 +402,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
             )}
 
             {/* Consents */}
-            {contactGroups.consents && (
+            {(contactGroups.consents || contactGroups.permissions) && (
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="_hcy7t3">
                 <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="ukfj_ep">
                   <h3 className="text-lg font-semibold text-gray-900 m-0" data-oid="3ilra-k">
@@ -411,7 +411,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                 </div>
                 <div className="p-4 space-y-3" data-oid="k1mgp:k">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" data-oid="28l6-m6">
-                    {Object.entries(contactGroups.consents).map(([fieldKey, fieldValue]) => (
+                    {Object.entries(contactGroups.consents || contactGroups.permissions || {}).map(([fieldKey, fieldValue]) => (
                       <div key={fieldKey} data-oid="vvzdn00">
                         <label className="block text-sm font-medium text-gray-700 mb-1" data-oid="0-.-z__">
                           {fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -428,7 +428,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
 
             {/* Remaining Contact Information */}
             {Object.entries(contactGroups)
-              .filter(([groupKey]) => !['essential_information', 'consents'].includes(groupKey))
+              .filter(([groupKey]) => !['essential_information', 'consents', 'permissions'].includes(groupKey))
               .map(([groupKey, groupData]) => (
                 <div key={groupKey} className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="_hcy7t3">
                   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="ukfj_ep">

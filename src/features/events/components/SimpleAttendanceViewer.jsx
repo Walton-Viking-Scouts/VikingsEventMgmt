@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
+import eventSyncService from '../../../shared/services/data/eventSyncService.js';
+import databaseService from '../../../shared/services/storage/database.js';
 import Alert from '../../../shared/components/ui/Alert.jsx';
 import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
@@ -15,13 +16,19 @@ function SimpleAttendanceViewer() {
       setLoading(true);
       setError(null);
 
-      const data = await attendanceDataService.getAttendanceData(forceRefresh);
-      setAttendanceData(data);
-      setLastRefreshTime(attendanceDataService.getLastFetchTime());
-
       if (forceRefresh) {
-        notifySuccess(`Refreshed attendance data - ${data.length} records loaded`);
-      } else {
+        const result = await eventSyncService.syncAllEventAttendance(true);
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+        notifySuccess('Attendance data synced successfully');
+      }
+
+      const data = await loadAttendanceFromDatabase();
+      setAttendanceData(data);
+      setLastRefreshTime(Date.now());
+
+      if (!forceRefresh) {
         notifyInfo(`Loaded attendance data - ${data.length} records`);
       }
 
@@ -31,6 +38,40 @@ function SimpleAttendanceViewer() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadAttendanceFromDatabase = async () => {
+    const sections = await databaseService.getSections();
+    const allEvents = [];
+
+    for (const section of sections) {
+      const events = await databaseService.getEvents(section.sectionid);
+      allEvents.push(...(events || []));
+    }
+
+    const attendancePromises = allEvents.map(async (event) => {
+      try {
+        const records = await databaseService.getAttendance(event.eventid);
+        if (!records || records.length === 0) return [];
+
+        const recordArray = Array.isArray(records) ? records : (records.items || []);
+        return recordArray.map(record => ({
+          ...record,
+          eventid: event.eventid,
+          eventname: event.name,
+          eventdate: event.startdate,
+          sectionid: event.sectionid,
+          sectionname: event.sectionname,
+        }));
+      } catch {
+        return [];
+      }
+    });
+
+    const results = await Promise.allSettled(attendancePromises);
+    return results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
   };
 
   const handleRefresh = () => {

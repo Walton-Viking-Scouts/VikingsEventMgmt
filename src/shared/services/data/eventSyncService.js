@@ -330,7 +330,6 @@ class EventSyncService {
   }
 
   async syncSharedAttendance(events, token) {
-    const { UnifiedStorageService } = await import('../storage/unifiedStorageService.js');
     let apiCallCount = 0;
     let successCount = 0;
     let errorCount = 0;
@@ -339,65 +338,43 @@ class EventSyncService {
       totalEvents: events.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
 
-    // Check each event for shared metadata
+    // Call getSharedEventAttendance for all events - it handles cache/API logic internally
     for (const event of events) {
       try {
-        const metadataKey = `viking_shared_metadata_${event.eventid}`;
-        const sharedMetadata = await UnifiedStorageService.get(metadataKey);
-
-        if (sharedMetadata) {
-          const metadata = typeof sharedMetadata === 'string' ? JSON.parse(sharedMetadata) : sharedMetadata;
-
-          if (metadata._isSharedEvent === true) {
-            logger.info('🔄 Syncing shared attendance for shared event', {
-              eventName: event.name,
-              eventId: event.eventid,
-              sectionId: event.sectionid,
-            }, LOG_CATEGORIES.DATA_SERVICE);
-
-            try {
-              const sharedAttendanceData = await getSharedEventAttendance(
-                event.eventid,
-                event.sectionid,
-                token,
-              );
-
-              // Cache the shared attendance data
-              const cacheKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
-              localStorage.setItem(cacheKey, JSON.stringify(sharedAttendanceData));
-
-              apiCallCount++;
-              successCount++;
-
-              logger.info('✅ Shared attendance synced and cached', {
-                eventName: event.name,
-                eventId: event.eventid,
-                cacheKey,
-                attendeeCount: sharedAttendanceData?.items?.length || sharedAttendanceData?.combined_attendance?.length || 0,
-              }, LOG_CATEGORIES.DATA_SERVICE);
-
-            } catch (apiError) {
-              apiCallCount++;
-              errorCount++;
-              logger.warn('❌ Failed to sync shared attendance', {
-                eventName: event.name,
-                eventId: event.eventid,
-                error: apiError.message,
-              }, LOG_CATEGORIES.DATA_SERVICE);
-            }
-          }
-        }
-      } catch (metadataError) {
-        logger.debug('No shared metadata found for event', {
-          eventId: event.eventid,
+        logger.debug('Syncing shared attendance for event', {
           eventName: event.name,
+          eventId: event.eventid,
+          sectionId: event.sectionid,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+
+        const sharedAttendanceData = await getSharedEventAttendance(
+          event.eventid,
+          event.sectionid,
+          token,
+        );
+
+        apiCallCount++;
+        successCount++;
+
+        logger.debug('✅ Shared attendance synced', {
+          eventName: event.name,
+          eventId: event.eventid,
+          attendeeCount: sharedAttendanceData?.items?.length || sharedAttendanceData?.combined_attendance?.length || 0,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+
+      } catch (apiError) {
+        apiCallCount++;
+        errorCount++;
+        logger.debug('Shared attendance sync failed for event', {
+          eventName: event.name,
+          eventId: event.eventid,
+          error: apiError.message,
         }, LOG_CATEGORIES.DATA_SERVICE);
       }
     }
 
     logger.info('🌐 Shared attendance sync completed', {
       totalEvents: events.length,
-      sharedEvents: successCount + errorCount,
       successCount,
       errorCount,
       apiCallCount,

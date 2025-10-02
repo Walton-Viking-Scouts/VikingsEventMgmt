@@ -73,14 +73,14 @@ export function useAttendanceData(events, refreshTrigger = 0) {
               const regularSections = new Set(
                 relevantAttendance
                   .filter(r => r.eventid === event.eventid)
-                  .map(r => r.sectionid)
+                  .map(r => r.sectionid),
               );
 
               // Get unique scout IDs from regular attendance for this event
               const regularScoutIds = new Set(
                 relevantAttendance
                   .filter(r => r.eventid === event.eventid)
-                  .map(r => String(r.scoutid))
+                  .map(r => String(r.scoutid)),
               );
 
               // Create synthetic records for shared attendance (only "Yes" attendees from sections we don't have)

@@ -22,6 +22,16 @@ vi.mock('../../services/data/attendanceDataService.js', () => ({
   },
 }));
 
+vi.mock('../attendanceHelpers_new.js', () => ({
+  loadAllAttendanceFromDatabase: vi.fn(),
+}));
+
+vi.mock('../../services/storage/unifiedStorageService.js', () => ({
+  UnifiedStorageService: {
+    get: vi.fn(),
+  },
+}));
+
 vi.mock('../../services/utils/logger.js', () => ({
   default: {
     error: vi.fn(),
@@ -38,6 +48,8 @@ vi.mock('../../services/utils/logger.js', () => ({
 import databaseService from '../../services/storage/database.js';
 import attendanceDataService from '../../services/data/attendanceDataService.js';
 import logger from '../../services/utils/logger.js';
+import { loadAllAttendanceFromDatabase } from '../attendanceHelpers_new.js';
+import { UnifiedStorageService } from '../../services/storage/unifiedStorageService.js';
 
 describe('EventDashboard Helper Functions', () => {
   beforeEach(() => {
@@ -166,17 +178,19 @@ describe('EventDashboard Helper Functions', () => {
       { scoutid: 2, eventid: 101, attended: false },
     ];
 
-    it('should load attendance from attendanceDataService and filter for event', async () => {
-      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
+    it('should load attendance from loadAllAttendanceFromDatabase and filter for event', async () => {
+      loadAllAttendanceFromDatabase.mockResolvedValue(mockAllAttendanceData);
+      UnifiedStorageService.get.mockRejectedValue(new Error('No shared attendance'));
 
       const result = await fetchEventAttendance(mockEvent);
 
-      expect(attendanceDataService.getAttendanceData).toHaveBeenCalledWith(false);
+      expect(loadAllAttendanceFromDatabase).toHaveBeenCalled();
       expect(result).toEqual(mockEventAttendanceData);
     });
 
     it('should filter attendance data for specific event only', async () => {
-      attendanceDataService.getAttendanceData.mockResolvedValue(mockAllAttendanceData);
+      loadAllAttendanceFromDatabase.mockResolvedValue(mockAllAttendanceData);
+      UnifiedStorageService.get.mockRejectedValue(new Error('No shared attendance'));
 
       const result = await fetchEventAttendance(mockEvent);
 
@@ -203,12 +217,12 @@ describe('EventDashboard Helper Functions', () => {
 
     it('should handle service errors gracefully', async () => {
       const error = new Error('Service failure');
-      attendanceDataService.getAttendanceData.mockRejectedValue(error);
+      loadAllAttendanceFromDatabase.mockRejectedValue(error);
 
       const result = await fetchEventAttendance(mockEvent);
 
       expect(logger.error).toHaveBeenCalledWith(
-        'Error fetching attendance via attendanceDataService',
+        'Error fetching attendance',
         {
           error: error.message,
           eventId: 101,
