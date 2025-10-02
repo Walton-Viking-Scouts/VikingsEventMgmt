@@ -986,7 +986,7 @@ class DatabaseService {
         const normalisedSectionIds = new Set(sectionIds.map(id => String(id)));
         const filteredMembers = members.filter(member => {
           const primaryId = member.section_id ?? member.sectionid;
-          if (primaryId != null && normalisedSectionIds.has(String(primaryId))) {
+          if (primaryId !== null && primaryId !== undefined && normalisedSectionIds.has(String(primaryId))) {
             return true;
           }
 
@@ -995,7 +995,7 @@ class DatabaseService {
               if (!section) return false;
               if (typeof section === 'object') {
                 const candidate = section.section_id ?? section.sectionid ?? section.id;
-                return candidate != null && normalisedSectionIds.has(String(candidate));
+                return candidate !== null && candidate !== undefined && normalisedSectionIds.has(String(candidate));
               }
               return normalisedSectionIds.has(String(section));
             });
