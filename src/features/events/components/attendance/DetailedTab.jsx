@@ -9,6 +9,169 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
   const [_showMemberModal, _setShowMemberModal] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+  // Get all unique consent fields from all members for dynamic table rendering
+  // Must be before early return to satisfy Rules of Hooks
+  const allConsentFields = React.useMemo(() => {
+    const fields = new Set();
+    if (summaryStats && members) {
+      summaryStats.forEach((attendee) => {
+        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
+        const contactGroups = groupContactInfo(member);
+        const consentGroup = contactGroups.consents || contactGroups.permissions;
+        if (consentGroup) {
+          Object.keys(consentGroup).forEach(field => fields.add(field));
+        }
+      });
+    }
+    return Array.from(fields).sort();
+  }, [summaryStats, members]);
+
+  // Sort the summary stats
+  // Must be before early return to satisfy Rules of Hooks
+  const sortedStats = React.useMemo(() => {
+    if (!sortConfig.key || !summaryStats) return summaryStats;
+
+    const getComprehensiveMemberData = (member) => {
+      const contactGroups = groupContactInfo(member);
+      const combineFields = (groupNames, fieldNames, separator = ', ') => {
+        const values = [];
+        for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+          const group = contactGroups[groupName];
+          if (group) {
+            for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+              if (group[fieldName]) values.push(group[fieldName]);
+            }
+          }
+        }
+        return values.join(separator);
+      };
+
+      return {
+        name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
+        section: member.sections?.[0] || 'Unknown',
+        patrol: member.patrol || '',
+        age: member.age || member.yrs || '',
+        primary_contacts: (() => {
+          const contacts = [];
+          const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
+          const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
+          const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
+          if (pc1_name || pc1_phone || pc1_email) {
+            contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
+          }
+          const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
+          const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
+          const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
+          if (pc2_name || pc2_phone || pc2_email) {
+            contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
+          }
+          return contacts;
+        })(),
+        emergency_contacts: (() => {
+          const contacts = [];
+          const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
+          const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
+          if (ec_name || ec_phone) {
+            contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
+          }
+          return contacts;
+        })(),
+        essential_information: contactGroups.essential_information || {},
+        allergies: contactGroups.essential_information?.allergies || '',
+        medical_details: contactGroups.essential_information?.medical_details || '',
+        dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
+        tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
+        swimmer: contactGroups.essential_information?.swimmer || '',
+        other_useful_information: contactGroups.essential_information?.other_useful_information || '',
+        confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
+        consents: contactGroups.consents || contactGroups.permissions || {},
+      };
+    };
+
+    const getMemberAttendanceStatus = (attendee) => {
+      if (attendee.yes > 0) return 'Yes';
+      if (attendee.no > 0) return 'No';
+      if (attendee.invited > 0) return 'Invited';
+      if (attendee.notInvited > 0) return 'Not Invited';
+      return 'Unknown';
+    };
+
+    const getMemberVikingEventData = (attendee) => {
+      return attendee?.vikingEventData || null;
+    };
+
+    const sorted = [...summaryStats].sort((a, b) => {
+      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
+      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
+      const dataA = getComprehensiveMemberData(memberA);
+      const dataB = getComprehensiveMemberData(memberB);
+
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+      case 'name':
+        aValue = dataA.name.toLowerCase();
+        bValue = dataB.name.toLowerCase();
+        break;
+      case 'section':
+        aValue = dataA.section.toLowerCase();
+        bValue = dataB.section.toLowerCase();
+        break;
+      case 'patrol':
+        aValue = dataA.patrol.toLowerCase();
+        bValue = dataB.patrol.toLowerCase();
+        break;
+      case 'age':
+        aValue = parseInt(dataA.age) || 0;
+        bValue = parseInt(dataB.age) || 0;
+        break;
+      case 'status':
+        aValue = getMemberAttendanceStatus(a).toLowerCase();
+        bValue = getMemberAttendanceStatus(b).toLowerCase();
+        break;
+      case 'campGroup':
+        aValue = (getMemberVikingEventData(a)?.CampGroup || '').toLowerCase();
+        bValue = (getMemberVikingEventData(b)?.CampGroup || '').toLowerCase();
+        break;
+      default:
+        if (allConsentFields.includes(sortConfig.key)) {
+          aValue = (dataA.consents?.[sortConfig.key] || '').toLowerCase();
+          bValue = (dataB.consents?.[sortConfig.key] || '').toLowerCase();
+        } else {
+          const rawA = dataA[sortConfig.key] || '';
+          const rawB = dataB[sortConfig.key] || '';
+          aValue = String(rawA).toLowerCase();
+          bValue = String(rawB).toLowerCase();
+        }
+      }
+
+      const NONE_VARIATIONS = ['none', 'nil', 'nothing'];
+      const SYSTEM_DEFAULTS = ['n/a', 'not applicable', 'default', 'system'];
+
+      const isEmptyValue = (val) => {
+        if (!val || val === '' || val === '---') return true;
+        const normalized = String(val).toLowerCase().trim();
+        if (normalized === '') return true;
+        if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
+        if (NONE_VARIATIONS.some(none => normalized.includes(none))) return true;
+        return false;
+      };
+
+      const aIsEmpty = isEmptyValue(aValue);
+      const bIsEmpty = isEmptyValue(bValue);
+
+      if (aIsEmpty && !bIsEmpty) return 1;
+      if (!aIsEmpty && bIsEmpty) return -1;
+      if (aIsEmpty && bIsEmpty) return 0;
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [summaryStats, members, sortConfig, allConsentFields]);
+
   if (!summaryStats || !Array.isArray(summaryStats) || summaryStats.length === 0) {
     return (
       <div className="text-center py-12">
@@ -28,7 +191,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     const contactGroups = groupContactInfo(member);
     
     // Helper to get field from any group
-    const getField = (groupNames, fieldNames) => {
+    const _getField = (groupNames, fieldNames) => {
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
         const group = contactGroups[groupName];
         if (group) {
@@ -139,23 +302,6 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     return attendee?.vikingEventData || null;
   };
 
-  // Get all unique consent fields from all members for dynamic table rendering
-  const allConsentFields = React.useMemo(() => {
-    const fields = new Set();
-    if (summaryStats && members) {
-      summaryStats.forEach((attendee) => {
-        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
-        const contactGroups = groupContactInfo(member);
-        // Check both consents and permissions groups
-        const consentGroup = contactGroups.consents || contactGroups.permissions;
-        if (consentGroup) {
-          Object.keys(consentGroup).forEach(field => fields.add(field));
-        }
-      });
-    }
-    return Array.from(fields).sort();
-  }, [summaryStats, members]);
-
   // Sorting function
   const handleSort = (key) => {
     let direction = 'asc';
@@ -164,85 +310,6 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     }
     setSortConfig({ key, direction });
   };
-
-  // Sort the summary stats
-  const sortedStats = React.useMemo(() => {
-    if (!sortConfig.key || !summaryStats) return summaryStats;
-
-    const sorted = [...summaryStats].sort((a, b) => {
-      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
-      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
-      const dataA = getComprehensiveMemberData(memberA);
-      const dataB = getComprehensiveMemberData(memberB);
-
-      let aValue, bValue;
-
-      switch (sortConfig.key) {
-      case 'name':
-        aValue = dataA.name.toLowerCase();
-        bValue = dataB.name.toLowerCase();
-        break;
-      case 'section':
-        aValue = dataA.section.toLowerCase();
-        bValue = dataB.section.toLowerCase();
-        break;
-      case 'patrol':
-        aValue = dataA.patrol.toLowerCase();
-        bValue = dataB.patrol.toLowerCase();
-        break;
-      case 'age':
-        aValue = parseInt(dataA.age) || 0;
-        bValue = parseInt(dataB.age) || 0;
-        break;
-      case 'status':
-        aValue = getMemberAttendanceStatus(a).toLowerCase();
-        bValue = getMemberAttendanceStatus(b).toLowerCase();
-        break;
-      case 'campGroup':
-        aValue = (getMemberVikingEventData(a)?.CampGroup || '').toLowerCase();
-        bValue = (getMemberVikingEventData(b)?.CampGroup || '').toLowerCase();
-        break;
-      default:
-        // For consent fields
-        if (allConsentFields.includes(sortConfig.key)) {
-          aValue = (dataA.consents?.[sortConfig.key] || '').toLowerCase();
-          bValue = (dataB.consents?.[sortConfig.key] || '').toLowerCase();
-        } else {
-          // For medical fields - use raw values, not formatted display values
-          const rawA = dataA[sortConfig.key] || '';
-          const rawB = dataB[sortConfig.key] || '';
-          aValue = String(rawA).toLowerCase();
-          bValue = String(rawB).toLowerCase();
-        }
-      }
-
-      // Handle empty values - push them to the end (use same logic as medical data categorization)
-      const NONE_VARIATIONS = ['none', 'nil', 'nothing'];
-      const SYSTEM_DEFAULTS = ['n/a', 'not applicable', 'default', 'system'];
-
-      const isEmptyValue = (val) => {
-        if (!val || val === '' || val === '---') return true;
-        const normalized = String(val).toLowerCase().trim();
-        if (normalized === '') return true;
-        if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
-        if (NONE_VARIATIONS.some(none => normalized.includes(none))) return true;
-        return false;
-      };
-
-      const aIsEmpty = isEmptyValue(aValue);
-      const bIsEmpty = isEmptyValue(bValue);
-
-      if (aIsEmpty && !bIsEmpty) return 1; // a goes after b
-      if (!aIsEmpty && bIsEmpty) return -1; // a goes before b
-      if (aIsEmpty && bIsEmpty) return 0; // both empty, equal
-
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [summaryStats, members, sortConfig, allConsentFields]);
 
   // CSV Export function
   const exportToCSV = () => {
