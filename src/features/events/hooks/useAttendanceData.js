@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
+import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -27,17 +27,14 @@ export function useAttendanceData(events, refreshTrigger = 0) {
       setLoading(true);
       setError(null);
 
-      // Use attendanceDataService as the single source of truth
-      // This ensures consistency with dashboard and eliminates duplicate API calls
-      logger.info('Loading attendance data via attendanceDataService', {
+      logger.info('Loading attendance data from IndexedDB', {
         eventCount: events.length,
         eventIds: events.map(e => e.eventid),
       }, LOG_CATEGORIES.COMPONENT);
 
-      const allAttendanceData = await attendanceDataService.getAttendanceData(false);
+      const allAttendanceData = await loadAllAttendanceFromDatabase();
 
       if (allAttendanceData && allAttendanceData.length > 0) {
-        // Filter to only include events we're interested in
         const eventIds = new Set(events.map(e => String(e.eventid)));
         const relevantAttendance = allAttendanceData.filter(record => eventIds.has(String(record.eventid)));
 
@@ -47,33 +44,96 @@ export function useAttendanceData(events, refreshTrigger = 0) {
           eventIds: Array.from(eventIds),
         }, LOG_CATEGORIES.COMPONENT);
 
-        setAttendanceData(relevantAttendance);
-      } else {
-        // No cached data available - force refresh from API
-        logger.info('No cached attendance data found, forcing refresh', {}, LOG_CATEGORIES.COMPONENT);
+        // Load shared attendance and merge with regular attendance
+        const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
+        const mergedAttendance = [...relevantAttendance];
 
-        const refreshedData = await attendanceDataService.getAttendanceData(true);
+        console.log('🔍 useAttendanceData: Checking for shared attendance', {
+          eventCount: events.length,
+          events: events.map(e => ({ id: e.eventid, section: e.sectionid, name: e.name })),
+        });
 
-        if (refreshedData && refreshedData.length > 0) {
-          const eventIds = new Set(events.map(e => String(e.eventid)));
-          const relevantAttendance = refreshedData.filter(record => eventIds.has(String(record.eventid)));
+        for (const event of events) {
+          const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+          try {
+            const sharedData = await UnifiedStorageService.get(sharedKey);
+            const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
-          logger.info('Loaded fresh attendance data', {
-            totalFresh: refreshedData.length,
-            relevantRecords: relevantAttendance.length,
-          }, LOG_CATEGORIES.COMPONENT);
+            console.log('🔍 useAttendanceData: Shared data check', {
+              eventId: event.eventid,
+              eventName: event.name,
+              sharedKey,
+              hasSharedData: !!sharedData,
+              sharedDataKeys: sharedData ? Object.keys(sharedData) : [],
+              sharedAttendanceLength: sharedAttendance?.length || 0,
+            });
 
-          setAttendanceData(relevantAttendance);
-        } else {
-          setAttendanceData([]);
+            if (sharedAttendance && Array.isArray(sharedAttendance)) {
+              // Get sections from regular attendance to exclude duplicates
+              const regularSections = new Set(
+                relevantAttendance
+                  .filter(r => r.eventid === event.eventid)
+                  .map(r => r.sectionid)
+              );
+
+              // Get unique scout IDs from regular attendance for this event
+              const regularScoutIds = new Set(
+                relevantAttendance
+                  .filter(r => r.eventid === event.eventid)
+                  .map(r => String(r.scoutid))
+              );
+
+              // Create synthetic records for shared attendance (only "Yes" attendees from sections we don't have)
+              const syntheticRecords = sharedAttendance
+                .filter(attendee => {
+                  const isYes = attendee.attending === 'Yes';
+                  const notInRegular = !regularScoutIds.has(String(attendee.scoutid));
+                  const fromOtherSection = !regularSections.has(attendee.sectionid);
+                  return isYes && notInRegular && fromOtherSection;
+                })
+                .map(attendee => ({
+                  ...attendee,
+                  scoutid: `synthetic-${attendee.scoutid}`,
+                  eventid: event.eventid,
+                }));
+
+              mergedAttendance.push(...syntheticRecords);
+
+              console.log('✅ useAttendanceData: Merged shared attendance', {
+                eventId: event.eventid,
+                eventName: event.name,
+                sharedTotalYes: sharedAttendance.filter(a => a.attending === 'Yes').length,
+                regularSections: [...regularSections],
+                regularScoutCount: regularScoutIds.size,
+                syntheticCount: syntheticRecords.length,
+                totalAttendance: mergedAttendance.length,
+                syntheticSections: [...new Set(syntheticRecords.map(r => r.sectionname))],
+              });
+            }
+          } catch (sharedError) {
+            console.log('⚠️ useAttendanceData: No shared attendance', {
+              eventId: event.eventid,
+              eventName: event.name,
+              error: sharedError.message,
+            });
+          }
         }
+
+        console.log('✅ useAttendanceData: Final merged attendance', {
+          regularCount: relevantAttendance.length,
+          totalCount: mergedAttendance.length,
+          syntheticCount: mergedAttendance.length - relevantAttendance.length,
+        });
+
+        setAttendanceData(mergedAttendance);
+      } else {
+        setAttendanceData([]);
       }
 
-      // Load Viking Event Management data (fresh when possible, cache as fallback)
       await loadVikingEventData();
 
     } catch (err) {
-      logger.error('Error loading attendance via attendanceDataService', {
+      logger.error('Error loading attendance from IndexedDB', {
         error: err.message,
         eventCount: events.length,
       }, LOG_CATEGORIES.COMPONENT);
