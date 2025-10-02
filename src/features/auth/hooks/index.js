@@ -1,3 +1,3 @@
 // Auth hooks barrel export
-export { useAuth } from './useAuth.js';
+export { useAuth, AuthProvider } from './useAuth.jsx';
 export { useRequireAuth, useRequireOfflineAccess, usePermissionGuard } from './useRouteGuards.js';

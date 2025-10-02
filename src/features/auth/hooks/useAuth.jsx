@@ -1,5 +1,5 @@
 // useAuth hook for managing authentication state in React
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import * as Sentry from '@sentry/react';
 import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
@@ -7,6 +7,9 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import databaseService from '../../../shared/services/storage/database.js';
 import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
+
+// Create Auth Context
+const AuthContext = createContext(null);
 
 // Environment-specific configuration for token expiration monitoring
 const TOKEN_CONFIG = {
@@ -28,7 +31,8 @@ const broadcastAuthSync = () => {
   }
 };
 
-export function useAuth() {
+// Internal hook that contains the auth logic
+function useAuthLogic() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -270,7 +274,23 @@ export function useAuth() {
         try {
           logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
 
-          const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken);
+          // Use progress callbacks to trigger UI updates as data loads
+          const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
+            onEventsLoaded: async () => {
+              // Trigger UI re-render as soon as events are loaded (before attendance)
+              const eventsLoadedTime = Date.now();
+              await UnifiedStorageService.setLastSync(eventsLoadedTime);
+              console.log('🔄 Events loaded - triggering initial render:', eventsLoadedTime);
+              setLastSyncTime(eventsLoadedTime);
+            },
+            onAttendanceLoaded: async () => {
+              // Trigger UI re-render when attendance is loaded (before FlexiRecords)
+              const attendanceLoadedTime = Date.now();
+              await UnifiedStorageService.setLastSync(attendanceLoadedTime);
+              console.log('🔄 Attendance loaded - triggering render with attendance:', attendanceLoadedTime);
+              setLastSyncTime(attendanceLoadedTime);
+            },
+          });
 
           if (allDataResults.success) {
             logger.info('Comprehensive data load completed', {
@@ -282,6 +302,12 @@ export function useAuth() {
               hasErrors: allDataResults.hasErrors,
             }, LOG_CATEGORIES.AUTH);
           }
+
+          // Update last sync time again after ALL data loads (including attendance)
+          const syncTime = Date.now();
+          await UnifiedStorageService.setLastSync(syncTime);
+          console.log('🔄 All data loaded - final sync time:', syncTime);
+          setLastSyncTime(syncTime);
 
           // Show user message only if critical errors exist
           if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
@@ -621,6 +647,29 @@ export function useAuth() {
     setToken,
     checkAuth,
   };
+}
+
+// Provider component that wraps the app
+/**
+ *
+ */
+export function AuthProvider({ children }) {
+  const auth = useAuthLogic();
+
+  return (
+    <AuthContext.Provider value={auth}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Hook to use the auth context
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 export default useAuth;

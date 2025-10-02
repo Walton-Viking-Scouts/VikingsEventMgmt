@@ -12,7 +12,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { useAuth } from '../../auth/hooks/useAuth.js';
+import { useAuth } from '../../auth/hooks/useAuth.jsx';
 
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
   const location = useLocation();

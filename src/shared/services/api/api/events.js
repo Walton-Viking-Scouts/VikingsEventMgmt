@@ -441,25 +441,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
     });
 
     const result = data || { combined_attendance: [], summary: {}, sections: [] };
-    
-    // Log the data shape for development (only when fresh API data is received)
-    if (import.meta.env.DEV) {
-      console.log('🔍 Shared Event Attendance API Response Shape:', {
-        eventId,
-        sectionId,
-        dataStructure: {
-          combined_attendance_count: result.combined_attendance?.length || 0,
-          combined_attendance_sample: result.combined_attendance?.[0] || null,
-          summary_keys: Object.keys(result.summary || {}),
-          summary_data: result.summary,
-          sections_count: result.sections?.length || 0,
-          sections_sample: result.sections?.[0] || null,
-          top_level_keys: Object.keys(result),
-        },
-        full_response: result,
-      });
-    }
-    
+
     // Cache the successful response
     try {
       const dataToCache = {

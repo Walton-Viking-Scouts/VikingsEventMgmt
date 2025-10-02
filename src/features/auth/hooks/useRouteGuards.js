@@ -1,4 +1,4 @@
-import { useAuth } from './useAuth.js';
+import { useAuth } from './useAuth.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 

@@ -4,8 +4,11 @@
  * Orchestrates loading of all application data types to avoid duplication and ensure proper sequencing.
  * Maintains separation of concerns while providing unified loading interfaces.
  *
+ * Flow: Core Reference → Events → Attendance → FlexiRecord Data
+ *
  * @module dataLoadingService
- * @version 1.0.0
+ * @version 1.1.0
+ * @since 1.1.0 - Split FlexiRecord loading to run after events/attendance
  * @author Vikings Event Management Team
  */
 
@@ -22,12 +25,13 @@ class DataLoadingService {
 
   /**
    * Loads all data after successful authentication
-   * Sequence: Reference Data → Events → Attendance
+   * Sequence: Core Reference → Events → Attendance → FlexiRecord Data
    *
    * @param {string} token - OSM authentication token
+   * @param {Object} callbacks - Optional callbacks for events
    * @returns {Promise<Object>} Results object with all loading results
    */
-  async loadAllDataAfterAuth(token) {
+  async loadAllDataAfterAuth(token, callbacks = {}) {
     if (this.isLoadingAll) {
       logger.debug('Full data load already in progress', {}, LOG_CATEGORIES.DATA_SERVICE);
       if (this.loadAllPromise) {
@@ -35,11 +39,11 @@ class DataLoadingService {
       }
     }
 
-    this.loadAllPromise = this._doLoadAllData(token);
+    this.loadAllPromise = this._doLoadAllData(token, callbacks);
     return await this.loadAllPromise;
   }
 
-  async _doLoadAllData(token) {
+  async _doLoadAllData(token, callbacks = {}) {
     const startTime = performance.now();
 
     try {
@@ -56,6 +60,7 @@ class DataLoadingService {
             reference: null,
             events: null,
             attendance: null,
+            flexiRecords: null,
           },
         };
       }
@@ -64,11 +69,12 @@ class DataLoadingService {
         reference: null,
         events: null,
         attendance: null,
+        flexiRecords: null,
       };
       const errors = [];
       let totalSuccessCount = 0;
 
-      // Step 1: Load reference data (terms, roles, members, flexiRecords)
+      // Step 1: Load core reference data (terms, roles, startup, members)
       try {
         logger.debug('Loading reference data', {}, LOG_CATEGORIES.DATA_SERVICE);
         const { loadInitialReferenceData } = await import('../referenceData/referenceDataService.js');
@@ -114,6 +120,10 @@ class DataLoadingService {
             logger.info('Events loaded successfully', {
               summary: results.events.summary,
             }, LOG_CATEGORIES.DATA_SERVICE);
+
+            if (callbacks.onEventsLoaded) {
+              await callbacks.onEventsLoaded();
+            }
           } else {
             logger.warn('Events loading had issues', {
               summary: results.events.summary,
@@ -156,6 +166,11 @@ class DataLoadingService {
               message: results.attendance.message,
               details: results.attendance.details,
             }, LOG_CATEGORIES.DATA_SERVICE);
+
+            // Trigger callback to update UI with attendance data
+            if (callbacks.onAttendanceLoaded) {
+              await callbacks.onAttendanceLoaded();
+            }
           } else {
             logger.warn('Initial attendance sync failed', {
               message: results.attendance.message,
@@ -185,6 +200,47 @@ class DataLoadingService {
         }, LOG_CATEGORIES.DATA_SERVICE);
       }
 
+      // Step 4: Load FlexiRecord data (after events and attendance)
+      if (userRoles && userRoles.length > 0) {
+        try {
+          logger.debug('Loading FlexiRecord data', {
+            sectionCount: userRoles.length,
+          }, LOG_CATEGORIES.DATA_SERVICE);
+
+          const { loadFlexiRecordData } = await import('../referenceData/referenceDataService.js');
+          results.flexiRecords = await loadFlexiRecordData(userRoles, token);
+
+          if (results.flexiRecords.success) {
+            totalSuccessCount++;
+            logger.info('FlexiRecord data loaded successfully', {
+              summary: results.flexiRecords.summary,
+            }, LOG_CATEGORIES.DATA_SERVICE);
+          } else {
+            logger.warn('FlexiRecord data loading had issues', {
+              summary: results.flexiRecords.summary,
+              hasErrors: results.flexiRecords.hasErrors,
+            }, LOG_CATEGORIES.DATA_SERVICE);
+            errors.push(...results.flexiRecords.errors.map(e => ({ ...e, category: 'flexiRecords' })));
+          }
+        } catch (flexiError) {
+          logger.error('Failed to load FlexiRecord data', {
+            error: flexiError.message,
+            sectionCount: userRoles.length,
+          }, LOG_CATEGORIES.DATA_SERVICE);
+          errors.push({
+            type: 'flexiRecords',
+            category: 'flexiRecords',
+            message: flexiError.message,
+            originalError: flexiError.message,
+          });
+        }
+      } else {
+        logger.info('No sections available - skipping FlexiRecord loading', {
+          hasReference: !!results.reference,
+          hasUserRoles: !!userRoles,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+      }
+
       const endTime = performance.now();
       const duration = endTime - startTime;
       const hasErrors = errors.length > 0;
@@ -193,7 +249,7 @@ class DataLoadingService {
       // Log comprehensive summary
       if (isCompleteFailure) {
         logger.error('Complete data loading failure', {
-          totalAttempts: 3,
+          totalAttempts: 4,
           successCount: totalSuccessCount,
           errorCount: errors.length,
           errors: errors.map(e => `${e.category}:${e.type}`),
@@ -201,7 +257,7 @@ class DataLoadingService {
         }, LOG_CATEGORIES.ERROR);
       } else if (hasErrors) {
         logger.warn('Partial data loading failure', {
-          totalAttempts: 3,
+          totalAttempts: 4,
           successCount: totalSuccessCount,
           errorCount: errors.length,
           successfulCategories: Object.keys(results).filter(k => results[k]?.success),
@@ -210,7 +266,7 @@ class DataLoadingService {
         }, LOG_CATEGORIES.DATA_SERVICE);
       } else {
         logger.info('All data loaded successfully after authentication', {
-          totalAttempts: 3,
+          totalAttempts: 4,
           successCount: totalSuccessCount,
           duration: `${Math.round(duration)}ms`,
         }, LOG_CATEGORIES.DATA_SERVICE);
@@ -222,7 +278,7 @@ class DataLoadingService {
         errors,
         results,
         summary: {
-          total: 3,
+          total: 4,
           successful: totalSuccessCount,
           failed: errors.length,
           duration,
@@ -230,6 +286,7 @@ class DataLoadingService {
             reference: results.reference?.success || false,
             events: results.events?.success || false,
             attendance: results.attendance?.success || false,
+            flexiRecords: results.flexiRecords?.success || false,
           },
         },
       };
@@ -252,6 +309,7 @@ class DataLoadingService {
           reference: null,
           events: null,
           attendance: null,
+          flexiRecords: null,
         },
       };
     } finally {

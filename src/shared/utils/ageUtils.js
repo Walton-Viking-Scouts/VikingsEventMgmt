@@ -2,8 +2,8 @@
  * @file Age calculation utilities for Viking Event Management
  * 
  * This module provides age calculation functions with privacy-conscious formatting
- * for Scout environments. Implements leader privacy protection by showing ">25"
- * for adults over 25, while displaying actual ages for young people.
+ * for Scout environments. Implements leader privacy protection by showing "Adult"
+ * for anyone 18 or older, while displaying actual ages for young people under 18.
  * 
  * Age calculations are essential for Scout programs which have strict age-based
  * section requirements and safeguarding policies. The privacy features protect
@@ -18,11 +18,11 @@
 
 /**
  * Calculates age from date of birth with privacy-conscious formatting for display
- * 
+ *
  * Computes age in years and applies Scout-appropriate privacy formatting.
- * For young people (25 and under), displays the actual age for section
- * placement and activity suitability verification. For adults over 25
- * (typically leaders), shows ">25" to protect privacy while confirming
+ * For young people (under 18), displays the actual age for section
+ * placement and activity suitability verification. For adults 18 or older
+ * (including young leaders), shows "Adult" to protect privacy while confirming
  * adult status for safeguarding compliance.
  * 
  * This privacy approach balances operational needs (knowing young people's
@@ -30,7 +30,7 @@
  * ages displayed to other members).
  * 
  * @param {string|Date} dateOfBirth - Date of birth in any format parseable by Date constructor
- * @returns {string} Formatted age display - actual age for ≤25, ">25" for adults over 25
+ * @returns {string} Formatted age display - actual age for under 18, "Adult" for 18 or older
  * 
  * @example
  * // Young person ages (shown exactly for section/activity verification)
@@ -42,15 +42,15 @@
  * 
  * @example
  * // Adult leader ages (privacy protected)
- * const youngLeader = calculateAge('1999-08-10'); // 25-year-old leader
- * console.log(youngLeader); // "25" (still shows exact age)
- * 
+ * const youngLeader = calculateAge('2006-08-10'); // 18-year-old young leader
+ * console.log(youngLeader); // "Adult" (privacy protected)
+ *
  * const seniorLeader = calculateAge('1985-03-22'); // 39-year-old leader
- * console.log(seniorLeader); // ">25" (privacy protected)
+ * console.log(seniorLeader); // "Adult" (privacy protected)
  * 
  * @example
  * // Handle various date formats and edge cases
- * console.log(calculateAge('1995-12-31')); // ">25" (adult leader)
+ * console.log(calculateAge('1995-12-31')); // "Adult" (adult leader)
  * console.log(calculateAge('2012/06/18')); // "12" (young scout)
  * console.log(calculateAge(new Date('2008-09-03'))); // "16" (accepts Date objects)
  * console.log(calculateAge('')); // "" (handles empty input)
@@ -60,7 +60,7 @@
  * // Usage in Scout member displays
  * const renderMemberAge = (member) => {
  *   const ageDisplay = calculateAge(member.dob);
- *   const ageLabel = ageDisplay === '>25' ? 'Adult Leader' : `Age ${ageDisplay}`;
+ *   const ageLabel = ageDisplay === 'Adult' ? 'Adult Leader' : `Age ${ageDisplay}`;
  *   
  *   return (
  *     <div className="member-info">
@@ -74,8 +74,8 @@
  * // Age-based section validation
  * const validateSectionAge = (member, targetSection) => {
  *   const age = calculateAge(member.dob);
- *   
- *   if (age === '>25') {
+ *
+ *   if (age === 'Adult') {
  *     return true; // Adults can lead any section
  *   }
  *   
@@ -102,9 +102,9 @@ export function calculateAge(dateOfBirth) {
     if (isNaN(birthDate.getTime())) return '';
     
     const age = Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    
-    // Show ">25" for adults over 25 (leader privacy)
-    return age > 25 ? '>25' : age.toString();
+
+    // Show "Adult" for anyone 18 or older (leader privacy)
+    return age >= 18 ? 'Adult' : age.toString();
   } catch (error) {
     return '';
   }
@@ -187,12 +187,12 @@ export function calculateAge(dateOfBirth) {
  * @example
  * // Compare with display function
  * const member = { dob: '1985-06-15' }; // 39 years old
- * 
- * const displayAge = calculateAge(member.dob);    // ">25" (privacy protected)
+ *
+ * const displayAge = calculateAge(member.dob);    // "Adult" (privacy protected)
  * const actualAge = calculateActualAge(member.dob); // 39 (exact for calculations)
- * 
+ *
  * console.log(`Display: ${displayAge}, Actual: ${actualAge}`);
- * // Output: "Display: >25, Actual: 39"
+ * // Output: "Display: Adult, Actual: 39"
  * 
  * @example
  * // Error handling for invalid dates

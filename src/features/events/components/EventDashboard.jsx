@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // Removed API imports - UI only reads from IndexedDB
 import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
 import { authHandler } from '../../../shared/services/auth/authHandler.js';
-import { useAuth } from '../../auth/hooks/useAuth.js';
+import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
 import { SectionsList } from '../../sections';
@@ -24,7 +24,7 @@ import { notifyError, notifySuccess } from '../../../shared/utils/notifications.
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
-  useAuth(); // Initialize auth hook
+  const { lastSyncTime } = useAuth(); // Get shared lastSyncTime from auth context
   const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +90,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
 
   useEffect(() => {
+    console.log('🔄 EventDashboard useEffect triggered', { lastSyncTime });
     let mounted = true;
     isMountedRef.current = true;
 
@@ -189,7 +190,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         clearTimeout(backgroundSyncTimeoutIdRef.current);
       }
     };
-  }, []); // Run once
+  }, [lastSyncTime]); // Re-run when lastSyncTime changes after data load
 
 
 
