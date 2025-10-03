@@ -15,7 +15,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     const fields = new Set();
     if (summaryStats && members) {
       summaryStats.forEach((attendee) => {
-        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || attendee;
+        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
         const contactGroups = groupContactInfo(member);
         const consentGroup = contactGroups.consents || contactGroups.permissions;
         if (consentGroup) {
@@ -101,8 +101,8 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     };
 
     const sorted = [...summaryStats].sort((a, b) => {
-      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || a;
-      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || b;
+      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
+      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
       const dataA = getComprehensiveMemberData(memberA);
       const dataB = getComprehensiveMemberData(memberB);
 
@@ -353,7 +353,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       // Get all unique consent fields from all members
       const allConsentFields = new Set();
       summaryStats.forEach((attendee) => {
-        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || attendee;
+        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
         const contactGroups = groupContactInfo(member);
         // Check both consents and permissions groups
         const consentGroup = contactGroups.consents || contactGroups.permissions;
@@ -371,7 +371,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       const csvRows = [
         headers.map(csv).join(','),
         ...summaryStats.map((attendee) => {
-          const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || attendee;
+          const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
           const memberData = getComprehensiveMemberData(member);
           const attendanceStatus = getMemberAttendanceStatus(attendee);
           const vikingEventData = getMemberVikingEventData(attendee);
@@ -556,7 +556,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
           <tbody className="bg-white divide-y divide-gray-200">
             {sortedStats.map((attendee, index) => {
               // Get comprehensive member data from the full members list
-              const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || attendee;
+              const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
               const memberData = getComprehensiveMemberData(member);
               const attendanceStatus = getMemberAttendanceStatus(attendee);
               const vikingEventData = getMemberVikingEventData(attendee);

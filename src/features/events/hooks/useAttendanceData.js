@@ -8,11 +8,13 @@ import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceH
  * Custom hook for loading and managing attendance data
  *
  * @param {Array} events - Array of event data
+ * @param {Array} members - Array of member data
  * @param {number} refreshTrigger - Optional trigger to force reload
  * @returns {Object} Hook state and functions
  */
-export function useAttendanceData(events, refreshTrigger = 0) {
+export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [mergedMembers, setMergedMembers] = useState(members);
   const [vikingEventData, setVikingEventData] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,7 +22,7 @@ export function useAttendanceData(events, refreshTrigger = 0) {
   // Load attendance data when events change or refresh is triggered
   useEffect(() => {
     loadAttendance();
-  }, [events, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [events, members, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {
@@ -83,21 +85,21 @@ export function useAttendanceData(events, refreshTrigger = 0) {
                   .map(r => String(r.scoutid)),
               );
 
-              // Create synthetic records for shared attendance (only "Yes" attendees from sections we don't have)
-              const syntheticRecords = sharedAttendance
-                .filter(attendee => {
-                  const isYes = attendee.attending === 'Yes';
-                  const notInRegular = !regularScoutIds.has(String(attendee.scoutid));
-                  const fromOtherSection = !regularSections.has(attendee.sectionid);
-                  return isYes && notInRegular && fromOtherSection;
-                })
-                .map(attendee => ({
-                  ...attendee,
-                  scoutid: `synthetic-${attendee.scoutid}`,
-                  eventid: event.eventid,
-                }));
+              // Filter shared attendance for "Yes" attendees from sections we don't have
+              const sharedAttendees = sharedAttendance.filter(attendee => {
+                const isYes = attendee.attending === 'Yes';
+                const notInRegular = !regularScoutIds.has(String(attendee.scoutid));
+                const fromOtherSection = !regularSections.has(attendee.sectionid);
+                return isYes && notInRegular && fromOtherSection;
+              });
 
-              mergedAttendance.push(...syntheticRecords);
+              // Create attendance records with real scoutids
+              const sharedAttendanceRecords = sharedAttendees.map(attendee => ({
+                ...attendee,
+                eventid: event.eventid,
+              }));
+
+              mergedAttendance.push(...sharedAttendanceRecords);
 
               console.log('✅ useAttendanceData: Merged shared attendance', {
                 eventId: event.eventid,
@@ -105,11 +107,11 @@ export function useAttendanceData(events, refreshTrigger = 0) {
                 sharedTotalYes: sharedAttendance.filter(a => a.attending === 'Yes').length,
                 regularSections: [...regularSections],
                 regularScoutCount: regularScoutIds.size,
-                syntheticCount: syntheticRecords.length,
+                sharedCount: sharedAttendanceRecords.length,
                 totalAttendance: mergedAttendance.length,
-                syntheticSections: [...new Set(syntheticRecords.map(r => r.sectionname))],
+                sharedSections: [...new Set(sharedAttendanceRecords.map(r => r.sectionname))],
                 sampleSharedRecord: sharedAttendance.filter(a => a.attending === 'Yes')[0],
-                sampleSyntheticRecord: syntheticRecords[0],
+                sampleSharedAttendanceRecord: sharedAttendanceRecords[0],
               });
             }
           } catch (sharedError) {
@@ -124,11 +126,45 @@ export function useAttendanceData(events, refreshTrigger = 0) {
         console.log('✅ useAttendanceData: Final merged attendance', {
           regularCount: relevantAttendance.length,
           totalCount: mergedAttendance.length,
-          syntheticCount: mergedAttendance.length - relevantAttendance.length,
+          sharedCount: mergedAttendance.length - relevantAttendance.length,
         });
 
+        // Create minimal member objects from shared attendance and merge with existing members
+        const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
+        const sharedMembers = [];
+
+        for (const record of mergedAttendance) {
+          if (!existingMemberIds.has(String(record.scoutid))) {
+            // This is a shared attendee - create minimal member object
+            const sharedMember = {
+              scoutid: record.scoutid,
+              firstname: record.firstname || record.first_name,
+              lastname: record.lastname || record.last_name,
+              first_name: record.firstname || record.first_name,
+              last_name: record.lastname || record.last_name,
+              age: record.age || record.yrs,
+              yrs: record.age || record.yrs,
+              sectionname: record.sectionname,
+              sections: [record.sectionname],
+              _isSharedMember: true,
+            };
+            sharedMembers.push(sharedMember);
+            existingMemberIds.add(String(record.scoutid));
+          }
+        }
+
+        const combinedMembers = [...members, ...sharedMembers];
+
+        console.log('✅ useAttendanceData: Merged members', {
+          originalMembers: members.length,
+          sharedMembers: sharedMembers.length,
+          totalMembers: combinedMembers.length,
+        });
+
+        setMergedMembers(combinedMembers);
         setAttendanceData(mergedAttendance);
       } else {
+        setMergedMembers(members);
         setAttendanceData([]);
       }
 
@@ -247,6 +283,7 @@ export function useAttendanceData(events, refreshTrigger = 0) {
 
   return {
     attendanceData: enhancedAttendanceData,
+    members: mergedMembers,
     vikingEventData,
     loading,
     error,

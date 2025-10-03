@@ -34,16 +34,17 @@ const hasSignInData = (vikingEventData) => {
   );
 };
 
-function EventAttendance({ events, members, onBack }) {
+function EventAttendance({ events, members: membersProp, onBack }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const {
     attendanceData,
+    members,
     vikingEventData,
     loading,
     error,
     loadVikingEventData,
-  } = useAttendanceData(events, refreshTrigger);
+  } = useAttendanceData(events, membersProp, refreshTrigger);
 
 
 
