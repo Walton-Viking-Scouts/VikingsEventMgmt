@@ -50,8 +50,8 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
         const mergedAttendance = [...relevantAttendance];
 
-        // Get all sections user has access to (from all events)
-        const userAccessibleSections = new Set(events.map(e => e.sectionid));
+        // Get all sections user has access to (from ALL cached attendance data, not just current events)
+        const userAccessibleSections = new Set(allAttendanceData.map(record => record.sectionid));
 
         console.log('🔍 useAttendanceData: Checking for shared attendance', {
           eventCount: events.length,
