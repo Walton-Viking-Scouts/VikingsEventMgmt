@@ -97,44 +97,49 @@ export const fetchEventAttendance = async (event) => {
 
     try {
       const sharedData = await UnifiedStorageService.get(sharedKey);
-
-      // API returns data in 'items' property (from getSharedEventAttendance)
       const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
       if (sharedAttendance && Array.isArray(sharedAttendance)) {
-        logger.debug('Found shared attendance data', {
+        logger.debug('Found shared attendance data - using as authoritative source', {
           eventId: event.eventid,
           sharedAttendees: sharedAttendance.length,
         }, LOG_CATEGORIES.COMPONENT);
 
-        // Create synthetic records for sections user doesn't have access to
-        const syntheticRecords = sharedAttendance
-          .filter(attendee => attendee.attending === 'Yes') // Only "Yes" for inaccessible sections
-          .map(attendee => ({
-            ...attendee,
-            scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic
-            eventid: event.eventid,
-          }));
+        // When shared attendance exists, use it exclusively (it already contains ALL sections)
+        // Deduplicate by scoutid to prevent counting same person multiple times
+        const uniqueScouts = new Map();
 
-        // Merge regular and synthetic attendance
-        const mergedAttendance = [...eventAttendance, ...syntheticRecords];
+        sharedAttendance
+          .filter(attendee => attendee.attending === 'Yes')
+          .forEach(attendee => {
+            const scoutId = String(attendee.scoutid);
+            if (!uniqueScouts.has(scoutId)) {
+              uniqueScouts.set(scoutId, {
+                ...attendee,
+                scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
+                eventid: event.eventid,
+              });
+            }
+          });
 
-        logger.debug('Merged attendance with shared data', {
+        const deduplicatedAttendance = Array.from(uniqueScouts.values());
+
+        logger.debug('Using shared attendance (deduplicated)', {
           eventId: event.eventid,
-          regularRecords: eventAttendance.length,
-          syntheticRecords: syntheticRecords.length,
-          total: mergedAttendance.length,
+          totalShared: sharedAttendance.length,
+          uniqueAttendees: deduplicatedAttendance.length,
         }, LOG_CATEGORIES.COMPONENT);
 
-        return mergedAttendance;
+        return deduplicatedAttendance;
       }
     } catch (sharedError) {
-      logger.debug('No shared attendance data found', {
+      logger.debug('No shared attendance data found - using regular attendance', {
         eventId: event.eventid,
         error: sharedError.message,
       }, LOG_CATEGORIES.COMPONENT);
     }
 
+    // No shared attendance - use regular attendance
     return eventAttendance;
 
   } catch (err) {
