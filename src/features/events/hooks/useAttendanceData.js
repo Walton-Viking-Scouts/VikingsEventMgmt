@@ -50,8 +50,12 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
         const mergedAttendance = [...relevantAttendance];
 
+        // Get all sections user has access to (from all events)
+        const userAccessibleSections = new Set(events.map(e => e.sectionid));
+
         console.log('🔍 useAttendanceData: Checking for shared attendance', {
           eventCount: events.length,
+          userAccessibleSections: [...userAccessibleSections],
           events: events.map(e => ({ id: e.eventid, section: e.sectionid, name: e.name })),
         });
 
@@ -85,12 +89,12 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                   .map(r => String(r.scoutid)),
               );
 
-              // Filter shared attendance for "Yes" attendees from sections we don't have
+              // Filter shared attendance for "Yes" attendees from sections we don't have ACCESS to
               const sharedAttendees = sharedAttendance.filter(attendee => {
                 const isYes = attendee.attending === 'Yes';
                 const notInRegular = !regularScoutIds.has(String(attendee.scoutid));
-                const fromOtherSection = !regularSections.has(attendee.sectionid);
-                return isYes && notInRegular && fromOtherSection;
+                const fromInaccessibleSection = !userAccessibleSections.has(attendee.sectionid);
+                return isYes && notInRegular && fromInaccessibleSection;
               });
 
               // Create attendance records with real scoutids
@@ -105,11 +109,14 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                 eventId: event.eventid,
                 eventName: event.name,
                 sharedTotalYes: sharedAttendance.filter(a => a.attending === 'Yes').length,
+                userAccessibleSections: [...userAccessibleSections],
                 regularSections: [...regularSections],
                 regularScoutCount: regularScoutIds.size,
                 sharedCount: sharedAttendanceRecords.length,
                 totalAttendance: mergedAttendance.length,
                 sharedSections: [...new Set(sharedAttendanceRecords.map(r => r.sectionname))],
+                sharedSectionIds: [...new Set(sharedAttendanceRecords.map(r => r.sectionid))],
+                regularAttendanceForEvent: relevantAttendance.filter(r => r.eventid === event.eventid).length,
                 sampleSharedRecord: sharedAttendance.filter(a => a.attending === 'Yes')[0],
                 sampleSharedAttendanceRecord: sharedAttendanceRecords[0],
               });
