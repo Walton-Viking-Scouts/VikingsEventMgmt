@@ -104,7 +104,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     const contactGroups = groupContactInfo(member);
     
     // Helper to get field from any group
-    const getField = (groupNames, fieldNames) => {
+    const _getField = (groupNames, fieldNames) => {
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
         const group = contactGroups[groupName];
         if (group) {

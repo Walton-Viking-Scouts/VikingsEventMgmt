@@ -108,6 +108,8 @@ export function useAttendanceData(events, refreshTrigger = 0) {
                 syntheticCount: syntheticRecords.length,
                 totalAttendance: mergedAttendance.length,
                 syntheticSections: [...new Set(syntheticRecords.map(r => r.sectionname))],
+                sampleSharedRecord: sharedAttendance.filter(a => a.attending === 'Yes')[0],
+                sampleSyntheticRecord: syntheticRecords[0],
               });
             }
           } catch (sharedError) {
