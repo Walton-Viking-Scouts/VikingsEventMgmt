@@ -107,20 +107,21 @@ export const fetchEventAttendance = async (event) => {
 
         // When shared attendance exists, use it exclusively (it already contains ALL sections)
         // Deduplicate by scoutid to prevent counting same person multiple times
+        // Keep ALL attendance statuses (Yes, No, Invited, Not Invited)
         const uniqueScouts = new Map();
 
-        sharedAttendance
-          .filter(attendee => attendee.attending === 'Yes')
-          .forEach(attendee => {
-            const scoutId = String(attendee.scoutid);
-            if (!uniqueScouts.has(scoutId)) {
-              uniqueScouts.set(scoutId, {
-                ...attendee,
-                scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
-                eventid: event.eventid,
-              });
-            }
-          });
+        sharedAttendance.forEach(attendee => {
+          const scoutId = String(attendee.scoutid);
+          const uniqueKey = `${scoutId}-${attendee.attending}`;
+
+          if (!uniqueScouts.has(uniqueKey)) {
+            uniqueScouts.set(uniqueKey, {
+              ...attendee,
+              scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
+              eventid: event.eventid,
+            });
+          }
+        });
 
         const deduplicatedAttendance = Array.from(uniqueScouts.values());
 
@@ -128,6 +129,12 @@ export const fetchEventAttendance = async (event) => {
           eventId: event.eventid,
           totalShared: sharedAttendance.length,
           uniqueAttendees: deduplicatedAttendance.length,
+          attendanceBreakdown: {
+            yes: deduplicatedAttendance.filter(a => a.attending === 'Yes').length,
+            no: deduplicatedAttendance.filter(a => a.attending === 'No').length,
+            invited: deduplicatedAttendance.filter(a => a.attending === 'Invited').length,
+            notInvited: deduplicatedAttendance.filter(a => a.attending === 'Not Invited').length,
+          },
         }, LOG_CATEGORIES.COMPONENT);
 
         return deduplicatedAttendance;
