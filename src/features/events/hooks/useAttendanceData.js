@@ -46,23 +46,13 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           eventIds: Array.from(eventIds),
         }, LOG_CATEGORIES.COMPONENT);
 
-        // Load shared attendance and merge with regular attendance
         const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
-        const mergedAttendance = [...relevantAttendance];
 
-        // Get all sections user has access to from member data
-        // Extract unique section IDs from all members' sections arrays
-        const userAccessibleSections = new Set(
-          members.flatMap(member =>
-            (member.sections || []).map(section =>
-              typeof section === 'object' ? section.sectionid : section,
-            ),
-          ).filter(Boolean),
-        );
+        let finalAttendance = [];
+        let hasSharedAttendance = false;
 
         console.log('🔍 useAttendanceData: Checking for shared attendance', {
           eventCount: events.length,
-          userAccessibleSections: [...userAccessibleSections],
           events: events.map(e => ({ id: e.eventid, section: e.sectionid, name: e.name })),
         });
 
@@ -81,55 +71,31 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
               sharedAttendanceLength: sharedAttendance?.length || 0,
             });
 
-            if (sharedAttendance && Array.isArray(sharedAttendance)) {
-              // Get sections from regular attendance to exclude duplicates
-              const regularSections = new Set(
-                relevantAttendance
-                  .filter(r => r.eventid === event.eventid)
-                  .map(r => r.sectionid),
-              );
+            if (sharedAttendance && Array.isArray(sharedAttendance) && sharedAttendance.length > 0) {
+              hasSharedAttendance = true;
 
-              // Get unique scout IDs from regular attendance for this event
-              const regularScoutIds = new Set(
-                relevantAttendance
-                  .filter(r => r.eventid === event.eventid)
-                  .map(r => String(r.scoutid)),
-              );
-
-              // Filter shared attendance for "Yes" attendees from sections we don't have ACCESS to
-              const sharedAttendees = sharedAttendance.filter(attendee => {
-                const isYes = attendee.attending === 'Yes';
-                const notInRegular = !regularScoutIds.has(String(attendee.scoutid));
-                const fromInaccessibleSection = !userAccessibleSections.has(attendee.sectionid);
-                return isYes && notInRegular && fromInaccessibleSection;
-              });
-
-              // Create attendance records with real scoutids
-              const sharedAttendanceRecords = sharedAttendees.map(attendee => ({
+              const sharedAttendanceRecords = sharedAttendance.map(attendee => ({
                 ...attendee,
                 eventid: event.eventid,
+                firstname: attendee.firstname || attendee.first_name,
+                lastname: attendee.lastname || attendee.last_name,
               }));
 
-              mergedAttendance.push(...sharedAttendanceRecords);
+              finalAttendance.push(...sharedAttendanceRecords);
 
-              console.log('✅ useAttendanceData: Merged shared attendance', {
+              console.log('✅ useAttendanceData: Using shared attendance as authoritative source', {
                 eventId: event.eventid,
                 eventName: event.name,
-                sharedTotalYes: sharedAttendance.filter(a => a.attending === 'Yes').length,
-                userAccessibleSections: [...userAccessibleSections],
-                regularSections: [...regularSections],
-                regularScoutCount: regularScoutIds.size,
-                sharedCount: sharedAttendanceRecords.length,
-                totalAttendance: mergedAttendance.length,
-                sharedSections: [...new Set(sharedAttendanceRecords.map(r => r.sectionname))],
-                sharedSectionIds: [...new Set(sharedAttendanceRecords.map(r => r.sectionid))],
-                regularAttendanceForEvent: relevantAttendance.filter(r => r.eventid === event.eventid).length,
-                sampleSharedRecord: sharedAttendance.filter(a => a.attending === 'Yes')[0],
-                sampleSharedAttendanceRecord: sharedAttendanceRecords[0],
+                sharedTotalRecords: sharedAttendance.length,
+                sharedYesCount: sharedAttendance.filter(a => a.attending === 'Yes').length,
+                totalAttendance: finalAttendance.length,
+                uniqueSections: [...new Set(sharedAttendanceRecords.map(r => r.sectionname))],
+                uniqueSectionIds: [...new Set(sharedAttendanceRecords.map(r => r.sectionid))],
+                sampleRecord: sharedAttendance[0],
               });
             }
           } catch (sharedError) {
-            console.log('⚠️ useAttendanceData: No shared attendance', {
+            console.log('⚠️ useAttendanceData: No shared attendance for event', {
               eventId: event.eventid,
               eventName: event.name,
               error: sharedError.message,
@@ -137,20 +103,25 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        console.log('✅ useAttendanceData: Final merged attendance', {
-          regularCount: relevantAttendance.length,
-          totalCount: mergedAttendance.length,
-          sharedCount: mergedAttendance.length - relevantAttendance.length,
-        });
+        if (!hasSharedAttendance) {
+          console.log('✅ useAttendanceData: No shared attendance found, using regular attendance', {
+            regularCount: relevantAttendance.length,
+          });
+          finalAttendance = relevantAttendance;
+        } else {
+          console.log('✅ useAttendanceData: Using shared attendance exclusively', {
+            sharedCount: finalAttendance.length,
+            regularCount: relevantAttendance.length,
+            difference: finalAttendance.length - relevantAttendance.length,
+          });
+        }
 
-        // Create minimal member objects from shared attendance and merge with existing members
         const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
-        const sharedMembers = [];
+        const additionalMembers = [];
 
-        for (const record of mergedAttendance) {
+        for (const record of finalAttendance) {
           if (!existingMemberIds.has(String(record.scoutid))) {
-            // This is a shared attendee - create minimal member object
-            const sharedMember = {
+            const additionalMember = {
               scoutid: record.scoutid,
               firstname: record.firstname || record.first_name,
               lastname: record.lastname || record.last_name,
@@ -159,24 +130,26 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
               age: record.age || record.yrs,
               yrs: record.age || record.yrs,
               sectionname: record.sectionname,
-              sections: [record.sectionname],
-              _isSharedMember: true,
+              sectionid: record.sectionid,
+              sections: [{ sectionid: record.sectionid, sectionname: record.sectionname }],
+              _isSharedMember: hasSharedAttendance,
             };
-            sharedMembers.push(sharedMember);
+            additionalMembers.push(additionalMember);
             existingMemberIds.add(String(record.scoutid));
           }
         }
 
-        const combinedMembers = [...members, ...sharedMembers];
+        const combinedMembers = [...members, ...additionalMembers];
 
-        console.log('✅ useAttendanceData: Merged members', {
+        console.log('✅ useAttendanceData: Final member list', {
           originalMembers: members.length,
-          sharedMembers: sharedMembers.length,
+          additionalMembers: additionalMembers.length,
           totalMembers: combinedMembers.length,
+          usedSharedAttendance: hasSharedAttendance,
         });
 
         setMergedMembers(combinedMembers);
-        setAttendanceData(mergedAttendance);
+        setAttendanceData(finalAttendance);
       } else {
         setMergedMembers(members);
         setAttendanceData([]);

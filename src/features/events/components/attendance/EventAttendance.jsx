@@ -262,26 +262,12 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     const sectionMap = new Map();
 
-    // Add sections from uniqueSections
-    uniqueSections.forEach(section => {
-      if (sectionFilters[section.sectionid] !== false) {
-        sectionMap.set(section.sectionid, {
-          name: section.sectionname,
-          yes: { yp: 0, yl: 0, l: 0, total: 0 },
-          no: { yp: 0, yl: 0, l: 0, total: 0 },
-          invited: { yp: 0, yl: 0, l: 0, total: 0 },
-          notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
-          total: { yp: 0, yl: 0, l: 0, total: 0 },
-        });
-      }
-    });
-
-    // Add sections dynamically from attendance records (including shared sections)
+    // Create sections dynamically from attendance records only
+    // This ensures we don't create duplicate sections when using shared attendance
     overviewData.forEach((record) => {
-      if (!sectionMap.has(record.sectionid)) {
-        // This is a shared section - find the section name from the member
+      if (!sectionMap.has(record.sectionid) && sectionFilters[record.sectionid] !== false) {
         const member = membersById.get(String(record.scoutid));
-        const sectionName = member?.sectionname || record.sectionname || 'Unknown Section';
+        const sectionName = record.sectionname || member?.sectionname || 'Unknown Section';
 
         sectionMap.set(record.sectionid, {
           name: sectionName,
@@ -290,7 +276,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
           invited: { yp: 0, yl: 0, l: 0, total: 0 },
           notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
           total: { yp: 0, yl: 0, l: 0, total: 0 },
-          _isShared: true,
         });
       }
     });
