@@ -262,6 +262,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     const sectionMap = new Map();
 
+    // Add sections from uniqueSections
     uniqueSections.forEach(section => {
       if (sectionFilters[section.sectionid] !== false) {
         sectionMap.set(section.sectionid, {
@@ -275,9 +276,28 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       }
     });
 
+    // Add sections dynamically from attendance records (including shared sections)
+    overviewData.forEach((record) => {
+      if (!sectionMap.has(record.sectionid)) {
+        // This is a shared section - find the section name from the member
+        const member = membersById.get(String(record.scoutid));
+        const sectionName = member?.sectionname || record.sectionname || 'Unknown Section';
+
+        sectionMap.set(record.sectionid, {
+          name: sectionName,
+          yes: { yp: 0, yl: 0, l: 0, total: 0 },
+          no: { yp: 0, yl: 0, l: 0, total: 0 },
+          invited: { yp: 0, yl: 0, l: 0, total: 0 },
+          notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
+          total: { yp: 0, yl: 0, l: 0, total: 0 },
+          _isShared: true,
+        });
+      }
+    });
+
     overviewData.forEach((record) => {
       const section = sectionMap.get(record.sectionid);
-      if (!section) return;
+      if (!section) return; // Should never happen now
 
       const memberData = membersById.get(String(record.scoutid));
       const personType = memberData?.person_type;

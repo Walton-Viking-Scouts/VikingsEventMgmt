@@ -248,7 +248,15 @@ async function detectAndStoreSharedEventsAcrossSections(results) {
 
     // First pass: group events by name and similar dates
     for (const sectionResult of results) {
-      if (!sectionResult.events || sectionResult.events.length === 0) continue;
+      if (!sectionResult.events || sectionResult.events.length === 0) {
+        logger.debug('Skipping section with no events in shared detection', {
+          sectionId: sectionResult.sectionId,
+          sectionName: sectionResult.sectionName,
+          hasEvents: !!sectionResult.events,
+          eventCount: sectionResult.events?.length || 0,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+        continue;
+      }
 
       for (const event of sectionResult.events) {
         const eventKey = `${event.name}|${event.startdate}`;
