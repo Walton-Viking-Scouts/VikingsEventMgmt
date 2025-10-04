@@ -98,7 +98,17 @@ export async function getMembersGrid(sectionId, termId, token) {
             firstname: member.first_name ?? member.firstname,
             lastname: member.last_name ?? member.lastname,
             date_of_birth: member.date_of_birth ?? member.dob,
-            age: typeof member.age === 'string' ? Number(member.age) : member.age,
+            age: (() => {
+              const ageValue = member.age || member.yrs || '';
+              if (!ageValue) return '';
+              const match = String(ageValue).match(/^(\d+)/);
+              if (match) {
+                const numericAge = parseInt(match[1], 10);
+                if (numericAge >= 25) return '25+';
+              }
+              return ageValue;
+            })(),
+            yrs: member.yrs || member.age || '',
             // Section info
             sectionid: sectionIdNum,
             patrol: member.patrol,
@@ -176,7 +186,7 @@ export async function getMembersGrid(sectionId, termId, token) {
  * ], token);
  * console.log(`Total unique members: ${allMembers.length}`);
  */
-export async function getListOfMembers(sections, token) {
+export async function getListOfMembers(sections, token, forceRefresh = false) {
   // Skip API calls in demo mode - use cached data only
   const demoMode = isDemoMode();
   if (demoMode) {
@@ -214,20 +224,23 @@ export async function getListOfMembers(sections, token) {
   }
   
   const sectionIds = validSections.map(s => s.sectionid);
-  
-  // Try cache first (both online and offline)
+
+  let cachedMembers = [];
   try {
-    const cachedMembers = await databaseService.getMembers(sectionIds);
-    if (cachedMembers.length > 0) {
+    cachedMembers = await databaseService.getMembers(sectionIds);
+    if (!forceRefresh && cachedMembers.length > 0) {
       logger.info(`Using cached members: ${cachedMembers.length} members for sections ${sectionIds.join(', ')}`);
       return cachedMembers;
     }
   } catch (error) {
     logger.warn('Failed to get cached members:', error);
   }
-  
-  // If offline and no cache, throw error
+
   if (!isOnline) {
+    if (cachedMembers.length > 0) {
+      logger.info(`Offline mode – serving cached members: ${cachedMembers.length} for sections ${sectionIds.join(', ')}`);
+      return cachedMembers;
+    }
     logger.error('Offline mode - no cached members available');
     throw new Error('Unable to retrieve members while offline and no cache available');
   }

@@ -11,7 +11,7 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
-import attendanceDataService from '../../../../shared/services/data/attendanceDataService.js';
+import eventSyncService from '../../../../shared/services/data/eventSyncService.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
@@ -34,16 +34,17 @@ const hasSignInData = (vikingEventData) => {
   );
 };
 
-function EventAttendance({ events, members, onBack }) {
+function EventAttendance({ events, members: membersProp, onBack }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const {
     attendanceData,
+    members,
     vikingEventData,
     loading,
     error,
     loadVikingEventData,
-  } = useAttendanceData(events, refreshTrigger);
+  } = useAttendanceData(events, membersProp, refreshTrigger);
 
 
 
@@ -261,10 +262,23 @@ function EventAttendance({ events, members, onBack }) {
 
     const sectionMap = new Map();
 
-    uniqueSections.forEach(section => {
-      if (sectionFilters[section.sectionid] !== false) {
-        sectionMap.set(section.sectionid, {
-          name: section.sectionname,
+    // Create lookup from sectionid to actual section name from events
+    const sectionIdToName = new Map();
+    events.forEach((event) => {
+      if (event.sectionid && event.sectionname) {
+        sectionIdToName.set(event.sectionid, event.sectionname);
+      }
+    });
+
+    // Create sections dynamically from attendance records only
+    // This ensures we don't create duplicate sections when using shared attendance
+    overviewData.forEach((record) => {
+      if (!sectionMap.has(record.sectionid) && sectionFilters[record.sectionid] !== false) {
+        const member = membersById.get(String(record.scoutid));
+        const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || member?.sectionname || 'Unknown Section';
+
+        sectionMap.set(record.sectionid, {
+          name: sectionName,
           yes: { yp: 0, yl: 0, l: 0, total: 0 },
           no: { yp: 0, yl: 0, l: 0, total: 0 },
           invited: { yp: 0, yl: 0, l: 0, total: 0 },
@@ -276,7 +290,7 @@ function EventAttendance({ events, members, onBack }) {
 
     overviewData.forEach((record) => {
       const section = sectionMap.get(record.sectionid);
-      if (!section) return;
+      if (!section) return; // Should never happen now
 
       const memberData = membersById.get(String(record.scoutid));
       const personType = memberData?.person_type;
@@ -296,24 +310,64 @@ function EventAttendance({ events, members, onBack }) {
 
     const sections = Array.from(sectionMap.values());
 
-    const totals = sections.reduce((acc, section) => {
-      ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(category => {
-        acc[category].yp += section[category].yp;
-        acc[category].yl += section[category].yl;
-        acc[category].l += section[category].l;
-        acc[category].total += section[category].total;
-      });
-      return acc;
-    }, {
+    const uniqueScouts = new Map();
+    overviewData.forEach((record) => {
+      const uniqueKey = `${record.scoutid}-${record.attending}`;
+
+      if (!uniqueScouts.has(uniqueKey)) {
+        const memberData = membersById.get(String(record.scoutid));
+        const personType = memberData?.person_type;
+
+        let roleType = 'l';
+        if (personType === 'Young People') {
+          roleType = 'yp';
+        } else if (personType === 'Young Leaders') {
+          roleType = 'yl';
+        } else if (personType === 'Leaders') {
+          roleType = 'l';
+        }
+
+        uniqueScouts.set(uniqueKey, {
+          attending: record.attending,
+          roleType,
+        });
+      }
+    });
+
+    const totals = {
       yes: { yp: 0, yl: 0, l: 0, total: 0 },
       no: { yp: 0, yl: 0, l: 0, total: 0 },
       invited: { yp: 0, yl: 0, l: 0, total: 0 },
       notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
       total: { yp: 0, yl: 0, l: 0, total: 0 },
+    };
+
+    uniqueScouts.forEach(({ attending, roleType }) => {
+      if (attending === 'Yes') {
+        totals.yes[roleType]++;
+        totals.yes.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'No') {
+        totals.no[roleType]++;
+        totals.no.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'Invited') {
+        totals.invited[roleType]++;
+        totals.invited.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'Not Invited') {
+        totals.notInvited[roleType]++;
+        totals.notInvited.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      }
     });
 
     return { sections, totals };
-  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById]);
+  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById, events]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);
@@ -505,24 +559,23 @@ function EventAttendance({ events, members, onBack }) {
 
       logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Use AttendanceDataService to refresh attendance data
-      const refreshedData = await attendanceDataService.getAttendanceData(true);
+      const result = await eventSyncService.syncAllEventAttendance(true);
 
-      // Update last refresh time
-      setLastAttendanceRefresh(attendanceDataService.getLastFetchTime());
+      if (!result.success) {
+        throw new Error(result.message);
+      }
 
-      logger.info('Attendance data refreshed successfully', {
-        recordCount: refreshedData.length,
-      }, LOG_CATEGORIES.COMPONENT);
+      setLastAttendanceRefresh(Date.now());
 
-      notifySuccess(`Refreshed attendance data - ${refreshedData.length} records loaded`);
+      logger.info('Attendance data synced successfully', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Reload Viking Event data to get the latest sign-in/out information
+      notifySuccess('Attendance data synced successfully');
+
       if (loadVikingEventData) {
         try {
           await loadVikingEventData();
         } catch (vikingError) {
-          logger.warn('Failed to refresh Viking Event data after attendance refresh', {
+          logger.warn('Failed to refresh Viking Event data after attendance sync', {
             error: vikingError.message,
           }, LOG_CATEGORIES.COMPONENT);
         }

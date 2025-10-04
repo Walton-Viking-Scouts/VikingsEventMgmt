@@ -2,17 +2,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import attendanceDataService from '../../../shared/services/data/attendanceDataService.js';
+import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
 
 /**
  * Custom hook for loading and managing attendance data
  *
  * @param {Array} events - Array of event data
+ * @param {Array} members - Array of member data
  * @param {number} refreshTrigger - Optional trigger to force reload
  * @returns {Object} Hook state and functions
  */
-export function useAttendanceData(events, refreshTrigger = 0) {
+export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [mergedMembers, setMergedMembers] = useState(members);
   const [vikingEventData, setVikingEventData] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,24 +22,21 @@ export function useAttendanceData(events, refreshTrigger = 0) {
   // Load attendance data when events change or refresh is triggered
   useEffect(() => {
     loadAttendance();
-  }, [events, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [events, members, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use attendanceDataService as the single source of truth
-      // This ensures consistency with dashboard and eliminates duplicate API calls
-      logger.info('Loading attendance data via attendanceDataService', {
+      logger.info('Loading attendance data from IndexedDB', {
         eventCount: events.length,
         eventIds: events.map(e => e.eventid),
       }, LOG_CATEGORIES.COMPONENT);
 
-      const allAttendanceData = await attendanceDataService.getAttendanceData(false);
+      const allAttendanceData = await loadAllAttendanceFromDatabase();
 
       if (allAttendanceData && allAttendanceData.length > 0) {
-        // Filter to only include events we're interested in
         const eventIds = new Set(events.map(e => String(e.eventid)));
         const relevantAttendance = allAttendanceData.filter(record => eventIds.has(String(record.eventid)));
 
@@ -47,33 +46,80 @@ export function useAttendanceData(events, refreshTrigger = 0) {
           eventIds: Array.from(eventIds),
         }, LOG_CATEGORIES.COMPONENT);
 
-        setAttendanceData(relevantAttendance);
-      } else {
-        // No cached data available - force refresh from API
-        logger.info('No cached attendance data found, forcing refresh', {}, LOG_CATEGORIES.COMPONENT);
+        const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
 
-        const refreshedData = await attendanceDataService.getAttendanceData(true);
+        // Start with regular attendance (has full data: Yes, No, Invited, Not Invited)
+        const finalAttendance = [...relevantAttendance];
 
-        if (refreshedData && refreshedData.length > 0) {
-          const eventIds = new Set(events.map(e => String(e.eventid)));
-          const relevantAttendance = refreshedData.filter(record => eventIds.has(String(record.eventid)));
+        // Check for shared attendance to add inaccessible sections
+        // Create Set of sectionids we have regular attendance for (across all events)
+        // Convert to strings to avoid type mismatch issues
+        const regularSectionIds = new Set(relevantAttendance.map(r => String(r.sectionid)));
 
-          logger.info('Loaded fresh attendance data', {
-            totalFresh: refreshedData.length,
-            relevantRecords: relevantAttendance.length,
-          }, LOG_CATEGORIES.COMPONENT);
+        for (const event of events) {
+          const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+          try {
+            const sharedData = await UnifiedStorageService.get(sharedKey);
+            const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
-          setAttendanceData(relevantAttendance);
-        } else {
-          setAttendanceData([]);
+            if (sharedAttendance && Array.isArray(sharedAttendance) && sharedAttendance.length > 0) {
+              // Only add shared attendance from sections we DON'T have regular data for
+              const inaccessibleSectionRecords = sharedAttendance
+                .filter(attendee => !regularSectionIds.has(String(attendee.sectionid)))
+                .map(attendee => ({
+                  ...attendee,
+                  eventid: event.eventid,
+                  firstname: attendee.firstname || attendee.first_name,
+                  lastname: attendee.lastname || attendee.last_name,
+                  _isSharedSection: true,
+                }));
+
+              finalAttendance.push(...inaccessibleSectionRecords);
+            }
+          } catch (sharedError) {
+            logger.debug('No shared attendance found for event', {
+              eventId: event.eventid,
+              error: sharedError.message,
+            }, LOG_CATEGORIES.COMPONENT);
+          }
         }
+
+        const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
+        const additionalMembers = [];
+
+        for (const record of finalAttendance) {
+          if (!existingMemberIds.has(String(record.scoutid))) {
+            const additionalMember = {
+              scoutid: record.scoutid,
+              firstname: record.firstname || record.first_name,
+              lastname: record.lastname || record.last_name,
+              first_name: record.firstname || record.first_name,
+              last_name: record.lastname || record.last_name,
+              age: record.age || record.yrs,
+              yrs: record.age || record.yrs,
+              sectionname: record.sectionname,
+              sectionid: record.sectionid,
+              sections: [{ sectionid: record.sectionid, sectionname: record.sectionname }],
+              _isSharedMember: finalAttendance.length > relevantAttendance.length,
+            };
+            additionalMembers.push(additionalMember);
+            existingMemberIds.add(String(record.scoutid));
+          }
+        }
+
+        const combinedMembers = [...members, ...additionalMembers];
+
+        setMergedMembers(combinedMembers);
+        setAttendanceData(finalAttendance);
+      } else {
+        setMergedMembers(members);
+        setAttendanceData([]);
       }
 
-      // Load Viking Event Management data (fresh when possible, cache as fallback)
       await loadVikingEventData();
 
     } catch (err) {
-      logger.error('Error loading attendance via attendanceDataService', {
+      logger.error('Error loading attendance from IndexedDB', {
         error: err.message,
         eventCount: events.length,
       }, LOG_CATEGORIES.COMPONENT);
@@ -88,16 +134,6 @@ export function useAttendanceData(events, refreshTrigger = 0) {
   const loadVikingEventData = async () => {
     try {
       const token = getToken();
-      
-      // Enhanced logging for debugging deployed environment issues
-      if (import.meta.env.DEV) {
-        console.log('useAttendanceData: Loading Viking Event data', {
-          eventsCount: events?.length || 0,
-          hasToken: !!token,
-          tokenLength: token?.length || 0,
-          eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
-        });
-      }
       
       if (!token) {
         logger.info(
@@ -124,17 +160,7 @@ export function useAttendanceData(events, refreshTrigger = 0) {
       // Load Viking Event Management data for all sections
       // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token, true);
-      
-      if (import.meta.env.DEV) {
-        console.log('useAttendanceData: Viking Event data loaded successfully', {
-          sectionsWithData: Array.from(vikingEventMap.entries())
-            .filter(([_, data]) => data !== null)
-            .map(([sectionId, _]) => sectionId),
-          totalSections: vikingEventMap.size,
-        });
-      }
 
-      
       setVikingEventData(vikingEventMap);
       
     } catch (error) {
@@ -185,6 +211,7 @@ export function useAttendanceData(events, refreshTrigger = 0) {
 
   return {
     attendanceData: enhancedAttendanceData,
+    members: mergedMembers,
     vikingEventData,
     loading,
     error,

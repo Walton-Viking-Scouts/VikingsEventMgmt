@@ -363,66 +363,18 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
   try {
-    // Check for cached data first - use demo prefix if in demo mode
+    // Demo mode fallback
     const demoMode = isDemoMode();
-    const prefix = demoMode ? 'demo_' : '';
-    const cacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
-    try {
-      const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
-      if (cachedData) {
-        // Check if cache is still fresh (within 1 hour)
-        const cacheAge = Date.now() - (cachedData._cacheTimestamp || 0);
-        const maxAge = 60 * 60 * 1000; // 1 hour
-
-        if (cacheAge < maxAge) {
-          logger.debug('Using cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
-          return cachedData;
-        } else {
-          logger.debug('Cached shared attendance data expired, fetching fresh data', { eventId, sectionId }, LOG_CATEGORIES.API);
-        }
-      }
-    } catch (cacheError) {
-      logger.warn('Failed to parse cached shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
-    }
-    
-    // In demo mode, if no cached data found, generate fallback
     if (demoMode) {
-      logger.debug('Demo mode: No cached shared attendance found, generating fallback data', { eventId, sectionId }, LOG_CATEGORIES.API);
+      logger.debug('Demo mode: Generating shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
       return generateDemoSharedAttendance(eventId, sectionId);
-    }
-    
-    // Check network status first
-    const isOnlineNow = await checkNetworkStatus();
-    
-    if (!isOnlineNow) {
-      // If offline, try to return stale cache
-      try {
-        const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
-        if (cachedData) {
-          logger.info('Using stale cached shared attendance data (offline)', { eventId, sectionId }, LOG_CATEGORIES.API);
-          return cachedData;
-        }
-      } catch (cacheError) {
-        // Ignore cache errors when offline
-      }
-      throw new Error('No network connection and no cached shared attendance available');
     }
 
     validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
 
-    // Simple circuit breaker - use cache if auth already failed  
+    // Simple circuit breaker
     if (!authHandler.shouldMakeAPICall()) {
-      // Try to return stale cache if auth failed
-      try {
-        const cachedData = demoMode ? safeGetItem(cacheKey) : await UnifiedStorageService.get(cacheKey);
-        if (cachedData) {
-          logger.info('Using stale cached shared attendance data (auth failed)', { eventId, sectionId }, LOG_CATEGORIES.API);
-          return cachedData;
-        }
-      } catch (cacheError) {
-        // Ignore cache errors when auth failed
-      }
-      throw new Error('Authentication failed and no cached shared attendance available');
+      throw new Error('Authentication failed - cannot fetch shared attendance');
     }
 
     const data = await withRateLimitQueue(async () => {
@@ -442,20 +394,11 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
     const result = data || { combined_attendance: [], summary: {}, sections: [] };
 
-    // Cache the successful response
+    // Cache the successful response in IndexedDB
     try {
-      const dataToCache = {
-        ...result,
-        _cacheTimestamp: Date.now(),
-      };
-      if (demoMode) {
-        // Keep demo separation but use safeSetItem
-        const { safeSetItem } = await import('../../../utils/storageUtils.js');
-        safeSetItem(cacheKey, dataToCache);
-      } else {
-        await UnifiedStorageService.set(cacheKey, dataToCache);
-      }
-      logger.debug('Cached shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
+      const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
+      await UnifiedStorageService.set(cacheKey, result);
+      logger.debug('Cached shared attendance data to IndexedDB', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
       logger.warn('Failed to cache shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
     }

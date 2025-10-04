@@ -1,12 +1,175 @@
 import React, { useState } from 'react';
 import { MedicalDataPill } from '../../../../shared/components/ui';
-// import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
-import { calculateAge } from '../../../../shared/utils/ageUtils.js';
+import { formatMedicalDataForDisplay, NONE_VARIATIONS, SYSTEM_DEFAULTS } from '../../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
+import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/utils/notifications.js';
 
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);
   const [_showMemberModal, _setShowMemberModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // Get all unique consent fields from all members for dynamic table rendering
+  // Must be before early return to satisfy Rules of Hooks
+  const allConsentFields = React.useMemo(() => {
+    const fields = new Set();
+    if (summaryStats && members) {
+      summaryStats.forEach((attendee) => {
+        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
+        const contactGroups = groupContactInfo(member);
+        const consentGroup = contactGroups.consents || contactGroups.permissions;
+        if (consentGroup) {
+          Object.keys(consentGroup).forEach(field => fields.add(field));
+        }
+      });
+    }
+    return Array.from(fields).sort();
+  }, [summaryStats, members]);
+
+  // Sort the summary stats
+  // Must be before early return to satisfy Rules of Hooks
+  const sortedStats = React.useMemo(() => {
+    if (!sortConfig.key || !summaryStats) return summaryStats;
+
+    const getComprehensiveMemberData = (member) => {
+      const contactGroups = groupContactInfo(member);
+      const combineFields = (groupNames, fieldNames, separator = ', ') => {
+        const values = [];
+        for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+          const group = contactGroups[groupName];
+          if (group) {
+            for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+              if (group[fieldName]) values.push(group[fieldName]);
+            }
+          }
+        }
+        return values.join(separator);
+      };
+
+      return {
+        name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
+        section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
+        patrol: member.patrol || '',
+        age: member.age || member.yrs || '',
+        primary_contacts: (() => {
+          const contacts = [];
+          const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
+          const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
+          const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
+          if (pc1_name || pc1_phone || pc1_email) {
+            contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
+          }
+          const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
+          const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
+          const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
+          if (pc2_name || pc2_phone || pc2_email) {
+            contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
+          }
+          return contacts;
+        })(),
+        emergency_contacts: (() => {
+          const contacts = [];
+          const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
+          const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
+          if (ec_name || ec_phone) {
+            contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
+          }
+          return contacts;
+        })(),
+        essential_information: contactGroups.essential_information || {},
+        allergies: contactGroups.essential_information?.allergies || '',
+        medical_details: contactGroups.essential_information?.medical_details || '',
+        dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
+        tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
+        swimmer: contactGroups.essential_information?.swimmer || '',
+        other_useful_information: contactGroups.essential_information?.other_useful_information || '',
+        confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
+        consents: contactGroups.consents || contactGroups.permissions || {},
+      };
+    };
+
+    const getMemberAttendanceStatus = (attendee) => {
+      if (attendee.yes > 0) return 'Yes';
+      if (attendee.no > 0) return 'No';
+      if (attendee.invited > 0) return 'Invited';
+      if (attendee.notInvited > 0) return 'Not Invited';
+      return 'Unknown';
+    };
+
+    const getMemberVikingEventData = (attendee) => {
+      return attendee?.vikingEventData || null;
+    };
+
+    const sorted = [...summaryStats].sort((a, b) => {
+      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
+      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
+      const dataA = getComprehensiveMemberData(memberA);
+      const dataB = getComprehensiveMemberData(memberB);
+
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+      case 'name':
+        aValue = dataA.name.toLowerCase();
+        bValue = dataB.name.toLowerCase();
+        break;
+      case 'section':
+        aValue = dataA.section.toLowerCase();
+        bValue = dataB.section.toLowerCase();
+        break;
+      case 'patrol':
+        aValue = dataA.patrol.toLowerCase();
+        bValue = dataB.patrol.toLowerCase();
+        break;
+      case 'age':
+        aValue = parseInt(dataA.age) || 0;
+        bValue = parseInt(dataB.age) || 0;
+        break;
+      case 'status':
+        aValue = getMemberAttendanceStatus(a).toLowerCase();
+        bValue = getMemberAttendanceStatus(b).toLowerCase();
+        break;
+      case 'campGroup':
+        aValue = (getMemberVikingEventData(a)?.CampGroup || '').toLowerCase();
+        bValue = (getMemberVikingEventData(b)?.CampGroup || '').toLowerCase();
+        break;
+      default:
+        if (allConsentFields.includes(sortConfig.key)) {
+          aValue = (dataA.consents?.[sortConfig.key] || '').toLowerCase();
+          bValue = (dataB.consents?.[sortConfig.key] || '').toLowerCase();
+        } else {
+          const rawA = dataA[sortConfig.key] || '';
+          const rawB = dataB[sortConfig.key] || '';
+          aValue = String(rawA).toLowerCase();
+          bValue = String(rawB).toLowerCase();
+        }
+      }
+
+      const isEmptyValue = (val) => {
+        if (!val || val === '' || val === '---') return true;
+        const normalized = String(val).toLowerCase().trim();
+        if (normalized === '') return true;
+        if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
+        if (NONE_VARIATIONS.exact.some(exactVal => normalized === exactVal)) return true;
+        const noneRegex = new RegExp(`\\b(${NONE_VARIATIONS.phrases.join('|')})\\b`, 'i');
+        if (noneRegex.test(val)) return true;
+        return false;
+      };
+
+      const aIsEmpty = isEmptyValue(aValue);
+      const bIsEmpty = isEmptyValue(bValue);
+
+      if (aIsEmpty && !bIsEmpty) return 1;
+      if (!aIsEmpty && bIsEmpty) return -1;
+      if (aIsEmpty && bIsEmpty) return 0;
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [summaryStats, members, sortConfig, allConsentFields]);
 
   if (!summaryStats || !Array.isArray(summaryStats) || summaryStats.length === 0) {
     return (
@@ -25,21 +188,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
   // Get comprehensive member data (same as SectionsList)
   const getComprehensiveMemberData = (member) => {
     const contactGroups = groupContactInfo(member);
-    
-    // Helper to get field from any group
-    const getField = (groupNames, fieldNames) => {
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) return group[fieldName];
-          }
-        }
-      }
-      return '';
-    };
 
-    // Helper to combine multiple fields
     const combineFields = (groupNames, fieldNames, separator = ', ') => {
       const values = [];
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
@@ -56,9 +205,9 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: member.sections?.[0] || 'Unknown',
+      section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
       patrol: member.patrol || '',
-      age: calculateAge(member.date_of_birth),
+      age: member.age || member.yrs || '',
       
       // Primary Contacts (1 and 2)
       primary_contacts: (() => {
@@ -110,12 +259,8 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       other_useful_information: contactGroups.essential_information?.other_useful_information || '',
       confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
       
-      // Consents
-      consent_photos: getField(['consents'], ['photographs', 'photos']) || '',
-      consent_sensitive: getField(['consents'], ['sensitive_information']) || '',
-      consent_paracetamol: getField(['consents'], ['paracetamol']) || '',
-      consent_ibuprofen: getField(['consents'], ['ibuprofen']) || '',
-      consent_suncream: getField(['consents'], ['suncream', 'sun_cream']) || '',
+      // Consents - get all consent fields dynamically from multiple possible groups
+      consents: contactGroups.consents || contactGroups.permissions || {},
     };
   };
 
@@ -142,31 +287,214 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     return attendee?.vikingEventData || null;
   };
 
+  // Sorting function
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // CSV Export function
+  const exportToCSV = () => {
+    if (!summaryStats || summaryStats.length === 0) {
+      notifyWarning('No members to export');
+      return;
+    }
+
+    try {
+      const baseHeaders = [
+        'First Name',
+        'Last Name',
+        'Event Status',
+        'Camp Group',
+        'Section',
+        'Patrol',
+        'Age',
+      ];
+
+      const contactHeaders = showContacts ? [
+        'PC1 Name',
+        'PC1 Phone',
+        'PC1 Email',
+        'PC2 Name',
+        'PC2 Phone',
+        'PC2 Email',
+        'Emergency Contact Name',
+        'Emergency Contact Phone',
+      ] : [];
+
+      const medicalHeaders = [
+        'Allergies',
+        'Medical Details',
+        'Dietary Requirements',
+        'Tetanus Year',
+        'Swimmer',
+        'Other Info',
+        'Confirmed By',
+      ];
+
+      const consentHeaders = allConsentFields.map(field =>
+        field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      );
+
+      const headers = [...baseHeaders, ...contactHeaders, ...medicalHeaders, ...consentHeaders];
+
+      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csvRows = [
+        headers.map(csv).join(','),
+        ...summaryStats.map((attendee) => {
+          const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
+          const memberData = getComprehensiveMemberData(member);
+          const attendanceStatus = getMemberAttendanceStatus(attendee);
+          const vikingEventData = getMemberVikingEventData(attendee);
+
+          const baseData = [
+            csv(member.firstname),
+            csv(member.lastname),
+            csv(attendanceStatus),
+            csv(vikingEventData?.CampGroup || ''),
+            csv(member.sections?.[0]?.sectionname || member.sectionname || 'Unknown'),
+            csv(memberData.patrol),
+            csv(memberData.age),
+          ];
+
+          const contactData = showContacts ? [
+            csv(memberData.primary_contacts[0]?.name || ''),
+            csv(memberData.primary_contacts[0]?.phone || ''),
+            csv(memberData.primary_contacts[0]?.email || ''),
+            csv(memberData.primary_contacts[1]?.name || ''),
+            csv(memberData.primary_contacts[1]?.phone || ''),
+            csv(memberData.primary_contacts[1]?.email || ''),
+            csv(memberData.emergency_contacts[0]?.name || ''),
+            csv(memberData.emergency_contacts[0]?.phone || ''),
+          ] : [];
+
+          const medicalData = [
+            csv(formatMedicalDataForDisplay(memberData.allergies, 'allergies').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.medical_details, 'medical_details').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.dietary_requirements, 'dietary_requirements').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.tetanus_year_of_last_jab, 'tetanus_year_of_last_jab').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.swimmer, 'swimmer').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.other_useful_information, 'other_useful_information').csvValue),
+            csv(formatMedicalDataForDisplay(memberData.confirmed_by_parents, 'confirmed_by_parents').csvValue),
+          ];
+
+          const consentData = allConsentFields.map(field =>
+            csv(memberData.consents?.[field] || '---'),
+          );
+
+          return [...baseData, ...contactData, ...medicalData, ...consentData].join(',');
+        }),
+      ];
+
+      const csvContent = '\uFEFF' + csvRows.join('\n');
+      const blob = new globalThis.Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `event_attendance_detailed_${dateStr}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+
+      notifySuccess(`Exported ${summaryStats.length} member records`);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      notifyError('Failed to export attendance data');
+    }
+  };
+
+  // Helper component for sortable column headers
+  const SortableHeader = ({ columnKey, children, className = '' }) => {
+    const isSorted = sortConfig.key === columnKey;
+    const sortDirection = isSorted ? sortConfig.direction : undefined;
+
+    return (
+      <th
+        className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${className}`}
+        onClick={() => handleSort(columnKey)}
+        aria-sort={isSorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+        role="columnheader"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleSort(columnKey);
+          }
+        }}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {isSorted && (
+            <span className="text-gray-400" aria-label={`Sorted ${sortDirection === 'asc' ? 'ascending' : 'descending'}`}>
+              {sortDirection === 'asc' ? '↑' : '↓'}
+            </span>
+          )}
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div>
+      {/* Header with Export Button */}
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-medium text-gray-900">
+          Detailed Attendance ({summaryStats?.length || 0} members)
+        </h4>
+        {summaryStats && summaryStats.length > 0 && (
+          <button
+            onClick={exportToCSV}
+            type="button"
+            className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300 px-4 py-2 text-base"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            >
+              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               {/* Basic Info Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
+              <SortableHeader columnKey="name" className="sticky left-0 bg-gray-50">
                 Member
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-purple-50">
+              </SortableHeader>
+              <SortableHeader columnKey="status" className="bg-purple-50">
                 Event Status
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-purple-50">
+              </SortableHeader>
+              <SortableHeader columnKey="campGroup" className="bg-purple-50">
                 Camp Group
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader columnKey="section">
                 Section
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader columnKey="patrol">
                 Patrol
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              </SortableHeader>
+              <SortableHeader columnKey="age">
                 Age
-              </th>
+              </SortableHeader>
             
               {/* Contact Info Headers - conditionally shown */}
               {showContacts && (
@@ -183,48 +511,38 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
               )}
             
               {/* Essential Information Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              <SortableHeader columnKey="allergies" className="bg-orange-50 w-32">
                 Allergies
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="medical_details" className="bg-orange-50 w-32">
                 Medical
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="dietary_requirements" className="bg-orange-50 w-32">
                 Dietary
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="tetanus_year_of_last_jab" className="bg-orange-50 w-32">
                 Tetanus
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="swimmer" className="bg-orange-50 w-32">
                 Swimmer
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="other_useful_information" className="bg-orange-50 w-32">
                 Other Info
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-orange-50 w-32">
+              </SortableHeader>
+              <SortableHeader columnKey="confirmed_by_parents" className="bg-orange-50 w-32">
                 Confirmed By
-              </th>
-            
-              {/* Consent Headers */}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Photos
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Sensitive Info
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Paracetamol
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Ibuprofen
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Suncream
-              </th>
+              </SortableHeader>
+
+              {/* Consent Headers - Dynamic */}
+              {allConsentFields.map((field) => (
+                <SortableHeader key={field} columnKey={field} className="bg-green-50">
+                  {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </SortableHeader>
+              ))}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {summaryStats.map((attendee, index) => {
+            {sortedStats.map((attendee, index) => {
               // Get comprehensive member data from the full members list
               const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
               const memberData = getComprehensiveMemberData(member);
@@ -371,92 +689,29 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                     </div>
                   </td>
                 
-                  {/* Consent Cells */}
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_photos === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                        </span>
-                      ) : memberData.consent_photos === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_sensitive === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                        </span>
-                      ) : memberData.consent_sensitive === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_paracetamol === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                        </span>
-                      ) : memberData.consent_paracetamol === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_ibuprofen === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                        </span>
-                      ) : memberData.consent_ibuprofen === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                    {
-                      memberData.consent_suncream === 'No' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                        </span>
-                      ) : memberData.consent_suncream === 'Yes' ? (
-                        <span className="text-xs text-gray-700">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                        </span>
-                      )
-                    }
-                  </td>
+                  {/* Consent Cells - Dynamic */}
+                  {allConsentFields.map((field) => {
+                    const value = memberData.consents?.[field];
+                    return (
+                      <td key={field} className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                        {
+                          value === 'No' ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                              No
+                            </span>
+                          ) : value === 'Yes' ? (
+                            <span className="text-xs text-gray-700">
+                              Yes
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                              ---
+                            </span>
+                          )
+                        }
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

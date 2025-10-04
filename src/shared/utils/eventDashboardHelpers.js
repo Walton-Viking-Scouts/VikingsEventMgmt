@@ -3,7 +3,7 @@
 
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-import attendanceDataService from '../services/data/attendanceDataService.js';
+import { loadAllAttendanceFromDatabase } from './attendanceHelpers_new.js';
 
 /**
  * Fetches events for all sections from IndexedDB only
@@ -75,39 +75,79 @@ export const fetchSectionEvents = async (section) => {
 };
 
 /**
- * Fetches attendance data for an event using attendanceDataService
- * This ensures consistency with the attendance view and eliminates duplicate data access
- * @param {Object} event - Event object with eventid property
- * @returns {Promise<Array>} Array of attendance records or empty array
+ * Fetches attendance data for an event including shared attendance from other sections
+ * @param {Object} event - Event object with eventid and sectionid properties
+ * @returns {Promise<Array>} Array of attendance records including synthetic records for shared sections
  */
 export const fetchEventAttendance = async (event) => {
   try {
-    // Use attendanceDataService as the single source of truth for attendance data
-    const allAttendanceData = await attendanceDataService.getAttendanceData(false);
+    // Load regular attendance for this event
+    const allAttendanceData = await loadAllAttendanceFromDatabase();
+    const eventAttendance = allAttendanceData?.filter(record => record.eventid === event.eventid) || [];
 
-    if (allAttendanceData && allAttendanceData.length > 0) {
-      // Filter to only include records for this specific event
-      const eventAttendance = allAttendanceData.filter(record => record.eventid === event.eventid);
-
-      logger.debug('Fetched attendance data via service', {
-        eventId: event.eventid,
-        eventName: event.name,
-        totalCached: allAttendanceData.length,
-        eventSpecific: eventAttendance.length,
-      }, LOG_CATEGORIES.COMPONENT);
-
-      return eventAttendance;
-    }
-
-    logger.debug('No attendance data available in service cache', {
+    logger.debug('Fetched attendance data from IndexedDB', {
       eventId: event.eventid,
       eventName: event.name,
+      eventAttendance: eventAttendance.length,
     }, LOG_CATEGORIES.COMPONENT);
 
-    return [];
+    // Load shared attendance data from IndexedDB
+    const { UnifiedStorageService } = await import('../services/storage/unifiedStorageService.js');
+    const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
+
+    try {
+      const sharedData = await UnifiedStorageService.get(sharedKey);
+      const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
+
+      if (sharedAttendance && Array.isArray(sharedAttendance)) {
+        logger.debug('Found shared attendance data', {
+          eventId: event.eventid,
+          sharedAttendees: sharedAttendance.length,
+        }, LOG_CATEGORIES.COMPONENT);
+
+        // Get sectionids that exist in regular attendance (accessible sections)
+        const regularSectionIds = new Set(eventAttendance.map(r => r.sectionid));
+
+        // Only include shared attendance from sections NOT in regular attendance (inaccessible sections)
+        // This prevents double-counting in totals while showing all inaccessible sections
+        const syntheticAttendees = sharedAttendance
+          .filter(attendee => !regularSectionIds.has(attendee.sectionid))
+          .map(attendee => ({
+            ...attendee,
+            scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
+            eventid: event.eventid,
+          }));
+
+        // Merge regular attendance with shared attendance from inaccessible sections only
+        const mergedAttendance = [...eventAttendance, ...syntheticAttendees];
+
+        logger.debug('Merged regular and shared attendance', {
+          eventId: event.eventid,
+          regularRecords: eventAttendance.length,
+          sharedOnlyRecords: syntheticAttendees.length,
+          totalRecords: mergedAttendance.length,
+          attendanceBreakdown: {
+            yes: mergedAttendance.filter(a => a.attending === 'Yes').length,
+            no: mergedAttendance.filter(a => a.attending === 'No').length,
+            invited: mergedAttendance.filter(a => a.attending === 'Invited').length,
+            notInvited: mergedAttendance.filter(a => a.attending === 'Not Invited').length,
+          },
+        }, LOG_CATEGORIES.COMPONENT);
+
+        return mergedAttendance;
+      }
+    } catch (sharedError) {
+      logger.debug('No shared attendance data found - using regular attendance', {
+        eventId: event.eventid,
+        error: sharedError.message,
+      }, LOG_CATEGORIES.COMPONENT);
+    }
+
+    // No shared attendance - use regular attendance
+    return eventAttendance;
 
   } catch (err) {
-    logger.error('Error fetching attendance via attendanceDataService', {
+    logger.error('Error fetching attendance', {
       error: err.message,
       eventId: event.eventid,
       eventName: event.name,

@@ -104,7 +104,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     const contactGroups = groupContactInfo(member);
     
     // Helper to get field from any group
-    const getField = (groupNames, fieldNames) => {
+    const _getField = (groupNames, fieldNames) => {
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
         const group = contactGroups[groupName];
         if (group) {
@@ -187,12 +187,11 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       other_useful_information: contactGroups.essential_information?.other_useful_information || '',
       confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
       
-      // Consents
-      consent_photos: getField(['consents'], ['photographs', 'photos']) || '',
-      consent_sensitive: getField(['consents'], ['sensitive_information']) || '',
-      consent_paracetamol: getField(['consents'], ['paracetamol']) || '',
-      consent_ibuprofen: getField(['consents'], ['ibuprofen']) || '',
-      consent_suncream: getField(['consents'], ['suncream', 'sun_cream']) || '',
+      // Consents - merge both consents and permissions groups to avoid data loss
+      consents: {
+        ...(contactGroups.permissions || {}),
+        ...(contactGroups.consents || {}),
+      },
     };
   };
 
@@ -208,6 +207,19 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     setSelectedMember(null);
   };
 
+  // Get all unique consent fields from all members for dynamic table rendering
+  const allConsentFields = React.useMemo(() => {
+    const fields = new Set();
+    members.forEach((member) => {
+      const contactGroups = groupContactInfo(member);
+      // Merge both consents and permissions groups to get all fields
+      [contactGroups.permissions, contactGroups.consents].forEach((group) => {
+        if (group) Object.keys(group).forEach((field) => fields.add(field));
+      });
+    });
+    return Array.from(fields).sort();
+  }, [members]);
+
   // CSV Export function
   const exportToCSV = () => {
     if (members.length === 0) {
@@ -216,25 +228,26 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     }
 
     try {
-      const headers = [
+      const baseHeaders = [
         'First Name',
         'Last Name',
         'Section',
         'Patrol',
         'Age',
         'Allergies',
-        'Medical Details', 
+        'Medical Details',
         'Dietary Requirements',
         'Tetanus Year',
         'Swimmer',
         'Other Info',
         'Confirmed By',
-        'Photo Consent',
-        'Sensitive Info Consent',
-        'Paracetamol Consent',
-        'Ibuprofen Consent',
-        'Suncream Consent',
       ];
+
+      const consentHeaders = allConsentFields.map(field =>
+        field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      );
+
+      const headers = [...baseHeaders, ...consentHeaders];
 
       const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const csvRows = [
@@ -242,7 +255,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
         ...members.map((member) => {
           const memberData = getComprehensiveMemberData(member);
           
-          return [
+          const baseData = [
             csv(member.firstname),
             csv(member.lastname),
             csv(member.sections?.[0] || 'Unknown'),
@@ -255,12 +268,13 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
             csv(formatMedicalDataForDisplay(memberData.swimmer, 'swimmer').csvValue),
             csv(formatMedicalDataForDisplay(memberData.other_useful_information, 'other_useful_information').csvValue),
             csv(formatMedicalDataForDisplay(memberData.confirmed_by_parents, 'confirmed_by_parents').csvValue),
-            csv(memberData.consent_photos || '---'),
-            csv(memberData.consent_sensitive || '---'),
-            csv(memberData.consent_paracetamol || '---'),
-            csv(memberData.consent_ibuprofen || '---'),
-            csv(memberData.consent_suncream || '---'),
-          ].join(',');
+          ];
+
+          const consentData = allConsentFields.map(field =>
+            csv(memberData.consents?.[field] || '---'),
+          );
+
+          return [...baseData, ...consentData].join(',');
         }),
       ];
 
@@ -460,22 +474,12 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                 Confirmed By
                 </th>
               
-                {/* Consent Headers */}
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Photos
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Sensitive Info
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Paracetamol
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Ibuprofen
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
-                Suncream
-                </th>
+                {/* Consent Headers - Dynamic */}
+                {allConsentFields.map((field) => (
+                  <th key={field} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50">
+                    {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -606,92 +610,29 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                       </div>
                     </td>
                   
-                    {/* Consent Cells */}
-                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                      {
-                        memberData.consent_photos === 'No' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                          </span>
-                        ) : memberData.consent_photos === 'Yes' ? (
-                          <span className="text-xs text-gray-700">
-                          Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                          </span>
-                        )
-                      }
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                      {
-                        memberData.consent_sensitive === 'No' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                          </span>
-                        ) : memberData.consent_sensitive === 'Yes' ? (
-                          <span className="text-xs text-gray-700">
-                          Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                          </span>
-                        )
-                      }
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                      {
-                        memberData.consent_paracetamol === 'No' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                          </span>
-                        ) : memberData.consent_paracetamol === 'Yes' ? (
-                          <span className="text-xs text-gray-700">
-                          Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                          </span>
-                        )
-                      }
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                      {
-                        memberData.consent_ibuprofen === 'No' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                          </span>
-                        ) : memberData.consent_ibuprofen === 'Yes' ? (
-                          <span className="text-xs text-gray-700">
-                          Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                          </span>
-                        )
-                      }
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
-                      {
-                        memberData.consent_suncream === 'No' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
-                          No
-                          </span>
-                        ) : memberData.consent_suncream === 'Yes' ? (
-                          <span className="text-xs text-gray-700">
-                          Yes
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
-                          ---
-                          </span>
-                        )
-                      }
-                    </td>
+                    {/* Consent Cells - Dynamic */}
+                    {allConsentFields.map((field) => {
+                      const value = memberData.consents?.[field];
+                      return (
+                        <td key={field} className="px-3 py-2 whitespace-nowrap text-center bg-green-25">
+                          {
+                            value === 'No' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-red text-white">
+                                No
+                              </span>
+                            ) : value === 'Yes' ? (
+                              <span className="text-xs text-gray-700">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-scout-yellow text-gray-900">
+                                ---
+                              </span>
+                            )
+                          }
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}

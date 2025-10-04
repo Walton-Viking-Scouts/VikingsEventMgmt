@@ -132,9 +132,9 @@ export async function loadInitialReferenceData(token) {
     logger.debug('Loading members data', {}, LOG_CATEGORIES.AUTH);
     // First get sections to use for members loading
     if (results.userRoles && results.userRoles.length > 0) {
-      results.members = await getListOfMembers(results.userRoles, token);
+      results.members = await getListOfMembers(results.userRoles, token, true);
       successCount++;
-      logger.info('Members data loaded successfully', {
+      logger.info('Members data loaded successfully (forced refresh)', {
         membersCount: results.members?.length || 0,
       }, LOG_CATEGORIES.AUTH);
     } else {

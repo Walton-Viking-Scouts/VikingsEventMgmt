@@ -269,6 +269,47 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         }
       });
 
+      // Calculate totals by deduplicating on scoutid (not scoutid+section)
+      const uniqueScouts = new Map();
+      events.forEach((event) => {
+        if (Array.isArray(event.attendanceData)) {
+          event.attendanceData.forEach((person) => {
+            // Remove synthetic prefix to get real scoutid
+            const realScoutId = person.scoutid?.startsWith('synthetic-')
+              ? person.scoutid.substring(10)
+              : person.scoutid;
+
+            const uniqueKey = `${realScoutId}-${person.attending}`;
+
+            // Only count each scout once per attendance status
+            if (!uniqueScouts.has(uniqueKey)) {
+              uniqueScouts.set(uniqueKey, person.attending);
+            }
+          });
+        }
+      });
+
+      // Count deduplicated totals by status
+      const totals = {
+        attending: 0,
+        notAttending: 0,
+        invited: 0,
+        notInvited: 0,
+      };
+
+      uniqueScouts.forEach((status) => {
+        if (status === 'Yes') {
+          totals.attending++;
+        } else if (status === 'No') {
+          totals.notAttending++;
+        } else if (status === 'Invited') {
+          totals.invited++;
+        } else {
+          totals.notInvited++;
+        }
+      });
+
+      grid._totals = totals;
       return grid;
     }
 
@@ -323,6 +364,42 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
       }
     });
 
+    // Calculate totals by deduplicating on scoutid for regular events too
+    const uniqueScouts = new Map();
+    events.forEach((event) => {
+      if (Array.isArray(event.attendanceData)) {
+        event.attendanceData.forEach((person) => {
+          const uniqueKey = `${person.scoutid}-${person.attending}`;
+
+          // Only count each scout once per attendance status
+          if (!uniqueScouts.has(uniqueKey)) {
+            uniqueScouts.set(uniqueKey, person.attending);
+          }
+        });
+      }
+    });
+
+    // Count deduplicated totals by status
+    const totals = {
+      attending: 0,
+      notAttending: 0,
+      invited: 0,
+      notInvited: 0,
+    };
+
+    uniqueScouts.forEach((status) => {
+      if (status === 'Yes') {
+        totals.attending++;
+      } else if (status === 'No') {
+        totals.notAttending++;
+      } else if (status === 'Invited') {
+        totals.invited++;
+      } else {
+        totals.notInvited++;
+      }
+    });
+
+    grid._totals = totals;
     return grid;
   };
 

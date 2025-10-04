@@ -2,6 +2,30 @@
 import { sleep } from './asyncUtils.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { sentryUtils } from '../services/utils/sentry.js';
+import toast from 'react-hot-toast';
+
+// Scout theme colors for toast styling
+const SCOUT_COLORS = {
+  blue: '#1e40af',
+  white: '#ffffff',
+};
+
+// Standard toast options matching notifications.js
+const toastOptions = {
+  duration: Infinity,
+  position: 'top-right',
+  style: {
+    background: SCOUT_COLORS.white,
+    border: '1px solid #e5e7eb',
+    borderLeft: `4px solid ${SCOUT_COLORS.blue}`,
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    fontSize: '14px',
+    fontWeight: '500',
+    padding: '12px 16px',
+    maxWidth: '400px',
+  },
+};
 
 /**
  * Intelligent rate limit queue that handles 429 responses with exponential backoff
@@ -15,7 +39,8 @@ export class RateLimitQueue {
     this.retryCount = 0;
     this.rateLimitedUntil = null;
     this.listeners = new Set();
-    
+    this._countdownInterval = null;
+
     // Configuration
     this.maxRetries = options.maxRetries || 3;
     this.baseDelay = options.baseDelay || 1000; // 1 second base delay
@@ -298,6 +323,39 @@ export class RateLimitQueue {
         retryAfter: Math.ceil(retryAfter / 1000),
       },
     });
+
+    // Clear any existing countdown interval
+    if (this._countdownInterval) {
+      clearInterval(this._countdownInterval);
+      this._countdownInterval = null;
+    }
+
+    // Show rate limit toast with countdown timer using Scout theme
+    const retryAfterSeconds = Math.ceil(retryAfter / 1000);
+    const toastId = toast.loading(`Rate limited - waiting ${retryAfterSeconds}s...`, toastOptions);
+
+    // Update toast with countdown every second
+    this._countdownInterval = setInterval(() => {
+      const remaining = Math.ceil((this.rateLimitedUntil - Date.now()) / 1000);
+      if (remaining > 0) {
+        toast.loading(`Rate limited - waiting ${remaining}s...`, {
+          id: toastId,
+          ...toastOptions,
+        });
+      } else {
+        clearInterval(this._countdownInterval);
+        this._countdownInterval = null;
+        toast.success('Resuming requests', {
+          id: toastId,
+          duration: 2000,
+          position: 'top-right',
+          style: {
+            ...toastOptions.style,
+            borderLeft: '4px solid #16a34a', // Scout green
+          },
+        });
+      }
+    }, 1000);
 
     // Re-queue the request with higher priority
     request.priority += 1;
