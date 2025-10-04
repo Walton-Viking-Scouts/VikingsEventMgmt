@@ -105,26 +105,21 @@ export const fetchEventAttendance = async (event) => {
           sharedAttendees: sharedAttendance.length,
         }, LOG_CATEGORIES.COMPONENT);
 
-        // Get scout+section combinations that already exist in regular attendance
-        const regularScoutSections = new Set(
-          eventAttendance.map(r => `${r.scoutid}-${r.sectionid}`),
-        );
+        // Get sectionids that exist in regular attendance (accessible sections)
+        const regularSectionIds = new Set(eventAttendance.map(r => r.sectionid));
 
-        // Only add shared attendance for scout+section combinations NOT in regular attendance
-        // This allows same scout to appear in multiple sections with different statuses
-        const sharedOnlyAttendees = sharedAttendance
-          .filter(attendee => {
-            const key = `${attendee.scoutid}-${attendee.sectionid}`;
-            return !regularScoutSections.has(key);
-          })
+        // Only include shared attendance from sections NOT in regular attendance (inaccessible sections)
+        // This prevents double-counting in totals while showing all inaccessible sections
+        const syntheticAttendees = sharedAttendance
+          .filter(attendee => !regularSectionIds.has(attendee.sectionid))
           .map(attendee => ({
             ...attendee,
             scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
             eventid: event.eventid,
           }));
 
-        // Merge regular attendance with shared-only attendance
-        const mergedAttendance = [...eventAttendance, ...sharedOnlyAttendees];
+        // Merge regular attendance with shared attendance from inaccessible sections only
+        const mergedAttendance = [...eventAttendance, ...syntheticAttendees];
 
         logger.debug('Merged regular and shared attendance', {
           eventId: event.eventid,
