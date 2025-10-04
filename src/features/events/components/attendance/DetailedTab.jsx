@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MedicalDataPill } from '../../../../shared/components/ui';
-import { formatMedicalDataForDisplay } from '../../../../shared/utils/medicalDataUtils.js';
+import { formatMedicalDataForDisplay, NONE_VARIATIONS, SYSTEM_DEFAULTS } from '../../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/utils/notifications.js';
 
@@ -144,9 +144,6 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
           bValue = String(rawB).toLowerCase();
         }
       }
-
-      const NONE_VARIATIONS = ['none', 'nil', 'nothing'];
-      const SYSTEM_DEFAULTS = ['n/a', 'not applicable', 'default', 'system'];
 
       const isEmptyValue = (val) => {
         if (!val || val === '' || val === '---') return true;
@@ -336,18 +333,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
         'Confirmed By',
       ];
 
-      // Get all unique consent fields from all members
-      const allConsentFields = new Set();
-      summaryStats.forEach((attendee) => {
-        const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
-        const contactGroups = groupContactInfo(member);
-        // Check both consents and permissions groups
-        const consentGroup = contactGroups.consents || contactGroups.permissions;
-        if (consentGroup) {
-          Object.keys(consentGroup).forEach(field => allConsentFields.add(field));
-        }
-      });
-      const consentHeaders = Array.from(allConsentFields).sort().map(field =>
+      const consentHeaders = allConsentFields.map(field =>
         field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       );
 
@@ -393,7 +379,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
             csv(formatMedicalDataForDisplay(memberData.confirmed_by_parents, 'confirmed_by_parents').csvValue),
           ];
 
-          const consentData = Array.from(allConsentFields).sort().map(field =>
+          const consentData = allConsentFields.map(field =>
             csv(memberData.consents?.[field] || '---'),
           );
 
@@ -425,21 +411,35 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
   };
 
   // Helper component for sortable column headers
-  const SortableHeader = ({ columnKey, children, className = '' }) => (
-    <th
-      className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${className}`}
-      onClick={() => handleSort(columnKey)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortConfig.key === columnKey && (
-          <span className="text-gray-400">
-            {sortConfig.direction === 'asc' ? '↑' : '↓'}
-          </span>
-        )}
-      </div>
-    </th>
-  );
+  const SortableHeader = ({ columnKey, children, className = '' }) => {
+    const isSorted = sortConfig.key === columnKey;
+    const sortDirection = isSorted ? sortConfig.direction : undefined;
+
+    return (
+      <th
+        className={`px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${className}`}
+        onClick={() => handleSort(columnKey)}
+        aria-sort={isSorted ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+        role="columnheader"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleSort(columnKey);
+          }
+        }}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {isSorted && (
+            <span className="text-gray-400" aria-label={`Sorted ${sortDirection === 'asc' ? 'ascending' : 'descending'}`}>
+              {sortDirection === 'asc' ? '↑' : '↓'}
+            </span>
+          )}
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div>

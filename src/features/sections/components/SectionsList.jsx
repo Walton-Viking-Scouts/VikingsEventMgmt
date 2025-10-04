@@ -187,8 +187,11 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       other_useful_information: contactGroups.essential_information?.other_useful_information || '',
       confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
       
-      // Consents - get all consent fields dynamically from multiple possible groups
-      consents: contactGroups.consents || contactGroups.permissions || {},
+      // Consents - merge both consents and permissions groups to avoid data loss
+      consents: {
+        ...(contactGroups.permissions || {}),
+        ...(contactGroups.consents || {}),
+      },
     };
   };
 
@@ -209,11 +212,10 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     const fields = new Set();
     members.forEach((member) => {
       const contactGroups = groupContactInfo(member);
-      // Check both consents and permissions groups
-      const consentGroup = contactGroups.consents || contactGroups.permissions;
-      if (consentGroup) {
-        Object.keys(consentGroup).forEach(field => fields.add(field));
-      }
+      // Merge both consents and permissions groups to get all fields
+      [contactGroups.permissions, contactGroups.consents].forEach((group) => {
+        if (group) Object.keys(group).forEach((field) => fields.add(field));
+      });
     });
     return Array.from(fields).sort();
   }, [members]);

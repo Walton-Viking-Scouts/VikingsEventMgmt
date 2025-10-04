@@ -44,13 +44,13 @@ export const MEDICAL_DATA_INDICATORS = {
   },
 };
 
-const NONE_VARIATIONS = [
+export const NONE_VARIATIONS = [
   'none', 'nil', 'nothing',
   // Keep phrases for documentation parity; detection handled by regexes
   'not required', 'no allergies', 'no medical issues', 'no dietary requirements',
 ];
 
-const SYSTEM_DEFAULTS = [
+export const SYSTEM_DEFAULTS = [
   'n/a', 'not applicable', 'default', 'system',
 ];
 
