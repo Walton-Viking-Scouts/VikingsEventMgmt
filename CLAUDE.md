@@ -85,6 +85,63 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 - **Build verification** - Code must build successfully (`npm run build`)
 - **Manual testing** - Basic functionality verification
 
+### CodeRabbit Review Workflow
+
+**CRITICAL: When using `/coderabbit` command, follow this EXACT workflow:**
+
+1. **Fetch and categorize** all CodeRabbit comments:
+   - 🔴 **Actionable** (security, bugs, breaking changes, CI failures) - MUST fix
+   - 🟡 **Nitpicks** (style, documentation, best practices) - ASK USER FIRST
+
+2. **Implement actionable fixes** immediately:
+   - Fix all security vulnerabilities, bugs, and CI failures
+   - Run quality checks: `npm run lint && npm run test:run && npm run build`
+   - **DO NOT COMMIT OR PUSH YET** - keep changes staged only
+
+3. **Ask user about nitpicks**:
+   - Present categorized list of optional improvements
+   - Get explicit approval before proceeding
+   - User may say "yes", "no", or "only specific categories"
+
+4. **If nitpicks approved**, implement them:
+   - Make all requested nitpick changes
+   - Run quality checks again: `npm run lint && npm run test:run && npm run build`
+   - **STILL DO NOT COMMIT OR PUSH**
+
+5. **Single comprehensive commit** with ALL changes:
+   ```bash
+   git add -A
+   git commit -m "fix: address CodeRabbit feedback - [category]
+
+   Actionable Fixes:
+   - [list actionable fixes]
+
+   Code Quality (if nitpicks approved):
+   - [list nitpick improvements]
+
+   Quality checks passed:
+   - Lint: ✅ [status]
+   - Tests: ✅ [status]
+   - Build: ✅ [status]
+
+   Addresses CodeRabbit feedback from PR #XXX
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude <noreply@anthropic.com>"
+   ```
+
+6. **Push once** after single commit:
+   ```bash
+   git push origin feature/branch-name
+   ```
+
+**NEVER:**
+- ❌ Commit actionable fixes separately from nitpicks
+- ❌ Push before getting user approval on nitpicks
+- ❌ Create multiple commits for CodeRabbit feedback
+- ❌ Skip asking about nitpicks (always present options to user)
+
 ## Quick Reference
 
 ### Development Commands

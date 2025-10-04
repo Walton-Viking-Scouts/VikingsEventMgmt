@@ -44,12 +44,22 @@ export const MEDICAL_DATA_INDICATORS = {
   },
 };
 
+/**
+ * Common variations parents/leaders use to indicate "no medical issues/allergies/requirements"
+ * Used for consistent empty value detection across components (DetailedTab sorting, etc.)
+ * @constant {string[]}
+ */
 export const NONE_VARIATIONS = [
   'none', 'nil', 'nothing',
   // Keep phrases for documentation parity; detection handled by regexes
   'not required', 'no allergies', 'no medical issues', 'no dietary requirements',
 ];
 
+/**
+ * System-generated default values indicating missing or not-applicable data
+ * Used to distinguish between user-entered content and auto-populated placeholders
+ * @constant {string[]}
+ */
 export const SYSTEM_DEFAULTS = [
   'n/a', 'not applicable', 'default', 'system',
 ];
