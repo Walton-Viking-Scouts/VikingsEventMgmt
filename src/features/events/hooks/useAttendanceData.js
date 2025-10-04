@@ -51,11 +51,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         // Start with regular attendance (has full data: Yes, No, Invited, Not Invited)
         const finalAttendance = [...relevantAttendance];
 
-        console.log('🔍 useAttendanceData: Starting with regular attendance', {
-          eventCount: events.length,
-          regularCount: relevantAttendance.length,
-        });
-
         // Check for shared attendance to add inaccessible sections
         // Create Set of sectionids we have regular attendance for (across all events)
         // Convert to strings to avoid type mismatch issues
@@ -80,28 +75,14 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                 }));
 
               finalAttendance.push(...inaccessibleSectionRecords);
-
-              console.log('✅ useAttendanceData: Added inaccessible section attendance', {
-                eventId: event.eventid,
-                eventName: event.name,
-                inaccessibleRecords: inaccessibleSectionRecords.length,
-                inaccessibleSections: [...new Set(inaccessibleSectionRecords.map(r => r.sectionname))],
-              });
             }
           } catch (sharedError) {
-            console.log('⚠️ useAttendanceData: No shared attendance for event', {
+            logger.debug('No shared attendance found for event', {
               eventId: event.eventid,
-              eventName: event.name,
               error: sharedError.message,
-            });
+            }, LOG_CATEGORIES.COMPONENT);
           }
         }
-
-        console.log('✅ useAttendanceData: Final attendance', {
-          regularCount: relevantAttendance.length,
-          finalCount: finalAttendance.length,
-          addedFromShared: finalAttendance.length - relevantAttendance.length,
-        });
 
         const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
         const additionalMembers = [];
@@ -127,13 +108,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         }
 
         const combinedMembers = [...members, ...additionalMembers];
-
-        console.log('✅ useAttendanceData: Final member list', {
-          originalMembers: members.length,
-          additionalMembers: additionalMembers.length,
-          totalMembers: combinedMembers.length,
-          usedSharedAttendance: finalAttendance.length > relevantAttendance.length,
-        });
 
         setMergedMembers(combinedMembers);
         setAttendanceData(finalAttendance);
@@ -161,16 +135,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
     try {
       const token = getToken();
       
-      // Enhanced logging for debugging deployed environment issues
-      if (import.meta.env.DEV) {
-        console.log('useAttendanceData: Loading Viking Event data', {
-          eventsCount: events?.length || 0,
-          hasToken: !!token,
-          tokenLength: token?.length || 0,
-          eventSections: events?.map(e => ({ sectionid: e.sectionid, termid: e.termid })) || [],
-        });
-      }
-      
       if (!token) {
         logger.info(
           'useAttendanceData: No token available for FlexiRecord loading; attempting cache-only read',
@@ -196,17 +160,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
       // Load Viking Event Management data for all sections
       // getVikingEventDataForEvents handles section-term combinations correctly
       const vikingEventMap = await getVikingEventDataForEvents(events, token, true);
-      
-      if (import.meta.env.DEV) {
-        console.log('useAttendanceData: Viking Event data loaded successfully', {
-          sectionsWithData: Array.from(vikingEventMap.entries())
-            .filter(([_, data]) => data !== null)
-            .map(([sectionId, _]) => sectionId),
-          totalSections: vikingEventMap.size,
-        });
-      }
 
-      
       setVikingEventData(vikingEventMap);
       
     } catch (error) {

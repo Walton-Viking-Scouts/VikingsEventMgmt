@@ -48,7 +48,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
 
       return {
         name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-        section: member.sections?.[0] || 'Unknown',
+        section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
         patrol: member.patrol || '',
         age: member.age || member.yrs || '',
         primary_contacts: (() => {
@@ -220,7 +220,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: member.sections?.[0] || 'Unknown',
+      section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
       patrol: member.patrol || '',
       age: member.age || member.yrs || '',
       
@@ -381,7 +381,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
             csv(member.lastname),
             csv(attendanceStatus),
             csv(vikingEventData?.CampGroup || ''),
-            csv(member.sections?.[0] || 'Unknown'),
+            csv(member.sections?.[0]?.sectionname || member.sectionname || 'Unknown'),
             csv(memberData.patrol),
             csv(memberData.age),
           ];

@@ -108,13 +108,6 @@ export const fetchEventAttendance = async (event) => {
         // Get sectionids that exist in regular attendance (accessible sections)
         const regularSectionIds = new Set(eventAttendance.map(r => r.sectionid));
 
-        console.log('🔍 fetchEventAttendance: Section filtering', {
-          eventId: event.eventid,
-          regularSectionIds: Array.from(regularSectionIds),
-          sharedSectionIds: [...new Set(sharedAttendance.map(a => a.sectionid))],
-          sharedSectionNames: [...new Set(sharedAttendance.map(a => a.sectionname))],
-        });
-
         // Only include shared attendance from sections NOT in regular attendance (inaccessible sections)
         // This prevents double-counting in totals while showing all inaccessible sections
         const syntheticAttendees = sharedAttendance
@@ -124,12 +117,6 @@ export const fetchEventAttendance = async (event) => {
             scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
             eventid: event.eventid,
           }));
-
-        console.log('✅ fetchEventAttendance: Filtered result', {
-          eventId: event.eventid,
-          syntheticCount: syntheticAttendees.length,
-          syntheticSections: [...new Set(syntheticAttendees.map(a => a.sectionname))],
-        });
 
         // Merge regular attendance with shared attendance from inaccessible sections only
         const mergedAttendance = [...eventAttendance, ...syntheticAttendees];
