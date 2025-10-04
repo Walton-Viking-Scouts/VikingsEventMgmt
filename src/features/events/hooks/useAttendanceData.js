@@ -48,13 +48,16 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
 
         const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
 
-        let finalAttendance = [];
-        let hasSharedAttendance = false;
+        // Start with regular attendance (has full data: Yes, No, Invited, Not Invited)
+        const finalAttendance = [...relevantAttendance];
 
-        console.log('🔍 useAttendanceData: Checking for shared attendance', {
+        console.log('🔍 useAttendanceData: Starting with regular attendance', {
           eventCount: events.length,
-          events: events.map(e => ({ id: e.eventid, section: e.sectionid, name: e.name })),
+          regularCount: relevantAttendance.length,
         });
+
+        // Check for shared attendance to add inaccessible sections
+        const regularSectionIds = new Set(relevantAttendance.map(r => r.sectionid));
 
         for (const event of events) {
           const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
@@ -62,36 +65,24 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
             const sharedData = await UnifiedStorageService.get(sharedKey);
             const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
-            console.log('🔍 useAttendanceData: Shared data check', {
-              eventId: event.eventid,
-              eventName: event.name,
-              sharedKey,
-              hasSharedData: !!sharedData,
-              sharedDataKeys: sharedData ? Object.keys(sharedData) : [],
-              sharedAttendanceLength: sharedAttendance?.length || 0,
-            });
-
             if (sharedAttendance && Array.isArray(sharedAttendance) && sharedAttendance.length > 0) {
-              hasSharedAttendance = true;
+              // Only add shared attendance from inaccessible sections
+              const inaccessibleSectionRecords = sharedAttendance
+                .filter(attendee => !regularSectionIds.has(attendee.sectionid))
+                .map(attendee => ({
+                  ...attendee,
+                  eventid: event.eventid,
+                  firstname: attendee.firstname || attendee.first_name,
+                  lastname: attendee.lastname || attendee.last_name,
+                }));
 
-              const sharedAttendanceRecords = sharedAttendance.map(attendee => ({
-                ...attendee,
-                eventid: event.eventid,
-                firstname: attendee.firstname || attendee.first_name,
-                lastname: attendee.lastname || attendee.last_name,
-              }));
+              finalAttendance.push(...inaccessibleSectionRecords);
 
-              finalAttendance.push(...sharedAttendanceRecords);
-
-              console.log('✅ useAttendanceData: Using shared attendance as authoritative source', {
+              console.log('✅ useAttendanceData: Added inaccessible section attendance', {
                 eventId: event.eventid,
                 eventName: event.name,
-                sharedTotalRecords: sharedAttendance.length,
-                sharedYesCount: sharedAttendance.filter(a => a.attending === 'Yes').length,
-                totalAttendance: finalAttendance.length,
-                uniqueSections: [...new Set(sharedAttendanceRecords.map(r => r.sectionname))],
-                uniqueSectionIds: [...new Set(sharedAttendanceRecords.map(r => r.sectionid))],
-                sampleRecord: sharedAttendance[0],
+                inaccessibleRecords: inaccessibleSectionRecords.length,
+                inaccessibleSections: [...new Set(inaccessibleSectionRecords.map(r => r.sectionname))],
               });
             }
           } catch (sharedError) {
@@ -103,18 +94,11 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        if (!hasSharedAttendance) {
-          console.log('✅ useAttendanceData: No shared attendance found, using regular attendance', {
-            regularCount: relevantAttendance.length,
-          });
-          finalAttendance = relevantAttendance;
-        } else {
-          console.log('✅ useAttendanceData: Using shared attendance exclusively', {
-            sharedCount: finalAttendance.length,
-            regularCount: relevantAttendance.length,
-            difference: finalAttendance.length - relevantAttendance.length,
-          });
-        }
+        console.log('✅ useAttendanceData: Final attendance', {
+          regularCount: relevantAttendance.length,
+          finalCount: finalAttendance.length,
+          addedFromShared: finalAttendance.length - relevantAttendance.length,
+        });
 
         const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
         const additionalMembers = [];
@@ -132,7 +116,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
               sectionname: record.sectionname,
               sectionid: record.sectionid,
               sections: [{ sectionid: record.sectionid, sectionname: record.sectionname }],
-              _isSharedMember: hasSharedAttendance,
+              _isSharedMember: finalAttendance.length > relevantAttendance.length,
             };
             additionalMembers.push(additionalMember);
             existingMemberIds.add(String(record.scoutid));
@@ -145,7 +129,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           originalMembers: members.length,
           additionalMembers: additionalMembers.length,
           totalMembers: combinedMembers.length,
-          usedSharedAttendance: hasSharedAttendance,
+          usedSharedAttendance: finalAttendance.length > relevantAttendance.length,
         });
 
         setMergedMembers(combinedMembers);

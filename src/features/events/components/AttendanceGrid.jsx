@@ -60,8 +60,18 @@ function AttendanceGrid({ data }) {
   );
 
   const getTotalByStatus = (status) => {
-    return Object.values(data).reduce(
-      (total, typeData) => total + typeData[status],
+    // Use deduplicated totals if provided (for events with scouts in multiple sections)
+    if (data._totals) {
+      return data._totals[status] || 0;
+    }
+
+    // Otherwise sum up section counts (backward compatible)
+    return Object.entries(data).reduce(
+      (total, [key, typeData]) => {
+        // Skip the _totals property if iterating
+        if (key === '_totals') return total;
+        return total + (typeData[status] || 0);
+      },
       0,
     );
   };
@@ -107,14 +117,16 @@ function AttendanceGrid({ data }) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200" data-oid="g60igun">
-          {Object.entries(data).map(([type, typeData]) => (
-            <PersonTypeRow
-              key={type}
-              type={type}
-              typeData={typeData}
-              data-oid="3hj1pvm"
-            />
-          ))}
+          {Object.entries(data)
+            .filter(([key]) => key !== '_totals')
+            .map(([type, typeData]) => (
+              <PersonTypeRow
+                key={type}
+                type={type}
+                typeData={typeData}
+                data-oid="3hj1pvm"
+              />
+            ))}
 
           {/* Totals row */}
           <tr className="bg-gray-50 font-medium" data-oid="l-hkkjw">

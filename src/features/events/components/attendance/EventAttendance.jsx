@@ -302,20 +302,60 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     const sections = Array.from(sectionMap.values());
 
-    const totals = sections.reduce((acc, section) => {
-      ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(category => {
-        acc[category].yp += section[category].yp;
-        acc[category].yl += section[category].yl;
-        acc[category].l += section[category].l;
-        acc[category].total += section[category].total;
-      });
-      return acc;
-    }, {
+    const uniqueScouts = new Map();
+    overviewData.forEach((record) => {
+      const uniqueKey = `${record.scoutid}-${record.attending}`;
+
+      if (!uniqueScouts.has(uniqueKey)) {
+        const memberData = membersById.get(String(record.scoutid));
+        const personType = memberData?.person_type;
+
+        let roleType = 'l';
+        if (personType === 'Young People') {
+          roleType = 'yp';
+        } else if (personType === 'Young Leaders') {
+          roleType = 'yl';
+        } else if (personType === 'Leaders') {
+          roleType = 'l';
+        }
+
+        uniqueScouts.set(uniqueKey, {
+          attending: record.attending,
+          roleType,
+        });
+      }
+    });
+
+    const totals = {
       yes: { yp: 0, yl: 0, l: 0, total: 0 },
       no: { yp: 0, yl: 0, l: 0, total: 0 },
       invited: { yp: 0, yl: 0, l: 0, total: 0 },
       notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
       total: { yp: 0, yl: 0, l: 0, total: 0 },
+    };
+
+    uniqueScouts.forEach(({ attending, roleType }) => {
+      if (attending === 'Yes') {
+        totals.yes[roleType]++;
+        totals.yes.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'No') {
+        totals.no[roleType]++;
+        totals.no.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'Invited') {
+        totals.invited[roleType]++;
+        totals.invited.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      } else if (attending === 'Not Invited') {
+        totals.notInvited[roleType]++;
+        totals.notInvited.total++;
+        totals.total[roleType]++;
+        totals.total.total++;
+      }
     });
 
     return { sections, totals };
