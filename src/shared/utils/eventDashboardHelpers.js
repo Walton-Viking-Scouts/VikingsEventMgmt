@@ -100,44 +100,41 @@ export const fetchEventAttendance = async (event) => {
       const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
       if (sharedAttendance && Array.isArray(sharedAttendance)) {
-        logger.debug('Found shared attendance data - using as authoritative source', {
+        logger.debug('Found shared attendance data', {
           eventId: event.eventid,
           sharedAttendees: sharedAttendance.length,
         }, LOG_CATEGORIES.COMPONENT);
 
-        // When shared attendance exists, use it exclusively (it already contains ALL sections)
-        // Deduplicate by scoutid to prevent counting same person multiple times
-        // Keep ALL attendance statuses (Yes, No, Invited, Not Invited)
-        const uniqueScouts = new Map();
+        // Get scout IDs that already exist in regular attendance
+        const regularScoutIds = new Set(eventAttendance.map(r => String(r.scoutid)));
 
-        sharedAttendance.forEach(attendee => {
-          const scoutId = String(attendee.scoutid);
-          const uniqueKey = `${scoutId}-${attendee.attending}`;
+        // Only add shared attendance for scouts NOT in regular attendance (inaccessible sections)
+        // These are scouts from sections the user doesn't have access to
+        const sharedOnlyAttendees = sharedAttendance
+          .filter(attendee => !regularScoutIds.has(String(attendee.scoutid)))
+          .map(attendee => ({
+            ...attendee,
+            scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
+            eventid: event.eventid,
+          }));
 
-          if (!uniqueScouts.has(uniqueKey)) {
-            uniqueScouts.set(uniqueKey, {
-              ...attendee,
-              scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
-              eventid: event.eventid,
-            });
-          }
-        });
+        // Merge regular attendance with shared-only attendance
+        const mergedAttendance = [...eventAttendance, ...sharedOnlyAttendees];
 
-        const deduplicatedAttendance = Array.from(uniqueScouts.values());
-
-        logger.debug('Using shared attendance (deduplicated)', {
+        logger.debug('Merged regular and shared attendance', {
           eventId: event.eventid,
-          totalShared: sharedAttendance.length,
-          uniqueAttendees: deduplicatedAttendance.length,
+          regularRecords: eventAttendance.length,
+          sharedOnlyRecords: sharedOnlyAttendees.length,
+          totalRecords: mergedAttendance.length,
           attendanceBreakdown: {
-            yes: deduplicatedAttendance.filter(a => a.attending === 'Yes').length,
-            no: deduplicatedAttendance.filter(a => a.attending === 'No').length,
-            invited: deduplicatedAttendance.filter(a => a.attending === 'Invited').length,
-            notInvited: deduplicatedAttendance.filter(a => a.attending === 'Not Invited').length,
+            yes: mergedAttendance.filter(a => a.attending === 'Yes').length,
+            no: mergedAttendance.filter(a => a.attending === 'No').length,
+            invited: mergedAttendance.filter(a => a.attending === 'Invited').length,
+            notInvited: mergedAttendance.filter(a => a.attending === 'Not Invited').length,
           },
         }, LOG_CATEGORIES.COMPONENT);
 
-        return deduplicatedAttendance;
+        return mergedAttendance;
       }
     } catch (sharedError) {
       logger.debug('No shared attendance data found - using regular attendance', {
