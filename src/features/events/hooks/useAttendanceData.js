@@ -57,10 +57,9 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         });
 
         // Check for shared attendance to add inaccessible sections
-        // Create Set of event+section combinations we have regular data for
-        const regularEventSections = new Set(
-          relevantAttendance.map(r => `${r.eventid}-${r.sectionid}`),
-        );
+        // Create Set of sectionids we have regular attendance for (across all events)
+        // Convert to strings to avoid type mismatch issues
+        const regularSectionIds = new Set(relevantAttendance.map(r => String(r.sectionid)));
 
         for (const event of events) {
           const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
@@ -71,7 +70,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
             if (sharedAttendance && Array.isArray(sharedAttendance) && sharedAttendance.length > 0) {
               // Only add shared attendance from sections we DON'T have regular data for
               const inaccessibleSectionRecords = sharedAttendance
-                .filter(attendee => !regularEventSections.has(`${event.eventid}-${attendee.sectionid}`))
+                .filter(attendee => !regularSectionIds.has(String(attendee.sectionid)))
                 .map(attendee => ({
                   ...attendee,
                   eventid: event.eventid,
