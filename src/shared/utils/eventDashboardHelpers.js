@@ -137,7 +137,7 @@ export const fetchEventAttendance = async (event) => {
         logger.debug('Merged regular and shared attendance', {
           eventId: event.eventid,
           regularRecords: eventAttendance.length,
-          sharedOnlyRecords: sharedOnlyAttendees.length,
+          sharedOnlyRecords: syntheticAttendees.length,
           totalRecords: mergedAttendance.length,
           attendanceBreakdown: {
             yes: mergedAttendance.filter(a => a.attending === 'Yes').length,

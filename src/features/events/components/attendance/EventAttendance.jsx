@@ -262,12 +262,20 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     const sectionMap = new Map();
 
+    // Create lookup from sectionid to actual section name from events
+    const sectionIdToName = new Map();
+    events.forEach((event) => {
+      if (event.sectionid && event.sectionname) {
+        sectionIdToName.set(event.sectionid, event.sectionname);
+      }
+    });
+
     // Create sections dynamically from attendance records only
     // This ensures we don't create duplicate sections when using shared attendance
     overviewData.forEach((record) => {
       if (!sectionMap.has(record.sectionid) && sectionFilters[record.sectionid] !== false) {
         const member = membersById.get(String(record.scoutid));
-        const sectionName = record.sectionname || member?.sectionname || 'Unknown Section';
+        const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || member?.sectionname || 'Unknown Section';
 
         sectionMap.set(record.sectionid, {
           name: sectionName,
@@ -359,7 +367,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     });
 
     return { sections, totals };
-  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById]);
+  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById, events]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);

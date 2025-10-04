@@ -74,6 +74,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                   eventid: event.eventid,
                   firstname: attendee.firstname || attendee.first_name,
                   lastname: attendee.lastname || attendee.last_name,
+                  _isSharedSection: true,
                 }));
 
               finalAttendance.push(...inaccessibleSectionRecords);
