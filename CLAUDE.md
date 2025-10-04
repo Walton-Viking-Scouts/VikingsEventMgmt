@@ -111,7 +111,12 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 5. **Single comprehensive commit** with ALL changes:
    ```bash
    git add -A
-   git commit -m "fix: address CodeRabbit feedback - [category]
+   git commit
+   ```
+
+   Use this commit message template in your editor:
+   ```
+   fix: address CodeRabbit feedback - [category]
 
    Actionable Fixes:
    - [list actionable fixes]
@@ -128,7 +133,7 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-   Co-Authored-By: Claude <noreply@anthropic.com>"
+   Co-Authored-By: Claude <noreply@anthropic.com>
    ```
 
 6. **Push once** after single commit:

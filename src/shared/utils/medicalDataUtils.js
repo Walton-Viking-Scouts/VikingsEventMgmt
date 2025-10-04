@@ -46,15 +46,19 @@ export const MEDICAL_DATA_INDICATORS = {
 
 /**
  * Common variations parents/leaders use to indicate "no medical issues/allergies/requirements"
+ * Split into exact matches (short values) and phrase patterns (word-boundary regex)
  * Used for consistent empty value detection across components (DetailedTab sorting, etc.)
- * All comparisons should be case-insensitive (lowercase normalized)
- * @constant {string[]}
+ * @constant {Object}
  */
-export const NONE_VARIATIONS = [
-  'none', 'nil', 'nothing', 'no', 'na',
-  // Keep phrases for documentation parity; detection handled by regexes
-  'not required', 'no allergies', 'no medical issues', 'no dietary requirements',
-];
+export const NONE_VARIATIONS = {
+  // Short values requiring exact equality match to avoid false positives
+  exact: ['no', 'na'],
+  // Longer phrases safe for word-boundary regex matching
+  phrases: [
+    'none', 'nil', 'nothing',
+    'not required', 'no allergies', 'no medical issues', 'no dietary requirements',
+  ],
+};
 
 /**
  * System-generated default values indicating missing or not-applicable data
@@ -135,7 +139,14 @@ export function categorizeMedicalData(value, fieldName = '') {
     return MEDICAL_DATA_STATES.SYSTEM_DEFAULT;
   }
 
-  if (NONE_VARIATIONS.some(noneVal => normalizedValue.includes(noneVal))) {
+  // Check exact matches for short values (no, na) to avoid false positives
+  if (NONE_VARIATIONS.exact.some(exactVal => normalizedValue === exactVal)) {
+    return MEDICAL_DATA_STATES.CONFIRMED_NONE;
+  }
+
+  // Check phrase patterns with word boundaries to avoid substring false positives
+  const noneRegex = new RegExp(`\\b(${NONE_VARIATIONS.phrases.join('|')})\\b`, 'i');
+  if (noneRegex.test(value)) {
     return MEDICAL_DATA_STATES.CONFIRMED_NONE;
   }
 

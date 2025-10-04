@@ -150,7 +150,9 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
         const normalized = String(val).toLowerCase().trim();
         if (normalized === '') return true;
         if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
-        if (NONE_VARIATIONS.some(none => normalized.includes(none))) return true;
+        if (NONE_VARIATIONS.exact.some(exactVal => normalized === exactVal)) return true;
+        const noneRegex = new RegExp(`\\b(${NONE_VARIATIONS.phrases.join('|')})\\b`, 'i');
+        if (noneRegex.test(val)) return true;
         return false;
       };
 
