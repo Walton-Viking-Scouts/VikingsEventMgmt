@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import eventSyncService from '../../../shared/services/data/eventSyncService.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import Alert from '../../../shared/components/ui/Alert.jsx';
@@ -11,36 +11,7 @@ function SimpleAttendanceViewer() {
   const [error, setError] = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(null);
 
-  const loadAttendance = async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (forceRefresh) {
-        const result = await eventSyncService.syncAllEventAttendance(true);
-        if (!result.success) {
-          throw new Error(result.message);
-        }
-        notifySuccess('Attendance data synced successfully');
-      }
-
-      const data = await loadAttendanceFromDatabase();
-      setAttendanceData(data);
-      setLastRefreshTime(Date.now());
-
-      if (!forceRefresh) {
-        notifyInfo(`Loaded attendance data - ${data.length} records`);
-      }
-
-    } catch (err) {
-      setError(err.message);
-      notifyError(`Failed to load attendance data: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAttendanceFromDatabase = async () => {
+  const loadAttendanceFromDatabase = useCallback(async () => {
     const sections = await databaseService.getSections();
     const allEvents = [];
 
@@ -72,7 +43,36 @@ function SimpleAttendanceViewer() {
     return results
       .filter(r => r.status === 'fulfilled')
       .flatMap(r => r.value);
-  };
+  }, []);
+
+  const loadAttendance = useCallback(async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (forceRefresh) {
+        const result = await eventSyncService.syncAllEventAttendance(true);
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+        notifySuccess('Attendance data synced successfully');
+      }
+
+      const data = await loadAttendanceFromDatabase();
+      setAttendanceData(data);
+      setLastRefreshTime(Date.now());
+
+      if (!forceRefresh) {
+        notifyInfo(`Loaded attendance data - ${data.length} records`);
+      }
+
+    } catch (err) {
+      setError(err.message);
+      notifyError(`Failed to load attendance data: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadAttendanceFromDatabase]);
 
   const handleRefresh = () => {
     loadAttendance(true);
@@ -80,7 +80,7 @@ function SimpleAttendanceViewer() {
 
   useEffect(() => {
     loadAttendance(false);
-  }, []);
+  }, [loadAttendance]);
 
   const groupedByEvent = attendanceData.reduce((acc, record) => {
     const eventKey = `${record.eventid}-${record.eventname}`;

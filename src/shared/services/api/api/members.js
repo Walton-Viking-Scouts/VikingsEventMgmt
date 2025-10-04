@@ -225,21 +225,22 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
   
   const sectionIds = validSections.map(s => s.sectionid);
 
-  // Try cache first (both online and offline) - skip if forceRefresh
-  if (!forceRefresh) {
-    try {
-      const cachedMembers = await databaseService.getMembers(sectionIds);
-      if (cachedMembers.length > 0) {
-        logger.info(`Using cached members: ${cachedMembers.length} members for sections ${sectionIds.join(', ')}`);
-        return cachedMembers;
-      }
-    } catch (error) {
-      logger.warn('Failed to get cached members:', error);
+  let cachedMembers = [];
+  try {
+    cachedMembers = await databaseService.getMembers(sectionIds);
+    if (!forceRefresh && cachedMembers.length > 0) {
+      logger.info(`Using cached members: ${cachedMembers.length} members for sections ${sectionIds.join(', ')}`);
+      return cachedMembers;
     }
+  } catch (error) {
+    logger.warn('Failed to get cached members:', error);
   }
-  
-  // If offline and no cache, throw error
+
   if (!isOnline) {
+    if (cachedMembers.length > 0) {
+      logger.info(`Offline mode – serving cached members: ${cachedMembers.length} for sections ${sectionIds.join(', ')}`);
+      return cachedMembers;
+    }
     logger.error('Offline mode - no cached members available');
     throw new Error('Unable to retrieve members while offline and no cache available');
   }

@@ -189,21 +189,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
   // Get comprehensive member data (same as SectionsList)
   const getComprehensiveMemberData = (member) => {
     const contactGroups = groupContactInfo(member);
-    
-    // Helper to get field from any group
-    const _getField = (groupNames, fieldNames) => {
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) return group[fieldName];
-          }
-        }
-      }
-      return '';
-    };
 
-    // Helper to combine multiple fields
     const combineFields = (groupNames, fieldNames, separator = ', ') => {
       const values = [];
       for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
