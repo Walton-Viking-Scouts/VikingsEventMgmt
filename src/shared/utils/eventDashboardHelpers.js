@@ -105,13 +105,18 @@ export const fetchEventAttendance = async (event) => {
           sharedAttendees: sharedAttendance.length,
         }, LOG_CATEGORIES.COMPONENT);
 
-        // Get scout IDs that already exist in regular attendance
-        const regularScoutIds = new Set(eventAttendance.map(r => String(r.scoutid)));
+        // Get scout+section combinations that already exist in regular attendance
+        const regularScoutSections = new Set(
+          eventAttendance.map(r => `${r.scoutid}-${r.sectionid}`),
+        );
 
-        // Only add shared attendance for scouts NOT in regular attendance (inaccessible sections)
-        // These are scouts from sections the user doesn't have access to
+        // Only add shared attendance for scout+section combinations NOT in regular attendance
+        // This allows same scout to appear in multiple sections with different statuses
         const sharedOnlyAttendees = sharedAttendance
-          .filter(attendee => !regularScoutIds.has(String(attendee.scoutid)))
+          .filter(attendee => {
+            const key = `${attendee.scoutid}-${attendee.sectionid}`;
+            return !regularScoutSections.has(key);
+          })
           .map(attendee => ({
             ...attendee,
             scoutid: `synthetic-${attendee.scoutid}`, // Mark as synthetic for EventCard logic
