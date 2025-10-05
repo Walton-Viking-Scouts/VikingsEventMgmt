@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "2.10.0",
+  "version": "2.11.0",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
@@ -89,6 +89,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "fake-indexeddb": "^6.2.2",
     "jest-axe": "^10.0.0",
     "jsdoc": "^4.0.4",
     "postcss": "^8.5.6",

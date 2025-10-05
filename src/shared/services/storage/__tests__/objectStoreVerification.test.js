@@ -113,7 +113,7 @@ describe('Object Store Creation Verification', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      3,
+      4,
       expect.objectContaining({
         upgrade: expect.any(Function),
       }),
@@ -144,7 +144,8 @@ describe('Object Store Creation Verification', () => {
       'events',
       'attendance',
       'shared_attendance',
-      'members',
+      'core_members',
+      'member_section',
     ];
 
     expectedStores.forEach(storeName => {
@@ -174,7 +175,8 @@ describe('Object Store Creation Verification', () => {
       'EVENTS',
       'ATTENDANCE',
       'SHARED_ATTENDANCE',
-      'MEMBERS',
+      'CORE_MEMBERS',
+      'MEMBER_SECTION',
     ];
 
     expectedStores.forEach(storeConstant => {
