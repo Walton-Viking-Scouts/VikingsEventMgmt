@@ -476,7 +476,8 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
       return;
     }
 
-    const uniqueScoutIds = [...new Set(attendance.map(a => a.scoutid))];
+    // Convert scoutids to numbers to match core_members and member_section data types
+    const uniqueScoutIds = [...new Set(attendance.map(a => Number(a.scoutid)))];
     logger.debug('Unique scout IDs from attendance', {
       count: uniqueScoutIds.length,
       scoutIds: uniqueScoutIds,
@@ -500,13 +501,14 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
     }, LOG_CATEGORIES.DATABASE);
 
     // Create minimal core_member records for missing scouts
-    const attendanceByScoutId = new Map(attendance.map(a => [a.scoutid, a]));
+    // Map attendance by numeric scoutid for lookup
+    const attendanceByScoutId = new Map(attendance.map(a => [Number(a.scoutid), a]));
     const missingCoreMembers = uniqueScoutIds
       .filter(scoutid => !existingCoreMemberIds.has(scoutid))
       .map(scoutid => {
         const attendanceRecord = attendanceByScoutId.get(scoutid);
         return {
-          scoutid,
+          scoutid, // Already a number from uniqueScoutIds
           firstname: attendanceRecord?.firstname || '',
           lastname: attendanceRecord?.lastname || '',
           patrol: attendanceRecord?.patrol || '',
@@ -569,8 +571,8 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
         }
 
         return {
-          scoutid,
-          sectionid: sectionId,
+          scoutid, // Already a number from uniqueScoutIds
+          sectionid: Number(sectionId), // Ensure sectionid is also a number
           sectionname: sectionName,
           person_type: personType,
           active: true,
