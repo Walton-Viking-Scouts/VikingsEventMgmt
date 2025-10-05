@@ -133,7 +133,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: member.sections?.[0] || 'Unknown',
+      section: member.section || member.sections?.[0]?.section || member.sections?.[0]?.sectionname || 'Unknown',
       patrol: member.patrol || '',
       age: calculateAge(member.date_of_birth),
       
@@ -258,7 +258,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
           const baseData = [
             csv(member.firstname),
             csv(member.lastname),
-            csv(member.sections?.[0] || 'Unknown'),
+            csv(member.section || member.sections?.[0]?.section || member.sections?.[0]?.sectionname || 'Unknown'),
             csv(memberData.patrol),
             csv(memberData.age),
             csv(formatMedicalDataForDisplay(memberData.allergies, 'allergies').csvValue),

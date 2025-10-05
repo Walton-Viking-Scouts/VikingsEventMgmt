@@ -278,7 +278,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                               className="inline-flex items-center font-medium rounded-full px-2.5 py-0.5 text-xs bg-scout-blue text-white"
                               data-oid="x9k1uyl"
                             >
-                              {section}
+                              {typeof section === 'object' ? (section.sectionname || section.section) : section}
                             </span>
                           ))
                         ) : (
