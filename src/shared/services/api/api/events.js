@@ -480,15 +480,49 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
     const events = await databaseService.getEvents(sectionId);
     const sectionName = events.length > 0 ? events[0]?.sectionname : null;
 
+    // Get ALL member_section records for these scouts to infer person_type
+    const allMemberSections = await IndexedDBService.getAllMemberSectionsForScouts(uniqueScoutIds);
+    const memberSectionsByScoutId = new Map();
+    allMemberSections.forEach(section => {
+      if (!memberSectionsByScoutId.has(section.scoutid)) {
+        memberSectionsByScoutId.set(section.scoutid, []);
+      }
+      memberSectionsByScoutId.get(section.scoutid).push(section);
+    });
+
     const newMemberSections = coreMembers
       .filter(member => !existingScoutIds.has(member.scoutid))
-      .map(member => ({
-        scoutid: member.scoutid,
-        sectionid: sectionId,
-        sectionname: sectionName,
-        person_type: (member.age_years && member.age_years >= 18) ? 'Leaders' : 'Young People',
-        active: true,
-      }));
+      .map(member => {
+        let personType = 'Young People'; // Default
+
+        // Check if they have membership in other sections
+        const otherSections = memberSectionsByScoutId.get(member.scoutid) || [];
+        if (otherSections.length > 0) {
+          // Use person_type from their first section membership
+          // Prioritize Young Leaders or Leaders over Young People
+          const youngLeader = otherSections.find(s => s.person_type === 'Young Leaders');
+          const leader = otherSections.find(s => s.person_type === 'Leaders');
+
+          if (youngLeader) {
+            personType = 'Young Leaders';
+          } else if (leader) {
+            personType = 'Leaders';
+          } else if (otherSections[0]?.person_type) {
+            personType = otherSections[0].person_type;
+          }
+        } else if (member.age_years && member.age_years >= 18) {
+          // Only use age-based fallback if no other section memberships exist
+          personType = 'Leaders';
+        }
+
+        return {
+          scoutid: member.scoutid,
+          sectionid: sectionId,
+          sectionname: sectionName,
+          person_type: personType,
+          active: true,
+        };
+      });
 
     if (newMemberSections.length > 0) {
       await IndexedDBService.bulkUpsertMemberSections(newMemberSections);

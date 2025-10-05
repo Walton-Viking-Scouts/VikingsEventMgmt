@@ -867,6 +867,49 @@ export class IndexedDBService {
       throw error;
     }
   }
+
+  static async getAllMemberSectionsForScouts(scoutids) {
+    try {
+      if (!Array.isArray(scoutids) || scoutids.length === 0) {
+        return [];
+      }
+
+      const db = await getDB();
+      const tx = db.transaction(STORES.MEMBER_SECTION, 'readonly');
+      const store = tx.objectStore(STORES.MEMBER_SECTION);
+      const index = store.index('scoutid');
+
+      const allSections = [];
+      for (const scoutid of scoutids) {
+        const sections = await index.getAll(scoutid);
+        allSections.push(...sections);
+      }
+
+      await tx.done;
+      return allSections;
+    } catch (error) {
+      logger.error('IndexedDB getAllMemberSectionsForScouts failed', {
+        count: scoutids?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_member_sections_for_scouts',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            count: scoutids?.length,
+            operation: 'getAllMemberSectionsForScouts',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
 }
 
 export { getDB };
