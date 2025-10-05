@@ -25,14 +25,11 @@ export class NetworkStatusManager {
     this.statusHistory = [];
     this.maxHistorySize = options.maxHistorySize || 100;
     this.offlineThreshold = options.offlineThreshold || 5000; // 5 seconds
-    this.syncAttemptInterval = options.syncAttemptInterval || 30000; // 30 seconds
-    this.backgroundSyncTimer = null;
     this.lastOnlineTime = null;
     this.lastOfflineTime = null;
     this.initialized = false;
     this.connectionQuality = 'unknown';
     this.latencyHistory = [];
-    this.backgroundSyncCallback = null;
   }
 
   async initialize() {
@@ -182,8 +179,6 @@ export class NetworkStatusManager {
       connectionType: this.currentConnectionType,
       offlineDuration: this.lastOfflineTime ? Date.now() - this.lastOfflineTime : null,
     });
-
-    this.startBackgroundSync();
   }
 
   handleConnectionLost() {
@@ -195,8 +190,6 @@ export class NetworkStatusManager {
       connectionType: this.currentConnectionType,
       onlineDuration: this.lastOnlineTime ? Date.now() - this.lastOnlineTime : null,
     });
-
-    this.stopBackgroundSync();
   }
 
   updateStatus(newStatus) {
@@ -347,43 +340,7 @@ export class NetworkStatusManager {
       connectionDuration: this.getConnectionDuration(),
       averageLatency: this.getAverageLatency(),
       historySize: this.statusHistory.length,
-      backgroundSyncActive: !!this.backgroundSyncTimer,
     };
-  }
-
-  setBackgroundSyncCallback(callback) {
-    this.backgroundSyncCallback = callback;
-  }
-
-  startBackgroundSync() {
-    if (this.backgroundSyncTimer || !this.backgroundSyncCallback) {
-      return;
-    }
-
-    this.backgroundSyncTimer = setInterval(async () => {
-      if (this.isOnline()) {
-        try {
-          await this.backgroundSyncCallback();
-        } catch (error) {
-          logger.warn('Background sync failed', {
-            error: error.message,
-          }, LOG_CATEGORIES.SYNC);
-        }
-      }
-    }, this.syncAttemptInterval);
-
-    logger.info('Background sync started', {
-      interval: this.syncAttemptInterval,
-    }, LOG_CATEGORIES.SYNC);
-  }
-
-  stopBackgroundSync() {
-    if (this.backgroundSyncTimer) {
-      clearInterval(this.backgroundSyncTimer);
-      this.backgroundSyncTimer = null;
-
-      logger.info('Background sync stopped', {}, LOG_CATEGORIES.SYNC);
-    }
   }
 
   addListener(callback) {
@@ -432,8 +389,6 @@ export class NetworkStatusManager {
   }
 
   async destroy() {
-    this.stopBackgroundSync();
-
     if (this.networkListener) {
       try {
         await this.networkListener.remove();
@@ -447,7 +402,6 @@ export class NetworkStatusManager {
     this.listeners = [];
     this.statusHistory = [];
     this.latencyHistory = [];
-    this.backgroundSyncCallback = null;
     this.initialized = false;
 
     logger.info('NetworkStatusManager destroyed', {}, LOG_CATEGORIES.SYNC);

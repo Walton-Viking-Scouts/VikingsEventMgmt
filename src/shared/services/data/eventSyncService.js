@@ -9,13 +9,6 @@ class EventSyncService {
     this.isLoading = false;
     this.refreshPromise = null;
     this.lastSyncTime = null;
-    this.performanceMetrics = {
-      lastSyncDuration: null,
-      totalApiCalls: 0,
-      successfulSyncs: 0,
-      failedSyncs: 0,
-      lastApiCallCount: 0,
-    };
   }
 
   async syncAllEventAttendance(forceRefresh = false) {
@@ -43,9 +36,6 @@ class EventSyncService {
   }
 
   async _doSync() {
-    const startTime = performance.now();
-    let apiCallCount = 0;
-
     try {
       this.isLoading = true;
       logger.info('Starting optimized event attendance sync', {}, LOG_CATEGORIES.DATA_SERVICE);
@@ -98,11 +88,9 @@ class EventSyncService {
       // Sync all displayable events (rate limiting handled by smart queue)
       const syncPromises = displayableEvents.map(event => this.syncEventAttendanceSafe(event, token));
       const results = await Promise.allSettled(syncPromises);
-      apiCallCount = displayableEvents.length;
 
       // Sync shared attendance data for shared events (only displayable events)
-      const sharedAttendanceResults = await this.syncSharedAttendance(displayableEvents, token);
-      apiCallCount += sharedAttendanceResults.apiCallCount;
+      await this.syncSharedAttendance(displayableEvents, token);
 
       const syncResults = {
         totalEvents: allEvents.length,
@@ -137,43 +125,24 @@ class EventSyncService {
         }
       });
 
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-
       this.lastSyncTime = Date.now();
-      this.performanceMetrics.lastSyncDuration = duration;
-      this.performanceMetrics.totalApiCalls += apiCallCount;
-      this.performanceMetrics.lastApiCallCount = apiCallCount;
-      this.performanceMetrics.successfulSyncs++;
 
       logger.info('Optimized event attendance sync completed', {
         ...syncResults,
-        duration: `${Math.round(duration)}ms`,
-        apiCalls: apiCallCount,
-        avgTimePerEvent: displayableEvents.length > 0 ? `${Math.round(duration / displayableEvents.length)}ms` : '0ms',
       }, LOG_CATEGORIES.DATA_SERVICE);
 
-      const successMessage = `Synced ${syncResults.syncedEvents}/${syncResults.displayableEvents} displayable events (${syncResults.skippedEvents} skipped) in ${Math.round(duration)}ms`;
+      const successMessage = `Synced ${syncResults.syncedEvents}/${syncResults.displayableEvents} displayable events (${syncResults.skippedEvents} skipped)`;
       return {
         success: true,
         message: successMessage,
-        details: {
-          ...syncResults,
-          performance: {
-            duration,
-            apiCalls: apiCallCount,
-            avgTimePerEvent: displayableEvents.length > 0 ? duration / displayableEvents.length : 0,
-          },
-        },
+        details: syncResults,
       };
 
     } catch (error) {
-      this.performanceMetrics.failedSyncs++;
       const scoutMessage = getScoutFriendlyMessage(error, 'sync event attendance');
       logger.error('Failed to sync event attendance', {
         error: error.message,
         scoutMessage,
-        apiCallsMade: apiCallCount,
       }, LOG_CATEGORIES.DATA_SERVICE);
 
       return {
@@ -299,34 +268,12 @@ class EventSyncService {
       isLoading: this.isLoading,
       lastSyncTime: this.lastSyncTime,
       isRecentlyRefreshed: this.isRecentlyRefreshed(),
-      performance: this.performanceMetrics,
     };
-  }
-
-  getPerformanceMetrics() {
-    return {
-      ...this.performanceMetrics,
-      isLoading: this.isLoading,
-      lastSyncTime: this.lastSyncTime,
-      syncAge: this.lastSyncTime ? Date.now() - this.lastSyncTime : null,
-    };
-  }
-
-  resetPerformanceMetrics() {
-    this.performanceMetrics = {
-      lastSyncDuration: null,
-      totalApiCalls: 0,
-      successfulSyncs: 0,
-      failedSyncs: 0,
-      lastApiCallCount: 0,
-    };
-    logger.debug('Performance metrics reset', {}, LOG_CATEGORIES.DATA_SERVICE);
   }
 
   clearSyncCache() {
     this.lastSyncTime = null;
-    this.resetPerformanceMetrics();
-    logger.debug('Event sync cache and metrics cleared', {}, LOG_CATEGORIES.DATA_SERVICE);
+    logger.debug('Event sync cache cleared', {}, LOG_CATEGORIES.DATA_SERVICE);
   }
 
   async syncSharedAttendance(events, token) {
