@@ -342,8 +342,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       await loadEventsForSections(sectionsData, token);
 
       // Step 2: Sync all attendance (includes shared attendance)
-      const eventSyncService = (await import('../../../shared/services/data/eventSyncService.js')).default;
-      const attendanceResult = await eventSyncService.syncAllEventAttendance(true);
+      const eventDataLoader = (await import('../../../shared/services/data/eventDataLoader.js')).default;
+      const attendanceResult = await eventDataLoader.syncAllEventAttendance(true);
 
       // Step 3: Reload sections and rebuild event cards
       setSections(sectionsData);

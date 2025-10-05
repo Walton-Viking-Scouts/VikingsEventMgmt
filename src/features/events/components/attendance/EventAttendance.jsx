@@ -11,7 +11,7 @@ import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
-import eventSyncService from '../../../../shared/services/data/eventSyncService.js';
+import eventDataLoader from '../../../../shared/services/data/eventDataLoader.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
 
@@ -559,7 +559,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
 
-      const result = await eventSyncService.syncAllEventAttendance(true);
+      const result = await eventDataLoader.syncAllEventAttendance(true);
 
       if (!result.success) {
         throw new Error(result.message);

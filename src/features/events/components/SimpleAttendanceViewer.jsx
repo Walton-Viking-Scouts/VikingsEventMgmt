@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import eventSyncService from '../../../shared/services/data/eventSyncService.js';
+import eventDataLoader from '../../../shared/services/data/eventDataLoader.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import Alert from '../../../shared/components/ui/Alert.jsx';
 import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
@@ -51,7 +51,7 @@ function SimpleAttendanceViewer() {
       setError(null);
 
       if (forceRefresh) {
-        const result = await eventSyncService.syncAllEventAttendance(true);
+        const result = await eventDataLoader.syncAllEventAttendance(true);
         if (!result.success) {
           throw new Error(result.message);
         }

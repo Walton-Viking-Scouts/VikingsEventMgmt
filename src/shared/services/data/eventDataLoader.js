@@ -4,7 +4,7 @@ import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { getScoutFriendlyMessage } from '../../utils/scoutErrorHandler.js';
 
-class EventSyncService {
+class EventDataLoader {
   constructor() {
     this.isLoading = false;
     this.refreshPromise = null;
@@ -336,4 +336,4 @@ class EventSyncService {
   }
 }
 
-export default new EventSyncService();
+export default new EventDataLoader();

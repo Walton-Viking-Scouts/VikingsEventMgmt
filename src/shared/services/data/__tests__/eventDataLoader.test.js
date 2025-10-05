@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import eventSyncService from '../eventSyncService.js';
+import eventDataLoader from '../eventDataLoader.js';
 import * as api from '../../api/api/events.js';
 import * as tokenService from '../../auth/tokenService.js';
 import databaseService from '../../storage/database.js';
@@ -8,24 +8,24 @@ vi.mock('../../api/api/events.js');
 vi.mock('../../auth/tokenService.js');
 vi.mock('../../storage/database.js');
 
-describe('EventSyncService', () => {
+describe('EventDataLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    eventSyncService.clearSyncCache();
+    eventDataLoader.clearSyncCache();
   });
 
   describe('basic functionality', () => {
     it('should have correct initial state', () => {
-      const status = eventSyncService.getSyncStatus();
+      const status = eventDataLoader.getSyncStatus();
       expect(status.isLoading).toBe(false);
       expect(status.lastSyncTime).toBe(null);
       expect(status.isRecentlyRefreshed).toBe(false);
     });
 
     it('should return early if recently refreshed', async () => {
-      eventSyncService.lastSyncTime = Date.now() - 1000; // 1 second ago
+      eventDataLoader.lastSyncTime = Date.now() - 1000; // 1 second ago
 
-      const result = await eventSyncService.syncAllEventAttendance();
+      const result = await eventDataLoader.syncAllEventAttendance();
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Recently synced');
@@ -34,7 +34,7 @@ describe('EventSyncService', () => {
     it('should handle missing auth token gracefully', async () => {
       vi.mocked(tokenService.getToken).mockReturnValue(null);
 
-      const result = await eventSyncService.refreshAllEventAttendance();
+      const result = await eventDataLoader.refreshAllEventAttendance();
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Your session has expired. Please log in again to sync events.');
@@ -44,7 +44,7 @@ describe('EventSyncService', () => {
       vi.mocked(tokenService.getToken).mockReturnValue('valid-token');
       vi.mocked(databaseService.getSections).mockResolvedValue([]);
 
-      const result = await eventSyncService.refreshAllEventAttendance();
+      const result = await eventDataLoader.refreshAllEventAttendance();
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('No Scout events found to sync. Check that you have events scheduled in OSM.');
@@ -78,7 +78,7 @@ describe('EventSyncService', () => {
       vi.mocked(api.getEventAttendance).mockResolvedValue(mockAttendance);
       vi.mocked(databaseService.saveAttendance).mockResolvedValue();
 
-      const result = await eventSyncService.refreshAllEventAttendance();
+      const result = await eventDataLoader.refreshAllEventAttendance();
 
       expect(result.success).toBe(true);
       expect(result.details.syncedEvents).toBe(1);
