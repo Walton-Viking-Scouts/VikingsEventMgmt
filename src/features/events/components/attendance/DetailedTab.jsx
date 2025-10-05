@@ -206,7 +206,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
+      section: resolveSectionName(member),
       patrol: member.patrol || '',
       age: member.age || member.yrs || '',
       
