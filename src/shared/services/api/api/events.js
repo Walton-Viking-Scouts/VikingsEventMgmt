@@ -466,21 +466,72 @@ function generateDemoSharedAttendance(eventId, sectionId) {
 
 async function createMemberSectionRecordsForSharedAttendees(sectionId, attendance) {
   try {
-    const uniqueScoutIds = [...new Set(attendance.map(a => a.scoutid))];
+    logger.debug('createMemberSectionRecordsForSharedAttendees called', {
+      sectionId,
+      attendanceCount: attendance.length,
+    }, LOG_CATEGORIES.DATABASE);
 
-    if (uniqueScoutIds.length === 0) {
+    if (attendance.length === 0) {
+      logger.debug('No attendance records to process', {}, LOG_CATEGORIES.DATABASE);
       return;
     }
 
-    const coreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
+    const uniqueScoutIds = [...new Set(attendance.map(a => a.scoutid))];
+    logger.debug('Unique scout IDs from attendance', {
+      count: uniqueScoutIds.length,
+      scoutIds: uniqueScoutIds,
+    }, LOG_CATEGORIES.DATABASE);
 
-    const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(uniqueScoutIds, sectionId);
-    const existingScoutIds = new Set(existingSections.map(s => s.scoutid));
-
+    // Get section name
     const events = await databaseService.getEvents(sectionId);
     const sectionName = events.length > 0 ? events[0]?.sectionname : null;
+    logger.debug('Section name retrieved', {
+      sectionName,
+      eventsCount: events.length,
+    }, LOG_CATEGORIES.DATABASE);
 
-    // Get ALL member_section records for these scouts to infer person_type
+    // Step 1: Ensure all attendees exist in core_members (create minimal records if missing)
+    const existingCoreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
+    const existingCoreMemberIds = new Set(existingCoreMembers.map(m => m.scoutid));
+
+    logger.debug('Existing core_members', {
+      count: existingCoreMembers.length,
+      scoutIds: Array.from(existingCoreMemberIds),
+    }, LOG_CATEGORIES.DATABASE);
+
+    // Create minimal core_member records for missing scouts
+    const attendanceByScoutId = new Map(attendance.map(a => [a.scoutid, a]));
+    const missingCoreMembers = uniqueScoutIds
+      .filter(scoutid => !existingCoreMemberIds.has(scoutid))
+      .map(scoutid => {
+        const attendanceRecord = attendanceByScoutId.get(scoutid);
+        return {
+          scoutid,
+          firstname: attendanceRecord?.firstname || '',
+          lastname: attendanceRecord?.lastname || '',
+          patrol: attendanceRecord?.patrol || '',
+          active: true,
+        };
+      });
+
+    if (missingCoreMembers.length > 0) {
+      await IndexedDBService.bulkUpsertCoreMembers(missingCoreMembers);
+      logger.debug('Created minimal core_member records for shared attendees', {
+        count: missingCoreMembers.length,
+        scoutIds: missingCoreMembers.map(m => m.scoutid),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
+    // Step 2: Get existing member_section records for this section
+    const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(uniqueScoutIds, sectionId);
+    const existingSectionScoutIds = new Set(existingSections.map(s => s.scoutid));
+
+    logger.debug('Existing member_section records for this section', {
+      count: existingSections.length,
+      scoutIds: Array.from(existingSectionScoutIds),
+    }, LOG_CATEGORIES.DATABASE);
+
+    // Step 3: Get ALL member_section records for these scouts (from other sections) to infer person_type
     const allMemberSections = await IndexedDBService.getAllMemberSectionsForScouts(uniqueScoutIds);
     const memberSectionsByScoutId = new Map();
     allMemberSections.forEach(section => {
@@ -490,16 +541,21 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
       memberSectionsByScoutId.get(section.scoutid).push(section);
     });
 
-    const newMemberSections = coreMembers
-      .filter(member => !existingScoutIds.has(member.scoutid))
-      .map(member => {
+    logger.debug('All member_section records across sections', {
+      totalRecords: allMemberSections.length,
+      scoutsWithRecords: memberSectionsByScoutId.size,
+    }, LOG_CATEGORIES.DATABASE);
+
+    // Step 4: Create member_section records for all scouts missing from this section
+    const newMemberSections = uniqueScoutIds
+      .filter(scoutid => !existingSectionScoutIds.has(scoutid))
+      .map(scoutid => {
         let personType = 'Young People'; // Default
 
-        // Check if they have membership in other sections
-        const otherSections = memberSectionsByScoutId.get(member.scoutid) || [];
+        // Infer person_type from their memberships in other sections
+        const otherSections = memberSectionsByScoutId.get(scoutid) || [];
         if (otherSections.length > 0) {
-          // Use person_type from their first section membership
-          // Prioritize Young Leaders or Leaders over Young People
+          // Prioritize Young Leaders > Leaders > Young People
           const youngLeader = otherSections.find(s => s.person_type === 'Young Leaders');
           const leader = otherSections.find(s => s.person_type === 'Leaders');
 
@@ -510,13 +566,10 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
           } else if (otherSections[0]?.person_type) {
             personType = otherSections[0].person_type;
           }
-        } else if (member.age_years && member.age_years >= 18) {
-          // Only use age-based fallback if no other section memberships exist
-          personType = 'Leaders';
         }
 
         return {
-          scoutid: member.scoutid,
+          scoutid,
           sectionid: sectionId,
           sectionname: sectionName,
           person_type: personType,
@@ -524,10 +577,19 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
         };
       });
 
+    logger.debug('New member_section records to create', {
+      count: newMemberSections.length,
+      records: newMemberSections,
+    }, LOG_CATEGORIES.DATABASE);
+
     if (newMemberSections.length > 0) {
       await IndexedDBService.bulkUpsertMemberSections(newMemberSections);
       logger.debug('Created member_section records for shared attendees', {
         count: newMemberSections.length,
+        sectionId,
+      }, LOG_CATEGORIES.DATABASE);
+    } else {
+      logger.debug('No new member_section records needed - all scouts already have records for this section', {
         sectionId,
       }, LOG_CATEGORIES.DATABASE);
     }
