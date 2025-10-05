@@ -147,6 +147,19 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
 
+        // Get person_type for the specific section
+        let personType = null;
+        if (memberData?.sections && Array.isArray(memberData.sections)) {
+          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+          personType = sectionMembership?.person_type;
+        }
+        if (!personType) {
+          personType = memberData?.person_type;
+        }
+        if (!personType && memberData?.age_years) {
+          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
+        }
+
         memberMap.set(key, {
           scoutid: record.scoutid,
           name: `${record.firstname} ${record.lastname}`,
@@ -164,7 +177,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
             !isFieldCleared(record.vikingEventData.SignedInBy) &&
             (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
           ),
-          person_type: memberData?.person_type,
+          person_type: personType,
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
         });
@@ -207,6 +220,19 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
 
+        // Get person_type for the specific section
+        let personType = null;
+        if (memberData?.sections && Array.isArray(memberData.sections)) {
+          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+          personType = sectionMembership?.person_type;
+        }
+        if (!personType) {
+          personType = memberData?.person_type;
+        }
+        if (!personType && memberData?.age_years) {
+          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
+        }
+
         memberMap.set(key, {
           scoutid: record.scoutid,
           name: `${record.firstname} ${record.lastname}`,
@@ -224,7 +250,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
             !isFieldCleared(record.vikingEventData.SignedInBy) &&
             (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
           ),
-          person_type: memberData?.person_type,
+          person_type: personType,
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
         });
@@ -293,7 +319,23 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       if (!section) return; // Should never happen now
 
       const memberData = membersById.get(String(record.scoutid));
-      const personType = memberData?.person_type;
+
+      // Get person_type for the specific section the person is attending under
+      let personType = null;
+      if (memberData?.sections && Array.isArray(memberData.sections)) {
+        const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+        personType = sectionMembership?.person_type;
+      }
+
+      // Fallback to top-level person_type if section-specific not found
+      if (!personType) {
+        personType = memberData?.person_type;
+      }
+
+      // Additional fallback: use age-based logic if still no person_type
+      if (!personType && memberData?.age_years) {
+        personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
+      }
 
       let roleType = 'l';
       if (personType === 'Young People') {
@@ -316,7 +358,23 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       if (!uniqueScouts.has(uniqueKey)) {
         const memberData = membersById.get(String(record.scoutid));
-        const personType = memberData?.person_type;
+
+        // Get person_type for the specific section the person is attending under
+        let personType = null;
+        if (memberData?.sections && Array.isArray(memberData.sections)) {
+          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+          personType = sectionMembership?.person_type;
+        }
+
+        // Fallback to top-level person_type if section-specific not found
+        if (!personType) {
+          personType = memberData?.person_type;
+        }
+
+        // Additional fallback: use age-based logic if still no person_type
+        if (!personType && memberData?.age_years) {
+          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
+        }
 
         let roleType = 'l';
         if (personType === 'Young People') {
