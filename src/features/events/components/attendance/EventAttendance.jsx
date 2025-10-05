@@ -22,6 +22,28 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
+/*
+ * PERSON_TYPE HANDLING STRATEGY
+ *
+ * person_type is stored in the database member_section table and should NOT be calculated at runtime.
+ *
+ * Data Flow:
+ * 1. OSM API provides patrol_id (-2 = Leaders, -3 = Young Leaders, other = Young People)
+ * 2. members.js transforms patrol_id to person_type ONCE during API data fetch
+ * 3. Database stores person_type in member_section table (via IndexedDB or SQLite)
+ * 4. Components read person_type from database - no calculations needed
+ *
+ * Lookup Strategy (in this component):
+ * 1. Check section-specific person_type from memberData.sections array (preferred)
+ * 2. Fallback to top-level memberData.person_type if section-specific not found
+ * 3. DO NOT calculate person_type from age - this causes incorrect categorization
+ *
+ * Why age-based calculation is wrong:
+ * - 17-year-old Young Leader would be incorrectly categorized as "Young People"
+ * - 19-year-old Young Person (e.g., with disability) would be incorrectly categorized as "Leader"
+ * - Database is the single source of truth for person_type
+ */
+
 // Centralized function to check if a member has actual sign-in data (not cleared)
 const hasSignInData = (vikingEventData) => {
   if (!vikingEventData) return false;
@@ -32,6 +54,34 @@ const hasSignInData = (vikingEventData) => {
     (vikingEventData.SignedOutBy && !isFieldCleared(vikingEventData.SignedOutBy)) ||
     (vikingEventData.SignedOutWhen && !isFieldCleared(vikingEventData.SignedOutWhen))
   );
+};
+
+/**
+ * Derives person_type for a member in a specific section context
+ * @param {Object} memberData - Member data from membersById map
+ * @param {Object} record - Attendance record with sectionid
+ * @returns {string|null} person_type value or null if not determinable
+ */
+const getPersonType = (memberData, record) => {
+  // 1. Check section-specific person_type (preferred)
+  if (memberData?.sections && Array.isArray(memberData.sections)) {
+    const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+    if (sectionMembership?.person_type) {
+      return sectionMembership.person_type;
+    }
+  }
+
+  // 2. Fallback to top-level person_type
+  if (memberData?.person_type) {
+    return memberData.person_type;
+  }
+
+  // 3. Age-based fallback (only for shared attendees without section membership)
+  if (memberData?.age_years) {
+    return memberData.age_years >= 18 ? 'Leaders' : 'Young People';
+  }
+
+  return null;
 };
 
 function EventAttendance({ events, members: membersProp, onBack }) {
@@ -146,19 +196,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
-
-        // Get person_type for the specific section
-        let personType = null;
-        if (memberData?.sections && Array.isArray(memberData.sections)) {
-          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
-          personType = sectionMembership?.person_type;
-        }
-        if (!personType) {
-          personType = memberData?.person_type;
-        }
-        if (!personType && memberData?.age_years) {
-          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
-        }
+        const personType = getPersonType(memberData, record);
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -219,19 +257,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
-
-        // Get person_type for the specific section
-        let personType = null;
-        if (memberData?.sections && Array.isArray(memberData.sections)) {
-          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
-          personType = sectionMembership?.person_type;
-        }
-        if (!personType) {
-          personType = memberData?.person_type;
-        }
-        if (!personType && memberData?.age_years) {
-          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
-        }
+        const personType = getPersonType(memberData, record);
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -316,26 +342,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     overviewData.forEach((record) => {
       const section = sectionMap.get(record.sectionid);
-      if (!section) return; // Should never happen now
+      if (!section) return;
 
       const memberData = membersById.get(String(record.scoutid));
-
-      // Get person_type for the specific section the person is attending under
-      let personType = null;
-      if (memberData?.sections && Array.isArray(memberData.sections)) {
-        const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
-        personType = sectionMembership?.person_type;
-      }
-
-      // Fallback to top-level person_type if section-specific not found
-      if (!personType) {
-        personType = memberData?.person_type;
-      }
-
-      // Additional fallback: use age-based logic if still no person_type
-      if (!personType && memberData?.age_years) {
-        personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
-      }
+      const personType = getPersonType(memberData, record);
 
       let roleType = 'l';
       if (personType === 'Young People') {
@@ -344,6 +354,30 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         roleType = 'yl';
       } else if (personType === 'Leaders') {
         roleType = 'l';
+      }
+
+      // DEBUG: Log Explorers YL members
+      if (section.name?.toLowerCase().includes('explorer') && roleType === 'yl') {
+        const sectionMembership = memberData?.sections?.find(s => s.sectionid === record.sectionid);
+        console.log('🔍 Explorers YL Member:', {
+          scoutid: record.scoutid,
+          name: `${record.firstname} ${record.lastname}`,
+          recordSectionId: record.sectionid,
+          sectionName: section.name,
+          personType,
+          roleType,
+          sectionMembership: sectionMembership ? {
+            sectionid: sectionMembership.sectionid,
+            sectionname: sectionMembership.sectionname,
+            person_type: sectionMembership.person_type,
+          } : null,
+          allSections: memberData?.sections?.map(s => ({
+            sectionid: s.sectionid,
+            sectionname: s.sectionname,
+            person_type: s.person_type,
+          })),
+          topLevelPersonType: memberData?.person_type,
+        });
       }
 
       const attending = record.attending;
@@ -358,23 +392,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       if (!uniqueScouts.has(uniqueKey)) {
         const memberData = membersById.get(String(record.scoutid));
-
-        // Get person_type for the specific section the person is attending under
-        let personType = null;
-        if (memberData?.sections && Array.isArray(memberData.sections)) {
-          const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
-          personType = sectionMembership?.person_type;
-        }
-
-        // Fallback to top-level person_type if section-specific not found
-        if (!personType) {
-          personType = memberData?.person_type;
-        }
-
-        // Additional fallback: use age-based logic if still no person_type
-        if (!personType && memberData?.age_years) {
-          personType = memberData.age_years >= 18 ? 'Leaders' : 'Young People';
-        }
+        const personType = getPersonType(memberData, record);
 
         let roleType = 'l';
         if (personType === 'Young People') {

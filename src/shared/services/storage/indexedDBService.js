@@ -793,6 +793,80 @@ export class IndexedDBService {
       throw error;
     }
   }
+
+  static async bulkGetCoreMembers(scoutids) {
+    try {
+      if (!Array.isArray(scoutids) || scoutids.length === 0) {
+        return [];
+      }
+
+      const db = await getDB();
+      const results = await Promise.all(
+        scoutids.map(scoutid => db.get(STORES.CORE_MEMBERS, scoutid)),
+      );
+
+      return results.filter(result => result !== undefined);
+    } catch (error) {
+      logger.error('IndexedDB bulkGetCoreMembers failed', {
+        count: scoutids?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_get_core_members',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            count: scoutids?.length,
+            operation: 'bulkGetCoreMembers',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getMemberSectionsByScoutIds(scoutids, sectionid) {
+    try {
+      if (!Array.isArray(scoutids) || scoutids.length === 0) {
+        return [];
+      }
+
+      const db = await getDB();
+      const results = await Promise.all(
+        scoutids.map(scoutid => db.get(STORES.MEMBER_SECTION, [scoutid, sectionid])),
+      );
+
+      return results.filter(result => result !== undefined);
+    } catch (error) {
+      logger.error('IndexedDB getMemberSectionsByScoutIds failed', {
+        count: scoutids?.length,
+        sectionid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_member_sections_by_scout_ids',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            count: scoutids?.length,
+            sectionid,
+            operation: 'getMemberSectionsByScoutIds',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
 }
 
 export { getDB };

@@ -13,6 +13,7 @@ import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
+import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 
 /**
@@ -178,6 +179,9 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     // Save to local database when online
     if (attendance.length > 0) {
       await databaseService.saveAttendance(eventId, attendance);
+
+      // Create member_section records for shared attendees
+      await createMemberSectionRecordsForSharedAttendees(sectionId, attendance);
     }
 
     return attendance;
@@ -438,7 +442,7 @@ function generateDemoSharedAttendance(eventId, sectionId) {
   // Simply fetch the cached shared attendance data - use demo prefix
   const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
   const cachedSharedAttendance = safeGetItem(sharedCacheKey);
-  
+
   if (import.meta.env.DEV) {
     logger.debug('Demo mode: Looking for cached shared attendance', {
       eventId,
@@ -447,15 +451,56 @@ function generateDemoSharedAttendance(eventId, sectionId) {
       found: !!cachedSharedAttendance,
     }, LOG_CATEGORIES.API);
   }
-  
+
   if (cachedSharedAttendance) {
     return cachedSharedAttendance;
   }
-  
+
   // Return empty structure if no cached data found
   return {
     identifier: 'scoutsectionid',
     items: [],
     _cacheTimestamp: Date.now(),
   };
+}
+
+async function createMemberSectionRecordsForSharedAttendees(sectionId, attendance) {
+  try {
+    const uniqueScoutIds = [...new Set(attendance.map(a => a.scoutid))];
+
+    if (uniqueScoutIds.length === 0) {
+      return;
+    }
+
+    const coreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
+
+    const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(uniqueScoutIds, sectionId);
+    const existingScoutIds = new Set(existingSections.map(s => s.scoutid));
+
+    const events = await databaseService.getEvents(sectionId);
+    const sectionName = events.length > 0 ? events[0]?.sectionname : null;
+
+    const newMemberSections = coreMembers
+      .filter(member => !existingScoutIds.has(member.scoutid))
+      .map(member => ({
+        scoutid: member.scoutid,
+        sectionid: sectionId,
+        sectionname: sectionName,
+        person_type: (member.age_years && member.age_years >= 18) ? 'Leaders' : 'Young People',
+        active: true,
+      }));
+
+    if (newMemberSections.length > 0) {
+      await IndexedDBService.bulkUpsertMemberSections(newMemberSections);
+      logger.debug('Created member_section records for shared attendees', {
+        count: newMemberSections.length,
+        sectionId,
+      }, LOG_CATEGORIES.DATABASE);
+    }
+  } catch (error) {
+    logger.error('Failed to create member_section records for shared attendees', {
+      sectionId,
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+  }
 }

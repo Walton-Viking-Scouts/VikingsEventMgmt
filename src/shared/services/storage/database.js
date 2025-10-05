@@ -843,7 +843,7 @@ class DatabaseService {
         'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
         'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
         'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
-        'read_only', 'filter_string', '_filterString',
+        'read_only', 'filter_string', '_filterString', 'sectionMemberships',
       ]);
 
       for (const member of members) {
@@ -889,7 +889,26 @@ class DatabaseService {
           existing.flattened_fields = { ...existing.flattened_fields, ...coreData.flattened_fields };
         }
 
-        if (member.sectionid) {
+        if (member.sectionMemberships && Array.isArray(member.sectionMemberships)) {
+          member.sectionMemberships.forEach(sectionMembership => {
+            const sectionData = {
+              scoutid,
+              sectionid: sectionMembership.sectionid,
+              person_type: sectionMembership.person_type,
+              patrol: sectionMembership.patrol,
+              patrol_id: sectionMembership.patrol_id,
+              started: sectionMembership.started,
+              joined: sectionMembership.joined,
+              end_date: sectionMembership.end_date,
+              active: sectionMembership.active,
+              patrol_role_level: sectionMembership.patrol_role_level,
+              patrol_role_level_label: sectionMembership.patrol_role_level_label,
+              sectionname: sectionMembership.sectionname,
+              section: sectionMembership.section,
+            };
+            sectionMembers.push(sectionData);
+          });
+        } else if (member.sectionid) {
           const sectionData = {
             scoutid,
             sectionid: member.sectionid,
