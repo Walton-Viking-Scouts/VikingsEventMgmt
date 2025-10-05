@@ -483,11 +483,15 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
       scoutIds: uniqueScoutIds,
     }, LOG_CATEGORIES.DATABASE);
 
+    // Ensure sectionId is numeric for all database operations
+    const numericSectionId = Number(sectionId);
+
     // Get section name
-    const events = await databaseService.getEvents(sectionId);
+    const events = await databaseService.getEvents(numericSectionId);
     const sectionName = events.length > 0 ? events[0]?.sectionname : null;
     logger.debug('Section name retrieved', {
       sectionName,
+      sectionId: numericSectionId,
       eventsCount: events.length,
     }, LOG_CATEGORIES.DATABASE);
 
@@ -525,12 +529,13 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
     }
 
     // Step 2: Get existing member_section records for this section
-    const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(uniqueScoutIds, sectionId);
+    const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(uniqueScoutIds, numericSectionId);
     const existingSectionScoutIds = new Set(existingSections.map(s => s.scoutid));
 
     logger.debug('Existing member_section records for this section', {
       count: existingSections.length,
       scoutIds: Array.from(existingSectionScoutIds),
+      sectionId: numericSectionId,
     }, LOG_CATEGORIES.DATABASE);
 
     // Step 3: Get ALL member_section records for these scouts (from other sections) to infer person_type
@@ -572,7 +577,7 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
 
         return {
           scoutid, // Already a number from uniqueScoutIds
-          sectionid: Number(sectionId), // Ensure sectionid is also a number
+          sectionid: numericSectionId, // Use pre-converted numeric sectionid
           sectionname: sectionName,
           person_type: personType,
           active: true,
@@ -588,11 +593,11 @@ async function createMemberSectionRecordsForSharedAttendees(sectionId, attendanc
       await IndexedDBService.bulkUpsertMemberSections(newMemberSections);
       logger.debug('Created member_section records for shared attendees', {
         count: newMemberSections.length,
-        sectionId,
+        sectionId: numericSectionId,
       }, LOG_CATEGORIES.DATABASE);
     } else {
       logger.debug('No new member_section records needed - all scouts already have records for this section', {
-        sectionId,
+        sectionId: numericSectionId,
       }, LOG_CATEGORIES.DATABASE);
     }
   } catch (error) {
