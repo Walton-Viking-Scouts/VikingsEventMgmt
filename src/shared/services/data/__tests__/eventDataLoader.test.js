@@ -11,15 +11,13 @@ vi.mock('../../storage/database.js');
 describe('EventDataLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    eventDataLoader.clearSyncCache();
+    eventDataLoader.lastSyncTime = null;
   });
 
   describe('basic functionality', () => {
     it('should have correct initial state', () => {
-      const status = eventDataLoader.getSyncStatus();
-      expect(status.isLoading).toBe(false);
-      expect(status.lastSyncTime).toBe(null);
-      expect(status.isRecentlyRefreshed).toBe(false);
+      expect(eventDataLoader.isLoading).toBe(false);
+      expect(eventDataLoader.lastSyncTime).toBe(null);
     });
 
     it('should return early if recently refreshed', async () => {

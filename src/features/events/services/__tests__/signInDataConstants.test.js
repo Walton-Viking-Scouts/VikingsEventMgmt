@@ -3,8 +3,6 @@ import {
   CLEAR_STRING_SENTINEL,
   CLEAR_TIME_SENTINEL,
   isFieldCleared,
-  isTimeFieldCleared,
-  normalizeForDisplay,
   normalizeWhenFieldForDisplay,
 } from '../../../../shared/constants/signInDataConstants.js';
 
@@ -24,27 +22,6 @@ describe('Sign-in Data Constants', () => {
       expect(isFieldCleared(CLEAR_STRING_SENTINEL)).toBe(true);
       expect(isFieldCleared(CLEAR_TIME_SENTINEL)).toBe(true);
       expect(isFieldCleared('valid value')).toBe(false);
-    });
-  });
-
-  describe('isTimeFieldCleared', () => {
-    it('should detect cleared time fields correctly', () => {
-      expect(isTimeFieldCleared('')).toBe(true);
-      expect(isTimeFieldCleared(null)).toBe(true);
-      expect(isTimeFieldCleared(undefined)).toBe(true);
-      expect(isTimeFieldCleared(CLEAR_TIME_SENTINEL)).toBe(true);
-      expect(isTimeFieldCleared('   ')).toBe(true); // whitespace only
-      expect(isTimeFieldCleared('2024-01-01T10:00:00Z')).toBe(false);
-    });
-  });
-
-  describe('normalizeForDisplay', () => {
-    it('should normalize cleared values to empty string', () => {
-      expect(normalizeForDisplay('')).toBe('');
-      expect(normalizeForDisplay(null)).toBe('');
-      expect(normalizeForDisplay(CLEAR_STRING_SENTINEL)).toBe('');
-      expect(normalizeForDisplay(CLEAR_TIME_SENTINEL)).toBe('');
-      expect(normalizeForDisplay('valid value')).toBe('valid value');
     });
   });
 
@@ -102,7 +79,7 @@ describe('Sign-in Data Constants', () => {
 
       // Both should be detected as cleared
       expect(isFieldCleared(stringClearValue)).toBe(true);
-      expect(isTimeFieldCleared(timeClearValue)).toBe(true);
+      expect(isFieldCleared(timeClearValue)).toBe(true);
     });
   });
 });

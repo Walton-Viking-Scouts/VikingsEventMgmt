@@ -28,8 +28,6 @@ export class NetworkStatusManager {
     this.lastOnlineTime = null;
     this.lastOfflineTime = null;
     this.initialized = false;
-    this.connectionQuality = 'unknown';
-    this.latencyHistory = [];
   }
 
   async initialize() {
@@ -240,60 +238,6 @@ export class NetworkStatusManager {
     }
   }
 
-  async measureLatency() {
-    if (this.currentStatus !== NetworkStatus.ONLINE) {
-      return null;
-    }
-
-    const start = Date.now();
-    try {
-      const response = await fetch('https://httpbin.org/get', {
-        method: 'GET',
-        cache: 'no-cache',
-      });
-
-      if (response.ok) {
-        const latency = Date.now() - start;
-        this.latencyHistory.push({
-          latency,
-          timestamp: Date.now(),
-        });
-
-        if (this.latencyHistory.length > 10) {
-          this.latencyHistory.shift();
-        }
-
-        this.updateConnectionQuality(latency);
-        return latency;
-      }
-    } catch (error) {
-      logger.debug('Latency measurement failed', {
-        error: error.message,
-      }, LOG_CATEGORIES.SYNC);
-    }
-
-    return null;
-  }
-
-  updateConnectionQuality(latency) {
-    if (latency < 100) {
-      this.connectionQuality = 'excellent';
-    } else if (latency < 300) {
-      this.connectionQuality = 'good';
-    } else if (latency < 1000) {
-      this.connectionQuality = 'fair';
-    } else {
-      this.connectionQuality = 'poor';
-    }
-  }
-
-  getAverageLatency() {
-    if (this.latencyHistory.length === 0) return null;
-
-    const total = this.latencyHistory.reduce((sum, item) => sum + item.latency, 0);
-    return Math.round(total / this.latencyHistory.length);
-  }
-
   isOnline() {
     return this.currentStatus === NetworkStatus.ONLINE;
   }
@@ -310,9 +254,6 @@ export class NetworkStatusManager {
     return this.currentConnectionType;
   }
 
-  getConnectionQuality() {
-    return this.connectionQuality;
-  }
 
   getStatusHistory(limit = null) {
     const history = limit ? this.statusHistory.slice(-limit) : this.statusHistory;
@@ -333,12 +274,10 @@ export class NetworkStatusManager {
     return {
       status: this.currentStatus,
       connectionType: this.currentConnectionType,
-      connectionQuality: this.connectionQuality,
       isNative: this.isNative,
       lastOnlineTime: this.lastOnlineTime,
       lastOfflineTime: this.lastOfflineTime,
       connectionDuration: this.getConnectionDuration(),
-      averageLatency: this.getAverageLatency(),
       historySize: this.statusHistory.length,
     };
   }
@@ -401,7 +340,6 @@ export class NetworkStatusManager {
 
     this.listeners = [];
     this.statusHistory = [];
-    this.latencyHistory = [];
     this.initialized = false;
 
     logger.info('NetworkStatusManager destroyed', {}, LOG_CATEGORIES.SYNC);

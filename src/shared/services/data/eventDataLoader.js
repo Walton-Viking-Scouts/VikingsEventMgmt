@@ -259,23 +259,6 @@ class EventDataLoader {
     return (Date.now() - this.lastSyncTime) < fiveMinutes;
   }
 
-  getLastSyncTime() {
-    return this.lastSyncTime;
-  }
-
-  getSyncStatus() {
-    return {
-      isLoading: this.isLoading,
-      lastSyncTime: this.lastSyncTime,
-      isRecentlyRefreshed: this.isRecentlyRefreshed(),
-    };
-  }
-
-  clearSyncCache() {
-    this.lastSyncTime = null;
-    logger.debug('Event sync cache cleared', {}, LOG_CATEGORIES.DATA_SERVICE);
-  }
-
   async syncSharedAttendance(events, token) {
     let apiCallCount = 0;
     let successCount = 0;
