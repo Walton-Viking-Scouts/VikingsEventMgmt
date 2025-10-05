@@ -22,6 +22,7 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
+import IndexedDBService from './indexedDBService.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -833,46 +834,104 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      const key = 'viking_members_comprehensive_offline';
+      const coreMembers = [];
+      const sectionMembers = [];
+      const coreMemberMap = new Map();
 
-      let existingMembers = [];
-      try {
-        existingMembers = await UnifiedStorageService.get(key) || [];
-      } catch (error) {
-        console.warn('Failed to get existing members cache:', error);
-        existingMembers = [];
+      const knownFields = new Set([
+        'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months', 'yrs',
+        'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
+        'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
+        'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
+        'read_only', 'filter_string', '_filterString',
+      ]);
+
+      for (const member of members) {
+        if (!member.scoutid && !member.member_id) {
+          continue;
+        }
+
+        const scoutid = member.scoutid || member.member_id;
+
+        const flattenedFields = {};
+        Object.keys(member).forEach(key => {
+          if (!knownFields.has(key)) {
+            flattenedFields[key] = member[key];
+          }
+        });
+
+        const coreData = {
+          scoutid,
+          firstname: member.firstname,
+          lastname: member.lastname,
+          date_of_birth: member.date_of_birth,
+          photo_guid: member.photo_guid,
+          has_photo: member.has_photo,
+          contact_groups: member.contact_groups || {},
+          custom_data: member.custom_data || {},
+          flattened_fields: flattenedFields,
+          age: member.age,
+          yrs: member.yrs,
+          email: member.email,
+          age_years: member.age_years,
+          age_months: member.age_months,
+          pic: member.pic,
+          read_only: member.read_only,
+          filter_string: member.filter_string,
+        };
+
+        if (!coreMemberMap.has(scoutid)) {
+          coreMemberMap.set(scoutid, coreData);
+        } else {
+          const existing = coreMemberMap.get(scoutid);
+          existing.contact_groups = { ...existing.contact_groups, ...coreData.contact_groups };
+          existing.custom_data = { ...existing.custom_data, ...coreData.custom_data };
+          existing.flattened_fields = { ...existing.flattened_fields, ...coreData.flattened_fields };
+        }
+
+        if (member.sectionid) {
+          const sectionData = {
+            scoutid,
+            sectionid: member.sectionid,
+            person_type: member.person_type,
+            patrol: member.patrol,
+            patrol_id: member.patrol_id,
+            started: member.started,
+            joined: member.joined,
+            end_date: member.end_date,
+            active: member.active,
+            patrol_role_level: member.patrol_role_level,
+            patrol_role_level_label: member.patrol_role_level_label,
+            sectionname: member.sectionname,
+            section: member.section,
+          };
+          sectionMembers.push(sectionData);
+        }
       }
 
-      const memberMap = new Map();
+      coreMembers.push(...coreMemberMap.values());
 
-      existingMembers.forEach(member => {
-        if (member.scoutid) {
-          memberMap.set(member.scoutid, member);
+      try {
+        if (coreMembers.length > 0) {
+          await IndexedDBService.bulkUpsertCoreMembers(coreMembers);
         }
-      });
 
-      members.forEach(member => {
-        if (member.scoutid) {
-          if (memberMap.has(member.scoutid)) {
-            const existing = memberMap.get(member.scoutid);
-            const combinedSections = [...new Set([
-              ...(existing.sections || [existing.sectionname].filter(Boolean)),
-              ...(member.sections || [member.sectionname].filter(Boolean)),
-            ])];
-            member.sections = combinedSections;
-          }
-          memberMap.set(member.scoutid, member);
+        if (sectionMembers.length > 0) {
+          await IndexedDBService.bulkUpsertMemberSections(sectionMembers);
         }
-      });
+      } catch (error) {
+        console.error('Failed to save members to dual-store:', {
+          coreMembersCount: coreMembers.length,
+          sectionMembersCount: sectionMembers.length,
+          error: error.message,
+        });
+        throw error;
+      }
 
-      const allMembers = Array.from(memberMap.values());
-      await UnifiedStorageService.set(key, allMembers);
       return;
     }
-    
-    // Use REPLACE INTO to handle updates for existing members across sections
+
     for (const member of members) {
-      // Separate flattened fields from known structured fields
       const knownFields = new Set([
         'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months',
         'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
@@ -880,14 +939,14 @@ class DatabaseService {
         'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
         'read_only', 'filter_string', '_filterString',
       ]);
-      
+
       const flattenedFields = {};
       Object.keys(member).forEach(key => {
         if (!knownFields.has(key)) {
           flattenedFields[key] = member[key];
         }
       });
-      
+
       const insert = `
         REPLACE INTO members (
           scoutid, firstname, lastname, date_of_birth, age, age_years, age_months,
@@ -898,7 +957,7 @@ class DatabaseService {
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-      
+
       await this.db.run(insert, [
         member.scoutid || member.member_id,
         member.firstname,
@@ -974,40 +1033,120 @@ class DatabaseService {
   async getMembers(sectionIds) {
     await this.initialize();
 
-    if (!this.isNative || !this.db) {
-      const key = 'viking_members_comprehensive_offline';
+    if (!Array.isArray(sectionIds) || sectionIds.length === 0) {
+      console.warn('getMembers called with invalid sectionIds:', sectionIds);
+      return [];
+    }
 
+    if (!this.isNative || !this.db) {
       try {
-        const members = await UnifiedStorageService.get(key) || [];
-        if (!members.length) {
+        const sectionMemberships = await Promise.all(
+          sectionIds.map(sectionId =>
+            IndexedDBService.getMemberSectionsBySection(sectionId),
+          ),
+        ).then(results => results.flat());
+
+        if (!sectionMemberships.length) {
           return [];
         }
 
-        const normalisedSectionIds = new Set(sectionIds.map(id => String(id)));
-        const filteredMembers = members.filter(member => {
-          const primaryId = member.section_id ?? member.sectionid;
-          if (primaryId !== null && primaryId !== undefined && normalisedSectionIds.has(String(primaryId))) {
-            return true;
-          }
+        const uniqueScoutIds = [...new Set(sectionMemberships.map(m => m.scoutid))];
 
-          if (Array.isArray(member.sections)) {
-            return member.sections.some(section => {
-              if (!section) return false;
-              if (typeof section === 'object') {
-                const candidate = section.section_id ?? section.sectionid ?? section.id;
-                return candidate !== null && candidate !== undefined && normalisedSectionIds.has(String(candidate));
-              }
-              return normalisedSectionIds.has(String(section));
+        const coreMembers = await Promise.all(
+          uniqueScoutIds.map(scoutid => IndexedDBService.getCoreMember(scoutid)),
+        );
+
+        const coreMemberMap = new Map(
+          coreMembers.filter(m => m).map(m => [m.scoutid, m]),
+        );
+
+        const sectionsByScoutId = new Map();
+        for (const section of sectionMemberships) {
+          if (!sectionsByScoutId.has(section.scoutid)) {
+            sectionsByScoutId.set(section.scoutid, []);
+          }
+          sectionsByScoutId.get(section.scoutid).push(section);
+        }
+
+        const members = [];
+        const processedScoutIds = new Set();
+
+        for (const sectionMember of sectionMemberships) {
+          if (processedScoutIds.has(sectionMember.scoutid)) {
+            continue;
+          }
+          processedScoutIds.add(sectionMember.scoutid);
+
+          const core = coreMemberMap.get(sectionMember.scoutid);
+          if (!core) {
+            console.warn('Orphaned member_section record - missing core_members data', {
+              scoutid: sectionMember.scoutid,
+              sectionid: sectionMember.sectionid,
             });
+            continue;
           }
 
-          return false;
+          const allSections = sectionsByScoutId.get(sectionMember.scoutid) || [];
+
+          const member = {
+            scoutid: core.scoutid,
+            member_id: core.scoutid,
+            firstname: core.firstname,
+            lastname: core.lastname,
+            date_of_birth: core.date_of_birth,
+            dateofbirth: core.date_of_birth,
+            age: core.age,
+            age_years: core.age_years || null,
+            age_months: core.age_months || null,
+            yrs: core.yrs,
+            photo_guid: core.photo_guid,
+            has_photo: core.has_photo,
+            pic: core.pic || null,
+            email: core.email,
+            contact_groups: core.contact_groups || {},
+            custom_data: core.custom_data || {},
+            read_only: core.read_only || [],
+
+            sectionid: sectionMember.sectionid,
+            sectionname: sectionMember.sectionname,
+            section: sectionMember.section,
+            person_type: sectionMember.person_type,
+            patrol: sectionMember.patrol,
+            patrol_id: sectionMember.patrol_id,
+            started: sectionMember.started,
+            joined: sectionMember.joined,
+            end_date: sectionMember.end_date,
+            active: sectionMember.active,
+            patrol_role_level: sectionMember.patrol_role_level,
+            patrol_role_level_label: sectionMember.patrol_role_level_label,
+
+            sections: allSections.map(s => ({
+              section_id: s.sectionid,
+              sectionid: s.sectionid,
+              sectionname: s.sectionname,
+              section: s.section,
+              person_type: s.person_type,
+              patrol: s.patrol,
+              active: s.active,
+            })),
+
+            ...(typeof core.flattened_fields === 'object' && !Array.isArray(core.flattened_fields)
+              ? core.flattened_fields
+              : {}),
+          };
+
+          members.push(member);
+        }
+
+        members.sort((a, b) => {
+          const lastNameCmp = (a.lastname || '').localeCompare(b.lastname || '');
+          return lastNameCmp !== 0 ? lastNameCmp : (a.firstname || '').localeCompare(b.firstname || '');
         });
 
-        return filteredMembers;
+        return members;
 
       } catch (error) {
-        console.warn('Failed to parse comprehensive members cache:', error);
+        console.warn('Failed to fetch members from dual-store:', error);
         return [];
       }
     }

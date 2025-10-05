@@ -4,6 +4,7 @@ import { groupContactInfo } from '../../utils/contactGroups.js';
 import { calculateAge } from '../../utils/ageUtils.js';
 import { handlePhoneCall } from '../../utils/phoneUtils.js';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
+import { resolveSectionName } from '../../utils/memberUtils.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -278,7 +279,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                               className="inline-flex items-center font-medium rounded-full px-2.5 py-0.5 text-xs bg-scout-blue text-white"
                               data-oid="x9k1uyl"
                             >
-                              {section}
+                              {resolveSectionName(section)}
                             </span>
                           ))
                         ) : (

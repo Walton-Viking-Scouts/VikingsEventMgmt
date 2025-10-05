@@ -4,7 +4,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
@@ -18,7 +18,8 @@ const STORES = {
   EVENTS: 'events',
   ATTENDANCE: 'attendance',
   SHARED_ATTENDANCE: 'shared_attendance',
-  MEMBERS: 'members',
+  CORE_MEMBERS: 'core_members',
+  MEMBER_SECTION: 'member_section',
 };
 
 let dbPromise = null;
@@ -105,10 +106,19 @@ function getDB() {
           sharedAttendanceStore.createIndex('eventId', 'eventId', { unique: false });
         }
 
-        // Members (Phase 5)
-        if (!db.objectStoreNames.contains(STORES.MEMBERS)) {
-          const membersStore = db.createObjectStore(STORES.MEMBERS, { keyPath: 'key' });
-          membersStore.createIndex('sectionId', 'sectionId', { unique: false });
+        // Core Members & Member-Section (Phase 5 - Dual Store Architecture)
+        if (!db.objectStoreNames.contains(STORES.CORE_MEMBERS)) {
+          const coreMembersStore = db.createObjectStore(STORES.CORE_MEMBERS, { keyPath: 'scoutid' });
+          coreMembersStore.createIndex('lastname', 'lastname', { unique: false });
+          coreMembersStore.createIndex('firstname', 'firstname', { unique: false });
+          coreMembersStore.createIndex('updated_at', 'updated_at', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains(STORES.MEMBER_SECTION)) {
+          const memberSectionStore = db.createObjectStore(STORES.MEMBER_SECTION, { keyPath: ['scoutid', 'sectionid'] });
+          memberSectionStore.createIndex('scoutid', 'scoutid', { unique: false });
+          memberSectionStore.createIndex('sectionid', 'sectionid', { unique: false });
+          memberSectionStore.createIndex('person_type', 'person_type', { unique: false });
         }
 
         logger.info('IndexedDB upgrade completed', {
@@ -387,6 +397,398 @@ export class IndexedDBService {
         error: error.message,
         stack: error.stack,
       }, LOG_CATEGORIES.ERROR);
+
+      throw error;
+    }
+  }
+
+  static async upsertCoreMember(memberData) {
+    try {
+      if (!memberData?.scoutid) {
+        throw new Error('scoutid is required for core member');
+      }
+
+      const db = await getDB();
+      const tx = db.transaction(STORES.CORE_MEMBERS, 'readwrite');
+      const store = tx.objectStore(STORES.CORE_MEMBERS);
+
+      const existing = await store.get(memberData.scoutid) || {};
+      const merged = {
+        ...existing,
+        ...memberData,
+        updated_at: Date.now(),
+      };
+
+      await store.put(merged);
+      await tx.done;
+
+      return merged;
+    } catch (error) {
+      logger.error('IndexedDB upsertCoreMember failed', {
+        scoutid: memberData?.scoutid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_upsert_core_member',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid: memberData?.scoutid,
+            operation: 'upsertCoreMember',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getCoreMember(scoutid) {
+    try {
+      const db = await getDB();
+      const result = await db.get(STORES.CORE_MEMBERS, scoutid);
+
+      return result || null;
+    } catch (error) {
+      logger.error('IndexedDB getCoreMember failed', {
+        scoutid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_core_member',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid,
+            operation: 'getCoreMember',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getAllCoreMembers() {
+    try {
+      const db = await getDB();
+      const results = await db.getAll(STORES.CORE_MEMBERS);
+
+      return results || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllCoreMembers failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_core_members',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllCoreMembers',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async deleteCoreMember(scoutid) {
+    try {
+      const db = await getDB();
+      await db.delete(STORES.CORE_MEMBERS, scoutid);
+
+      return true;
+    } catch (error) {
+      logger.error('IndexedDB deleteCoreMember failed', {
+        scoutid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_delete_core_member',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid,
+            operation: 'deleteCoreMember',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async bulkUpsertCoreMembers(members) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.CORE_MEMBERS, 'readwrite');
+      const store = tx.objectStore(STORES.CORE_MEMBERS);
+
+      const timestamp = Date.now();
+
+      for (const memberData of members) {
+        if (!memberData?.scoutid) {
+          throw new Error('scoutid is required for core member');
+        }
+        const existing = await store.get(memberData.scoutid) || {};
+        const merged = {
+          ...existing,
+          ...memberData,
+          updated_at: timestamp,
+        };
+        await store.put(merged);
+      }
+
+      await tx.done;
+
+      return members.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkUpsertCoreMembers failed', {
+        count: members?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_upsert_core_members',
+          store: STORES.CORE_MEMBERS,
+        },
+        contexts: {
+          indexedDB: {
+            count: members?.length,
+            operation: 'bulkUpsertCoreMembers',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async upsertMemberSection(sectionData) {
+    try {
+      if (!sectionData?.scoutid || !sectionData?.sectionid) {
+        throw new Error('scoutid and sectionid are required for member section');
+      }
+
+      const db = await getDB();
+      const record = {
+        ...sectionData,
+        updated_at: Date.now(),
+      };
+
+      await db.put(STORES.MEMBER_SECTION, record);
+
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB upsertMemberSection failed', {
+        scoutid: sectionData?.scoutid,
+        sectionid: sectionData?.sectionid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_upsert_member_section',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid: sectionData?.scoutid,
+            sectionid: sectionData?.sectionid,
+            operation: 'upsertMemberSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getMemberSection(scoutid, sectionid) {
+    try {
+      const db = await getDB();
+      const result = await db.get(STORES.MEMBER_SECTION, [scoutid, sectionid]);
+
+      return result || null;
+    } catch (error) {
+      logger.error('IndexedDB getMemberSection failed', {
+        scoutid,
+        sectionid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_member_section',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid,
+            sectionid,
+            operation: 'getMemberSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getMemberSectionsByScout(scoutid) {
+    try {
+      const db = await getDB();
+      const results = await db.getAllFromIndex(STORES.MEMBER_SECTION, 'scoutid', scoutid);
+
+      return results || [];
+    } catch (error) {
+      logger.error('IndexedDB getMemberSectionsByScout failed', {
+        scoutid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_member_sections_by_scout',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid,
+            operation: 'getMemberSectionsByScout',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async getMemberSectionsBySection(sectionid) {
+    try {
+      const db = await getDB();
+      const results = await db.getAllFromIndex(STORES.MEMBER_SECTION, 'sectionid', sectionid);
+
+      return results || [];
+    } catch (error) {
+      logger.error('IndexedDB getMemberSectionsBySection failed', {
+        sectionid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_member_sections_by_section',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            sectionid,
+            operation: 'getMemberSectionsBySection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async deleteMemberSection(scoutid, sectionid) {
+    try {
+      const db = await getDB();
+      await db.delete(STORES.MEMBER_SECTION, [scoutid, sectionid]);
+
+      return true;
+    } catch (error) {
+      logger.error('IndexedDB deleteMemberSection failed', {
+        scoutid,
+        sectionid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_delete_member_section',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            scoutid,
+            sectionid,
+            operation: 'deleteMemberSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  static async bulkUpsertMemberSections(sections) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.MEMBER_SECTION, 'readwrite');
+      const store = tx.objectStore(STORES.MEMBER_SECTION);
+
+      const timestamp = Date.now();
+
+      for (const sectionData of sections) {
+        if (!sectionData?.scoutid || !sectionData?.sectionid) {
+          throw new Error('scoutid and sectionid are required for member section');
+        }
+        const record = {
+          ...sectionData,
+          updated_at: timestamp,
+        };
+        await store.put(record);
+      }
+
+      await tx.done;
+
+      return sections.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkUpsertMemberSections failed', {
+        count: sections?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_upsert_member_sections',
+          store: STORES.MEMBER_SECTION,
+        },
+        contexts: {
+          indexedDB: {
+            count: sections?.length,
+            operation: 'bulkUpsertMemberSections',
+          },
+        },
+      });
 
       throw error;
     }

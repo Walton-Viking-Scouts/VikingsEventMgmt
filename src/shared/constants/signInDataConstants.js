@@ -17,20 +17,6 @@ export const isFieldCleared = (value) => {
   return value === CLEAR_STRING_SENTINEL || value === CLEAR_TIME_SENTINEL;
 };
 
-// Helper function to check if a time field is cleared
-export const isTimeFieldCleared = (value) => {
-  if (!value) return true;
-  return value === CLEAR_TIME_SENTINEL || value.trim() === '';
-};
-
-// Helper function to normalize clearing values for display
-export const normalizeForDisplay = (value) => {
-  if (isFieldCleared(value)) {
-    return '';
-  }
-  return value;
-};
-
 /**
  * Normalizes when field values to ensure consistent display and prevent NaN issues
  *

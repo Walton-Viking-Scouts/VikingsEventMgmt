@@ -251,7 +251,8 @@ describe('IndexedDBService Database Upgrade and Store Creation', () => {
         EVENTS: 'events',
         ATTENDANCE: 'attendance',
         SHARED_ATTENDANCE: 'shared_attendance',
-        MEMBERS: 'members',
+        CORE_MEMBERS: 'core_members',
+        MEMBER_SECTION: 'member_section',
       };
 
       Object.entries(expectedStores).forEach(([constant, value]) => {
@@ -578,7 +579,7 @@ describe('IndexedDB Schema Version Management', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      3,
+      4,
       expect.objectContaining({
         upgrade: expect.any(Function),
         blocked: expect.any(Function),

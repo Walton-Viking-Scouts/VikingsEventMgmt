@@ -156,9 +156,9 @@ class DataLoadingService {
         try {
           logger.debug('Loading initial attendance data', {}, LOG_CATEGORIES.DATA_SERVICE);
 
-          const eventSyncServiceModule = await import('./eventSyncService.js');
-          const eventSyncService = eventSyncServiceModule.default;
-          results.attendance = await eventSyncService.syncAllEventAttendance(false);
+          const eventDataLoaderModule = await import('./eventDataLoader.js');
+          const eventDataLoader = eventDataLoaderModule.default;
+          results.attendance = await eventDataLoader.syncAllEventAttendance(false);
 
           if (results.attendance.success) {
             totalSuccessCount++;
@@ -421,9 +421,9 @@ class DataLoadingService {
       try {
         logger.debug('Refreshing attendance data', {}, LOG_CATEGORIES.DATA_SERVICE);
 
-        const eventSyncServiceModule = await import('./eventSyncService.js');
-        const eventSyncService = eventSyncServiceModule.default;
-        results.attendance = await eventSyncService.refreshAllEventAttendance();
+        const eventDataLoaderModule = await import('./eventDataLoader.js');
+        const eventDataLoader = eventDataLoaderModule.default;
+        results.attendance = await eventDataLoader.refreshAllEventAttendance();
 
         if (results.attendance.success) {
           successCount++;
