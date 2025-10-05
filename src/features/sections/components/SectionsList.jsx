@@ -7,6 +7,7 @@ import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUt
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
+import { resolveSectionName } from '../../../shared/utils/memberUtils.js';
 
 function SectionsList({
   sections,
@@ -133,7 +134,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: member.section || member.sections?.[0]?.section || member.sections?.[0]?.sectionname || 'Unknown',
+      section: resolveSectionName(member),
       patrol: member.patrol || '',
       age: calculateAge(member.date_of_birth),
       
@@ -258,7 +259,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
           const baseData = [
             csv(member.firstname),
             csv(member.lastname),
-            csv(member.section || member.sections?.[0]?.section || member.sections?.[0]?.sectionname || 'Unknown'),
+            csv(resolveSectionName(member)),
             csv(memberData.patrol),
             csv(memberData.age),
             csv(formatMedicalDataForDisplay(memberData.allergies, 'allergies').csvValue),

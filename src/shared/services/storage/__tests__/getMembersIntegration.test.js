@@ -11,17 +11,17 @@ describe('getMembers() Integration Tests', () => {
   });
 
   afterEach(async () => {
-    const coreMembers = await db.getAll('core_members');
+    const coreMembers = await db.getAll(IndexedDBService.STORES.CORE_MEMBERS);
     for (const member of coreMembers) {
       if (member.scoutid >= 90000) {
-        await db.delete('core_members', member.scoutid);
+        await IndexedDBService.deleteCoreMember(member.scoutid);
       }
     }
 
-    const memberSections = await db.getAll('member_section');
+    const memberSections = await db.getAll(IndexedDBService.STORES.MEMBER_SECTION);
     for (const section of memberSections) {
       if (section.scoutid >= 90000) {
-        await db.delete('member_section', [section.scoutid, section.sectionid]);
+        await IndexedDBService.deleteMemberSection(section.scoutid, section.sectionid);
       }
     }
   });

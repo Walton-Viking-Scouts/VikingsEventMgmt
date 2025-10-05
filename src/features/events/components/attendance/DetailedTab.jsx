@@ -3,6 +3,7 @@ import { MedicalDataPill } from '../../../../shared/components/ui';
 import { formatMedicalDataForDisplay, NONE_VARIATIONS, SYSTEM_DEFAULTS } from '../../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/utils/notifications.js';
+import { resolveSectionName } from '../../../../shared/utils/memberUtils.js';
 
 function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);
@@ -48,7 +49,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
 
       return {
         name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-        section: member.sections?.[0]?.sectionname || member.sectionname || 'Unknown',
+        section: resolveSectionName(member),
         patrol: member.patrol || '',
         age: member.age || member.yrs || '',
         primary_contacts: (() => {

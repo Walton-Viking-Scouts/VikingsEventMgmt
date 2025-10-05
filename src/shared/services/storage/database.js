@@ -873,6 +873,11 @@ class DatabaseService {
           age: member.age,
           yrs: member.yrs,
           email: member.email,
+          age_years: member.age_years,
+          age_months: member.age_months,
+          pic: member.pic,
+          read_only: member.read_only,
+          filter_string: member.filter_string,
         };
 
         if (!coreMemberMap.has(scoutid)) {
