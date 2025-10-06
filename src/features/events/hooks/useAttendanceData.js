@@ -69,6 +69,8 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                 .map(attendee => ({
                   ...attendee,
                   eventid: event.eventid,
+                  sectionid: Number(attendee.sectionid), // Normalize to number
+                  scoutid: Number(attendee.scoutid), // Normalize to number
                   firstname: attendee.firstname || attendee.first_name,
                   lastname: attendee.lastname || attendee.last_name,
                   _isSharedSection: true,
@@ -84,30 +86,50 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
-        const additionalMembers = [];
+        // Load member data from database based on attendance records
+        // Query member_section table for (scoutid, sectionid) pairs to get person_type
+        const { IndexedDBService } = await import('../../../shared/services/storage/indexedDBService.js');
+
+        // Get unique scoutids from attendance (ensure numbers for database queries)
+        const uniqueScoutIds = [...new Set(finalAttendance.map(r => Number(r.scoutid)))];
+
+        // Load core member data
+        const coreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
+        const coreMembersMap = new Map(coreMembers.map(m => [String(m.scoutid), m]));
+
+        // Build member objects with section-specific person_type from member_section table
+        // Query ALL section memberships for ALL scouts ONCE (not per-record)
+        const memberSectionsMap = new Map();
+        for (const scoutid of uniqueScoutIds) {
+          const memberSections = await IndexedDBService.getMemberSectionsByScout(scoutid);
+          memberSectionsMap.set(scoutid, memberSections || []);
+        }
+
+        const memberMap = new Map();
 
         for (const record of finalAttendance) {
-          if (!existingMemberIds.has(String(record.scoutid))) {
-            const additionalMember = {
+          const scoutid = String(record.scoutid);
+          const coreMember = coreMembersMap.get(scoutid);
+
+          if (!memberMap.has(scoutid)) {
+            // Get all section memberships for this scout from pre-loaded map
+            // IMPORTANT: memberSectionsMap is keyed by numbers, so use Number() to access it
+            const memberSections = memberSectionsMap.get(Number(record.scoutid)) || [];
+
+            memberMap.set(scoutid, {
               scoutid: record.scoutid,
-              firstname: record.firstname || record.first_name,
-              lastname: record.lastname || record.last_name,
-              first_name: record.firstname || record.first_name,
-              last_name: record.lastname || record.last_name,
-              age: record.age || record.yrs,
-              yrs: record.age || record.yrs,
-              sectionname: record.sectionname,
-              sectionid: record.sectionid,
-              sections: [{ sectionid: record.sectionid, sectionname: record.sectionname }],
-              _isSharedMember: finalAttendance.length > relevantAttendance.length,
-            };
-            additionalMembers.push(additionalMember);
-            existingMemberIds.add(String(record.scoutid));
+              firstname: coreMember?.firstname || record.firstname || record.first_name,
+              lastname: coreMember?.lastname || record.lastname || record.last_name,
+              first_name: coreMember?.firstname || record.firstname || record.first_name,
+              last_name: coreMember?.lastname || record.lastname || record.last_name,
+              age: coreMember?.age || record.age || record.yrs,
+              yrs: coreMember?.yrs || record.age || record.yrs,
+              sections: memberSections || [],
+            });
           }
         }
 
-        const combinedMembers = [...members, ...additionalMembers];
+        const combinedMembers = Array.from(memberMap.values());
 
         setMergedMembers(combinedMembers);
         setAttendanceData(finalAttendance);

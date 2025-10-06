@@ -1,20 +1,16 @@
 import React from 'react';
 
-function AttendanceTabNavigation({ 
-  activeTab, 
-  onTabChange, 
-  hasSharedEvents = false, 
+function AttendanceTabNavigation({
+  activeTab,
+  onTabChange,
 }) {
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'attendance', label: 'Attendance' },
     { id: 'register', label: 'Register' },
     { id: 'detailed', label: 'Detailed' },
     { id: 'campGroups', label: 'Camp Groups' },
   ];
-
-  if (hasSharedEvents) {
-    tabs.push({ id: 'sharedAttendance', label: 'Shared Attendance' });
-  }
 
   return (
     <div className="border-b border-gray-200 mb-6">

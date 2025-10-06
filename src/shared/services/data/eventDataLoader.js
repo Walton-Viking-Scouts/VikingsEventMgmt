@@ -1,4 +1,4 @@
-import { getEventAttendance, getSharedEventAttendance } from '../api/api/events.js';
+import { getEventAttendance, getSharedEventAttendance, createMemberSectionRecordsForSharedAttendees } from '../api/api/events.js';
 import { getToken } from '../auth/tokenService.js';
 import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
@@ -286,10 +286,15 @@ class EventDataLoader {
         apiCallCount++;
         successCount++;
 
+        const attendance = sharedAttendanceData?.items || sharedAttendanceData?.combined_attendance || [];
+        if (attendance.length > 0) {
+          await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);
+        }
+
         logger.debug('✅ Shared attendance synced', {
           eventName: event.name,
           eventId: event.eventid,
-          attendeeCount: sharedAttendanceData?.items?.length || sharedAttendanceData?.combined_attendance?.length || 0,
+          attendeeCount: attendance.length,
         }, LOG_CATEGORIES.DATA_SERVICE);
 
       } catch (apiError) {
