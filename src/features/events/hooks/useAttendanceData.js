@@ -3,6 +3,7 @@ import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
+import databaseService from '../../../shared/services/storage/database.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -86,51 +87,22 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        // Load member data from database based on attendance records
-        // Query member_section table for (scoutid, sectionid) pairs to get person_type
-        const { IndexedDBService } = await import('../../../shared/services/storage/indexedDBService.js');
+        // Load member data using the SAME working function as Sections page
+        // This ensures contact_groups and all other fields are properly loaded
+        const uniqueSectionIds = [...new Set(finalAttendance.map(r => Number(r.sectionid)))];
+        const allMembers = await databaseService.getMembers(uniqueSectionIds);
 
-        // Get unique scoutids from attendance (ensure numbers for database queries)
-        const uniqueScoutIds = [...new Set(finalAttendance.map(r => Number(r.scoutid)))];
+        // Create map for quick lookup and merge with attendance data
+        const memberMap = new Map(allMembers.map(m => [String(m.scoutid), m]));
 
-        // Load core member data
-        const coreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
-        const coreMembersMap = new Map(coreMembers.map(m => [String(m.scoutid), m]));
-
-        // Build member objects with section-specific person_type from member_section table
-        // Query ALL section memberships for ALL scouts ONCE (not per-record)
-        const memberSectionsMap = new Map();
-        for (const scoutid of uniqueScoutIds) {
-          const memberSections = await IndexedDBService.getMemberSectionsByScout(scoutid);
-          memberSectionsMap.set(scoutid, memberSections || []);
-        }
-
-        const memberMap = new Map();
-
-        for (const record of finalAttendance) {
-          const scoutid = String(record.scoutid);
-          const coreMember = coreMembersMap.get(scoutid);
-
-          if (!memberMap.has(scoutid)) {
-            // Get all section memberships for this scout from pre-loaded map
-            // IMPORTANT: memberSectionsMap is keyed by numbers, so use Number() to access it
-            const memberSections = memberSectionsMap.get(Number(record.scoutid)) || [];
-
-            memberMap.set(scoutid, {
-              scoutid: record.scoutid,
-              firstname: coreMember?.firstname || record.firstname || record.first_name,
-              lastname: coreMember?.lastname || record.lastname || record.last_name,
-              first_name: coreMember?.firstname || record.firstname || record.first_name,
-              last_name: coreMember?.lastname || record.lastname || record.last_name,
-              age: coreMember?.age || record.age || record.yrs,
-              yrs: coreMember?.yrs || record.age || record.yrs,
-              person_type: coreMember?.person_type ?? record.person_type ?? null,
-              sections: memberSections || [],
-            });
-          }
-        }
-
-        const combinedMembers = Array.from(memberMap.values());
+        // Build combined members with attendance data overlaying member data
+        const combinedMembers = finalAttendance.map(record => {
+          const member = memberMap.get(String(record.scoutid));
+          return {
+            ...member, // Member data from database (includes contact_groups, sections, etc.)
+            ...record, // Attendance record fields (eventid, attendance status, etc.)
+          };
+        });
 
         setMergedMembers(combinedMembers);
         setAttendanceData(finalAttendance);

@@ -206,7 +206,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       const recordSectionId = record.sectionid;
       const sectionMatch = includeSectionFilter
-        ? (!recordSectionId || sectionFilters[recordSectionId] !== false)
+        ? (!recordSectionId || sectionFilters[recordSectionId] === true)
         : true;
 
       return statusMatch && sectionMatch;
@@ -836,8 +836,9 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                   const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || memberData?.sectionname || 'Unknown Section';
                   const age = memberData?.age || record.age || 'N/A';
 
-                  // Create enriched member object
+                  // Create enriched member object with all member data including consents
                   const member = {
+                    ...memberData,
                     ...record,
                     sectionname: sectionName,
                     age: age,
@@ -904,6 +905,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                       <SectionCardsFlexMasonry
                         sections={sections}
                         isYoungPerson={isYoungPerson}
+                        onMemberClick={handleMemberClick}
                       />
                     </div>
                   </>

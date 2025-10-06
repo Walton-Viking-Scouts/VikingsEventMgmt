@@ -1,9 +1,12 @@
 import React from 'react';
+import { CameraIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import SignInOutButton from '../SignInOutButton.jsx';
 import { RefreshButton } from '../../../../shared/components/ui';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
 import { formatLastRefresh } from '../../../../shared/utils/timeFormatting.js';
+import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
+import { categorizeMedicalData, MEDICAL_DATA_STATES } from '../../../../shared/utils/medicalDataUtils.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -222,17 +225,75 @@ function RegisterTab({
             {sortData(youngPeople, sortConfig.key, sortConfig.direction).map((member, index) => (
               <tr key={member.scoutid || index} className="hover:bg-gray-50">
                 <td className="px-3 py-2">
-                  <button
-                    onClick={() => {
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
+                        if (fullMember) {
+                          onMemberClick(fullMember);
+                        }
+                      }}
+                      className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] text-xs"
+                    >
+                      {member.name}
+                    </button>
+                    {(() => {
                       const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
-                      if (fullMember) {
-                        onMemberClick(fullMember);
+                      if (!fullMember) return null;
+
+                      const contactGroups = groupContactInfo(fullMember);
+                      const consentGroup = contactGroups.consents || contactGroups.permissions;
+                      const essentialInfo = contactGroups.essential_information;
+
+                      const icons = [];
+
+                      if (consentGroup) {
+                        const photographsConsent = consentGroup.photographs || consentGroup.Photographs;
+                        if (photographsConsent === 'No' || photographsConsent === 'no') {
+                          icons.push(
+                            <span key="camera" className="relative inline-block" title="No photography consent">
+                              <CameraIcon className="w-4 h-4 text-red-600" />
+                              <svg className="absolute inset-0 w-4 h-4" viewBox="0 0 24 24">
+                                <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2" className="text-red-600" />
+                              </svg>
+                            </span>,
+                          );
+                        }
                       }
-                    }}
-                    className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] block text-xs"
-                  >
-                    {member.name}
-                  </button>
+
+                      if (essentialInfo) {
+                        const allergiesState = categorizeMedicalData(essentialInfo.allergies, 'allergies');
+                        const medicalState = categorizeMedicalData(essentialInfo.medical_details, 'medical_details');
+                        const dietaryState = categorizeMedicalData(essentialInfo.dietary_requirements, 'dietary_requirements');
+
+                        const hasMedicalOrAllergies =
+                          allergiesState === MEDICAL_DATA_STATES.HAS_DATA ||
+                          medicalState === MEDICAL_DATA_STATES.HAS_DATA;
+
+                        const hasDietaryRequirements = dietaryState === MEDICAL_DATA_STATES.HAS_DATA;
+
+                        if (hasMedicalOrAllergies) {
+                          icons.push(
+                            <ExclamationTriangleIcon
+                              key="medical"
+                              className="w-4 h-4 text-yellow-600"
+                              title="Has medical details or allergies"
+                            />,
+                          );
+                        }
+
+                        if (hasDietaryRequirements) {
+                          icons.push(
+                            <span key="dietary" className="text-sm" title="Has dietary requirements">
+                              🍽️
+                            </span>,
+                          );
+                        }
+                      }
+
+                      return icons.length > 0 ? icons : null;
+                    })()}
+                  </div>
                 </td>
                 <td className="px-2 py-2 text-center">
                   <SignInOutButton

@@ -351,12 +351,15 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
           const attendanceStatus = getMemberAttendanceStatus(attendee);
           const vikingEventData = getMemberVikingEventData(attendee);
 
+          const sectionMatch = member.sections?.find(s => s.sectionid === attendee.sectionid);
+          const sectionName = sectionMatch?.sectionname || member.sectionname || 'Unknown';
+
           const baseData = [
             csv(member.firstname),
             csv(member.lastname),
             csv(attendanceStatus),
             csv(vikingEventData?.CampGroup || ''),
-            csv(member.sections?.[0]?.sectionname || member.sectionname || 'Unknown'),
+            csv(sectionName),
             csv(memberData.patrol),
             csv(memberData.age),
           ];
@@ -579,7 +582,10 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
                   </td>
                   
                   <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                    {memberData.section}
+                    {(() => {
+                      const sectionMatch = member.sections?.find(s => s.sectionid === attendee.sectionid);
+                      return sectionMatch?.sectionname || member.sectionname || 'Unknown';
+                    })()}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                     {memberData.patrol}
