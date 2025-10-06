@@ -124,6 +124,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
               last_name: coreMember?.lastname || record.lastname || record.last_name,
               age: coreMember?.age || record.age || record.yrs,
               yrs: coreMember?.yrs || record.age || record.yrs,
+              person_type: coreMember?.person_type ?? record.person_type ?? null,
               sections: memberSections || [],
             });
           }

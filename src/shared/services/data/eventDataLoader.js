@@ -286,7 +286,9 @@ class EventDataLoader {
         apiCallCount++;
         successCount++;
 
-        const attendance = sharedAttendanceData?.items || sharedAttendanceData?.combined_attendance || [];
+        const items = Array.isArray(sharedAttendanceData?.items) ? sharedAttendanceData.items : [];
+        const combined = Array.isArray(sharedAttendanceData?.combined_attendance) ? sharedAttendanceData.combined_attendance : [];
+        const attendance = items.length > 0 ? items : combined;
         if (attendance.length > 0) {
           await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);
         }

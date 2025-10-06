@@ -562,32 +562,46 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
         scoutIds: Array.from(existingSectionMap.keys()),
       });
 
+      // Helper: Map patrol_id to person_type (OSM convention)
+      const mapPatrolIdToPersonType = (patrolId) => {
+        if (!patrolId) return null;
+        const id = Number(patrolId);
+        if (id === -2) return 'Leaders';
+        if (id === -3) return 'Young Leaders';
+        return 'Young People';
+      };
+
+      // Helper: Derive person_type from age
+      const derivePersonTypeFromAge = (age) => {
+        if (!age) return null;
+        if (age === '25+') return 'Leaders';
+        const match = String(age).match(/^(\d+)/);
+        if (match) {
+          const years = parseInt(match[1], 10);
+          if (years >= 18) return 'Leaders';
+          if (years >= 14) return 'Young Leaders';
+          return 'Young People';
+        }
+        return null;
+      };
+
       // Create records for new scouts + update existing records with null sectionname OR incorrect person_type
       const memberSectionsToUpsert = scoutIdsForSection
         .map(scoutid => {
           const existing = existingSectionMap.get(scoutid);
-
-          // Determine person_type based on age if available
           const attendee = sectionAttendees.find(a => Number(a.scoutid) === scoutid);
-          let personType = 'Young People'; // Default
 
-          if (attendee) {
-            const age = attendee.age || attendee.yrs;
-
-            // Check for "25+" string
-            if (age === '25+') {
-              personType = 'Leaders';
-            } else if (age) {
-              // Parse age from "53 / 00" format or single number
-              const match = age.match(/^(\d+)/);
-              if (match) {
-                const years = parseInt(match[1], 10);
-                if (years >= 18) {
-                  personType = 'Leaders';
-                }
-              }
-            }
-          }
+          // Determine person_type with fallback chain:
+          // 1. Existing member_section record
+          // 2. Other section memberships
+          // 3. attendee.person_type
+          // 4. patrol_id mapping
+          // 5. Age-based derivation
+          const personType = existing?.person_type
+            || attendee?.person_type
+            || mapPatrolIdToPersonType(attendee?.patrol_id)
+            || derivePersonTypeFromAge(attendee?.age || attendee?.yrs)
+            || 'Young People'; // Final fallback
 
           // Skip if record exists AND has both sectionname AND correct person_type
           if (existing && existing.sectionname && existing.person_type === personType) {
