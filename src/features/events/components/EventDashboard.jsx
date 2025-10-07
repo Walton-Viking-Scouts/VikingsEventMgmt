@@ -144,7 +144,14 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
           if (mounted) {
             setEventCards(cards);
-            setLoading(false);
+
+            // Keep loading state true briefly to show indicator with cached data
+            // This ensures users see loading feedback even when data loads quickly from cache
+            setTimeout(() => {
+              if (mounted) {
+                setLoading(false);
+              }
+            }, 300);
 
             // Set last sync time from storage
             if (!isRefresh) {
@@ -330,6 +337,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setRefreshing(true);
       setError(null);
+
+      // Show loading notification
+      notifyInfo('Syncing data from OSM...');
 
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 

@@ -274,6 +274,10 @@ function useAuthLogic() {
         try {
           logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
 
+          // Show loading notification
+          const { notifyInfo } = await import('../../../shared/utils/notifications.js');
+          notifyInfo('Syncing data from OSM...');
+
           // Use progress callbacks to trigger UI updates as data loads
           const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
             onEventsLoaded: async () => {
@@ -296,6 +300,10 @@ function useAuthLogic() {
             logger.info('Comprehensive data load completed', {
               summary: allDataResults.summary,
             }, LOG_CATEGORIES.AUTH);
+
+            // Show success notification
+            const { notifySuccess } = await import('../../../shared/utils/notifications.js');
+            notifySuccess('Data synced successfully');
           } else {
             logger.warn('Comprehensive data load had issues', {
               summary: allDataResults.summary,
