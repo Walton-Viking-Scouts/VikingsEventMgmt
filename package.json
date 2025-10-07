@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite --host --port 3001",
+    "prebuild": "node scripts/sync-version.js",
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

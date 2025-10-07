@@ -93,36 +93,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     let mounted = true;
     isMountedRef.current = true;
 
-    // Unified data loading function - handles both initial load and refresh
-    const loadEventCards = async (isRefresh = false) => {
+    // Unified data loading function - handles initial load from cache
+    const loadEventCards = async () => {
       if (!mounted) return;
 
-      // Set loading state for refresh operations
-      if (isRefresh) {
-        setLoading(true);
-      }
-
       // Initialize demo mode if enabled BEFORE loading sections
-      if (!isRefresh) {
-        try {
-          const { isDemoMode, initializeDemoMode } = await import(
-            '../../../config/demoMode.js'
-          );
-          if (isDemoMode()) {
-            await initializeDemoMode();
-          }
-        } catch (demoError) {
-          logger.warn('Demo mode initialization failed', {
-            error: demoError.message,
-          }, LOG_CATEGORIES.COMPONENT);
+      try {
+        const { isDemoMode, initializeDemoMode } = await import(
+          '../../../config/demoMode.js'
+        );
+        if (isDemoMode()) {
+          await initializeDemoMode();
         }
+      } catch (demoError) {
+        logger.warn('Demo mode initialization failed', {
+          error: demoError.message,
+        }, LOG_CATEGORIES.COMPONENT);
       }
 
       try {
         const sectionsData = await databaseService.getSections();
         logger.debug('loadEventCards: Loaded sections', {
           sectionsCount: sectionsData.length,
-          isRefresh,
           sampleSections: sectionsData.slice(0, 3).map(s => ({
             id: s.sectionid,
             name: s.sectionname,
@@ -132,14 +124,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         if (sectionsData.length > 0 && mounted) {
           setSections(sectionsData);
 
-          // Use consistent buildEventCards approach for both initial and refresh
-          const cards = await buildEventCards(sectionsData); // Always cache-only
-
-          // UI is cache-only - no API calls
+          // Build event cards from cache
+          const cards = await buildEventCards(sectionsData);
 
           logger.debug('loadEventCards: Built event cards', {
             cardsCount: cards.length,
-            isRefresh,
           }, LOG_CATEGORIES.COMPONENT);
 
           if (mounted) {
@@ -154,20 +143,18 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             }, 300);
 
             // Set last sync time from storage
-            if (!isRefresh) {
-              const lastSyncEpoch = await UnifiedStorageService.getLastSync();
-              if (lastSyncEpoch) {
-                const lastSyncMs = Number(lastSyncEpoch);
-                if (Number.isFinite(lastSyncMs)) {
-                  setLastSync(new Date(lastSyncMs));
-                } else {
-                  setLastSync(new Date(lastSyncEpoch));
-                }
+            const lastSyncEpoch = await UnifiedStorageService.getLastSync();
+            if (lastSyncEpoch) {
+              const lastSyncMs = Number(lastSyncEpoch);
+              if (Number.isFinite(lastSyncMs)) {
+                setLastSync(new Date(lastSyncMs));
+              } else {
+                setLastSync(new Date(lastSyncEpoch));
               }
             }
           }
         } else {
-          logger.debug('loadEventCards: No sections found', { isRefresh }, LOG_CATEGORIES.COMPONENT);
+          logger.debug('loadEventCards: No sections found', {}, LOG_CATEGORIES.COMPONENT);
           if (mounted) {
             setEventCards([]);
             setLoading(false);
@@ -176,9 +163,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       } catch (error) {
         logger.error('Error loading event cards', {
           error: error.message,
-          isRefresh,
         }, LOG_CATEGORIES.COMPONENT);
-        if (mounted && !isRefresh) {
+        if (mounted) {
           setLoading(false);
         }
       }
