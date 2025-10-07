@@ -4,7 +4,6 @@ import { groupContactInfo } from '../../utils/contactGroups.js';
 import { calculateAge } from '../../utils/ageUtils.js';
 import { handlePhoneCall } from '../../utils/phoneUtils.js';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
-import { resolveSectionName } from '../../utils/memberUtils.js';
 
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
@@ -260,17 +259,26 @@ function MemberDetailModal({ member, isOpen, onClose }) {
                     </label>
                     <div className="flex flex-wrap gap-1" data-oid="1fp8xb2">
                       {(() => {
-                        const sections = (
-                          member.sections || [member.sectionname]
-                        ).filter(Boolean);
-                        return sections.length > 0 ? (
-                          sections.map((section, idx) => (
+                        const sectionNames = [];
+
+                        if (member.sections && Array.isArray(member.sections)) {
+                          member.sections.forEach(section => {
+                            if (section.sectionname) {
+                              sectionNames.push(section.sectionname);
+                            }
+                          });
+                        }
+
+                        const uniqueSectionNames = [...new Set(sectionNames)];
+
+                        return uniqueSectionNames.length > 0 ? (
+                          uniqueSectionNames.map((sectionName, idx) => (
                             <span
                               key={idx}
                               className="inline-flex items-center font-medium rounded-full px-2.5 py-0.5 text-xs bg-scout-blue text-white"
                               data-oid="x9k1uyl"
                             >
-                              {resolveSectionName(section)}
+                              {sectionName}
                             </span>
                           ))
                         ) : (
