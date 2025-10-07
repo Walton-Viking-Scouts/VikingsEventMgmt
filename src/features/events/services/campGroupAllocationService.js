@@ -331,7 +331,7 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
   // Handle Map format (parseFlexiStructure returns a Map)
   if (fieldMapping instanceof Map) {
     for (const [, fieldInfo] of fieldMapping.entries()) {
-      if (fieldInfo.name === 'CampGroup' || fieldInfo.name === 'Camp Group') {
+      if (fieldInfo.name === 'CampGroup') {
         campGroupField = fieldInfo;
         break;
       }
@@ -339,9 +339,7 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
   }
   // Handle object format (cached structure might be an object)
   else if (fieldMapping && typeof fieldMapping === 'object') {
-    campGroupField = Object.values(fieldMapping).find(field =>
-      field.name === 'CampGroup' || field.name === 'Camp Group',
-    );
+    campGroupField = Object.values(fieldMapping).find(field => field.name === 'CampGroup');
   }
 
   if (!campGroupField) {
@@ -354,7 +352,7 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
       sectionName,
       flexirecordid: structure.flexirecordid,
       availableFields: availableFields.join(', '),
-      expectedFieldName: 'CampGroup or Camp Group',
+      expectedFieldName: 'CampGroup (no space)',
       fieldMappingType: typeof fieldMapping,
       isMap: fieldMapping instanceof Map,
       totalFields: availableFields.length,
