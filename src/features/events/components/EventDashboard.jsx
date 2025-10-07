@@ -667,7 +667,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  if (isActuallyLoading) {
+  // Only show full-screen loading if there's no cached data to display
+  if (isActuallyLoading && (!eventCards || eventCards.length === 0)) {
     return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
   }
 
@@ -692,6 +693,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   return (
     <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
+      {/* Loading overlay when refreshing cached data */}
+      {isActuallyLoading && eventCards && eventCards.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 border border-scout-blue-light">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-scout-blue"></div>
+          <span className="text-sm text-gray-700">Refreshing data...</span>
+        </div>
+      )}
 
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
