@@ -324,14 +324,33 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
   }
 
   // Find the CampGroup field mapping from the structure
-  // Field mapping is now keyed by field IDs (f_1, f_2, etc.) not by field names
-  const campGroupField = Object.values(structure.fieldMapping || {})
-    .find(field => field.name === 'CampGroup');
-  
+  // Field mapping can be either a Map or an object (depending on parsing)
+  let campGroupField = null;
+  const fieldMapping = structure.fieldMapping || {};
+
+  // Handle Map format (parseFlexiStructure returns a Map)
+  if (fieldMapping instanceof Map) {
+    for (const [, fieldInfo] of fieldMapping.entries()) {
+      if (fieldInfo.name === 'CampGroup') {
+        campGroupField = fieldInfo;
+        break;
+      }
+    }
+  }
+  // Handle object format (cached structure might be an object)
+  else if (fieldMapping && typeof fieldMapping === 'object') {
+    campGroupField = Object.values(fieldMapping).find(field => field.name === 'CampGroup');
+  }
+
   if (!campGroupField) {
+    const availableFields = fieldMapping instanceof Map
+      ? Array.from(fieldMapping.values()).map(f => f.name)
+      : Object.values(fieldMapping).map(f => f.name);
+
     logger.warn('No CampGroup field found in FlexiRecord structure', {
-      availableFields: Object.keys(structure.fieldMapping || {}),
-      availableFieldNames: Object.values(structure.fieldMapping || {}).map(f => f.name),
+      availableFields,
+      fieldMappingType: typeof fieldMapping,
+      isMap: fieldMapping instanceof Map,
       sectionId,
     }, LOG_CATEGORIES.APP);
     return null;
