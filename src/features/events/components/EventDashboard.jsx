@@ -97,6 +97,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     const loadEventCards = async (isRefresh = false) => {
       if (!mounted) return;
 
+      // Set loading state for refresh operations
+      if (isRefresh) {
+        setLoading(true);
+      }
+
       // Initialize demo mode if enabled BEFORE loading sections
       if (!isRefresh) {
         try {
@@ -694,7 +699,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   return (
     <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
       {/* Loading overlay when refreshing cached data */}
-      {isActuallyLoading && eventCards && eventCards.length > 0 && (
+      {(isActuallyLoading || refreshing) && eventCards && eventCards.length > 0 && (
         <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 border border-scout-blue-light">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-scout-blue"></div>
           <span className="text-sm text-gray-700">Refreshing data...</span>
