@@ -22,6 +22,28 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
+/*
+ * PERSON_TYPE HANDLING STRATEGY
+ *
+ * person_type is stored in the database member_section table and should NOT be calculated at runtime.
+ *
+ * Data Flow:
+ * 1. OSM API provides patrol_id (-2 = Leaders, -3 = Young Leaders, other = Young People)
+ * 2. members.js transforms patrol_id to person_type ONCE during API data fetch
+ * 3. Database stores person_type in member_section table (via IndexedDB or SQLite)
+ * 4. Components read person_type from database - no calculations needed
+ *
+ * Lookup Strategy (in this component):
+ * 1. Check section-specific person_type from memberData.sections array (preferred)
+ * 2. Fallback to top-level memberData.person_type if section-specific not found
+ * 3. DO NOT calculate person_type from age - this causes incorrect categorization
+ *
+ * Why age-based calculation is wrong:
+ * - 17-year-old Young Leader would be incorrectly categorized as "Young People"
+ * - 19-year-old Young Person (e.g., with disability) would be incorrectly categorized as "Leader"
+ * - Database is the single source of truth for person_type
+ */
+
 // Centralized function to check if a member has actual sign-in data (not cleared)
 const hasSignInData = (vikingEventData) => {
   if (!vikingEventData) return false;
@@ -32,6 +54,29 @@ const hasSignInData = (vikingEventData) => {
     (vikingEventData.SignedOutBy && !isFieldCleared(vikingEventData.SignedOutBy)) ||
     (vikingEventData.SignedOutWhen && !isFieldCleared(vikingEventData.SignedOutWhen))
   );
+};
+
+/**
+ * Derives person_type for a member in a specific section context
+ * @param {Object} memberData - Member data from membersById map
+ * @param {Object} record - Attendance record with sectionid
+ * @returns {string|null} person_type value or null if not determinable
+ */
+const getPersonType = (memberData, record) => {
+  // ONLY use section-specific person_type for the EXACT section in the attendance record
+  // DO NOT fall back to person_type from other sections - this causes incorrect categorization
+  if (memberData?.sections && Array.isArray(memberData.sections)) {
+    // sectionids are standardized as numbers throughout the database
+    const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
+    if (sectionMembership) {
+      // Return the person_type from the database
+      return sectionMembership.person_type;
+    }
+  }
+
+  // No section membership found - this is normal for cross-section attendance
+  // (e.g., member from one section attending another section's event)
+  return null;
 };
 
 function EventAttendance({ events, members: membersProp, onBack }) {
@@ -58,9 +103,9 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   const [activeTab, setActiveTab] = useState('overview');
 
   const {
-    sharedAttendanceData,
-    loadingSharedAttendance,
-    hasSharedEvents,
+    sharedAttendanceData: _sharedAttendanceDataFromHook,
+    loadingSharedAttendance: _loadingSharedAttendance,
+    hasSharedEvents: _hasSharedEvents,
   } = useSharedAttendance(events, activeTab);
 
   const [sortConfig, setSortConfig] = useState({
@@ -87,28 +132,70 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   const [lastAttendanceRefresh, setLastAttendanceRefresh] = useState(null);
 
   const [sectionFilters, setSectionFilters] = useState(() => {
+    // Load saved section filters from localStorage
+    try {
+      const saved = localStorage.getItem('eventAttendance_sectionFilters');
+      if (saved) {
+        const savedFilters = JSON.parse(saved);
+        // Merge with current sections (in case new sections were added)
+        const filters = {};
+        const uniqueSections = [...new Set(events.map((e) => e.sectionid))];
+        uniqueSections.forEach((sectionId) => {
+          // Use saved preference if available, otherwise default to true
+          filters[sectionId] = savedFilters[sectionId] !== undefined ? savedFilters[sectionId] : true;
+        });
+        return filters;
+      }
+    } catch (error) {
+      console.error('Failed to load section filters from localStorage:', error);
+    }
+
+    // Default: all sections enabled
     const filters = {};
     const uniqueSections = [...new Set(events.map((e) => e.sectionid))];
     uniqueSections.forEach((sectionId) => {
-      const sectionEvent = events.find((e) => e.sectionid === sectionId);
-      const sectionName = sectionEvent?.sectionname?.toLowerCase() || '';
-      filters[sectionId] = !sectionName.includes('adults');
+      filters[sectionId] = true;
     });
     return filters;
   });
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('eventAttendance_sectionFilters', JSON.stringify(sectionFilters));
+    } catch (error) {
+      console.error('Failed to save section filters to localStorage:', error);
+    }
+  }, [sectionFilters]);
+
   const uniqueSections = useMemo(() => {
-    return [...new Set(events.map((e) => e.sectionid))].map((sectionId) => {
+    // Get section IDs from both events AND attendance data to include shared sections
+    const eventSectionIds = new Set(events.map((e) => e.sectionid));
+    const attendanceSectionIds = new Set(attendanceData.map((a) => a.sectionid));
+    const allSectionIds = [...new Set([...eventSectionIds, ...attendanceSectionIds])];
+
+    return allSectionIds.map((sectionId) => {
+      // Try to get section name from events first
       const sectionEvent = events.find((e) => e.sectionid === sectionId);
+      if (sectionEvent) {
+        return {
+          sectionid: sectionId,
+          sectionname: sectionEvent.sectionname,
+        };
+      }
+
+      // If not in events, get section name from attendance data
+      const attendanceRecord = attendanceData.find((a) => a.sectionid === sectionId);
+      const sectionName = attendanceRecord?.sectionname || `Section ${sectionId}`;
+
       return {
         sectionid: sectionId,
-        sectionname: sectionEvent?.sectionname || `Section ${sectionId}`,
+        sectionname: sectionName,
       };
     });
-  }, [events]);
+  }, [events, attendanceData]);
 
 
-  const applyFilters = (attendanceData, attendanceFilters, sectionFilters, includeAttendanceFilter = true) => {
+  const applyFilters = (attendanceData, attendanceFilters, sectionFilters, includeAttendanceFilter = true, includeSectionFilter = true) => {
     if (!attendanceData || !Array.isArray(attendanceData)) return [];
 
     return attendanceData.filter((record) => {
@@ -118,7 +205,9 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         : true;
 
       const recordSectionId = record.sectionid;
-      const sectionMatch = !recordSectionId || sectionFilters[recordSectionId] !== false;
+      const sectionMatch = includeSectionFilter
+        ? (!recordSectionId || sectionFilters[recordSectionId] === true)
+        : true;
 
       return statusMatch && sectionMatch;
     });
@@ -135,6 +224,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     [members],
   );
 
+
   const summaryStats = useMemo(() => {
     if (!filteredAttendanceData || filteredAttendanceData.length === 0) {
       return [];
@@ -146,6 +236,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
+        const personType = getPersonType(memberData, record);
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -164,7 +255,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
             !isFieldCleared(record.vikingEventData.SignedInBy) &&
             (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
           ),
-          person_type: memberData?.person_type,
+          person_type: personType,
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
         });
@@ -206,6 +297,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       const key = record.scoutid;
       if (!memberMap.has(key)) {
         const memberData = membersById.get(String(record.scoutid));
+        const personType = getPersonType(memberData, record);
 
         memberMap.set(key, {
           scoutid: record.scoutid,
@@ -224,7 +316,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
             !isFieldCleared(record.vikingEventData.SignedInBy) &&
             (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
           ),
-          person_type: memberData?.person_type,
+          person_type: personType,
           patrol_id: memberData?.patrol_id,
           patrolid: memberData?.patrolid,
         });
@@ -254,7 +346,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   }, [attendanceData, attendanceFilters, sectionFilters, membersById]);
 
   const simplifiedSummaryStatsForOverview = useMemo(() => {
-    const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
+    // Overview tab: ignore BOTH section filters AND attendance filters (show complete statistics)
+    const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false, false);
 
     if (!overviewData || overviewData.length === 0) {
       return { sections: [], totals: null };
@@ -272,8 +365,9 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     // Create sections dynamically from attendance records only
     // This ensures we don't create duplicate sections when using shared attendance
+    // NOTE: Overview tab ignores section filters and shows all sections
     overviewData.forEach((record) => {
-      if (!sectionMap.has(record.sectionid) && sectionFilters[record.sectionid] !== false) {
+      if (!sectionMap.has(record.sectionid)) {
         const member = membersById.get(String(record.scoutid));
         const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || member?.sectionname || 'Unknown Section';
 
@@ -290,12 +384,15 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     overviewData.forEach((record) => {
       const section = sectionMap.get(record.sectionid);
-      if (!section) return; // Should never happen now
+      if (!section) return;
 
       const memberData = membersById.get(String(record.scoutid));
-      const personType = memberData?.person_type;
+      const personType = getPersonType(memberData, record);
 
-      let roleType = 'l';
+      // Skip if no person_type found (error already logged in getPersonType)
+      if (!personType) return;
+
+      let roleType;
       if (personType === 'Young People') {
         roleType = 'yp';
       } else if (personType === 'Young Leaders') {
@@ -316,9 +413,19 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       if (!uniqueScouts.has(uniqueKey)) {
         const memberData = membersById.get(String(record.scoutid));
-        const personType = memberData?.person_type;
+        let personType = getPersonType(memberData, record);
 
-        let roleType = 'l';
+        // For members without person_type in THIS section, try to infer from ANY section membership
+        // This is common for "Not Invited" status where they're not members of this specific section
+        if (!personType && memberData?.sections && Array.isArray(memberData.sections) && memberData.sections.length > 0) {
+          // Use person_type from their first section membership as fallback
+          personType = memberData.sections[0].person_type;
+        }
+
+        // Skip if still no person_type found
+        if (!personType) return;
+
+        let roleType;
         if (personType === 'Young People') {
           roleType = 'yp';
         } else if (personType === 'Young Leaders') {
@@ -664,14 +771,14 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         />
       );
       
-    case 'sharedAttendance':
-      if (loadingSharedAttendance) {
-        return <LoadingScreen message="Loading shared attendance data..." />;
+    case 'attendance':
+      if (loading) {
+        return <LoadingScreen message="Loading attendance data..." />;
       }
-      
+
       return (
         <div>
-          {sharedAttendanceData && sharedAttendanceData.length > 0 ? (
+          {filteredAttendanceData && filteredAttendanceData.length > 0 ? (
             <div>
               {(() => {
                 const isYoungPerson = (age) => {
@@ -711,13 +818,35 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                     : 0;
                 };
 
+                // Create lookup from sectionid to section name
+                const sectionIdToName = new Map();
+                events.forEach((event) => {
+                  if (event.sectionid && event.sectionname) {
+                    sectionIdToName.set(event.sectionid, event.sectionname);
+                  }
+                });
+
                 const sectionGroups = {};
                 let totalYoungPeople = 0;
                 let totalAdults = 0;
 
-                sharedAttendanceData.forEach((member) => {
-                  const sectionName = member.sectionname;
-                  const isYP = isYoungPerson(member.age);
+                filteredAttendanceData.forEach((record) => {
+                  // Enrich record with member data from membersById
+                  const memberData = membersById.get(String(record.scoutid));
+                  const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || memberData?.sectionname || 'Unknown Section';
+                  const age = memberData?.age || record.age || 'N/A';
+
+                  // Create enriched member object with all member data including consents
+                  const member = {
+                    ...memberData,
+                    ...record,
+                    sectionname: sectionName,
+                    age: age,
+                    firstname: record.firstname || memberData?.firstname,
+                    lastname: record.lastname || memberData?.lastname,
+                  };
+
+                  const isYP = isYoungPerson(age);
 
                   if (isYP) {
                     totalYoungPeople++;
@@ -776,6 +905,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                       <SectionCardsFlexMasonry
                         sections={sections}
                         isYoungPerson={isYoungPerson}
+                        onMemberClick={handleMemberClick}
                       />
                     </div>
                   </>
@@ -784,7 +914,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              No shared attendance data available
+              No attendance data available
             </div>
           )}
         </div>
@@ -820,10 +950,9 @@ function EventAttendance({ events, members: membersProp, onBack }) {
               attendanceData={attendanceData}
             />
 
-            <AttendanceTabNavigation 
+            <AttendanceTabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              hasSharedEvents={hasSharedEvents}
             />
 
             {renderTabContent()}

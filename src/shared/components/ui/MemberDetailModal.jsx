@@ -106,22 +106,13 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         >
           <div className="flex items-center space-x-4" data-oid="s48hbia">
             <div className="flex-shrink-0" data-oid="jhbdbsm">
-              {member.photo_guid ? (
-                <img
-                  src={`/api/photo/${member.photo_guid}`}
-                  alt={`${member.firstname} ${member.lastname}`}
-                  className="w-12 h-12 rounded-full object-cover"
-                  data-oid="8w..8_t"
-                />
-              ) : (
-                <div
-                  className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold"
-                  data-oid="ts8319g"
-                >
-                  {member.firstname?.[0]}
-                  {member.lastname?.[0]}
-                </div>
-              )}
+              <div
+                className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold"
+                data-oid="ts8319g"
+              >
+                {member.firstname?.[0]}
+                {member.lastname?.[0]}
+              </div>
             </div>
             <div data-oid="qo9qxuk">
               <h2

@@ -3,6 +3,7 @@ import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
+import databaseService from '../../../shared/services/storage/database.js';
 
 /**
  * Custom hook for loading and managing attendance data
@@ -69,6 +70,8 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
                 .map(attendee => ({
                   ...attendee,
                   eventid: event.eventid,
+                  sectionid: Number(attendee.sectionid), // Normalize to number
+                  scoutid: Number(attendee.scoutid), // Normalize to number
                   firstname: attendee.firstname || attendee.first_name,
                   lastname: attendee.lastname || attendee.last_name,
                   _isSharedSection: true,
@@ -84,30 +87,22 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        const existingMemberIds = new Set(members.map(m => String(m.scoutid)));
-        const additionalMembers = [];
+        // Load member data using the SAME working function as Sections page
+        // This ensures contact_groups and all other fields are properly loaded
+        const uniqueSectionIds = [...new Set(finalAttendance.map(r => Number(r.sectionid)))];
+        const allMembers = await databaseService.getMembers(uniqueSectionIds);
 
-        for (const record of finalAttendance) {
-          if (!existingMemberIds.has(String(record.scoutid))) {
-            const additionalMember = {
-              scoutid: record.scoutid,
-              firstname: record.firstname || record.first_name,
-              lastname: record.lastname || record.last_name,
-              first_name: record.firstname || record.first_name,
-              last_name: record.lastname || record.last_name,
-              age: record.age || record.yrs,
-              yrs: record.age || record.yrs,
-              sectionname: record.sectionname,
-              sectionid: record.sectionid,
-              sections: [{ sectionid: record.sectionid, sectionname: record.sectionname }],
-              _isSharedMember: finalAttendance.length > relevantAttendance.length,
-            };
-            additionalMembers.push(additionalMember);
-            existingMemberIds.add(String(record.scoutid));
-          }
-        }
+        // Create map for quick lookup and merge with attendance data
+        const memberMap = new Map(allMembers.map(m => [String(m.scoutid), m]));
 
-        const combinedMembers = [...members, ...additionalMembers];
+        // Build combined members with attendance data overlaying member data
+        const combinedMembers = finalAttendance.map(record => {
+          const member = memberMap.get(String(record.scoutid));
+          return {
+            ...member, // Member data from database (includes contact_groups, sections, etc.)
+            ...record, // Attendance record fields (eventid, attendance status, etc.)
+          };
+        });
 
         setMergedMembers(combinedMembers);
         setAttendanceData(finalAttendance);

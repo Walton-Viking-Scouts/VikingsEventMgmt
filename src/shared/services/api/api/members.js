@@ -298,9 +298,8 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
       members.forEach(member => {
         if (member && member.scoutid) {
           const scoutId = member.scoutid;
-          
+
           if (memberMap.has(scoutId)) {
-            // Member already exists, add section to their sections list
             const existingMember = memberMap.get(scoutId);
             if (!existingMember.sections) {
               existingMember.sections = [existingMember.sectionname];
@@ -309,18 +308,57 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
               existingMember.sections.push(section.sectionname);
             }
 
-            // If this membership is Young Leaders, update the person_type
-            if (member.person_type === 'Young Leaders') {
-              existingMember.person_type = 'Young Leaders';
-              existingMember.sectionname = section.sectionname;
+            if (!existingMember.sectionMemberships) {
+              existingMember.sectionMemberships = [{
+                sectionid: existingMember.sectionid,
+                sectionname: existingMember.sectionname,
+                person_type: existingMember.person_type,
+                patrol: existingMember.patrol,
+                patrol_id: existingMember.patrol_id,
+                started: existingMember.started,
+                joined: existingMember.joined,
+                end_date: existingMember.end_date,
+                active: existingMember.active,
+                patrol_role_level: existingMember.patrol_role_level,
+                patrol_role_level_label: existingMember.patrol_role_level_label,
+                section: existingMember.section,
+              }];
             }
+
+            existingMember.sectionMemberships.push({
+              sectionid: member.sectionid,
+              sectionname: section.sectionname,
+              person_type: member.person_type,
+              patrol: member.patrol,
+              patrol_id: member.patrol_id,
+              started: member.started,
+              joined: member.joined,
+              end_date: member.end_date,
+              active: member.active,
+              patrol_role_level: member.patrol_role_level,
+              patrol_role_level_label: member.patrol_role_level_label,
+              section: section.section,
+            });
           } else {
-            // New member, add to map with section info
             memberMap.set(scoutId, {
               ...member,
               sectionname: section.sectionname,
               section: section.section,
-              sections: [section.sectionname], // Track all sections this member belongs to
+              sections: [section.sectionname],
+              sectionMemberships: [{
+                sectionid: member.sectionid,
+                sectionname: section.sectionname,
+                person_type: member.person_type,
+                patrol: member.patrol,
+                patrol_id: member.patrol_id,
+                started: member.started,
+                joined: member.joined,
+                end_date: member.end_date,
+                active: member.active,
+                patrol_role_level: member.patrol_role_level,
+                patrol_role_level_label: member.patrol_role_level_label,
+                section: section.section,
+              }],
             });
           }
         }

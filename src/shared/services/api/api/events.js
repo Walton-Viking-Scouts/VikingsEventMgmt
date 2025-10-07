@@ -13,6 +13,7 @@ import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
+import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 
 /**
@@ -392,18 +393,16 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
     });
 
-    const result = data || { combined_attendance: [], summary: {}, sections: [] };
-
     // Cache the successful response in IndexedDB
     try {
       const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
-      await UnifiedStorageService.set(cacheKey, result);
+      await UnifiedStorageService.set(cacheKey, data);
       logger.debug('Cached shared attendance data to IndexedDB', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
       logger.warn('Failed to cache shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
     }
 
-    return result;
+    return data;
 
   } catch (error) {
     logger.error('Error fetching shared event attendance', { 
@@ -438,7 +437,7 @@ function generateDemoSharedAttendance(eventId, sectionId) {
   // Simply fetch the cached shared attendance data - use demo prefix
   const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
   const cachedSharedAttendance = safeGetItem(sharedCacheKey);
-  
+
   if (import.meta.env.DEV) {
     logger.debug('Demo mode: Looking for cached shared attendance', {
       eventId,
@@ -447,15 +446,210 @@ function generateDemoSharedAttendance(eventId, sectionId) {
       found: !!cachedSharedAttendance,
     }, LOG_CATEGORIES.API);
   }
-  
+
   if (cachedSharedAttendance) {
     return cachedSharedAttendance;
   }
-  
+
   // Return empty structure if no cached data found
   return {
     identifier: 'scoutsectionid',
     items: [],
     _cacheTimestamp: Date.now(),
   };
+}
+
+export async function createMemberSectionRecordsForSharedAttendees(sectionId, attendance) {
+  try {
+    console.log('🔵 createMemberSectionRecordsForSharedAttendees CALLED', {
+      ownerSectionId: sectionId,
+      attendanceCount: attendance.length,
+      firstAttendeeExample: attendance[0],
+    });
+    logger.debug('createMemberSectionRecordsForSharedAttendees called', {
+      ownerSectionId: sectionId,
+      attendanceCount: attendance.length,
+    }, LOG_CATEGORIES.DATABASE);
+
+    if (attendance.length === 0) {
+      console.log('⚠️ No attendance records to process');
+      logger.debug('No attendance records to process', {}, LOG_CATEGORIES.DATABASE);
+      return;
+    }
+
+    // Step 1: Group attendees by their ACTUAL sectionid (not the owner section)
+    const attendeesBySection = new Map();
+    attendance.forEach(attendee => {
+      const attendeeSectionId = Number(attendee.sectionid);
+      if (!attendeesBySection.has(attendeeSectionId)) {
+        attendeesBySection.set(attendeeSectionId, []);
+      }
+      attendeesBySection.get(attendeeSectionId).push(attendee);
+    });
+
+    console.log('🔵 Grouped attendees by their actual sections', {
+      totalSections: attendeesBySection.size,
+      sections: Array.from(attendeesBySection.entries()).map(([sectionId, attendees]) => ({
+        sectionId,
+        sectionName: attendees[0]?.sectionname || attendees[0]?.section_name || attendees[0]?.section,
+        attendeeCount: attendees.length,
+      })),
+    });
+
+    // Step 2: Create core_members for ALL attendees (section-agnostic)
+    const uniqueScoutIds = [...new Set(attendance.map(a => Number(a.scoutid)))];
+    const existingCoreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
+    const existingCoreMemberIds = new Set(existingCoreMembers.map(m => m.scoutid));
+
+    console.log('🔵 Existing core_members', {
+      count: existingCoreMembers.length,
+      scoutIds: Array.from(existingCoreMemberIds),
+    });
+
+    const attendanceByScoutId = new Map(attendance.map(a => [Number(a.scoutid), a]));
+    const missingCoreMembers = uniqueScoutIds
+      .filter(scoutid => !existingCoreMemberIds.has(scoutid))
+      .map(scoutid => {
+        const attendanceRecord = attendanceByScoutId.get(scoutid);
+        return {
+          scoutid,
+          firstname: attendanceRecord?.firstname || '',
+          lastname: attendanceRecord?.lastname || '',
+          patrol: attendanceRecord?.patrol || '',
+          active: true,
+        };
+      });
+
+    if (missingCoreMembers.length > 0) {
+      console.log('✅ Creating core_members for missing scouts', {
+        count: missingCoreMembers.length,
+        scoutIds: missingCoreMembers.map(m => m.scoutid),
+      });
+      await IndexedDBService.bulkUpsertCoreMembers(missingCoreMembers);
+      logger.debug('Created minimal core_member records for shared attendees', {
+        count: missingCoreMembers.length,
+        scoutIds: missingCoreMembers.map(m => m.scoutid),
+      }, LOG_CATEGORIES.DATABASE);
+    } else {
+      console.log('✅ All scouts already exist in core_members');
+    }
+
+    // Step 3: Get ALL member_section records for these scouts to infer person_type
+    const allMemberSections = await IndexedDBService.getAllMemberSectionsForScouts(uniqueScoutIds);
+    const memberSectionsByScoutId = new Map();
+    allMemberSections.forEach(section => {
+      if (!memberSectionsByScoutId.has(section.scoutid)) {
+        memberSectionsByScoutId.set(section.scoutid, []);
+      }
+      memberSectionsByScoutId.get(section.scoutid).push(section);
+    });
+
+    // Step 4: Process each section group separately
+    let totalNewRecords = 0;
+    for (const [attendeeSectionId, sectionAttendees] of attendeesBySection.entries()) {
+      const sectionName = sectionAttendees[0]?.sectionname || sectionAttendees[0]?.section_name || sectionAttendees[0]?.section || null;
+      const scoutIdsForSection = sectionAttendees.map(a => Number(a.scoutid));
+
+      console.log(`🔵 Processing section ${attendeeSectionId} (${sectionName})`, {
+        attendeeCount: scoutIdsForSection.length,
+      });
+
+      const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(scoutIdsForSection, attendeeSectionId);
+      const existingSectionMap = new Map(existingSections.map(s => [s.scoutid, s]));
+
+      console.log(`🔵 Existing member_section records for section ${attendeeSectionId}`, {
+        count: existingSections.length,
+        scoutIds: Array.from(existingSectionMap.keys()),
+      });
+
+      // Helper: Map patrol_id to person_type (OSM convention)
+      const mapPatrolIdToPersonType = (patrolId) => {
+        if (!patrolId) return null;
+        const id = Number(patrolId);
+        if (id === -2) return 'Leaders';
+        if (id === -3) return 'Young Leaders';
+        return 'Young People';
+      };
+
+      // Helper: Derive person_type from age
+      const derivePersonTypeFromAge = (age) => {
+        if (!age) return null;
+        if (age === '25+') return 'Leaders';
+        const match = String(age).match(/^(\d+)/);
+        if (match) {
+          const years = parseInt(match[1], 10);
+          if (years >= 18) return 'Leaders';
+          if (years >= 14) return 'Young Leaders';
+          return 'Young People';
+        }
+        return null;
+      };
+
+      // Create records for new scouts + update existing records with null sectionname OR incorrect person_type
+      const memberSectionsToUpsert = scoutIdsForSection
+        .map(scoutid => {
+          const existing = existingSectionMap.get(scoutid);
+          const attendee = sectionAttendees.find(a => Number(a.scoutid) === scoutid);
+
+          // Determine person_type with fallback chain:
+          // 1. Existing member_section record
+          // 2. Other section memberships
+          // 3. attendee.person_type
+          // 4. patrol_id mapping
+          // 5. Age-based derivation
+          const personType = existing?.person_type
+            || attendee?.person_type
+            || mapPatrolIdToPersonType(attendee?.patrol_id)
+            || derivePersonTypeFromAge(attendee?.age || attendee?.yrs)
+            || 'Young People'; // Final fallback
+
+          // Skip if record exists AND has both sectionname AND correct person_type
+          if (existing && existing.sectionname && existing.person_type === personType) {
+            return null;
+          }
+
+          return {
+            scoutid,
+            sectionid: attendeeSectionId,
+            sectionname: sectionName,
+            person_type: personType,
+            active: true,
+          };
+        })
+        .filter(record => record !== null);
+
+      const newRecords = memberSectionsToUpsert.filter(r => !existingSectionMap.has(r.scoutid));
+      const updatedRecords = memberSectionsToUpsert.filter(r => existingSectionMap.has(r.scoutid));
+
+      if (memberSectionsToUpsert.length > 0) {
+        console.log(`✅ UPSERTING ${memberSectionsToUpsert.length} member_section records for section ${attendeeSectionId} (${sectionName})`, {
+          new: newRecords.length,
+          updated: updatedRecords.length,
+        });
+        await IndexedDBService.bulkUpsertMemberSections(memberSectionsToUpsert);
+        totalNewRecords += memberSectionsToUpsert.length;
+        logger.debug('Upserted member_section records for section', {
+          count: memberSectionsToUpsert.length,
+          newRecords: newRecords.length,
+          updatedRecords: updatedRecords.length,
+          sectionId: attendeeSectionId,
+          sectionName,
+        }, LOG_CATEGORIES.DATABASE);
+      } else {
+        console.log(`⚠️ NO member_section records to upsert for section ${attendeeSectionId} (${sectionName}) - all records already have sectionname`);
+      }
+    }
+
+    console.log(`✅ COMPLETED: Created ${totalNewRecords} total member_section records across ${attendeesBySection.size} sections`);
+  } catch (error) {
+    console.error('❌ FAILED to create member_section records for shared attendees', {
+      ownerSectionId: sectionId,
+      error: error.message,
+      stack: error.stack,
+    });
+    logger.error('Failed to create member_section records for shared attendees', {
+      ownerSectionId: sectionId,
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+  }
 }

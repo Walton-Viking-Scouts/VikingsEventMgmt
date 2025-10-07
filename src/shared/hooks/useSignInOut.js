@@ -105,6 +105,11 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
 
   // Get Viking Event Mgmt flexirecord data for a section
   const getVikingEventFlexiRecord = async (sectionId, termId, token) => {
+    // CRITICAL: Validate token before making any API calls
+    if (!token) {
+      throw new Error('Authentication required: No valid token available. Please sign in.');
+    }
+
     try {
       // Get all FlexiRecord structures from IndexedDB
       const structureKeys = await IndexedDBService.getAllKeys('flexi_structure');
@@ -260,13 +265,27 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
   const handleSignInOut = async (member, action) => {
     // Freeze token for this operation to ensure consistency
     const opToken = getToken();
-    
+
+    // CRITICAL: Check token validity FIRST before any other operations
+    if (!opToken) {
+      const message = 'You are not signed in. Please sign in to perform sign-in/sign-out operations.';
+      logger.warn('Sign-in/out attempted without valid token', {
+        memberName: member.name || member.firstname,
+        action,
+      }, LOG_CATEGORIES.AUTH);
+
+      if (notifyWarning) {
+        notifyWarning(message);
+      }
+      return;
+    }
+
     try {
       // Check if component is still mounted before starting
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
-      
+
       // Set loading state for this specific button
       setButtonLoading(prev => ({ ...prev, [member.scoutid]: true }));
       
