@@ -579,7 +579,6 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
         if (match) {
           const years = parseInt(match[1], 10);
           if (years >= 18) return 'Leaders';
-          if (years >= 14) return 'Young Leaders';
           return 'Young People';
         }
         return null;
@@ -599,7 +598,7 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
           // 5. Age-based derivation
           const personType = existing?.person_type
             || attendee?.person_type
-            || mapPatrolIdToPersonType(attendee?.patrol_id)
+            || mapPatrolIdToPersonType(attendee?.patrol_id || attendee?.patrolid)
             || derivePersonTypeFromAge(attendee?.age || attendee?.yrs)
             || 'Young People'; // Final fallback
 
