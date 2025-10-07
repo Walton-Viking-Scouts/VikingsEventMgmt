@@ -286,7 +286,7 @@ export async function loadFlexiRecordData(sections, token) {
     for (const record of vikingRecords) {
       try {
         const sectionId = record.sectionIds[0]; // Use first section for request
-        const structure = await getFlexiStructure(record.extraid, sectionId, null, token);
+        const structure = await getFlexiStructure(record.extraid, sectionId, null, token, true);
         if (structure) {
           flexiRecordData.structures.push({
             extraid: record.extraid,
