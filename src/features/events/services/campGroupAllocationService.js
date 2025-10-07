@@ -347,11 +347,15 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
       ? Array.from(fieldMapping.values()).map(f => f.name)
       : Object.values(fieldMapping).map(f => f.name);
 
-    logger.warn('No CampGroup field found in FlexiRecord structure', {
-      availableFields,
+    logger.error('Camp groups feature not available: CampGroup field not found in FlexiRecord structure', {
+      sectionId,
+      sectionName,
+      flexirecordid: structure.flexirecordid,
+      availableFields: availableFields.join(', '),
+      expectedFieldName: 'CampGroup (no space)',
       fieldMappingType: typeof fieldMapping,
       isMap: fieldMapping instanceof Map,
-      sectionId,
+      totalFields: availableFields.length,
     }, LOG_CATEGORIES.APP);
     return null;
   }
