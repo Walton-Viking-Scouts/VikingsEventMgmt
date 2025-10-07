@@ -331,7 +331,7 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
   // Handle Map format (parseFlexiStructure returns a Map)
   if (fieldMapping instanceof Map) {
     for (const [, fieldInfo] of fieldMapping.entries()) {
-      if (fieldInfo.name === 'CampGroup') {
+      if (fieldInfo.name === 'CampGroup' || fieldInfo.name === 'Camp Group') {
         campGroupField = fieldInfo;
         break;
       }
@@ -339,7 +339,9 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
   }
   // Handle object format (cached structure might be an object)
   else if (fieldMapping && typeof fieldMapping === 'object') {
-    campGroupField = Object.values(fieldMapping).find(field => field.name === 'CampGroup');
+    campGroupField = Object.values(fieldMapping).find(field =>
+      field.name === 'CampGroup' || field.name === 'Camp Group',
+    );
   }
 
   if (!campGroupField) {
@@ -347,11 +349,15 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
       ? Array.from(fieldMapping.values()).map(f => f.name)
       : Object.values(fieldMapping).map(f => f.name);
 
-    logger.warn('No CampGroup field found in FlexiRecord structure', {
-      availableFields,
+    logger.error('Camp groups feature not available: CampGroup field not found in FlexiRecord structure', {
+      sectionId,
+      sectionName,
+      flexirecordid: structure.flexirecordid,
+      availableFields: availableFields.join(', '),
+      expectedFieldName: 'CampGroup or Camp Group',
       fieldMappingType: typeof fieldMapping,
       isMap: fieldMapping instanceof Map,
-      sectionId,
+      totalFields: availableFields.length,
     }, LOG_CATEGORIES.APP);
     return null;
   }
