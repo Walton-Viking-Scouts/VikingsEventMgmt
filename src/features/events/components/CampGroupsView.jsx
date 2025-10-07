@@ -11,8 +11,14 @@ import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/no
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**
- * Simple function to organize summaryStats by camp groups
- * Similar to RegisterTab's approach - just group the pre-processed data
+ * Organizes member summary statistics by camp groups with optimistic updates
+ * Groups Young People by their assigned camp group number, applying pending moves
+ * for immediate UI feedback before server confirmation
+ *
+ * @param {Array<Object>} summaryStats - Array of member summary data with attendance and Viking Event data
+ * @param {Map} [pendingMoves=new Map()] - Map of in-flight camp group moves (scoutid -> moveData)
+ * @param {Map} [recentlyCompletedMoves=new Map()] - Map of recently completed moves for optimistic UI
+ * @returns {Object} Object containing organized groups (group names as keys with member arrays) and summary statistics (totalGroups, totalMembers, hasUnassigned, vikingEventDataAvailable)
  */
 function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCompletedMoves = new Map()) {
   if (!summaryStats || summaryStats.length === 0) {

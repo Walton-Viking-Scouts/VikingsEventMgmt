@@ -5,6 +5,30 @@ import { calculateAge } from '../../utils/ageUtils.js';
 import { handlePhoneCall } from '../../utils/phoneUtils.js';
 import { MedicalDataPill } from './MedicalDataDisplay.jsx';
 
+/**
+ * Member Detail Modal Component
+ *
+ * Displays comprehensive member information in a modal dialog including basic information,
+ * contact details, medical information, and consents. Handles multiple sections membership,
+ * medical data visualization with color-coded pills, and clickable phone/email links.
+ *
+ * Member object should contain: scoutid, firstname, lastname, date_of_birth, sections array
+ * with sectionname properties, person_type, patrol, and contact_groups.
+ *
+ * @component
+ * @param {Object} props - Component props
+ * @param {Object} props.member - Member data object containing all member information (scoutid, firstname, lastname, sections, etc.)
+ * @param {boolean} props.isOpen - Whether the modal is currently open
+ * @param {Function} props.onClose - Callback function to close the modal
+ * @returns {JSX.Element|null} Modal dialog with member details or null if closed
+ *
+ * @example
+ * <MemberDetailModal
+ *   member={selectedMember}
+ *   isOpen={showModal}
+ *   onClose={() => setShowModal(false)}
+ * />
+ */
 function MemberDetailModal({ member, isOpen, onClose }) {
   const modalRef = useRef(null);
   const isMobile = isMobileLayout();
