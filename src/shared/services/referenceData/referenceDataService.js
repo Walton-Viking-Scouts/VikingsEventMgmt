@@ -238,7 +238,7 @@ export async function loadFlexiRecordData(sections, token) {
     // Load FlexiRecord lists for all sections
     for (const section of sections) {
       try {
-        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', false);
+        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', true);
         if (flexiRecords && flexiRecords.items) {
           flexiRecordData.lists.push({
             sectionId: section.sectionid,
