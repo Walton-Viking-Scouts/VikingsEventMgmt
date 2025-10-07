@@ -19,7 +19,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
