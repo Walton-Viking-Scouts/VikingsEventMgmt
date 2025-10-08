@@ -79,6 +79,16 @@ function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompl
     totalMembers++;
   });
   
+  // Always ensure "Group Unassigned" exists (even if empty) for drag-to-unassigned functionality
+  if (!groups['Group Unassigned']) {
+    groups['Group Unassigned'] = {
+      name: 'Group Unassigned',
+      number: 'Unassigned',
+      youngPeople: [],
+      totalMembers: 0,
+    };
+  }
+
   // Sort groups by number (Unassigned goes last)
   const sortedGroups = {};
   Object.keys(groups)
