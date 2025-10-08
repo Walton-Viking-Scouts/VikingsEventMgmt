@@ -96,8 +96,7 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
       sortedGroups[groupName] = group;
     });
 
-  const youngPeopleInView = summaryStats.filter(member => member.person_type === 'Young People');
-  const hasVikingEventData = youngPeopleInView.length > 0 && youngPeopleInView.every(member =>
+  const hasVikingEventData = youngPeople.length > 0 && youngPeople.every(member =>
     member.vikingEventData?.CampGroup !== undefined,
   );
 
