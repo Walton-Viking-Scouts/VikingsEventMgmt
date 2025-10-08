@@ -99,7 +99,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         });
         return filters;
       }
-    } catch (error) {
+    } catch {
+      // Ignore parse errors, fall through to defaults
     }
 
     // Default: all sections enabled
@@ -114,7 +115,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   useEffect(() => {
     try {
       localStorage.setItem('eventAttendance_sectionFilters', JSON.stringify(sectionFilters));
-    } catch (error) {
+    } catch {
+      // Ignore localStorage errors
     }
   }, [sectionFilters]);
 

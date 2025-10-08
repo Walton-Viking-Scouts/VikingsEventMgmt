@@ -295,7 +295,8 @@ function CampGroupsView({
                   foundStructure = structureData;
                   break;
                 }
-              } catch (error) {
+              } catch {
+                // Ignore parse errors
               }
             }
             
@@ -353,7 +354,8 @@ function CampGroupsView({
               }
             }
           }
-        } catch (error) {
+        } catch {
+          // Ignore errors when loading fallback data
         }
       }
       

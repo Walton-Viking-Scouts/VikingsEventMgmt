@@ -24,7 +24,8 @@ export function useSharedAttendance(events, viewMode) {
           if (metadata._isSharedEvent === true) {
             return true;
           }
-        } catch (error) {
+        } catch {
+          // Ignore parse errors
         }
       }
     }
@@ -77,7 +78,8 @@ export function useSharedAttendance(events, viewMode) {
                   if (metadata._isSharedEvent === true) {
                     sharedEvents.push(event);
                   }
-                } catch (error) {
+                } catch {
+                  // Ignore parse errors
                 }
               }
             }
@@ -97,7 +99,8 @@ export function useSharedAttendance(events, viewMode) {
                   } else if (attendanceData && Array.isArray(attendanceData.items)) {
                     combinedData.push(...attendanceData.items);
                   }
-                } catch (error) {
+                } catch {
+                  // Ignore parse errors
                 }
               } else {
                 // If shared attendance data doesn't exist, try to generate it from individual section data
@@ -119,13 +122,15 @@ export function useSharedAttendance(events, viewMode) {
                               if (Array.isArray(sectionData)) {
                                 combinedData.push(...sectionData);
                               }
-                            } catch (error) {
+                            } catch {
+                              // Ignore parse errors
                             }
                           }
                         }
                       });
                     }
-                  } catch (error) {
+                  } catch {
+                    // Ignore parse errors
                   }
                 }
               }
@@ -146,7 +151,8 @@ export function useSharedAttendance(events, viewMode) {
                     sharedEvent = event;
                     break;
                   }
-                } catch (e) {
+                } catch {
+                  // Ignore parse errors
                 }
               }
             }
@@ -165,7 +171,8 @@ export function useSharedAttendance(events, viewMode) {
               if (cached) {
                 cachedData = JSON.parse(cached);
               }
-            } catch (cacheError) {
+            } catch {
+              // Ignore cache read errors
             }
 
             const token = getToken();
@@ -214,13 +221,15 @@ export function useSharedAttendance(events, viewMode) {
                             if (Array.isArray(sectionData)) {
                               combinedData.push(...sectionData);
                             }
-                          } catch (error) {
+                          } catch {
+                            // Ignore parse errors
                           }
                         }
                       }
                     });
                   }
-                } catch (error) {
+                } catch {
+                  // Ignore parse errors
                 }
               }
               

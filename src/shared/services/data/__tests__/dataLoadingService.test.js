@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import dataLoadingService from '../dataLoadingService.js';
 
 const mockLoadInitialReferenceData = vi.fn();
