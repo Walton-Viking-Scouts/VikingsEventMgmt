@@ -1,11 +1,11 @@
 import React from 'react';
 
 function OverviewTab({
-  summaryStats,
+  attendees,
   members,
   onResetFilters,
 }) {
-  if (!summaryStats || !summaryStats.sections) {
+  if (!attendees || !attendees.sections) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 mb-4">
@@ -101,7 +101,7 @@ function OverviewTab({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {summaryStats.sections.map((section, index) => (
+          {attendees.sections.map((section, index) => (
             <tr key={index} className="hover:bg-gray-50">
               <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                 {section.name}
@@ -148,49 +148,49 @@ function OverviewTab({
               </td>
             </tr>
           ))}
-          {summaryStats.totals && (
+          {attendees.totals && (
             <tr className="bg-gray-100 font-semibold">
               <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
                 Total
               </td>
               <td className="px-2 py-3 whitespace-nowrap text-center text-green-700 font-semibold">
                 <div className="flex justify-center">
-                  <span className="w-8 text-center">{summaryStats.totals.yes.yp}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.yes.yl}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.yes.l}</span>
-                  <span className="w-12 text-center">{summaryStats.totals.yes.total}</span>
+                  <span className="w-8 text-center">{attendees.totals.yes.yp}</span>
+                  <span className="w-8 text-center">{attendees.totals.yes.yl}</span>
+                  <span className="w-8 text-center">{attendees.totals.yes.l}</span>
+                  <span className="w-12 text-center">{attendees.totals.yes.total}</span>
                 </div>
               </td>
               <td className="px-2 py-3 whitespace-nowrap text-center text-red-700 font-semibold">
                 <div className="flex justify-center">
-                  <span className="w-8 text-center">{summaryStats.totals.no.yp}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.no.yl}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.no.l}</span>
-                  <span className="w-12 text-center">{summaryStats.totals.no.total}</span>
+                  <span className="w-8 text-center">{attendees.totals.no.yp}</span>
+                  <span className="w-8 text-center">{attendees.totals.no.yl}</span>
+                  <span className="w-8 text-center">{attendees.totals.no.l}</span>
+                  <span className="w-12 text-center">{attendees.totals.no.total}</span>
                 </div>
               </td>
               <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
                 <div className="flex justify-center">
-                  <span className="w-8 text-center">{summaryStats.totals.invited.yp}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.invited.yl}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.invited.l}</span>
-                  <span className="w-12 text-center">{summaryStats.totals.invited.total}</span>
+                  <span className="w-8 text-center">{attendees.totals.invited.yp}</span>
+                  <span className="w-8 text-center">{attendees.totals.invited.yl}</span>
+                  <span className="w-8 text-center">{attendees.totals.invited.l}</span>
+                  <span className="w-12 text-center">{attendees.totals.invited.total}</span>
                 </div>
               </td>
               <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-semibold">
                 <div className="flex justify-center">
-                  <span className="w-8 text-center">{summaryStats.totals.notInvited.yp}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.notInvited.yl}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.notInvited.l}</span>
-                  <span className="w-12 text-center">{summaryStats.totals.notInvited.total}</span>
+                  <span className="w-8 text-center">{attendees.totals.notInvited.yp}</span>
+                  <span className="w-8 text-center">{attendees.totals.notInvited.yl}</span>
+                  <span className="w-8 text-center">{attendees.totals.notInvited.l}</span>
+                  <span className="w-12 text-center">{attendees.totals.notInvited.total}</span>
                 </div>
               </td>
               <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
                 <div className="flex justify-center">
-                  <span className="w-8 text-center">{summaryStats.totals.total.yp}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.total.yl}</span>
-                  <span className="w-8 text-center">{summaryStats.totals.total.l}</span>
-                  <span className="w-12 text-center">{summaryStats.totals.total.total}</span>
+                  <span className="w-8 text-center">{attendees.totals.total.yp}</span>
+                  <span className="w-8 text-center">{attendees.totals.total.yl}</span>
+                  <span className="w-8 text-center">{attendees.totals.total.l}</span>
+                  <span className="w-12 text-center">{attendees.totals.total.total}</span>
                 </div>
               </td>
             </tr>

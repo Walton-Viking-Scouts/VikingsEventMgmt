@@ -13,7 +13,7 @@ import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
 import eventDataLoader from '../../../../shared/services/data/eventDataLoader.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
-import { checkAttendanceMatch, incrementAttendanceCount, updateSectionCountsByAttendance } from '../../../../shared/utils/attendanceHelpers.js';
+import { checkAttendanceMatch } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
 import AttendanceFilters from './AttendanceFilters.jsx';
@@ -22,29 +22,6 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
-/*
- * PERSON_TYPE HANDLING STRATEGY
- *
- * person_type is stored in the database member_section table and should NOT be calculated at runtime.
- *
- * Data Flow:
- * 1. OSM API provides patrol_id (-2 = Leaders, -3 = Young Leaders, other = Young People)
- * 2. members.js transforms patrol_id to person_type ONCE during API data fetch
- * 3. Database stores person_type in member_section table (via IndexedDB or SQLite)
- * 4. Components read person_type from database - no calculations needed
- *
- * Lookup Strategy (in this component):
- * 1. Check section-specific person_type from memberData.sections array (preferred)
- * 2. Fallback to top-level memberData.person_type if section-specific not found
- * 3. DO NOT calculate person_type from age - this causes incorrect categorization
- *
- * Why age-based calculation is wrong:
- * - 17-year-old Young Leader would be incorrectly categorized as "Young People"
- * - 19-year-old Young Person (e.g., with disability) would be incorrectly categorized as "Leader"
- * - Database is the single source of truth for person_type
- */
-
-// Centralized function to check if a member has actual sign-in data (not cleared)
 const hasSignInData = (vikingEventData) => {
   if (!vikingEventData) return false;
 
@@ -56,28 +33,6 @@ const hasSignInData = (vikingEventData) => {
   );
 };
 
-/**
- * Derives person_type for a member in a specific section context
- * @param {Object} memberData - Member data from membersById map
- * @param {Object} record - Attendance record with sectionid
- * @returns {string|null} person_type value or null if not determinable
- */
-const getPersonType = (memberData, record) => {
-  // ONLY use section-specific person_type for the EXACT section in the attendance record
-  // DO NOT fall back to person_type from other sections - this causes incorrect categorization
-  if (memberData?.sections && Array.isArray(memberData.sections)) {
-    // sectionids are standardized as numbers throughout the database
-    const sectionMembership = memberData.sections.find(s => s.sectionid === record.sectionid);
-    if (sectionMembership) {
-      // Return the person_type from the database
-      return sectionMembership.person_type;
-    }
-  }
-
-  // No section membership found - this is normal for cross-section attendance
-  // (e.g., member from one section attending another section's event)
-  return null;
-};
 
 function EventAttendance({ events, members: membersProp, onBack }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -99,7 +54,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     { notifyError, notifyWarning },
   );
 
-  const [filteredAttendanceData, setFilteredAttendanceData] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
 
   const {
@@ -129,7 +83,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearingSignInData, setClearingSignInData] = useState(false);
   const [refreshingAttendance, setRefreshingAttendance] = useState(false);
-  const [lastAttendanceRefresh, setLastAttendanceRefresh] = useState(null);
 
   const [sectionFilters, setSectionFilters] = useState(() => {
     // Load saved section filters from localStorage
@@ -146,8 +99,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         });
         return filters;
       }
-    } catch (error) {
-      console.error('Failed to load section filters from localStorage:', error);
+    } catch {
+      // Ignore parse errors, fall through to defaults
     }
 
     // Default: all sections enabled
@@ -162,8 +115,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   useEffect(() => {
     try {
       localStorage.setItem('eventAttendance_sectionFilters', JSON.stringify(sectionFilters));
-    } catch (error) {
-      console.error('Failed to save section filters to localStorage:', error);
+    } catch {
+      // Ignore localStorage errors
     }
   }, [sectionFilters]);
 
@@ -195,83 +148,71 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   }, [events, attendanceData]);
 
 
-  const applyFilters = (attendanceData, attendanceFilters, sectionFilters, includeAttendanceFilter = true, includeSectionFilter = true) => {
-    if (!attendanceData || !Array.isArray(attendanceData)) return [];
 
-    return attendanceData.filter((record) => {
-      const attending = record.attending;
-      const statusMatch = includeAttendanceFilter
-        ? checkAttendanceMatch(attending, attendanceFilters)
-        : true;
-
-      const recordSectionId = record.sectionid;
-      const sectionMatch = includeSectionFilter
-        ? (!recordSectionId || sectionFilters[recordSectionId] === true)
-        : true;
-
-      return statusMatch && sectionMatch;
-    });
-  };
-
-  useEffect(() => {
-    const filtered = applyFilters(attendanceData, attendanceFilters, sectionFilters);
-    setFilteredAttendanceData(filtered);
-  }, [attendanceData, attendanceFilters, sectionFilters]);
-
-  // Pre-index members by scoutid for O(1) lookups instead of O(n)
-  const membersById = useMemo(
+  // Pre-index core_members by scoutid for O(1) lookups
+  const coreMembersById = useMemo(
     () => new Map(members.map(m => [String(m.scoutid), m])),
     [members],
   );
 
+  // Pre-index member_section by scoutid+sectionid for O(1) lookups
+  const memberSectionByKey = useMemo(() => {
+    const map = new Map();
+    members.forEach(m => {
+      if (m.sections && Array.isArray(m.sections)) {
+        m.sections.forEach(s => {
+          const key = `${m.scoutid}_${s.sectionid}`;
+          map.set(key, s);
+        });
+      }
+    });
+    return map;
+  }, [members]);
 
-  const summaryStats = useMemo(() => {
-    if (!filteredAttendanceData || filteredAttendanceData.length === 0) {
-      return [];
-    }
-
+  const enrichedAttendees = useMemo(() => {
     const memberMap = new Map();
 
-    filteredAttendanceData.forEach((record) => {
-      const key = record.scoutid;
+    attendanceData.forEach((record) => {
+      const key = `${record.scoutid}_${record.sectionid}`;
+
       if (!memberMap.has(key)) {
-        const memberData = membersById.get(String(record.scoutid));
-        const personType = getPersonType(memberData, record);
+        const memberSection = memberSectionByKey.get(key);
+        const coreMember = coreMembersById.get(String(record.scoutid)) || {};
 
         memberMap.set(key, {
           scoutid: record.scoutid,
-          name: `${record.firstname} ${record.lastname}`,
-          firstname: record.firstname,
-          lastname: record.lastname,
+          firstname: coreMember.firstname || record.firstname || '',
+          lastname: coreMember.lastname || record.lastname || '',
+          name: `${coreMember.firstname || record.firstname || ''} ${coreMember.lastname || record.lastname || ''}`,
+
           sectionid: record.sectionid,
-          sectionname: record.sectionname,
-          events: [],
+          sectionname: memberSection?.sectionname || record.sectionname || '',
+
           yes: 0,
           no: 0,
           invited: 0,
           notInvited: 0,
-          vikingEventData: record.vikingEventData,
+          events: [],
+
+          person_type: memberSection?.person_type || '',
+          patrol_id: memberSection?.patrol_id,
+          patrolid: memberSection?.patrol_id,
+
+          vikingEventData: record.vikingEventData || {},
           isSignedIn: Boolean(
             record.vikingEventData?.SignedInBy &&
             !isFieldCleared(record.vikingEventData.SignedInBy) &&
             (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
           ),
-          person_type: personType,
-          patrol_id: memberData?.patrol_id,
-          patrolid: memberData?.patrolid,
         });
       }
 
-      const member = memberMap.get(key);
-      member.events.push(record);
+      const memberEntry = memberMap.get(key);
+      memberEntry.events.push(record);
 
-      // Fix: Ensure sectionid matches the record with actual sign-in data
       if (record.vikingEventData) {
-        if (!member.vikingEventData) {
-          member.sectionid = record.sectionid;  // Set section to match sign-in data
-        }
-        member.vikingEventData = record.vikingEventData;
-        member.isSignedIn = Boolean(
+        memberEntry.vikingEventData = record.vikingEventData;
+        memberEntry.isSignedIn = Boolean(
           record.vikingEventData?.SignedInBy &&
           !isFieldCleared(record.vikingEventData.SignedInBy) &&
           (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
@@ -279,101 +220,65 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       }
 
       const attending = record.attending;
-      incrementAttendanceCount(member, attending);
+      if (attending === 'Yes') {
+        memberEntry.yes += 1;
+      } else if (attending === 'No') {
+        memberEntry.no += 1;
+      } else if (attending === 'Invited') {
+        memberEntry.invited += 1;
+      } else if (attending === 'Not Invited') {
+        memberEntry.notInvited += 1;
+      }
     });
 
     return Array.from(memberMap.values());
-  }, [filteredAttendanceData, membersById]);
+  }, [attendanceData, coreMembersById, memberSectionByKey]);
 
-  const bulkOperationSummaryStats = useMemo(() => {
-    const bulkData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false);
+  const checkMemberAttendanceMatch = (member, filters) => {
+    if (!filters) return true;
 
-    if (!bulkData || bulkData.length === 0) {
-      return [];
-    }
+    return (
+      (filters.yes && member.yes > 0) ||
+      (filters.no && member.no > 0) ||
+      (filters.invited && member.invited > 0) ||
+      (filters.notInvited && member.notInvited > 0)
+    );
+  };
 
-    const memberMap = new Map();
+  const registeredFilteredAttendees = useMemo(() =>
+    enrichedAttendees.filter(member => {
+      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid];
+      const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
+      return sectionMatch && statusMatch;
+    }),
+  [enrichedAttendees, sectionFilters, attendanceFilters],
+  );
 
-    bulkData.forEach((record) => {
-      const key = record.scoutid;
-      if (!memberMap.has(key)) {
-        const memberData = membersById.get(String(record.scoutid));
-        const personType = getPersonType(memberData, record);
+  const campGroupsFilteredAttendees = useMemo(() =>
+    enrichedAttendees.filter(member =>
+      !sectionFilters || sectionFilters[member.sectionid],
+    ),
+  [enrichedAttendees, sectionFilters],
+  );
 
-        memberMap.set(key, {
-          scoutid: record.scoutid,
-          name: `${record.firstname} ${record.lastname}`,
-          firstname: record.firstname,
-          lastname: record.lastname,
-          sectionid: record.sectionid,
-          sectionname: record.sectionname,
-          events: [],
-          yes: 0,
-          no: 0,
-          invited: 0,
-          notInvited: 0,
-          vikingEventData: record.vikingEventData,
-          isSignedIn: Boolean(
-            record.vikingEventData?.SignedInBy &&
-            !isFieldCleared(record.vikingEventData.SignedInBy) &&
-            (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
-          ),
-          person_type: personType,
-          patrol_id: memberData?.patrol_id,
-          patrolid: memberData?.patrolid,
-        });
-      }
-
-      const member = memberMap.get(key);
-      member.events.push(record);
-
-      // Fix: Ensure sectionid matches the record with actual sign-in data
-      if (record.vikingEventData) {
-        if (!member.vikingEventData) {
-          member.sectionid = record.sectionid;  // Set section to match sign-in data
-        }
-        member.vikingEventData = record.vikingEventData;
-        member.isSignedIn = Boolean(
-          record.vikingEventData?.SignedInBy &&
-          !isFieldCleared(record.vikingEventData.SignedInBy) &&
-          (!record.vikingEventData?.SignedOutBy || isFieldCleared(record.vikingEventData.SignedOutBy)),
-        );
-      }
-
-      const attending = record.attending;
-      incrementAttendanceCount(member, attending);
-    });
-
-    return Array.from(memberMap.values());
-  }, [attendanceData, attendanceFilters, sectionFilters, membersById]);
-
-  const simplifiedSummaryStatsForOverview = useMemo(() => {
-    // Overview tab: ignore BOTH section filters AND attendance filters (show complete statistics)
-    const overviewData = applyFilters(attendanceData, attendanceFilters, sectionFilters, false, false);
-
-    if (!overviewData || overviewData.length === 0) {
+  const overviewStats = useMemo(() => {
+    if (!enrichedAttendees || enrichedAttendees.length === 0) {
       return { sections: [], totals: null };
     }
 
     const sectionMap = new Map();
-
-    // Create lookup from sectionid to actual section name from events
     const sectionIdToName = new Map();
+
     events.forEach((event) => {
       if (event.sectionid && event.sectionname) {
         sectionIdToName.set(event.sectionid, event.sectionname);
       }
     });
 
-    // Create sections dynamically from attendance records only
-    // This ensures we don't create duplicate sections when using shared attendance
-    // NOTE: Overview tab ignores section filters and shows all sections
-    overviewData.forEach((record) => {
-      if (!sectionMap.has(record.sectionid)) {
-        const member = membersById.get(String(record.scoutid));
-        const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || member?.sectionname || 'Unknown Section';
-
-        sectionMap.set(record.sectionid, {
+    enrichedAttendees.forEach((member) => {
+      if (!sectionMap.has(member.sectionid)) {
+        const sectionName = sectionIdToName.get(member.sectionid) || member.sectionname || 'Unknown Section';
+        sectionMap.set(member.sectionid, {
           name: sectionName,
           yes: { yp: 0, yl: 0, l: 0, total: 0 },
           no: { yp: 0, yl: 0, l: 0, total: 0 },
@@ -382,16 +287,11 @@ function EventAttendance({ events, members: membersProp, onBack }) {
           total: { yp: 0, yl: 0, l: 0, total: 0 },
         });
       }
-    });
 
-    overviewData.forEach((record) => {
-      const section = sectionMap.get(record.sectionid);
+      const section = sectionMap.get(member.sectionid);
       if (!section) return;
 
-      const memberData = membersById.get(String(record.scoutid));
-      const personType = getPersonType(memberData, record);
-
-      // Skip if no person_type found (error already logged in getPersonType)
+      const personType = member.person_type;
       if (!personType) return;
 
       let roleType;
@@ -403,45 +303,26 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         roleType = 'l';
       }
 
-      const attending = record.attending;
-      updateSectionCountsByAttendance(section, attending, roleType);
+      if (!roleType) return;
+
+      section.yes[roleType] += member.yes || 0;
+      section.yes.total += member.yes || 0;
+
+      section.no[roleType] += member.no || 0;
+      section.no.total += member.no || 0;
+
+      section.invited[roleType] += member.invited || 0;
+      section.invited.total += member.invited || 0;
+
+      section.notInvited[roleType] += member.notInvited || 0;
+      section.notInvited.total += member.notInvited || 0;
+
+      const memberTotal = (member.yes || 0) + (member.no || 0) + (member.invited || 0) + (member.notInvited || 0);
+      section.total[roleType] += memberTotal;
+      section.total.total += memberTotal;
     });
 
     const sections = Array.from(sectionMap.values());
-
-    const uniqueScouts = new Map();
-    overviewData.forEach((record) => {
-      const uniqueKey = `${record.scoutid}-${record.attending}`;
-
-      if (!uniqueScouts.has(uniqueKey)) {
-        const memberData = membersById.get(String(record.scoutid));
-        let personType = getPersonType(memberData, record);
-
-        // For members without person_type in THIS section, try to infer from ANY section membership
-        // This is common for "Not Invited" status where they're not members of this specific section
-        if (!personType && memberData?.sections && Array.isArray(memberData.sections) && memberData.sections.length > 0) {
-          // Use person_type from their first section membership as fallback
-          personType = memberData.sections[0].person_type;
-        }
-
-        // Skip if still no person_type found
-        if (!personType) return;
-
-        let roleType;
-        if (personType === 'Young People') {
-          roleType = 'yp';
-        } else if (personType === 'Young Leaders') {
-          roleType = 'yl';
-        } else if (personType === 'Leaders') {
-          roleType = 'l';
-        }
-
-        uniqueScouts.set(uniqueKey, {
-          attending: record.attending,
-          roleType,
-        });
-      }
-    });
 
     const totals = {
       yes: { yp: 0, yl: 0, l: 0, total: 0 },
@@ -451,32 +332,35 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       total: { yp: 0, yl: 0, l: 0, total: 0 },
     };
 
-    uniqueScouts.forEach(({ attending, roleType }) => {
-      if (attending === 'Yes') {
-        totals.yes[roleType]++;
-        totals.yes.total++;
-        totals.total[roleType]++;
-        totals.total.total++;
-      } else if (attending === 'No') {
-        totals.no[roleType]++;
-        totals.no.total++;
-        totals.total[roleType]++;
-        totals.total.total++;
-      } else if (attending === 'Invited') {
-        totals.invited[roleType]++;
-        totals.invited.total++;
-        totals.total[roleType]++;
-        totals.total.total++;
-      } else if (attending === 'Not Invited') {
-        totals.notInvited[roleType]++;
-        totals.notInvited.total++;
-        totals.total[roleType]++;
-        totals.total.total++;
-      }
+    sections.forEach(section => {
+      totals.yes.yp += section.yes.yp;
+      totals.yes.yl += section.yes.yl;
+      totals.yes.l += section.yes.l;
+      totals.yes.total += section.yes.total;
+
+      totals.no.yp += section.no.yp;
+      totals.no.yl += section.no.yl;
+      totals.no.l += section.no.l;
+      totals.no.total += section.no.total;
+
+      totals.invited.yp += section.invited.yp;
+      totals.invited.yl += section.invited.yl;
+      totals.invited.l += section.invited.l;
+      totals.invited.total += section.invited.total;
+
+      totals.notInvited.yp += section.notInvited.yp;
+      totals.notInvited.yl += section.notInvited.yl;
+      totals.notInvited.l += section.notInvited.l;
+      totals.notInvited.total += section.notInvited.total;
+
+      totals.total.yp += section.total.yp;
+      totals.total.yl += section.total.yl;
+      totals.total.l += section.total.l;
+      totals.total.total += section.total.total;
     });
 
     return { sections, totals };
-  }, [attendanceData, attendanceFilters, sectionFilters, uniqueSections, membersById, events]);
+  }, [enrichedAttendees, events]);
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);
@@ -516,8 +400,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     setClearingSignInData(true);
     try {
-      // Use clearEligibleMembers for consistency and avoid code duplication
-      const clearEligibleMembers = bulkOperationSummaryStats.filter(member =>
+      const clearEligibleMembers = campGroupsFilteredAttendees.filter(member =>
         hasSignInData(member.vikingEventData),
       );
 
@@ -674,8 +557,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         throw new Error(result.message);
       }
 
-      setLastAttendanceRefresh(Date.now());
-
       logger.info('Attendance data synced successfully', {}, LOG_CATEGORIES.COMPONENT);
 
       notifySuccess('Attendance data synced successfully');
@@ -726,17 +607,17 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     case 'overview':
       return (
         <OverviewTab
-          summaryStats={simplifiedSummaryStatsForOverview}
+          attendees={overviewStats}
           members={members}
           onResetFilters={handleResetFilters}
           uniqueSections={uniqueSections}
         />
       );
-      
+
     case 'register':
       return (
         <RegisterTab
-          summaryStats={summaryStats}
+          attendees={registeredFilteredAttendees}
           members={members}
           onSignInOut={handleSignInOut}
           buttonLoading={buttonLoading}
@@ -745,26 +626,23 @@ function EventAttendance({ events, members: membersProp, onBack }) {
           onSort={setSortConfig}
           onClearSignInData={handleClearSignInData}
           clearSignInDataLoading={clearingSignInData}
-          onRefreshAttendance={handleRefreshAttendance}
-          refreshAttendanceLoading={refreshingAttendance}
-          lastRefreshTime={lastAttendanceRefresh}
         />
       );
-      
+
     case 'detailed':
       return (
-        <DetailedTab 
-          summaryStats={summaryStats}
+        <DetailedTab
+          attendees={registeredFilteredAttendees}
           members={members}
           onMemberClick={handleMemberClick}
           showContacts={dataFilters.contacts}
         />
       );
-      
+
     case 'campGroups':
       return (
-        <CampGroupsView 
-          summaryStats={summaryStats}
+        <CampGroupsView
+          attendees={campGroupsFilteredAttendees}
           events={events}
           members={members}
           vikingEventData={vikingEventData}
@@ -780,9 +658,15 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       return (
         <div>
-          {filteredAttendanceData && filteredAttendanceData.length > 0 ? (
+          {attendanceData && attendanceData.length > 0 ? (
             <div>
               {(() => {
+                const filteredData = attendanceData.filter((record) => {
+                  const statusMatch = checkAttendanceMatch(record.attending, attendanceFilters);
+                  const sectionMatch = !record.sectionid || sectionFilters[record.sectionid] === true;
+                  return statusMatch && sectionMatch;
+                });
+
                 const isYoungPerson = (age) => {
                   if (!age) return true;
 
@@ -820,7 +704,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                     : 0;
                 };
 
-                // Create lookup from sectionid to section name
                 const sectionIdToName = new Map();
                 events.forEach((event) => {
                   if (event.sectionid && event.sectionname) {
@@ -832,9 +715,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                 let totalYoungPeople = 0;
                 let totalAdults = 0;
 
-                filteredAttendanceData.forEach((record) => {
-                  // Enrich record with member data from membersById
-                  const memberData = membersById.get(String(record.scoutid));
+                filteredData.forEach((record) => {
+                  const memberData = coreMembersById.get(String(record.scoutid));
                   const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || memberData?.sectionname || 'Unknown Section';
                   const age = memberData?.age || record.age || 'N/A';
 
@@ -985,11 +867,11 @@ function EventAttendance({ events, members: membersProp, onBack }) {
           isOpen={showClearModal}
           onClose={handleCloseClearModal}
           onConfirm={handleConfirmClearSignInData}
-          memberCount={bulkOperationSummaryStats.filter(member =>
+          memberCount={campGroupsFilteredAttendees.filter(member =>
             hasSignInData(member.vikingEventData),
           ).length}
           sectionCount={Object.keys(uniqueSections.reduce((acc, section) => {
-            const hasSignInDataInSection = bulkOperationSummaryStats.some(member =>
+            const hasSignInDataInSection = campGroupsFilteredAttendees.some(member =>
               String(member.sectionid) === String(section.sectionid) &&
               hasSignInData(member.vikingEventData),
             );

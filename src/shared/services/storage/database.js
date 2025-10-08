@@ -884,9 +884,17 @@ class DatabaseService {
           coreMemberMap.set(scoutid, coreData);
         } else {
           const existing = coreMemberMap.get(scoutid);
-          existing.contact_groups = { ...existing.contact_groups, ...coreData.contact_groups };
-          existing.custom_data = { ...existing.custom_data, ...coreData.custom_data };
-          existing.flattened_fields = { ...existing.flattened_fields, ...coreData.flattened_fields };
+          // Merge all fields from new data into existing
+          Object.keys(coreData).forEach(key => {
+            if (key === 'contact_groups' || key === 'custom_data' || key === 'flattened_fields') {
+              // Deep merge for these special fields
+              existing[key] = { ...existing[key], ...coreData[key] };
+            } else if (coreData[key] !== undefined) {
+              // Update all other fields if they're present in new data
+              existing[key] = coreData[key];
+            }
+            // If coreData[key] is undefined, keep existing value (accumulate from other sections)
+          });
         }
 
         if (member.sectionMemberships && Array.isArray(member.sectionMemberships)) {

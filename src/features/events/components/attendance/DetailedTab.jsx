@@ -5,7 +5,7 @@ import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/utils/notifications.js';
 import { resolveSectionName } from '../../../../shared/utils/memberUtils.js';
 
-function DetailedTab({ summaryStats, members, onMemberClick, showContacts = false }) {
+function DetailedTab({ attendees, members, onMemberClick, showContacts = false }) {
   const [_selectedMember, _setSelectedMember] = useState(null);
   const [_showMemberModal, _setShowMemberModal] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -14,8 +14,8 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
   // Must be before early return to satisfy Rules of Hooks
   const allConsentFields = React.useMemo(() => {
     const fields = new Set();
-    if (summaryStats && members) {
-      summaryStats.forEach((attendee) => {
+    if (attendees && members) {
+      attendees.forEach((attendee) => {
         const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
         const contactGroups = groupContactInfo(member);
         const consentGroup = contactGroups.consents || contactGroups.permissions;
@@ -25,83 +25,83 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       });
     }
     return Array.from(fields).sort();
-  }, [summaryStats, members]);
+  }, [attendees, members]);
+
+  const getComprehensiveMemberData = React.useCallback((member) => {
+    const contactGroups = groupContactInfo(member);
+    const combineFields = (groupNames, fieldNames, separator = ', ') => {
+      const values = [];
+      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
+        const group = contactGroups[groupName];
+        if (group) {
+          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
+            if (group[fieldName]) values.push(group[fieldName]);
+          }
+        }
+      }
+      return values.join(separator);
+    };
+
+    return {
+      name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
+      section: resolveSectionName(member),
+      patrol: member.patrol || '',
+      age: member.age || member.yrs || '',
+      primary_contacts: (() => {
+        const contacts = [];
+        const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
+        const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
+        const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
+        if (pc1_name || pc1_phone || pc1_email) {
+          contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
+        }
+        const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
+        const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
+        const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
+        if (pc2_name || pc2_phone || pc2_email) {
+          contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
+        }
+        return contacts;
+      })(),
+      emergency_contacts: (() => {
+        const contacts = [];
+        const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
+        const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
+        if (ec_name || ec_phone) {
+          contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
+        }
+        return contacts;
+      })(),
+      essential_information: contactGroups.essential_information || {},
+      allergies: contactGroups.essential_information?.allergies || '',
+      medical_details: contactGroups.essential_information?.medical_details || '',
+      dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
+      tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
+      swimmer: contactGroups.essential_information?.swimmer || '',
+      other_useful_information: contactGroups.essential_information?.other_useful_information || '',
+      confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
+      consents: contactGroups.consents || contactGroups.permissions || {},
+    };
+  }, []);
+
+  const getMemberAttendanceStatus = React.useCallback((attendee) => {
+    if (attendee.yes > 0) return 'Yes';
+    if (attendee.no > 0) return 'No';
+    if (attendee.invited > 0) return 'Invited';
+    if (attendee.notInvited > 0) return 'Not Invited';
+    return 'Unknown';
+  }, []);
+
+  const getMemberVikingEventData = React.useCallback((attendee) => {
+    return attendee?.vikingEventData || null;
+  }, []);
 
   // Sort the summary stats
   // Must be before early return to satisfy Rules of Hooks
   const sortedStats = React.useMemo(() => {
-    if (!sortConfig.key || !summaryStats) return summaryStats;
+    if (!sortConfig.key || !attendees) return attendees;
 
-    const getComprehensiveMemberData = (member) => {
-      const contactGroups = groupContactInfo(member);
-      const combineFields = (groupNames, fieldNames, separator = ', ') => {
-        const values = [];
-        for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-          const group = contactGroups[groupName];
-          if (group) {
-            for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-              if (group[fieldName]) values.push(group[fieldName]);
-            }
-          }
-        }
-        return values.join(separator);
-      };
-
-      return {
-        name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-        section: resolveSectionName(member),
-        patrol: member.patrol || '',
-        age: member.age || member.yrs || '',
-        primary_contacts: (() => {
-          const contacts = [];
-          const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
-          const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
-          const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
-          if (pc1_name || pc1_phone || pc1_email) {
-            contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
-          }
-          const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
-          const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
-          const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
-          if (pc2_name || pc2_phone || pc2_email) {
-            contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
-          }
-          return contacts;
-        })(),
-        emergency_contacts: (() => {
-          const contacts = [];
-          const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
-          const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
-          if (ec_name || ec_phone) {
-            contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
-          }
-          return contacts;
-        })(),
-        essential_information: contactGroups.essential_information || {},
-        allergies: contactGroups.essential_information?.allergies || '',
-        medical_details: contactGroups.essential_information?.medical_details || '',
-        dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
-        tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
-        swimmer: contactGroups.essential_information?.swimmer || '',
-        other_useful_information: contactGroups.essential_information?.other_useful_information || '',
-        confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
-        consents: contactGroups.consents || contactGroups.permissions || {},
-      };
-    };
-
-    const getMemberAttendanceStatus = (attendee) => {
-      if (attendee.yes > 0) return 'Yes';
-      if (attendee.no > 0) return 'No';
-      if (attendee.invited > 0) return 'Invited';
-      if (attendee.notInvited > 0) return 'Not Invited';
-      return 'Unknown';
-    };
-
-    const getMemberVikingEventData = (attendee) => {
-      return attendee?.vikingEventData || null;
-    };
-
-    const sorted = [...summaryStats].sort((a, b) => {
+    const sorted = [...attendees].sort((a, b) => {
       const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
       const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
       const dataA = getComprehensiveMemberData(memberA);
@@ -170,9 +170,9 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     });
 
     return sorted;
-  }, [summaryStats, members, sortConfig, allConsentFields]);
+  }, [attendees, members, sortConfig, allConsentFields, getComprehensiveMemberData, getMemberAttendanceStatus, getMemberVikingEventData]);
 
-  if (!summaryStats || !Array.isArray(summaryStats) || summaryStats.length === 0) {
+  if (!attendees || !Array.isArray(attendees) || attendees.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 mb-4">
@@ -186,106 +186,8 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
     );
   }
 
-  // Get comprehensive member data (same as SectionsList)
-  const getComprehensiveMemberData = (member) => {
-    const contactGroups = groupContactInfo(member);
-
-    const combineFields = (groupNames, fieldNames, separator = ', ') => {
-      const values = [];
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) values.push(group[fieldName]);
-          }
-        }
-      }
-      return values.join(separator);
-    };
-
-    return {
-      // Basic info
-      name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: resolveSectionName(member),
-      patrol: member.patrol || '',
-      age: member.age || member.yrs || '',
-      
-      // Primary Contacts (1 and 2)
-      primary_contacts: (() => {
-        const contacts = [];
-        
-        // Primary Contact 1
-        const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
-        const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
-        const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
-        
-        if (pc1_name || pc1_phone || pc1_email) {
-          contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
-        }
-        
-        // Primary Contact 2
-        const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
-        const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
-        const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
-        
-        if (pc2_name || pc2_phone || pc2_email) {
-          contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
-        }
-        
-        return contacts;
-      })(),
-      
-      // Emergency Contacts
-      emergency_contacts: (() => {
-        const contacts = [];
-        
-        // Emergency Contact
-        const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
-        const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
-        
-        if (ec_name || ec_phone) {
-          contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
-        }
-        
-        return contacts;
-      })(),
-      
-      // Essential Information (comprehensive approach)
-      essential_information: contactGroups.essential_information || {},
-      allergies: contactGroups.essential_information?.allergies || '',
-      medical_details: contactGroups.essential_information?.medical_details || '',
-      dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
-      tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
-      swimmer: contactGroups.essential_information?.swimmer || '',
-      other_useful_information: contactGroups.essential_information?.other_useful_information || '',
-      confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
-      
-      // Consents - get all consent fields dynamically from multiple possible groups
-      consents: contactGroups.consents || contactGroups.permissions || {},
-    };
-  };
-
-  // Handle member click
   const handleMemberClick = (member) => {
     onMemberClick(member);
-  };
-
-  // Get attendance status for a member (use summaryStats which has attendance info)
-  const getMemberAttendanceStatus = (attendee) => {
-    // The attendee object from summaryStats already contains attendance counts
-    // Determine primary status based on counts (similar to filter logic)
-    if (attendee.yes > 0) return 'Yes';
-    if (attendee.no > 0) return 'No';
-    if (attendee.invited > 0) return 'Invited';
-    if (attendee.notInvited > 0) return 'Not Invited';
-    
-    return 'Unknown';
-  };
-
-  // Get Viking Event data for an attendee
-  const getMemberVikingEventData = (attendee) => {
-    // The attendee object from summaryStats already contains vikingEventData
-    return attendee?.vikingEventData || null;
   };
 
   // Sorting function
@@ -299,7 +201,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
 
   // CSV Export function
   const exportToCSV = () => {
-    if (!summaryStats || summaryStats.length === 0) {
+    if (!attendees || attendees.length === 0) {
       notifyWarning('No members to export');
       return;
     }
@@ -345,7 +247,7 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const csvRows = [
         headers.map(csv).join(','),
-        ...summaryStats.map((attendee) => {
+        ...attendees.map((attendee) => {
           const member = members.find(m => m.scoutid.toString() === attendee.scoutid.toString()) || {};
           const memberData = getComprehensiveMemberData(member);
           const attendanceStatus = getMemberAttendanceStatus(attendee);
@@ -408,9 +310,8 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 0);
 
-      notifySuccess(`Exported ${summaryStats.length} member records`);
+      notifySuccess(`Exported ${attendees.length} member records`);
     } catch (error) {
-      console.error('Error exporting CSV:', error);
       notifyError('Failed to export attendance data');
     }
   };
@@ -451,9 +352,9 @@ function DetailedTab({ summaryStats, members, onMemberClick, showContacts = fals
       {/* Header with Export Button */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-lg font-medium text-gray-900">
-          Detailed Attendance ({summaryStats?.length || 0} members)
+          Detailed Attendance ({attendees?.length || 0} members)
         </h4>
-        {summaryStats && summaryStats.length > 0 && (
+        {attendees && attendees.length > 0 && (
           <button
             onClick={exportToCSV}
             type="button"

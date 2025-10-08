@@ -89,7 +89,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
 
   useEffect(() => {
-    console.log('🔄 EventDashboard useEffect triggered', { lastSyncTime });
     let mounted = true;
     isMountedRef.current = true;
 
