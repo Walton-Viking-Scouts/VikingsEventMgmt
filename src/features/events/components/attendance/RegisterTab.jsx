@@ -57,7 +57,7 @@ const getSortIcon = (columnKey, currentSortKey, direction) => {
 };
 
 function RegisterTab({
-  summaryStats,
+  attendees,
   members,
   onSignInOut,
   buttonLoading,
@@ -73,8 +73,7 @@ function RegisterTab({
   };
 
 
-  // Filter for Young People only (register is primarily for Young People)
-  const youngPeople = summaryStats.filter(member => member.person_type === 'Young People');
+  const youngPeople = attendees.filter(member => member.person_type === 'Young People');
 
   // Calculate signed in/out counts
   const signedInCount = youngPeople.filter(member =>

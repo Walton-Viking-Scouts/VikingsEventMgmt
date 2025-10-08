@@ -11,17 +11,17 @@ import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/no
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**
- * Organizes member summary statistics by camp groups with optimistic updates
+ * Organizes member attendance data by camp groups with optimistic updates
  * Groups Young People by their assigned camp group number, applying pending moves
  * for immediate UI feedback before server confirmation
  *
- * @param {Array<Object>} summaryStats - Array of member summary data with attendance and Viking Event data
+ * @param {Array<Object>} attendees - Array of enriched attendee data with attendance and Viking Event data
  * @param {Map} [pendingMoves=new Map()] - Map of in-flight camp group moves (scoutid -> moveData)
  * @param {Map} [recentlyCompletedMoves=new Map()] - Map of recently completed moves for optimistic UI
  * @returns {Object} Object containing organized groups (group names as keys with member arrays) and summary statistics (totalGroups, totalMembers, hasUnassigned, vikingEventDataAvailable)
  */
-function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCompletedMoves = new Map()) {
-  if (!summaryStats || summaryStats.length === 0) {
+function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompletedMoves = new Map()) {
+  if (!attendees || attendees.length === 0) {
     return {
       groups: {},
       summary: {
@@ -35,9 +35,9 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
 
   const groups = {};
   let totalMembers = 0;
-  
+
   // Filter for Young People only (camp groups are only for Young People)
-  const youngPeople = summaryStats.filter(member => member.person_type === 'Young People');
+  const youngPeople = attendees.filter(member => member.person_type === 'Young People');
 
   // Apply optimistic updates to the data
   const allMoves = new Map([...pendingMoves, ...recentlyCompletedMoves]);
@@ -114,18 +114,18 @@ function organizeByCampGroups(summaryStats, pendingMoves = new Map(), recentlyCo
 
 /**
  * CampGroupsView - Simple component for displaying camp groups
- * Uses pre-processed summaryStats like RegisterTab - no complex state management
+ * Uses pre-processed attendees like RegisterTab - no complex state management
  *
  * @param {Object} props - Component props
- * @param {Array} props.summaryStats - Pre-processed member data with Viking Event data
- * @param {Array} props.events - Array of event data (for context)  
+ * @param {Array} props.attendees - Pre-processed enriched attendee data with Viking Event data (section-filtered)
+ * @param {Array} props.events - Array of event data (for context)
  * @param {Array} props.members - Array of all member data (for member details)
  * @param {Map<string, Object>} props.vikingEventData - Viking event configuration data
  * @param {Function} props.onMemberClick - Member click handler
  * @param {Function} props.onDataRefresh - Function to refresh Viking Event data after operations
  */
 function CampGroupsView({
-  summaryStats = [],
+  attendees = [],
   events = [],
   members: _members = [],
   vikingEventData,
@@ -146,11 +146,11 @@ function CampGroupsView({
 
   const isMobile = isMobileLayout();
 
-  // Simple data organization like RegisterTab - just group the pre-processed summaryStats
+  // Simple data organization like RegisterTab - just group the pre-processed attendees
   // Include optimistic updates for immediate UI feedback
-  const { groups, summary } = useMemo(() => 
-    organizeByCampGroups(summaryStats, pendingMoves, recentlyCompletedMoves), 
-  [summaryStats, pendingMoves, recentlyCompletedMoves],
+  const { groups, summary } = useMemo(() =>
+    organizeByCampGroups(attendees, pendingMoves, recentlyCompletedMoves),
+  [attendees, pendingMoves, recentlyCompletedMoves],
   );
 
   // Handle member click - simple version like RegisterTab
@@ -300,8 +300,8 @@ function CampGroupsView({
                 logger.debug('No structure found with CampGroup field, creating fallback structure', {}, LOG_CATEGORIES.COMPONENT);
               }
               
-              // Check if any member in summaryStats has CampGroup data
-              const memberWithCampGroup = summaryStats.find(m => m.vikingEventData?.CampGroup !== undefined);
+              // Check if any member in attendees has CampGroup data
+              const memberWithCampGroup = attendees.find(m => m.vikingEventData?.CampGroup !== undefined);
               if (memberWithCampGroup && dataKeys.length > 0) {
                 if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
                   logger.debug('Found member with CampGroup data', { 
@@ -692,7 +692,7 @@ function CampGroupsView({
     }
   };
 
-  if (!summaryStats || summaryStats.length === 0) {
+  if (!attendees || attendees.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 mb-4">
