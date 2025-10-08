@@ -1,0 +1,135 @@
+name: 'Determine Version Bump'
+description: 'Parse PR title and determine semantic version bump type'
+inputs:
+  pr-title:
+    description: 'PR title to analyze for version bump indicators'
+    required: true
+  current-tag:
+    description: 'Current version tag (e.g., v1.2.3)'
+    required: true
+outputs:
+  version-type:
+    description: 'Version bump type: major, minor, patch, or explicit'
+    value: ${{ steps.detect.outputs.version-type }}
+  new-version:
+    description: 'New version number without v prefix (e.g., 1.2.4)'
+    value: ${{ steps.calculate.outputs.new-version }}
+  explicit-version:
+    description: 'Explicit version if found in PR title'
+    value: ${{ steps.detect.outputs.explicit-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect version type from PR title
+      id: detect
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+
+        # Function to detect version type from PR title
+        detect_version_type() {
+          local raw_title="$1"
+          local version_type="patch"  # Default to patch
+          local title_lc="${raw_title,,}"  # Convert to lowercase
+
+          # Check for explicit version pattern like v1.2.3
+          EXPLICIT_VERSION=$(echo "$raw_title" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+          if [ -n "$EXPLICIT_VERSION" ]; then
+            echo "explicit-version=$EXPLICIT_VERSION" >> $GITHUB_OUTPUT
+            echo "version-type=explicit" >> $GITHUB_OUTPUT
+            echo "📌 Explicit version detected: $EXPLICIT_VERSION"
+            return
+          fi
+
+          # Check for explicit version type tags and patterns (case-insensitive)
+          case "$title_lc" in
+            *"[major]"*)
+              version_type="major"
+              echo "🔴 [major] tag detected in PR title" >&2
+              ;;
+            *"[minor]"*)
+              version_type="minor"
+              echo "🟡 [minor] tag detected in PR title" >&2
+              ;;
+            *"[patch]"*)
+              version_type="patch"
+              echo "🟢 [patch] tag detected in PR title" >&2
+              ;;
+            *"breaking change"*|*"breaking-change"*|*"!:"*)
+              version_type="major"
+              echo "🔴 BREAKING CHANGE detected in PR title" >&2
+              ;;
+            *"feat:"*|*"feature:"*|*"feat("*|*"feature("*)
+              version_type="minor"
+              echo "🟡 feat: conventional commit detected in PR title" >&2
+              ;;
+            *"fix:"*|*"bugfix:"*|*"hotfix:"*|*"fix("*|*"bugfix("*|*"hotfix("*)
+              version_type="patch"
+              echo "🟢 fix: conventional commit detected in PR title" >&2
+              ;;
+            *"perf:"*|*"refactor:"*|*"style:"*|*"chore:"*|*"docs:"*|*"test:"*|*"ci:"*|*"build:"*|*"perf("*|*"refactor("*|*"style("*)
+              version_type="patch"
+              echo "🟢 performance/refactor/style change detected in PR title" >&2
+              ;;
+            *)
+              echo "🟢 No semantic versioning patterns detected, defaulting to patch" >&2
+              ;;
+          esac
+
+          echo "explicit-version=" >> $GITHUB_OUTPUT
+          echo "version-type=$version_type" >> $GITHUB_OUTPUT
+          echo "🔍 Detected version type: $version_type"
+        }
+
+        PR_TITLE="${{ inputs.pr-title }}"
+        echo "📋 Analyzing PR title: $PR_TITLE"
+        detect_version_type "$PR_TITLE"
+
+    - name: Calculate new version
+      id: calculate
+      shell: bash
+      run: |
+        set -Eeuo pipefail
+
+        VERSION_TYPE="${{ steps.detect.outputs.version-type }}"
+        EXPLICIT_VERSION="${{ steps.detect.outputs.explicit-version }}"
+        CURRENT_TAG="${{ inputs.current-tag }}"
+
+        # Remove v prefix from current tag
+        BASE_VERSION=$(echo "$CURRENT_TAG" | sed 's/^v//')
+        echo "🏷️ Current version: $BASE_VERSION"
+
+        # If explicit version provided, use it
+        if [ "$VERSION_TYPE" = "explicit" ] && [ -n "$EXPLICIT_VERSION" ]; then
+          NEW_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/^v//')
+          echo "📌 Using explicit version: $NEW_VERSION"
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Calculate semantic version bump
+        BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
+        echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
+
+        case "$VERSION_TYPE" in
+          major)
+            NEXT_MAJOR=$((MAJOR + 1))
+            NEW_VERSION="${NEXT_MAJOR}.0.0"
+            echo "🔴 Computing major version bump: $BASE_VERSION → $NEW_VERSION"
+            ;;
+          minor)
+            NEXT_MINOR=$((MINOR + 1))
+            NEW_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+            echo "🟡 Computing minor version bump: $BASE_VERSION → $NEW_VERSION"
+            ;;
+          patch|*)
+            NEXT_PATCH=$((PATCH + 1))
+            NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+            echo "🟢 Computing patch version bump: $BASE_VERSION → $NEW_VERSION"
+            ;;
+        esac
+
+        echo "✅ Calculated version: $NEW_VERSION"
+        echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT

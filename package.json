@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "2.11.2",
+  "version": "2.11.3",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite --host --port 3001",
+    "prebuild": "node scripts/sync-version.js",
     "build": "vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

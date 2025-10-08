@@ -244,83 +244,23 @@ jobs:
 
       # NOTE: Don't download old build artifacts - we'll rebuild after version update
 
-      - name: 📝 Set environment-aware version for Sentry tracking
+      - name: 📝 Get PR title for version detection
+        id: pr-info
         run: |
-          echo "🔢 Setting version based on deployment environment..."
           set -Eeuo pipefail
-
-          # Function to safely escape shell input
-          escape_shell_input() {
-            local input="$1"
-            # Escape potentially dangerous characters, strip CR/LF, and limit length
-            printf '%s' "$input" \
-              | tr -d '\r\n' \
-              | sed -e 's/[;&|`$(){}]/\\&/g' \
-              | head -c 200
-          }
-
-          # Function to detect version type from raw (unescaped) PR title
-          detect_version_type() {
-            local raw_title="$1"
-            local version_type="patch"  # Default to patch
-            local title_lc="${raw_title,,}"  # Convert to lowercase
-
-            # Check for explicit version type tags and patterns (case-insensitive)
-            case "$title_lc" in
-              *"[major]"*)
-                version_type="major"
-                echo "🔴 [major] tag detected in PR title" >&2
-                ;;
-              *"[minor]"*)
-                version_type="minor"
-                echo "🟡 [minor] tag detected in PR title" >&2
-                ;;
-              *"[patch]"*)
-                version_type="patch"
-                echo "🟢 [patch] tag detected in PR title" >&2
-                ;;
-              *"breaking change"*|*"breaking-change"*|*"!:"*)
-                version_type="major"
-                echo "🔴 BREAKING CHANGE detected in PR title" >&2
-                ;;
-              *"feat:"*|*"feature:"*|*"feat("*|*"feature("*)
-                version_type="minor"
-                echo "🟡 feat: conventional commit detected in PR title" >&2
-                ;;
-              *"fix:"*|*"bugfix:"*|*"hotfix:"*|*"fix("*|*"bugfix("*|*"hotfix("*)
-                version_type="patch"
-                echo "🟢 fix: conventional commit detected in PR title" >&2
-                ;;
-              *"perf:"*|*"refactor:"*|*"style:"*|*"chore:"*|*"docs:"*|*"test:"*|*"ci:"*|*"build:"*|*"perf("*|*"refactor("*|*"style("*)
-                version_type="patch"
-                echo "🟢 performance/refactor/style change detected in PR title" >&2
-                ;;
-              *)
-                echo "🟢 No semantic versioning patterns detected, defaulting to patch" >&2
-                ;;
-            esac
-
-            echo "$version_type"
-          }
 
           # Export GH_TOKEN for gh CLI commands
           export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
-          # Get the actual PR title (not commit message) with input validation
+          # Get the actual PR title (not commit message)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # For PR events, use the PR title directly
-            RAW_PR_TITLE="${{ github.event.pull_request.title }}"
-            # Detect version type from raw title before escaping
-            VERSION_TYPE=$(detect_version_type "$RAW_PR_TITLE")
-            # Then escape for safe shell export
-            PR_TITLE=$(escape_shell_input "$RAW_PR_TITLE")
+            PR_TITLE="${{ github.event.pull_request.title }}"
             echo "📋 Using PR title from pull_request event: $PR_TITLE"
           else
             # For push events, find associated PR via GitHub API
             echo "🔍 Push event detected, searching for associated PR..."
             COMMIT_SHA="${{ github.sha }}"
 
-            # Use GitHub API to find PRs associated with this commit (with error handling)
             API_RESPONSE=$(curl -s -f --connect-timeout 5 --max-time 10 \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
@@ -328,383 +268,122 @@ jobs:
               2>/dev/null | jq -r '.[0].title // empty' 2>/dev/null || echo "")
 
             if [ -n "$API_RESPONSE" ] && [ "$API_RESPONSE" != "null" ]; then
-              # Detect version type from raw API response before escaping
-              VERSION_TYPE=$(detect_version_type "$API_RESPONSE")
-              # Then escape for safe shell export
-              PR_TITLE=$(escape_shell_input "$API_RESPONSE")
+              PR_TITLE="$API_RESPONSE"
               echo "📋 Found associated PR title: $PR_TITLE"
             else
-              # Fallback to commit message if no PR found
-              RAW_COMMIT_MSG="${{ github.event.head_commit.message }}"
-              # Detect version type from raw commit message before escaping
-              VERSION_TYPE=$(detect_version_type "$RAW_COMMIT_MSG")
-              # Then escape for safe shell export
-              PR_TITLE=$(escape_shell_input "$RAW_COMMIT_MSG")
+              PR_TITLE="${{ github.event.head_commit.message }}"
               echo "📋 No associated PR found, using commit message: $PR_TITLE"
             fi
           fi
 
-          # Final fallback if still empty
+          # Fallback if still empty
           if [ -z "$PR_TITLE" ]; then
             PR_TITLE="(no title)"
-            VERSION_TYPE="patch"  # Default for empty titles
           fi
 
-          # Export PR_TITLE for use in subsequent steps using safe block syntax
+          # Export PR_TITLE for use in subsequent steps
           {
             printf 'PR_TITLE<<__EOF__\n'
             printf '%s\n' "$PR_TITLE"
             printf '__EOF__\n'
           } >> "$GITHUB_ENV"
+          echo "pr-title=$PR_TITLE" >> $GITHUB_OUTPUT
+
+      - name: 📌 Get current version tag
+        id: get-tag
+        run: |
+          LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.0.0"
+          fi
+          echo "current-tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "📌 Current version tag: $LATEST_TAG"
+
+      - name: 🔢 Determine version bump
+        id: version
+        uses: ./.github/actions/determine-version
+        with:
+          pr-title: ${{ steps.pr-info.outputs.pr-title }}
+          current-tag: ${{ steps.get-tag.outputs.current-tag }}
+
+      - name: 📝 Set environment-aware version for Sentry tracking
+        run: |
+          set -Eeuo pipefail
+
+          echo "🔢 Setting version based on deployment environment..."
+          VERSION_TYPE="${{ steps.version.outputs.version-type }}"
+          NEW_VERSION="${{ steps.version.outputs.new-version }}"
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Preview deployment - calculate upcoming version that will be created on merge
+            # Preview deployment
             echo "🔍 Preview deployment detected"
-            echo "📋 Using PR title: $PR_TITLE"
-
-            # Get current production version from highest semantic version tag (not just reachable ones)
-            LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
-            if [ -z "$LATEST_TAG" ]; then
-              LATEST_TAG="v1.0.0"
-            fi
-            BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
-            echo "🏷️ Latest production tag: $LATEST_TAG (base: $BASE_VERSION)"
-
-            # Look for explicit version pattern like v1.2.3 in raw PR title
-            RAW_PR_TITLE_FOR_EXPLICIT="${{ github.event.pull_request.title }}"
-            EXPLICIT_VERSION=$(echo "$RAW_PR_TITLE_FOR_EXPLICIT" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
-
-            if [ -n "$EXPLICIT_VERSION" ]; then
-              # Explicit version found - use it as the upcoming version
-              UPCOMING_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
-              echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
-              echo "Upcoming version: $UPCOMING_VERSION"
-            else
-              # Use the VERSION_TYPE already detected from raw title
-              echo "🔍 Using detected version type: $VERSION_TYPE"
-
-              # Calculate upcoming version using semantic versioning rules
-              BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
-              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
-              echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-
-              # Compute upcoming version based on already-detected bump type
-              if [ "$VERSION_TYPE" = "major" ]; then
-                NEXT_MAJOR=$((MAJOR + 1))
-                UPCOMING_VERSION="${NEXT_MAJOR}.0.0"
-                echo "🔴 Computing major version bump: $BASE_VERSION → $UPCOMING_VERSION"
-              elif [ "$VERSION_TYPE" = "minor" ]; then
-                NEXT_MINOR=$((MINOR + 1))
-                UPCOMING_VERSION="${MAJOR}.${NEXT_MINOR}.0"
-                echo "🟡 Computing minor version bump: $BASE_VERSION → $UPCOMING_VERSION"
-              else
-                # patch bump (default)
-                NEXT_PATCH=$((PATCH + 1))
-                UPCOMING_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
-                echo "🟢 Computing patch version bump: $BASE_VERSION → $UPCOMING_VERSION"
-              fi
-            fi
-
-            # Create preview version with upcoming version + PR info
             SHORT_SHA="${{ github.event.pull_request.head.sha }}"
-            # Fallback in case head.sha is empty
             [ -z "$SHORT_SHA" ] && SHORT_SHA="${{ github.sha }}"
             SHORT_SHA="${SHORT_SHA:0:7}"
-            NEW_VERSION="${UPCOMING_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
+            NEW_VERSION="${NEW_VERSION}-pr-${{ github.event.number }}-${SHORT_SHA}"
             DEPLOYMENT_TYPE="preview"
-
             echo "✅ Preview version set: $NEW_VERSION"
-            echo "   → This represents what version $UPCOMING_VERSION will look like when merged"
           else
             # Production deployment (main branch) - bump version properly
             echo "🚀 Production deployment detected"
 
-            # Configure git for automated commits (only for production)
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-
-            # Use the PR title that was extracted and exported earlier
-            echo "📋 Using extracted PR title: $PR_TITLE"
-
-            # Look for version pattern like v1.2.3 in PR title
-            EXPLICIT_VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
-
-            if [ -n "$EXPLICIT_VERSION" ]; then
-              # Explicit version found in PR title - use it directly
-              CLEAN_VERSION=$(echo "$EXPLICIT_VERSION" | sed 's/v//')
-              echo "📌 Explicit version specified in PR title: $EXPLICIT_VERSION"
-              echo "Setting version directly to: $CLEAN_VERSION"
-
-              # Set NEW_VERSION immediately for explicit versions
-              NEW_VERSION="$CLEAN_VERSION"
-              VERSION_TYPE="explicit"
-
-              # Update package.json to match explicit version
-              npm version "$CLEAN_VERSION" --no-git-tag-version --allow-same-version
-
-              # Commit package.json changes for explicit versions
-              git add package.json package-lock.json 2>/dev/null || true
-              if git commit -m "chore(release): v${CLEAN_VERSION} [explicit]"; then
-                echo "📝 Package.json updated to v${CLEAN_VERSION}, pushing to repository..."
-                git push origin main || echo "⚠️ Failed to push package.json update (may be due to branch protection)"
-              else
-                echo "ℹ️ No package.json changes to commit"
-              fi
-
-              echo "✅ Explicit version set: $NEW_VERSION"
-            else
-              # No explicit version - apply semantic versioning rules
-              echo "📝 No explicit version in PR title, applying semantic versioning rules"
-              echo "PR titles can include version like: 'feat: new feature v1.2.0'"
-              echo "Or version tags like: 'Add new feature [minor]' or 'Breaking change [major]'"
-              echo "Or conventional commits like: 'feat:', 'fix:', 'BREAKING CHANGE:'"
-
-              # Get base version from highest semantic version tag (not just reachable ones)
-              LATEST_TAG=$(git tag -l "v*.*.*" | sort -V | tail -1)
-              if [ -z "$LATEST_TAG" ]; then
-                LATEST_TAG="v1.0.0"
-              fi
-              # Remove only a leading 'v'
-              BASE_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
-              echo "🏷️ Latest git tag: $LATEST_TAG (base: $BASE_VERSION)"
-
-              # Parse base version into components (strip any pre-release/build suffixes)
-              BASE_SEMVER=$(echo "$BASE_VERSION" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
-              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_SEMVER"
-              echo "🔢 Current version components: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-
-              # Use the VERSION_TYPE already computed by detect_version_type() from raw PR title
-              # This ensures consistent pattern matching between preview and production deployments
-              echo "🔍 Using pre-computed version type: $VERSION_TYPE (from raw PR title analysis)"
-
-              # Compute new version based on bump type
-              if [ "$VERSION_TYPE" = "major" ]; then
-                NEXT_MAJOR=$((MAJOR + 1))
-                NEW_VERSION="${NEXT_MAJOR}.0.0"
-                echo "🔴 Computing major version bump: $BASE_VERSION → $NEW_VERSION"
-              elif [ "$VERSION_TYPE" = "minor" ]; then
-                NEXT_MINOR=$((MINOR + 1))
-                NEW_VERSION="${MAJOR}.${NEXT_MINOR}.0"
-                echo "🟡 Computing minor version bump: $BASE_VERSION → $NEW_VERSION"
-              else
-                # patch bump (default)
-                NEXT_PATCH=$((PATCH + 1))
-                NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
-                echo "🟢 Computing patch version bump: $BASE_VERSION → $NEW_VERSION"
-              fi
-
-              echo "✅ Semantic versioning result: $NEW_VERSION (type: $VERSION_TYPE)"
-
-              # Update package.json to computed version
-              npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
-
-              # Commit package.json changes for semantic versions
-              git add package.json package-lock.json 2>/dev/null || true
-              if git commit -m "chore(release): v${NEW_VERSION} [${VERSION_TYPE}]"; then
-                echo "📝 Package.json updated to v${NEW_VERSION}, pushing to repository..."
-                git push origin main || echo "⚠️ Failed to push package.json update (may be due to branch protection)"
-              else
-                echo "ℹ️ No package.json changes to commit"
-              fi
-            fi
+            # Note: We don't push package.json changes back to repo
+            # Render will build from the current commit and use the git tag for versioning
+            # The Vite build process reads version from package.json at build time
 
             DEPLOYMENT_TYPE="production"
             echo "Production version: $NEW_VERSION"
+            echo "ℹ️  Version will be embedded during Render build process"
+
+            # Create and push git tag for Sentry tracking
+            echo "🏷️ Creating new tag v${NEW_VERSION}"
+            git tag "v${NEW_VERSION}" || true
+            if git push origin "v${NEW_VERSION}"; then
+              echo "✅ Successfully pushed tag v${NEW_VERSION}"
+            else
+              echo "⚠️ Tag push failed or already exists"
+            fi
+
+            # Create GitHub release
+            export GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+            if command -v gh >/dev/null 2>&1 && [ -n "${GH_TOKEN:-}" ]; then
+              case "$VERSION_TYPE" in
+                patch)
+                  gh release create "v${NEW_VERSION}" \
+                    --title "Release v${NEW_VERSION} - Patch Update" \
+                    --notes "Patch release v${NEW_VERSION} with bug fixes and improvements. PR: ${PR_TITLE}. Notes auto-generated by CI/CD." \
+                    --latest
+                  ;;
+                minor)
+                  gh release create "v${NEW_VERSION}" \
+                    --title "Release v${NEW_VERSION} - Feature Release" \
+                    --notes "Feature release v${NEW_VERSION} with new features or enhancements. PR: ${PR_TITLE}. Notes auto-generated by CI/CD." \
+                    --latest
+                  ;;
+                major)
+                  gh release create "v${NEW_VERSION}" \
+                    --title "Release v${NEW_VERSION} - Major Update" \
+                    --notes "Major release v${NEW_VERSION} with breaking changes. PR: ${PR_TITLE}. Notes auto-generated by CI/CD." \
+                    --latest
+                  ;;
+                *)
+                  gh release create "v${NEW_VERSION}" \
+                    --title "Release v${NEW_VERSION}" \
+                    --notes "Auto-generated release v${NEW_VERSION}. PR: ${PR_TITLE}. Notes auto-generated by CI/CD." \
+                    --latest
+                  ;;
+              esac
+              echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
+            fi
           fi
 
-          # Export version and deployment type for subsequent steps using safe syntax
+          # Export version and deployment type
           {
             echo "NEW_VERSION=$NEW_VERSION"
             echo "DEPLOYMENT_TYPE=$DEPLOYMENT_TYPE"
+            echo "VERSION_TYPE=$VERSION_TYPE"
           } >> "$GITHUB_ENV"
           echo "✅ Version set: $NEW_VERSION (${DEPLOYMENT_TYPE})"
-
-          # Create tags and releases only for production deployments
-          if [ "$DEPLOYMENT_TYPE" = "production" ]; then
-            # Check if tag already exists and retry with incremented version if needed (with remote awareness)
-            FINAL_VERSION="$NEW_VERSION"
-            RETRY_COUNT=0
-            MAX_RETRIES=10
-            # Ensure we see the latest remote tags before starting
-            git fetch --tags --force >/dev/null 2>&1 || true
-            while git rev-parse --verify "refs/tags/v${FINAL_VERSION}" >/dev/null 2>&1; do
-              echo "🏷️ Tag v${FINAL_VERSION} already exists, calculating next available version..."
-              
-              # For explicit versions, do not auto-increment - fail immediately
-              if [ "$VERSION_TYPE" = "explicit" ]; then
-                echo "❌ Explicit version v${FINAL_VERSION} already exists and cannot be auto-incremented"
-                echo "   Either use a different explicit version or remove the explicit version to enable auto-increment"
-                exit 1
-              fi
-              
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
-                echo "❌ Max retries ($MAX_RETRIES) reached, unable to find available version"
-                exit 1
-              fi
-              # Re-fetch tags and increment from the conflicting version, not git-describe latest
-              git fetch --tags --force >/dev/null 2>&1 || true
-              # Use the conflicting version as base, not git describe result
-              CONFLICT_BASE=$(echo "$FINAL_VERSION" | sed 's/^v//')
-              echo "🔍 Incrementing from conflicting version: v${FINAL_VERSION} (base: $CONFLICT_BASE)"
-              # Parse and increment based on original VERSION_TYPE
-              ACTUAL_SEMVER=$(echo "$CONFLICT_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
-              IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
-              if [ "$VERSION_TYPE" = "major" ]; then
-                NEXT_A_MAJOR=$((A_MAJOR + 1))
-                FINAL_VERSION="${NEXT_A_MAJOR}.0.0"
-              elif [ "$VERSION_TYPE" = "minor" ]; then
-                NEXT_A_MINOR=$((A_MINOR + 1))
-                FINAL_VERSION="${A_MAJOR}.${NEXT_A_MINOR}.0"
-              else
-                # patch bump (default)
-                NEXT_A_PATCH=$((A_PATCH + 1))
-                FINAL_VERSION="${A_MAJOR}.${A_MINOR}.${NEXT_A_PATCH}"
-              fi
-              echo "🔄 Retry $RETRY_COUNT: Trying version v${FINAL_VERSION}"
-            done
-            # Create and push git tag for Sentry tracking (with bounded retry loop)
-            echo "🏷️ Creating new tag v${FINAL_VERSION}"
-            TAG_CREATED="false"
-            PUSH_RETRY_COUNT=0
-            MAX_PUSH_RETRIES=5
-            
-            while [ "$PUSH_RETRY_COUNT" -lt "$MAX_PUSH_RETRIES" ]; do
-              git tag "v${FINAL_VERSION}" || true
-              if git push origin "v${FINAL_VERSION}"; then
-                echo "✅ Successfully pushed tag v${FINAL_VERSION}"
-                TAG_CREATED="true"
-                break
-              else
-                echo "⚠️ Push failed (attempt $((PUSH_RETRY_COUNT + 1))/$MAX_PUSH_RETRIES). Checking remote..."
-                git fetch --tags --force >/dev/null 2>&1 || true
-                
-                # Check if remote already has this tag and whether it matches this commit
-                if git ls-remote --tags origin "v${FINAL_VERSION}" | grep -q "v${FINAL_VERSION}"; then
-                  REMOTE_SHA="$(git ls-remote --tags origin "v${FINAL_VERSION}" | awk '{print $1}' | head -n1)"
-                  LOCAL_SHA="$(git rev-parse HEAD)"
-                  if [ "$REMOTE_SHA" = "$LOCAL_SHA" ]; then
-                    echo "✅ Tag v${FINAL_VERSION} already exists on remote and points to this commit ($LOCAL_SHA)"
-                    TAG_CREATED="true"
-                    # Clean up local tag since remote has it
-                    git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
-                    break
-                  fi
-                  if [ "$VERSION_TYPE" = "explicit" ]; then
-                    echo "❌ Explicit version v${FINAL_VERSION} already exists on a different commit ($REMOTE_SHA). Refusing to reuse."
-                    exit 1
-                  fi
-                  echo "♻️ Remote has v${FINAL_VERSION} but at $REMOTE_SHA (this commit: $LOCAL_SHA). Recomputing next version..."
-                  # Clean up local tag before recomputing
-                  git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
-                  # Recompute FINAL_VERSION from conflicting version, not git-describe latest
-                  git fetch --tags --force >/dev/null 2>&1 || true
-                  # Use the conflicting version as base for increment
-                  CONFLICT_BASE=$(echo "$FINAL_VERSION" | sed 's/^v//')
-                  ACTUAL_SEMVER=$(echo "$CONFLICT_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
-                  IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
-                  if [ "$VERSION_TYPE" = "major" ]; then
-                    FINAL_VERSION="$((A_MAJOR + 1)).0.0"
-                  elif [ "$VERSION_TYPE" = "minor" ]; then
-                    FINAL_VERSION="${A_MAJOR}.$((A_MINOR + 1)).0"
-                  else
-                    FINAL_VERSION="${A_MAJOR}.${A_MINOR}.$((A_PATCH + 1))"
-                  fi
-                  PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
-                  echo "🔄 Push retry $PUSH_RETRY_COUNT: Recomputed version v${FINAL_VERSION}"
-                  continue
-                fi
-                
-                # Clean up failed local tag
-                git tag -d "v${FINAL_VERSION}" >/dev/null 2>&1 || true
-                
-                # Recompute FINAL_VERSION based on highest semantic version tag
-                ACTUAL_LATEST=$(git tag -l "v*.*.*" | sort -V | tail -1)
-                if [ -z "$ACTUAL_LATEST" ]; then
-                  ACTUAL_LATEST="v1.0.0"
-                fi
-                ACTUAL_BASE=$(echo "$ACTUAL_LATEST" | sed 's/^v//')
-                ACTUAL_SEMVER=$(echo "$ACTUAL_BASE" | sed -E 's/^([0-9]+)\.([0-9]+)\.([0-9]+).*/\1.\2.\3/')
-                IFS='.' read -r A_MAJOR A_MINOR A_PATCH <<< "$ACTUAL_SEMVER"
-                
-                if [ "$VERSION_TYPE" = "major" ]; then
-                  NEXT_A_MAJOR=$((A_MAJOR + 1))
-                  FINAL_VERSION="${NEXT_A_MAJOR}.0.0"
-                elif [ "$VERSION_TYPE" = "minor" ]; then
-                  NEXT_A_MINOR=$((A_MINOR + 1))
-                  FINAL_VERSION="${A_MAJOR}.${NEXT_A_MINOR}.0"
-                else
-                  NEXT_A_PATCH=$((A_PATCH + 1))
-                  FINAL_VERSION="${A_MAJOR}.${A_MINOR}.${NEXT_A_PATCH}"
-                fi
-                
-                PUSH_RETRY_COUNT=$((PUSH_RETRY_COUNT + 1))
-                echo "🔄 Push retry $PUSH_RETRY_COUNT: Recomputed version v${FINAL_VERSION}"
-              fi
-            done
-            
-            if [ "$TAG_CREATED" != "true" ]; then
-              echo "❌ Failed to create tag after $MAX_PUSH_RETRIES push attempts"
-              exit 1
-            fi
-            # Update NEW_VERSION for subsequent steps
-            NEW_VERSION="$FINAL_VERSION"
-            echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
-            echo "✅ Git tag v${NEW_VERSION} created and pushed"
-
-            # Create GitHub releases based on version type (only if tag was created)
-            if [ "$TAG_CREATED" = "true" ]; then
-              # Guard GitHub CLI usage
-              if ! command -v gh >/dev/null 2>&1 || [ -z "${GH_TOKEN:-}" ]; then
-                echo "⚠️ gh CLI not available or GH_TOKEN missing; skipping GitHub release creation"
-              else
-                if [ "$VERSION_TYPE" = "patch" ]; then
-                  # Patch versions: Create GitHub Release for bug fixes and patches
-                  gh release create "v${NEW_VERSION}" \
-                    --title "Release v${NEW_VERSION} - Patch Update" \
-                    --notes "Patch release v${NEW_VERSION} with bug fixes and improvements. This release includes backward-compatible fixes. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Patch. Notes auto-generated by CI/CD." \
-                    --latest
-                  echo "✅ Production version released: v${NEW_VERSION} (patch - bug fixes)"
-                elif [ "$VERSION_TYPE" = "minor" ]; then
-                  # Minor versions: Create GitHub Release for new features
-                  gh release create "v${NEW_VERSION}" \
-                    --title "Release v${NEW_VERSION} - Feature Release" \
-                    --notes "Feature release v${NEW_VERSION} with new features or enhancements. This release includes backward-compatible functionality additions. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Feature. Notes auto-generated by CI/CD." \
-                    --latest
-
-                  echo "✅ Production version released: v${NEW_VERSION} (minor - new features)"
-                elif [ "$VERSION_TYPE" = "major" ]; then
-                  # Major versions: Create GitHub Release for breaking changes
-                  gh release create "v${NEW_VERSION}" \
-                    --title "Release v${NEW_VERSION} - Major Update" \
-                    --notes "Major release v${NEW_VERSION} with breaking changes. This release may require migration or configuration updates. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Major. Notes auto-generated by CI/CD." \
-                    --latest
-
-                  echo "✅ Production version released: v${NEW_VERSION} (major - breaking changes)"
-                elif [ "$VERSION_TYPE" = "explicit" ]; then
-                  # Explicit versions: Create GitHub Release for visibility
-                  gh release create "v${NEW_VERSION}" \
-                    --title "Release v${NEW_VERSION}" \
-                    --notes "Explicit version release v${NEW_VERSION}. This release was created with an explicit version specified in the PR title. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: Explicit. Notes auto-generated by CI/CD." \
-                    --latest
-
-                  echo "✅ Production version released: v${NEW_VERSION} (explicit from PR title)"
-                else
-                  # Other version types: Create GitHub Release with generic notes
-                  gh release create "v${NEW_VERSION}" \
-                    --title "Release v${NEW_VERSION}" \
-                    --notes "Auto-generated release v${NEW_VERSION}. PR: ${PR_TITLE}. Sentry tracking: v${NEW_VERSION}, type: ${VERSION_TYPE}. Notes auto-generated by CI/CD." \
-                    --latest
-
-                  echo "✅ Production version released: v${NEW_VERSION} (${VERSION_TYPE})"
-                fi
-              fi
-            else
-              echo "ℹ️ Tag already exists, skipping GitHub release creation"
-            fi
-          else
-            echo "🔍 Preview deployment - no tags or releases created"
-          fi
 
       - name: 📤 Create Sentry release for error tracking
         env:
@@ -753,6 +432,8 @@ jobs:
           # Deploy to Render.com via webhook
           if [ -n "$RENDER_DEPLOY_HOOK" ]; then
             echo "Triggering Render deployment via webhook..."
+            echo "Deploying version: $NEW_VERSION"
+            echo "ℹ️  Render will sync version from git tag during build (via prebuild script)"
             attempts=0
             max_attempts=3
             backoff=2

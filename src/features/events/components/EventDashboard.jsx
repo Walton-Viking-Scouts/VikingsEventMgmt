@@ -19,7 +19,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
@@ -93,31 +93,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     let mounted = true;
     isMountedRef.current = true;
 
-    // Unified data loading function - handles both initial load and refresh
-    const loadEventCards = async (isRefresh = false) => {
+    // Unified data loading function - handles initial load from cache
+    const loadEventCards = async () => {
       if (!mounted) return;
 
       // Initialize demo mode if enabled BEFORE loading sections
-      if (!isRefresh) {
-        try {
-          const { isDemoMode, initializeDemoMode } = await import(
-            '../../../config/demoMode.js'
-          );
-          if (isDemoMode()) {
-            await initializeDemoMode();
-          }
-        } catch (demoError) {
-          logger.warn('Demo mode initialization failed', {
-            error: demoError.message,
-          }, LOG_CATEGORIES.COMPONENT);
+      try {
+        const { isDemoMode, initializeDemoMode } = await import(
+          '../../../config/demoMode.js'
+        );
+        if (isDemoMode()) {
+          await initializeDemoMode();
         }
+      } catch (demoError) {
+        logger.warn('Demo mode initialization failed', {
+          error: demoError.message,
+        }, LOG_CATEGORIES.COMPONENT);
       }
 
       try {
         const sectionsData = await databaseService.getSections();
         logger.debug('loadEventCards: Loaded sections', {
           sectionsCount: sectionsData.length,
-          isRefresh,
           sampleSections: sectionsData.slice(0, 3).map(s => ({
             id: s.sectionid,
             name: s.sectionname,
@@ -127,35 +124,37 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         if (sectionsData.length > 0 && mounted) {
           setSections(sectionsData);
 
-          // Use consistent buildEventCards approach for both initial and refresh
-          const cards = await buildEventCards(sectionsData); // Always cache-only
-
-          // UI is cache-only - no API calls
+          // Build event cards from cache
+          const cards = await buildEventCards(sectionsData);
 
           logger.debug('loadEventCards: Built event cards', {
             cardsCount: cards.length,
-            isRefresh,
           }, LOG_CATEGORIES.COMPONENT);
 
           if (mounted) {
             setEventCards(cards);
-            setLoading(false);
+
+            // Keep loading state true briefly to show indicator with cached data
+            // This ensures users see loading feedback even when data loads quickly from cache
+            setTimeout(() => {
+              if (mounted) {
+                setLoading(false);
+              }
+            }, 300);
 
             // Set last sync time from storage
-            if (!isRefresh) {
-              const lastSyncEpoch = await UnifiedStorageService.getLastSync();
-              if (lastSyncEpoch) {
-                const lastSyncMs = Number(lastSyncEpoch);
-                if (Number.isFinite(lastSyncMs)) {
-                  setLastSync(new Date(lastSyncMs));
-                } else {
-                  setLastSync(new Date(lastSyncEpoch));
-                }
+            const lastSyncEpoch = await UnifiedStorageService.getLastSync();
+            if (lastSyncEpoch) {
+              const lastSyncMs = Number(lastSyncEpoch);
+              if (Number.isFinite(lastSyncMs)) {
+                setLastSync(new Date(lastSyncMs));
+              } else {
+                setLastSync(new Date(lastSyncEpoch));
               }
             }
           }
         } else {
-          logger.debug('loadEventCards: No sections found', { isRefresh }, LOG_CATEGORIES.COMPONENT);
+          logger.debug('loadEventCards: No sections found', {}, LOG_CATEGORIES.COMPONENT);
           if (mounted) {
             setEventCards([]);
             setLoading(false);
@@ -164,9 +163,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       } catch (error) {
         logger.error('Error loading event cards', {
           error: error.message,
-          isRefresh,
         }, LOG_CATEGORIES.COMPONENT);
-        if (mounted && !isRefresh) {
+        if (mounted) {
           setLoading(false);
         }
       }
@@ -325,6 +323,9 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       setRefreshing(true);
       setError(null);
+
+      // Show loading notification
+      notifyInfo('Syncing data from OSM...');
 
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 
@@ -667,7 +668,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  if (isActuallyLoading) {
+  // Only show full-screen loading if there's no cached data to display
+  if (isActuallyLoading && (!eventCards || eventCards.length === 0)) {
     return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
   }
 
@@ -692,6 +694,13 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   return (
     <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
+      {/* Loading overlay when refreshing cached data */}
+      {(isActuallyLoading || refreshing) && eventCards && eventCards.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 border border-scout-blue-light">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-scout-blue"></div>
+          <span className="text-sm text-gray-700">Refreshing data...</span>
+        </div>
+      )}
 
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
