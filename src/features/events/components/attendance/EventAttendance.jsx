@@ -22,53 +22,6 @@ import OverviewTab from './OverviewTab.jsx';
 import RegisterTab from './RegisterTab.jsx';
 import DetailedTab from './DetailedTab.jsx';
 
-/**
- * DATA FLOW ARCHITECTURE - EventAttendance Component
- *
- * This component implements a single source of truth data model where raw attendance
- * records are aggregated into enriched attendee records, then filtered for each tab.
- *
- * Data Flow:
- * 1. Raw attendanceData from API (individual records per event, per member)
- * 2. enrichedAttendees - aggregated by member (scoutid+sectionid), with attendance counts across all grouped events
- * 3. Tab-specific filtered data:
- *    - Overview: overviewStats (aggregated by section and person_type from enrichedAttendees)
- *    - Register/Detailed: registeredFilteredAttendees (filtered by section + attendance status)
- *    - Camp Groups: campGroupsFilteredAttendees (filtered by section only, no attendance filter)
- *
- * Join Order:
- * - attendanceData → member_section (JOIN on scoutid AND sectionid) → core_members (JOIN on scoutid)
- * - This ensures section-specific person_type is used correctly
- *
- * Key Implementation Details:
- * - enrichedAttendees aggregates attendance across multiple eventids with the same event name
- * - overviewStats further aggregates enrichedAttendees by section and person_type for statistics display
- * - All filtering happens on enrichedAttendees, not on raw attendanceData
- * - Each member appears once per (scoutid, sectionid) combination in enrichedAttendees
- * - Attendance counts (yes/no/invited/notInvited) are pre-aggregated in enrichedAttendees
- *
- * PERSON_TYPE HANDLING STRATEGY
- *
- * person_type is stored in the database member_section table and should NOT be calculated at runtime.
- *
- * Data Flow:
- * 1. OSM API provides patrol_id (-2 = Leaders, -3 = Young Leaders, other = Young People)
- * 2. members.js transforms patrol_id to person_type ONCE during API data fetch
- * 3. Database stores person_type in member_section table (via IndexedDB or SQLite)
- * 4. Components read person_type from database - no calculations needed
- *
- * Lookup Strategy (in this component):
- * 1. Check section-specific person_type from memberData.sections array (preferred)
- * 2. Fallback to top-level memberData.person_type if section-specific not found
- * 3. DO NOT calculate person_type from age - this causes incorrect categorization
- *
- * Why age-based calculation is wrong:
- * - 17-year-old Young Leader would be incorrectly categorized as "Young People"
- * - 19-year-old Young Person (e.g., with disability) would be incorrectly categorized as "Leader"
- * - Database is the single source of truth for person_type
- */
-
-// Centralized function to check if a member has actual sign-in data (not cleared)
 const hasSignInData = (vikingEventData) => {
   if (!vikingEventData) return false;
 
@@ -147,7 +100,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         return filters;
       }
     } catch (error) {
-      console.error('Failed to load section filters from localStorage:', error);
     }
 
     // Default: all sections enabled
@@ -163,7 +115,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     try {
       localStorage.setItem('eventAttendance_sectionFilters', JSON.stringify(sectionFilters));
     } catch (error) {
-      console.error('Failed to save section filters to localStorage:', error);
     }
   }, [sectionFilters]);
 
@@ -280,8 +231,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     return Array.from(memberMap.values());
   }, [attendanceData, coreMembersById, memberSectionByKey]);
-
-  console.log('enrichedAttendees:', enrichedAttendees);
 
   const checkMemberAttendanceMatch = (member, filters) => {
     if (!filters) return true;

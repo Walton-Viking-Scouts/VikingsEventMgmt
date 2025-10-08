@@ -192,19 +192,6 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
               !person.scoutid || !person.scoutid.startsWith('synthetic-'),
           );
 
-          if (import.meta?.env?.DEV) {
-            const syntheticCount = event.attendanceData.filter((p) =>
-              p.scoutid?.startsWith('synthetic-'),
-            ).length;
-            const realCount = event.attendanceData.length - syntheticCount;
-            console.debug(`EventCard: Processing section ${sectionName}`, {
-              totalAttendees: event.attendanceData.length,
-              hasRealData,
-              syntheticCount,
-              realCount,
-            });
-          }
-
           if (hasRealData) {
             // Use detailed section-specific data
             event.attendanceData.forEach((person) => {

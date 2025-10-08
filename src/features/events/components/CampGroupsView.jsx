@@ -296,7 +296,6 @@ function CampGroupsView({
                   break;
                 }
               } catch (error) {
-                console.warn('🐛 Failed to parse structure:', structureKey, error);
               }
             }
             
@@ -355,7 +354,6 @@ function CampGroupsView({
             }
           }
         } catch (error) {
-          console.error('🐛 Fallback localStorage load failed:', error);
         }
       }
       

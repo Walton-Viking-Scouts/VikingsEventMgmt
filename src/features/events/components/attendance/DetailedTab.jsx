@@ -312,7 +312,6 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
 
       notifySuccess(`Exported ${attendees.length} member records`);
     } catch (error) {
-      console.error('Error exporting CSV:', error);
       notifyError('Failed to export attendance data');
     }
   };

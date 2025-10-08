@@ -25,7 +25,6 @@ export function useSharedAttendance(events, viewMode) {
             return true;
           }
         } catch (error) {
-          console.warn('Failed to parse shared metadata for event:', event.eventid, error);
         }
       }
     }
@@ -79,7 +78,6 @@ export function useSharedAttendance(events, viewMode) {
                     sharedEvents.push(event);
                   }
                 } catch (error) {
-                  console.warn('Failed to parse shared metadata for event:', event.eventid, error);
                 }
               }
             }
@@ -100,7 +98,6 @@ export function useSharedAttendance(events, viewMode) {
                     combinedData.push(...attendanceData.items);
                   }
                 } catch (error) {
-                  console.warn('Failed to parse shared attendance data for event:', event.eventid, error);
                 }
               } else {
                 // If shared attendance data doesn't exist, try to generate it from individual section data
@@ -123,14 +120,12 @@ export function useSharedAttendance(events, viewMode) {
                                 combinedData.push(...sectionData);
                               }
                             } catch (error) {
-                              console.warn('Failed to parse section attendance data for section:', section.sectionid, error);
                             }
                           }
                         }
                       });
                     }
                   } catch (error) {
-                    console.warn('Failed to parse shared metadata for event:', event.eventid, error);
                   }
                 }
               }
@@ -152,13 +147,11 @@ export function useSharedAttendance(events, viewMode) {
                     break;
                   }
                 } catch (e) {
-                  console.warn('Failed to parse shared metadata for event:', event.eventid, e);
                 }
               }
             }
 
             if (!sharedEvent) {
-              console.warn('No shared event found');
               setSharedAttendanceData([]);
               return;
             }
@@ -173,7 +166,6 @@ export function useSharedAttendance(events, viewMode) {
                 cachedData = JSON.parse(cached);
               }
             } catch (cacheError) {
-              console.warn('Failed to parse cached shared attendance data:', cacheError);
             }
 
             const token = getToken();
@@ -189,21 +181,15 @@ export function useSharedAttendance(events, viewMode) {
                   localStorage.setItem(cacheKey, JSON.stringify(sharedData));
                 }
               } catch (apiError) {
-                console.warn('API call failed, will use cached data if available:', apiError);
                 // If API fails, fallback to cached data
                 if (cachedData) {
                   sharedData = cachedData;
-                } else {
-                  console.warn('No cached data available, will attempt to generate from section data');
                 }
               }
             } else {
               // No token - use cached data or try to generate
-              console.warn('No authentication token available for shared attendance');
               if (cachedData) {
                 sharedData = cachedData;
-              } else {
-                console.warn('No cached data available, will attempt to generate from section data');
               }
             }
 
@@ -229,14 +215,12 @@ export function useSharedAttendance(events, viewMode) {
                               combinedData.push(...sectionData);
                             }
                           } catch (error) {
-                            console.warn('Failed to parse section attendance data for section:', section.sectionid, error);
                           }
                         }
                       }
                     });
                   }
                 } catch (error) {
-                  console.warn('Failed to parse shared metadata for event:', sharedEvent.eventid, error);
                 }
               }
               
@@ -257,12 +241,10 @@ export function useSharedAttendance(events, viewMode) {
               
               setSharedAttendanceData(normalised);
             } else {
-              console.warn('No shared attendance data available from any source');
               setSharedAttendanceData([]);
             }
           }
         } catch (error) {
-          console.error('Error loading shared attendance:', error);
           setSharedAttendanceData([]);
         } finally {
           setLoadingSharedAttendance(false);

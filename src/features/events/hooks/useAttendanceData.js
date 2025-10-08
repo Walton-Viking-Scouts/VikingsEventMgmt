@@ -157,15 +157,8 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
       const vikingEventMap = await getVikingEventDataForEvents(events, token, true);
 
       setVikingEventData(vikingEventMap);
-      
+
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('useAttendanceData: Error loading Viking Event Management data', {
-          error: error.message,
-          stack: error.stack,
-          eventsCount: events?.length || 0,
-        });
-      }
       // Don't set error state as this is supplementary data
     }
   };
