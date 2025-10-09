@@ -255,10 +255,12 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   );
 
   const campGroupsFilteredAttendees = useMemo(() =>
-    enrichedAttendees.filter(member =>
-      !sectionFilters || sectionFilters[member.sectionid],
-    ),
-  [enrichedAttendees, sectionFilters],
+    enrichedAttendees.filter(member => {
+      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid];
+      const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
+      return sectionMatch && statusMatch;
+    }),
+  [enrichedAttendees, sectionFilters, attendanceFilters],
   );
 
   const overviewStats = useMemo(() => {
