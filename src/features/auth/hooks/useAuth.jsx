@@ -45,6 +45,7 @@ function useAuthLogic() {
   const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [hasHandledExpiredToken, setHasHandledExpiredToken] = useState(false);
+  const [isProcessingAuth, setIsProcessingAuth] = useState(false);
 
 
   // Helper function to determine auth state based on cached data and tokens
@@ -92,8 +93,15 @@ function useAuthLogic() {
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
+    // Prevent recursive calls during OAuth processing
+    if (isProcessingAuth) {
+      logger.debug('checkAuth blocked - already processing', {}, LOG_CATEGORIES.AUTH);
+      return;
+    }
+
     setIsLoading(true);
-    
+    setIsProcessingAuth(true);
+
     try {
       // FIRST: Check for OAuth callback parameters in URL with enhanced error handling
       let urlParams;
@@ -269,7 +277,17 @@ function useAuthLogic() {
             },
           });
         }
-        
+
+        // Set authenticated state and stop loading BEFORE data fetch - allows UI to render
+        setIsAuthenticated(true);
+        const userInfo = await authService.getUserInfo();
+        setUser(userInfo);
+        setIsOfflineMode(false);
+        setIsLoading(false);
+        logger.info('Authentication complete - UI ready to render', {
+          hasUserInfo: !!userInfo,
+        }, LOG_CATEGORIES.AUTH);
+
         // Load all data after successful OAuth (non-blocking)
         try {
           logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
@@ -331,6 +349,8 @@ function useAuthLogic() {
           logger.warn('Could not load application data after OAuth', {
             error: dataLoadError?.message,
           }, LOG_CATEGORIES.AUTH);
+        } finally {
+          setIsProcessingAuth(false); // Clear processing flag after OAuth flow
         }
       }
       // Check if blocked first
@@ -445,6 +465,7 @@ function useAuthLogic() {
       });
     } finally {
       setIsLoading(false);
+      setIsProcessingAuth(false); // Always clear processing flag
     }
   }, [determineAuthState]);
 
