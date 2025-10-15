@@ -79,8 +79,6 @@ function useAuthLogic() {
         return 'cached_only';
       } else if (hasPreviousAuth && hasValidToken && !hasCache) {
         // Has valid token and user info but no cached data - likely cache was cleared
-        // Clear user info to force fresh login
-        authService.clearUserInfo();
         return 'no_data';
       } else {
         return 'no_data';
@@ -99,8 +97,8 @@ function useAuthLogic() {
       return;
     }
 
-    setIsLoading(true);
     isProcessingAuthRef.current = true;
+    setIsLoading(true);
 
     try {
       // FIRST: Check for OAuth callback parameters in URL with enhanced error handling
@@ -108,6 +106,7 @@ function useAuthLogic() {
       let accessToken;
       let tokenType;
       let expiresIn;
+      let tokenStored = false;
       
       try {
         urlParams = new URLSearchParams(window.location.search);
@@ -172,6 +171,7 @@ function useAuthLogic() {
         try {
           // Store the token via service to reset auth handler and Sentry context
           authService.setToken(accessToken);
+          tokenStored = true;
           // Notify other tabs
           broadcastAuthSync();
           // Clear any expired/invalid token flags when storing a new token
@@ -278,6 +278,16 @@ function useAuthLogic() {
           });
         }
 
+        // Gate post-auth flow on successful token storage (security)
+        if (!tokenStored) {
+          logger.warn('OAuth token not stored - aborting post-auth flow', {
+            hadAccessToken: !!accessToken,
+          }, LOG_CATEGORIES.AUTH);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+
         // Set authenticated state and stop loading BEFORE data fetch - allows UI to render
         setIsAuthenticated(true);
         const userInfo = await authService.getUserInfo();
@@ -305,14 +315,22 @@ function useAuthLogic() {
               // Trigger UI re-render as soon as events are loaded (before attendance)
               const eventsLoadedTime = Date.now();
               await UnifiedStorageService.setLastSync(eventsLoadedTime);
-              console.log('🔄 Events loaded - triggering initial render:', eventsLoadedTime);
+              if (import.meta.env.DEV) {
+                logger.debug('Events loaded - triggering initial render', {
+                  eventsLoadedTime,
+                }, LOG_CATEGORIES.AUTH);
+              }
               setLastSyncTime(eventsLoadedTime);
             },
             onAttendanceLoaded: async () => {
               // Trigger UI re-render when attendance is loaded (before FlexiRecords)
               const attendanceLoadedTime = Date.now();
               await UnifiedStorageService.setLastSync(attendanceLoadedTime);
-              console.log('🔄 Attendance loaded - triggering render with attendance:', attendanceLoadedTime);
+              if (import.meta.env.DEV) {
+                logger.debug('Attendance loaded - triggering render with attendance', {
+                  attendanceLoadedTime,
+                }, LOG_CATEGORIES.AUTH);
+              }
               setLastSyncTime(attendanceLoadedTime);
             },
           });
@@ -335,7 +353,11 @@ function useAuthLogic() {
           // Update last sync time again after ALL data loads (including attendance)
           const syncTime = Date.now();
           await UnifiedStorageService.setLastSync(syncTime);
-          console.log('🔄 All data loaded - final sync time:', syncTime);
+          if (import.meta.env.DEV) {
+            logger.debug('All data loaded - final sync time', {
+              syncTime,
+            }, LOG_CATEGORIES.AUTH);
+          }
           setLastSyncTime(syncTime);
 
           // Show user message only if critical errors exist
@@ -393,7 +415,6 @@ function useAuthLogic() {
           level: 'info',
           data: {
             hasUserInfo: !!userInfo,
-            userFullname: userInfo?.fullname || 'Unknown',
             isOfflineMode: false,
           },
         });
@@ -420,7 +441,6 @@ function useAuthLogic() {
               level: 'info',
               data: {
                 hasUserInfo: !!userInfo,
-                userFullname: userInfo?.fullname || 'Unknown',
                 isOfflineMode: true,
               },
             });
@@ -447,6 +467,17 @@ function useAuthLogic() {
       // For authState determination, consider both valid and expired tokens as "having a token"
       const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired);
       const newAuthState = await determineAuthState(currentHasToken);
+
+      // Clear user info if cache was cleared but token/user info still exist
+      if (newAuthState === 'no_data' && hasValidToken) {
+        const userInfo = await authService.getUserInfo();
+        const cachedSections = await databaseService.getSections();
+        const hasCache = cachedSections && cachedSections.length > 0;
+        if (userInfo && !hasCache) {
+          authService.clearUserInfo();
+        }
+      }
+
       setAuthState(newAuthState);
       
     } catch (error) {
