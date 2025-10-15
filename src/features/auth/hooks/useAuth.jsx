@@ -1,5 +1,5 @@
 // useAuth hook for managing authentication state in React
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import * as Sentry from '@sentry/react';
 import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
@@ -45,7 +45,7 @@ function useAuthLogic() {
   const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [hasHandledExpiredToken, setHasHandledExpiredToken] = useState(false);
-  const [isProcessingAuth, setIsProcessingAuth] = useState(false);
+  const isProcessingAuthRef = useRef(false);
 
 
   // Helper function to determine auth state based on cached data and tokens
@@ -94,13 +94,13 @@ function useAuthLogic() {
   // Check authentication status
   const checkAuth = useCallback(async () => {
     // Prevent recursive calls during OAuth processing
-    if (isProcessingAuth) {
+    if (isProcessingAuthRef.current) {
       logger.debug('checkAuth blocked - already processing', {}, LOG_CATEGORIES.AUTH);
       return;
     }
 
     setIsLoading(true);
-    setIsProcessingAuth(true);
+    isProcessingAuthRef.current = true;
 
     try {
       // FIRST: Check for OAuth callback parameters in URL with enhanced error handling
@@ -283,9 +283,12 @@ function useAuthLogic() {
         const userInfo = await authService.getUserInfo();
         setUser(userInfo);
         setIsOfflineMode(false);
+        const newAuthState = await determineAuthState(true);
+        setAuthState(newAuthState);
         setIsLoading(false);
         logger.info('Authentication complete - UI ready to render', {
           hasUserInfo: !!userInfo,
+          authState: newAuthState,
         }, LOG_CATEGORIES.AUTH);
 
         // Load all data after successful OAuth (non-blocking)
@@ -349,9 +352,9 @@ function useAuthLogic() {
           logger.warn('Could not load application data after OAuth', {
             error: dataLoadError?.message,
           }, LOG_CATEGORIES.AUTH);
-        } finally {
-          setIsProcessingAuth(false); // Clear processing flag after OAuth flow
         }
+
+        return;
       }
       // Check if blocked first
       if (authService.isBlocked()) {
@@ -465,7 +468,7 @@ function useAuthLogic() {
       });
     } finally {
       setIsLoading(false);
-      setIsProcessingAuth(false); // Always clear processing flag
+      isProcessingAuthRef.current = false;
     }
   }, [determineAuthState]);
 
