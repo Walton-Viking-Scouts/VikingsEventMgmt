@@ -1,5 +1,5 @@
 // useAuth hook for managing authentication state in React
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import * as Sentry from '@sentry/react';
 import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
@@ -45,6 +45,7 @@ function useAuthLogic() {
   const [showTokenExpiredDialog, setShowTokenExpiredDialog] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [hasHandledExpiredToken, setHasHandledExpiredToken] = useState(false);
+  const isProcessingAuthRef = useRef(false);
 
 
   // Helper function to determine auth state based on cached data and tokens
@@ -78,8 +79,6 @@ function useAuthLogic() {
         return 'cached_only';
       } else if (hasPreviousAuth && hasValidToken && !hasCache) {
         // Has valid token and user info but no cached data - likely cache was cleared
-        // Clear user info to force fresh login
-        authService.clearUserInfo();
         return 'no_data';
       } else {
         return 'no_data';
@@ -92,14 +91,22 @@ function useAuthLogic() {
 
   // Check authentication status
   const checkAuth = useCallback(async () => {
+    // Prevent recursive calls during OAuth processing
+    if (isProcessingAuthRef.current) {
+      logger.debug('checkAuth blocked - already processing', {}, LOG_CATEGORIES.AUTH);
+      return;
+    }
+
+    isProcessingAuthRef.current = true;
     setIsLoading(true);
-    
+
     try {
       // FIRST: Check for OAuth callback parameters in URL with enhanced error handling
       let urlParams;
       let accessToken;
       let tokenType;
       let expiresIn;
+      let tokenStored = false;
       
       try {
         urlParams = new URLSearchParams(window.location.search);
@@ -164,6 +171,7 @@ function useAuthLogic() {
         try {
           // Store the token via service to reset auth handler and Sentry context
           authService.setToken(accessToken);
+          tokenStored = true;
           // Notify other tabs
           broadcastAuthSync();
           // Clear any expired/invalid token flags when storing a new token
@@ -269,7 +277,30 @@ function useAuthLogic() {
             },
           });
         }
-        
+
+        // Gate post-auth flow on successful token storage (security)
+        if (!tokenStored) {
+          logger.warn('OAuth token not stored - aborting post-auth flow', {
+            hadAccessToken: !!accessToken,
+          }, LOG_CATEGORIES.AUTH);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+
+        // Set authenticated state and stop loading BEFORE data fetch - allows UI to render
+        setIsAuthenticated(true);
+        const userInfo = await authService.getUserInfo();
+        setUser(userInfo);
+        setIsOfflineMode(false);
+        const newAuthState = await determineAuthState(true);
+        setAuthState(newAuthState);
+        setIsLoading(false);
+        logger.info('Authentication complete - UI ready to render', {
+          hasUserInfo: !!userInfo,
+          authState: newAuthState,
+        }, LOG_CATEGORIES.AUTH);
+
         // Load all data after successful OAuth (non-blocking)
         try {
           logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
@@ -284,14 +315,22 @@ function useAuthLogic() {
               // Trigger UI re-render as soon as events are loaded (before attendance)
               const eventsLoadedTime = Date.now();
               await UnifiedStorageService.setLastSync(eventsLoadedTime);
-              console.log('🔄 Events loaded - triggering initial render:', eventsLoadedTime);
+              if (import.meta.env.DEV) {
+                logger.debug('Events loaded - triggering initial render', {
+                  eventsLoadedTime,
+                }, LOG_CATEGORIES.AUTH);
+              }
               setLastSyncTime(eventsLoadedTime);
             },
             onAttendanceLoaded: async () => {
               // Trigger UI re-render when attendance is loaded (before FlexiRecords)
               const attendanceLoadedTime = Date.now();
               await UnifiedStorageService.setLastSync(attendanceLoadedTime);
-              console.log('🔄 Attendance loaded - triggering render with attendance:', attendanceLoadedTime);
+              if (import.meta.env.DEV) {
+                logger.debug('Attendance loaded - triggering render with attendance', {
+                  attendanceLoadedTime,
+                }, LOG_CATEGORIES.AUTH);
+              }
               setLastSyncTime(attendanceLoadedTime);
             },
           });
@@ -314,7 +353,11 @@ function useAuthLogic() {
           // Update last sync time again after ALL data loads (including attendance)
           const syncTime = Date.now();
           await UnifiedStorageService.setLastSync(syncTime);
-          console.log('🔄 All data loaded - final sync time:', syncTime);
+          if (import.meta.env.DEV) {
+            logger.debug('All data loaded - final sync time', {
+              syncTime,
+            }, LOG_CATEGORIES.AUTH);
+          }
           setLastSyncTime(syncTime);
 
           // Show user message only if critical errors exist
@@ -332,6 +375,8 @@ function useAuthLogic() {
             error: dataLoadError?.message,
           }, LOG_CATEGORIES.AUTH);
         }
+
+        return;
       }
       // Check if blocked first
       if (authService.isBlocked()) {
@@ -370,7 +415,6 @@ function useAuthLogic() {
           level: 'info',
           data: {
             hasUserInfo: !!userInfo,
-            userFullname: userInfo?.fullname || 'Unknown',
             isOfflineMode: false,
           },
         });
@@ -397,7 +441,6 @@ function useAuthLogic() {
               level: 'info',
               data: {
                 hasUserInfo: !!userInfo,
-                userFullname: userInfo?.fullname || 'Unknown',
                 isOfflineMode: true,
               },
             });
@@ -424,6 +467,17 @@ function useAuthLogic() {
       // For authState determination, consider both valid and expired tokens as "having a token"
       const currentHasToken = hasValidToken || (hasStoredToken && tokenExpired);
       const newAuthState = await determineAuthState(currentHasToken);
+
+      // Clear user info if cache was cleared but token/user info still exist
+      if (newAuthState === 'no_data' && hasValidToken) {
+        const userInfo = await authService.getUserInfo();
+        const cachedSections = await databaseService.getSections();
+        const hasCache = cachedSections && cachedSections.length > 0;
+        if (userInfo && !hasCache) {
+          authService.clearUserInfo();
+        }
+      }
+
       setAuthState(newAuthState);
       
     } catch (error) {
@@ -445,6 +499,7 @@ function useAuthLogic() {
       });
     } finally {
       setIsLoading(false);
+      isProcessingAuthRef.current = false;
     }
   }, [determineAuthState]);
 
