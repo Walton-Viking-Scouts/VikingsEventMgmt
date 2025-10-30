@@ -131,6 +131,13 @@ function SectionTypeGroup({
           {group.sections.map(summary => {
             const sectionData = allSections.find(s => s.sectionId === summary.sectionId);
             const incomingCount = sectionData?.incomingCount || 0;
+
+            const incomingMoversForSection = incomingMovers.filter(mover => {
+              return mover.flexiRecordSection &&
+                     (mover.flexiRecordSection === summary.sectionName ||
+                      mover.flexiRecordSection === sectionData?.sectionName);
+            });
+
             return (
               <SectionMovementCard
                 key={summary.sectionId}
@@ -139,6 +146,7 @@ function SectionTypeGroup({
                 outgoingMovers={summary.outgoingMovers}
                 remainingCount={summary.remainingCount}
                 incomingCount={incomingCount}
+                incomingMovers={incomingMoversForSection}
               />
             );
           })}
