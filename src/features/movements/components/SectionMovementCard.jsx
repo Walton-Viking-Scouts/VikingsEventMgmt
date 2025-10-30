@@ -1,12 +1,25 @@
 import React, { memo } from 'react';
 import { cn } from '../../../shared/utils/cn';
 
-function SectionMovementCard({ 
-  sectionName, 
-  currentCount, 
-  outgoingMovers, 
+/**
+ * Displays a section card showing current members, outgoing movers, and incoming movers
+ *
+ * @param {Object} props
+ * @param {string} props.sectionName - Name of the section (e.g., "Monday Cubs")
+ * @param {number} props.currentCount - Current number of members in the section
+ * @param {Array<Object>} props.outgoingMovers - Members moving up from this section
+ * @param {number} props.remainingCount - Count of members remaining after moves
+ * @param {number} [props.incomingCount=0] - Total count of incoming members
+ * @param {Array<Object>} [props.incomingMovers=[]] - Members assigned to move into this section
+ * @returns {React.ReactElement}
+ */
+function SectionMovementCard({
+  sectionName,
+  currentCount,
+  outgoingMovers,
   remainingCount,
   incomingCount = 0,
+  incomingMovers = [],
 }) {
   return (
     <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4 min-w-fit max-w-sm')}>
@@ -26,15 +39,15 @@ function SectionMovementCard({
           </div>
         </div>
       </div>
-      
+
       {outgoingMovers.length > 0 && (
-        <div>
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-3">
           <h4 className="text-sm font-medium text-gray-700 mb-2">
             Moving Up:
           </h4>
           <div className="space-y-1">
             {outgoingMovers.map(mover => (
-              <div 
+              <div
                 key={mover.memberId}
                 className="flex justify-between items-center text-sm"
               >
@@ -47,8 +60,29 @@ function SectionMovementCard({
           </div>
         </div>
       )}
-      
-      {outgoingMovers.length === 0 && (
+
+      {incomingMovers.length > 0 && (
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">
+            Moving Into:
+          </h4>
+          <div className="space-y-1">
+            {incomingMovers.map(mover => (
+              <div
+                key={mover.memberId}
+                className="flex justify-between items-center text-sm"
+              >
+                <span>{mover.name}</span>
+                <span className="text-gray-500">
+                  {mover.age?.toFixed(1)} years
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {outgoingMovers.length === 0 && incomingMovers.length === 0 && (
         <div className="text-sm text-gray-500 italic">
           No members moving up this term
         </div>

@@ -307,18 +307,19 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       }
 
 
-      // Group assignments by current section AND value (each section has different flexirecordid)
-      
-      // Group by term values per section
       if (context.assignedTerm) {
-        const termGroups = new Map(); // Key: "sectionId|termValue"
-        
+        const termGroups = new Map();
+
         for (const assignment of changedAssignments) {
-          const termValue = assignment.term || '';
+          if (!assignment.term || assignment.term.trim() === '') {
+            continue;
+          }
+
+          const termValue = assignment.term;
           const memberId = assignment.memberId || assignment.scoutId;
           const currentSectionId = assignment.currentSectionId;
           const groupKey = `${currentSectionId}|${termValue}`;
-          
+
           if (!termGroups.has(groupKey)) {
             termGroups.set(groupKey, {
               sectionId: currentSectionId,
