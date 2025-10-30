@@ -1,6 +1,18 @@
 import React, { memo } from 'react';
 import { cn } from '../../../shared/utils/cn';
 
+/**
+ * Displays a section card showing current members, outgoing movers, and incoming movers
+ *
+ * @param {Object} props
+ * @param {string} props.sectionName - Name of the section (e.g., "Monday Cubs")
+ * @param {number} props.currentCount - Current number of members in the section
+ * @param {Array<Object>} props.outgoingMovers - Members moving up from this section
+ * @param {number} props.remainingCount - Count of members remaining after moves
+ * @param {number} [props.incomingCount=0] - Total count of incoming members
+ * @param {Array<Object>} [props.incomingMovers=[]] - Members assigned to move into this section
+ * @returns {React.ReactElement}
+ */
 function SectionMovementCard({
   sectionName,
   currentCount,

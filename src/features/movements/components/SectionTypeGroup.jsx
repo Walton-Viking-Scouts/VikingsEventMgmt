@@ -3,20 +3,47 @@ import SectionMovementCard from './SectionMovementCard.jsx';
 import MoverAssignmentRow from './MoverAssignmentRow.jsx';
 import { mapSectionType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 
+/**
+ * Extracts section type from section name string
+ *
+ * @param {string} sectionName - Section name to analyze
+ * @returns {string|null} Section type key or null if not recognized
+ */
 function getSectionTypeFromName(sectionName) {
   if (!sectionName) return null;
-  
+
   const normalized = sectionName.toLowerCase();
-  
+
   if (normalized.includes('squirrel') || normalized.includes('early')) return 'squirrels';
   if (normalized.includes('beaver')) return 'beavers';
   if (normalized.includes('cub')) return 'cubs';
   if (normalized.includes('scout')) return 'scouts';
   if (normalized.includes('explorer')) return 'explorers';
-  
+
   return null;
 }
 
+/**
+ * Displays grouped sections by type with movement tracking and assignment interface
+ *
+ * @param {Object} props
+ * @param {string} props.sectionType - Section type (e.g., "Cubs", "Scouts")
+ * @param {Object} props.group - Section group data containing sections and totals
+ * @param {Array<Object>} props.movers - All movers for this term
+ * @param {boolean} [props.showAssignmentInterface=false] - Whether to show assignment controls
+ * @param {Array<Object>} [props.allSections=[]] - All available sections for assignments
+ * @param {Array<Object>} [props.availableTerms=[]] - Terms available for term overrides
+ * @param {Map} [props.assignments=new Map()] - Current assignment state
+ * @param {Map} [props.originalAssignments=new Map()] - Original FlexiRecord assignments
+ * @param {Object} props.currentTerm - Current term being displayed
+ * @param {Map} props.sectionTypeTotals - Pre-calculated section type totals
+ * @param {Function} props.onAssignmentChange - Handler for section assignment changes
+ * @param {Function} props.onTermOverrideChange - Handler for term override changes
+ * @param {Function} props.onSaveAssignments - Handler for saving assignments
+ * @param {Function} props.onResetAssignments - Handler for resetting assignments
+ * @param {boolean} [props.isSaving=false] - Whether save operation is in progress
+ * @returns {React.ReactElement}
+ */
 function SectionTypeGroup({ 
   sectionType, 
   group, 
