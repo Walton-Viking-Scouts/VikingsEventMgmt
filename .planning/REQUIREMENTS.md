@@ -116,13 +116,52 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| — | — | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 1 | Pending |
+| INFR-04 | Phase 1 | Pending |
+| SECT-01 | Phase 2 | Pending |
+| SECT-02 | Phase 2 | Pending |
+| SECT-03 | Phase 2 | Pending |
+| SECT-04 | Phase 2 | Pending |
+| EVNT-01 | Phase 3 | Pending |
+| EVNT-02 | Phase 3 | Pending |
+| EVNT-03 | Phase 3 | Pending |
+| EVNT-04 | Phase 3 | Pending |
+| EVNT-05 | Phase 3 | Pending |
+| ATTN-01 | Phase 4 | Pending |
+| ATTN-02 | Phase 4 | Pending |
+| ATTN-03 | Phase 4 | Pending |
+| ATTN-04 | Phase 4 | Pending |
+| ATTN-05 | Phase 4 | Pending |
+| ATTN-06 | Phase 4 | Pending |
+| TERM-01 | Phase 5 | Pending |
+| TERM-02 | Phase 5 | Pending |
+| TERM-03 | Phase 5 | Pending |
+| TERM-04 | Phase 5 | Pending |
+| TERM-05 | Phase 5 | Pending |
+| FLEX-01 | Phase 6 | Pending |
+| FLEX-02 | Phase 6 | Pending |
+| FLEX-03 | Phase 6 | Pending |
+| FLEX-04 | Phase 6 | Pending |
+| FLEX-05 | Phase 6 | Pending |
+| FLEX-06 | Phase 6 | Pending |
+| FLEX-07 | Phase 6 | Pending |
+| CLNP-01 | Phase 7 | Pending |
+| CLNP-02 | Phase 7 | Pending |
+| CLNP-03 | Phase 7 | Pending |
+| CLNP-04 | Phase 7 | Pending |
+| CLNP-05 | Phase 7 | Pending |
+| XCUT-01 | Phase 1 | Pending |
+| XCUT-02 | Phase 7 | Pending |
+| XCUT-03 | Phase 7 | Pending |
+| XCUT-04 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 31 total
-- Mapped to phases: 0
-- Unmapped: 31 ⚠️
+- v1 requirements: 40 total
+- Mapped to phases: 40
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-15*
-*Last updated: 2026-02-15 after initial definition*
+*Last updated: 2026-02-15 after roadmap creation*
