@@ -36,6 +36,10 @@ vi.mock('idb', () => ({
         },
       },
 
+      deleteObjectStore: function(storeName) {
+        mockDB._stores.delete(storeName);
+      },
+
       createObjectStore: function(name, options) {
         const store = {
           name,

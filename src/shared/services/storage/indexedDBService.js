@@ -122,7 +122,12 @@ function getDB() {
         }
 
         if (oldVersion < 5) {
-          logger.info('IndexedDB v5 upgrade: schema infrastructure for data normalization', {
+          if (db.objectStoreNames.contains(STORES.SECTIONS)) {
+            db.deleteObjectStore(STORES.SECTIONS);
+          }
+          const sectionsStoreV5 = db.createObjectStore(STORES.SECTIONS, { keyPath: 'sectionid' });
+          sectionsStoreV5.createIndex('sectiontype', 'sectiontype', { unique: false });
+          logger.info('IndexedDB v5 upgrade: sections store normalized', {
             dbName,
           }, LOG_CATEGORIES.DATABASE);
         }
@@ -403,6 +408,80 @@ export class IndexedDBService {
         error: error.message,
         stack: error.stack,
       }, LOG_CATEGORIES.ERROR);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces all section records atomically using clear-then-put in a single transaction
+   * @param {Array<Object>} sections - Array of section objects with sectionid as key
+   * @returns {Promise<number>} Number of sections stored
+   */
+  static async bulkReplaceSections(sections) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.SECTIONS, 'readwrite');
+      const store = tx.objectStore(STORES.SECTIONS);
+
+      await store.clear();
+
+      for (const section of sections) {
+        await store.put({ ...section, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return sections.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceSections failed', {
+        count: sections?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_sections',
+          store: STORES.SECTIONS,
+        },
+        contexts: {
+          indexedDB: {
+            count: sections?.length,
+            operation: 'bulkReplaceSections',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all section records from the sections store
+   * @returns {Promise<Array<Object>>} Array of section objects
+   */
+  static async getAllSections() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.SECTIONS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllSections failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_sections',
+          store: STORES.SECTIONS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllSections',
+          },
+        },
+      });
 
       throw error;
     }
