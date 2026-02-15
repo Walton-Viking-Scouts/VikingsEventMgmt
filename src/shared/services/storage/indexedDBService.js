@@ -4,7 +4,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
@@ -119,6 +119,12 @@ function getDB() {
           memberSectionStore.createIndex('scoutid', 'scoutid', { unique: false });
           memberSectionStore.createIndex('sectionid', 'sectionid', { unique: false });
           memberSectionStore.createIndex('person_type', 'person_type', { unique: false });
+        }
+
+        if (oldVersion < 5) {
+          logger.info('IndexedDB v5 upgrade: schema infrastructure for data normalization', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
         }
 
         logger.info('IndexedDB upgrade completed', {

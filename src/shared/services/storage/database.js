@@ -23,6 +23,7 @@ import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
+import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -321,6 +322,14 @@ class DatabaseService {
     await this.db.execute(createSyncStatusTable);
     await this.db.execute(createEventDashboardTable);
     await this.db.execute(createSyncMetadataTable);
+
+    await this.db.execute(SQLITE_SCHEMAS.flexi_lists);
+    await this.db.execute(SQLITE_SCHEMAS.flexi_structure);
+    await this.db.execute(SQLITE_SCHEMAS.flexi_data);
+
+    for (const indexSql of SQLITE_INDEXES) {
+      await this.db.execute(indexSql);
+    }
   }
 
   /**
