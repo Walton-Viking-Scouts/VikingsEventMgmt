@@ -24,6 +24,8 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
+import { sentryUtils } from '../utils/sentry.js';
+import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -113,7 +115,7 @@ class DatabaseService {
     try {
       // Only initialize SQLite on native platforms
       if (!this.isNative) {
-        console.log('Running in browser - SQLite not available, using IndexedDB via UnifiedStorageService');
+        logger.info('Running in browser - SQLite not available, using IndexedDB via UnifiedStorageService', {}, LOG_CATEGORIES.DATABASE);
         this.isInitialized = true;
         return;
       }
@@ -136,10 +138,24 @@ class DatabaseService {
       await this.db.open();
       await this.createTables();
       this.isInitialized = true;
-      console.log('Database initialized successfully');
+      logger.info('Database initialized successfully', {}, LOG_CATEGORIES.DATABASE);
     } catch (error) {
-      console.error('Database initialization failed:', error);
-      // Don't throw error - fallback to localStorage
+      logger.error('DatabaseService initialize failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'database_initialize',
+          platform: this.isNative ? 'sqlite' : 'web',
+        },
+        contexts: {
+          database: {
+            operation: 'initialize',
+          },
+        },
+      });
       this.isInitialized = true;
       this.isNative = false;
     }
@@ -956,10 +972,25 @@ class DatabaseService {
           await IndexedDBService.bulkUpsertMemberSections(sectionMembers);
         }
       } catch (error) {
-        console.error('Failed to save members to dual-store:', {
+        logger.error('DatabaseService saveMembers failed', {
           coreMembersCount: coreMembers.length,
           sectionMembersCount: sectionMembers.length,
           error: error.message,
+          stack: error.stack,
+        }, LOG_CATEGORIES.ERROR);
+
+        sentryUtils.captureException(error, {
+          tags: {
+            operation: 'database_save_members',
+            platform: this.isNative ? 'sqlite' : 'web',
+          },
+          contexts: {
+            database: {
+              operation: 'saveMembers',
+              coreMembersCount: coreMembers.length,
+              sectionMembersCount: sectionMembers.length,
+            },
+          },
         });
         throw error;
       }
@@ -1070,7 +1101,7 @@ class DatabaseService {
     await this.initialize();
 
     if (!Array.isArray(sectionIds) || sectionIds.length === 0) {
-      console.warn('getMembers called with invalid sectionIds:', sectionIds);
+      logger.warn('getMembers called with invalid sectionIds', { sectionIds }, LOG_CATEGORIES.DATABASE);
       return [];
     }
 
@@ -1115,10 +1146,10 @@ class DatabaseService {
 
           const core = coreMemberMap.get(sectionMember.scoutid);
           if (!core) {
-            console.warn('Orphaned member_section record - missing core_members data', {
+            logger.warn('Orphaned member_section record - missing core_members data', {
               scoutid: sectionMember.scoutid,
               sectionid: sectionMember.sectionid,
-            });
+            }, LOG_CATEGORIES.DATABASE);
             continue;
           }
 
@@ -1182,7 +1213,10 @@ class DatabaseService {
         return members;
 
       } catch (error) {
-        console.warn('Failed to fetch members from dual-store:', error);
+        logger.warn('Failed to fetch members from dual-store', {
+          error: error.message,
+          sectionIds,
+        }, LOG_CATEGORIES.DATABASE);
         return [];
       }
     }
@@ -1208,7 +1242,10 @@ class DatabaseService {
           const flattenedFields = JSON.parse(dbMember.flattened_fields);
           Object.assign(member, flattenedFields);
         } catch (error) {
-          console.warn('Failed to parse flattened_fields for member:', dbMember.scoutid, error);
+          logger.warn('Failed to parse flattened_fields for member', {
+            scoutid: dbMember.scoutid,
+            error: error.message,
+          }, LOG_CATEGORIES.DATABASE);
         }
       }
       
@@ -1530,6 +1567,160 @@ class DatabaseService {
     stats.synced = syncedResult.values?.[0]?.count || 0;
 
     return stats;
+  }
+
+  /**
+   * Retrieves terms for a section from normalized storage
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @returns {Promise<Array<Object>>} Array of term objects
+   * @throws {Error} Not yet implemented - Phase 5
+   */
+  async getTerms(_sectionId) {
+    await this.initialize();
+    throw new Error('Terms retrieval via normalized storage not yet implemented (Phase 5)');
+  }
+
+  /**
+   * Saves terms for a section to normalized storage
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @param {Array<Object>} _terms - Array of term objects to save
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 5
+   */
+  async saveTerms(_sectionId, _terms) {
+    await this.initialize();
+    throw new Error('Terms storage via normalized storage not yet implemented (Phase 5)');
+  }
+
+  /**
+   * Retrieves the current active term for a section
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @returns {Promise<Object|null>} Current active term or null
+   * @throws {Error} Not yet implemented - Phase 5
+   */
+  async getCurrentActiveTerm(_sectionId) {
+    await this.initialize();
+    throw new Error('Current active term retrieval via normalized storage not yet implemented (Phase 5)');
+  }
+
+  /**
+   * Sets the current active term for a section
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @param {Object} _term - Term object to set as active
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 5
+   */
+  async setCurrentActiveTerm(_sectionId, _term) {
+    await this.initialize();
+    throw new Error('Current active term storage via normalized storage not yet implemented (Phase 5)');
+  }
+
+  /**
+   * Retrieves flexi lists for a section from normalized storage
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @returns {Promise<Array<Object>>} Array of flexi list objects
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async getFlexiLists(_sectionId) {
+    await this.initialize();
+    throw new Error('FlexiLists retrieval via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Saves flexi lists for a section to normalized storage
+   * @async
+   * @param {number} _sectionId - Section identifier
+   * @param {Array<Object>} _lists - Array of flexi list objects to save
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async saveFlexiLists(_sectionId, _lists) {
+    await this.initialize();
+    throw new Error('FlexiLists storage via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Retrieves flexi structure for a record from normalized storage
+   * @async
+   * @param {string} _recordId - Flexi record identifier
+   * @returns {Promise<Object|null>} Flexi structure object or null
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async getFlexiStructure(_recordId) {
+    await this.initialize();
+    throw new Error('FlexiStructure retrieval via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Saves flexi structure for a record to normalized storage
+   * @async
+   * @param {string} _recordId - Flexi record identifier
+   * @param {Object} _structure - Flexi structure object to save
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async saveFlexiStructure(_recordId, _structure) {
+    await this.initialize();
+    throw new Error('FlexiStructure storage via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Retrieves flexi data for a record, section, and term from normalized storage
+   * @async
+   * @param {string} _recordId - Flexi record identifier
+   * @param {number} _sectionId - Section identifier
+   * @param {string} _termId - Term identifier
+   * @returns {Promise<Array<Object>>} Array of flexi data objects
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async getFlexiData(_recordId, _sectionId, _termId) {
+    await this.initialize();
+    throw new Error('FlexiData retrieval via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Saves flexi data for a record, section, and term to normalized storage
+   * @async
+   * @param {string} _recordId - Flexi record identifier
+   * @param {number} _sectionId - Section identifier
+   * @param {string} _termId - Term identifier
+   * @param {Array<Object>} _data - Array of flexi data objects to save
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 6
+   */
+  async saveFlexiData(_recordId, _sectionId, _termId, _data) {
+    await this.initialize();
+    throw new Error('FlexiData storage via normalized storage not yet implemented (Phase 6)');
+  }
+
+  /**
+   * Retrieves shared attendance data for an event from normalized storage
+   * @async
+   * @param {string} _eventId - Event identifier
+   * @returns {Promise<Object|null>} Shared attendance data or null
+   * @throws {Error} Not yet implemented - Phase 4
+   */
+  async getSharedAttendance(_eventId) {
+    await this.initialize();
+    throw new Error('SharedAttendance retrieval via normalized storage not yet implemented (Phase 4)');
+  }
+
+  /**
+   * Saves shared attendance data for an event to normalized storage
+   * @async
+   * @param {string} _eventId - Event identifier
+   * @param {Object} _data - Shared attendance data to save
+   * @returns {Promise<void>}
+   * @throws {Error} Not yet implemented - Phase 4
+   */
+  async saveSharedAttendance(_eventId, _data) {
+    await this.initialize();
+    throw new Error('SharedAttendance storage via normalized storage not yet implemented (Phase 4)');
   }
 
   /**
