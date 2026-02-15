@@ -32,11 +32,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Zod validation schemas exist for every data type and reject malformed input with descriptive errors
   4. DatabaseService facade exposes method stubs for all normalized data types on both platforms
   5. All storage operations log errors to Sentry with consistent formatting
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Install Zod, create validation schemas and schema constant files
+- [ ] 01-02-PLAN.md -- IndexedDB version bump, SQLite flexi tables, DatabaseService stubs, Sentry consistency
 
 ### Phase 2: Sections Normalization
 **Goal**: Sections are stored as individual records and queryable by sectionid on both platforms, proving the end-to-end normalization pattern works
@@ -142,4 +142,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-15 (Phase 1 planned)*
