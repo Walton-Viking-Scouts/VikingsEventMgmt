@@ -46,10 +46,10 @@ Plans:
   1. Sections data synced from API is stored as individual records keyed by sectionid (not as a blob array)
   2. Calling getSections() returns the same data shape on both IndexedDB and SQLite platforms
   3. Bulk upsert replaces the entire sections dataset atomically without leaving partial state
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md -- IndexedDB store migration, DatabaseService sections bypass, integration tests
 
 ### Phase 3: Events Normalization
 **Goal**: Events are stored as individual indexed records queryable by section, term, and date on both platforms
@@ -132,8 +132,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure & Schema | 0/2 | Not started | - |
-| 2. Sections Normalization | 0/1 | Not started | - |
+| 1. Infrastructure & Schema | 2/2 | Complete | 2026-02-15 |
+| 2. Sections Normalization | 0/1 | Planned | - |
 | 3. Events Normalization | 0/1 | Not started | - |
 | 4. Attendance Normalization | 0/1 | Not started | - |
 | 5. Terms Normalization | 0/1 | Not started | - |
@@ -142,4 +142,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 1 planned)*
+*Last updated: 2026-02-15 (Phase 2 planned)*
