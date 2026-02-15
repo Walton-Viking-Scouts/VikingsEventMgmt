@@ -24,6 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
+import { SectionSchema, safeParseArray } from './schemas/validation.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
@@ -378,19 +379,34 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      await UnifiedStorageService.setSections(sections);
+      const { data: validSections, errors } = safeParseArray(SectionSchema, sections);
+      if (errors.length > 0) {
+        logger.warn('Section validation errors during save', {
+          errorCount: errors.length,
+          totalCount: sections?.length,
+          errors: errors.slice(0, 5),
+        }, LOG_CATEGORIES.DATABASE);
+      }
+      await IndexedDBService.bulkReplaceSections(validSections);
       return;
     }
-    
-    const deleteOld = 'DELETE FROM sections';
-    await this.db.execute(deleteOld);
 
-    for (const section of sections) {
-      const insert = `
-        INSERT INTO sections (sectionid, sectionname, sectiontype)
-        VALUES (?, ?, ?)
-      `;
-      await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype]);
+    await this.db.execute('BEGIN TRANSACTION');
+    try {
+      await this.db.execute('DELETE FROM sections');
+
+      for (const section of sections) {
+        const insert = `
+          INSERT INTO sections (sectionid, sectionname, sectiontype)
+          VALUES (?, ?, ?)
+        `;
+        await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype]);
+      }
+
+      await this.db.execute('COMMIT');
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
     }
 
     await this.updateSyncStatus('sections');
@@ -430,9 +446,14 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      return this._getWebStorageSections();
+      const sections = await IndexedDBService.getAllSections();
+      const { isDemoMode } = await import('../../../config/demoMode.js');
+      if (!isDemoMode()) {
+        return sections.filter(s => !(typeof s?.sectionname === 'string' && s.sectionname.startsWith('Demo ')));
+      }
+      return sections;
     }
-    
+
     const query = 'SELECT * FROM sections ORDER BY sectionname';
     const result = await this.db.query(query);
     return result.values || [];
