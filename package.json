@@ -1,7 +1,7 @@
 {
   "name": "vikings-eventmgmt-mobile",
   "private": true,
-  "version": "2.11.7",
+  "version": "2.11.8",
   "description": "Mobile React version of Vikings Event Management",
   "type": "module",
   "engines": {
@@ -71,7 +71,8 @@
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.30.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
