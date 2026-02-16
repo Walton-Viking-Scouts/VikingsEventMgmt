@@ -117,7 +117,7 @@ describe('Object Store Creation Verification', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      6,
+      7,
       expect.objectContaining({
         upgrade: expect.any(Function),
       }),

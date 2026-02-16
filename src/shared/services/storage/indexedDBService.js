@@ -666,6 +666,154 @@ export class IndexedDBService {
   }
 
   /**
+   * Replaces all term records for a specific section atomically using cursor-based delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} terms - Array of term objects with termid as key
+   * @returns {Promise<number>} Number of terms stored
+   */
+  static async bulkReplaceTermsForSection(sectionId, terms) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.TERMS, 'readwrite');
+      const store = tx.objectStore(STORES.TERMS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(sectionId);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const term of terms) {
+        await store.put({ ...term, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return terms.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceTermsForSection failed', {
+        sectionId,
+        count: terms?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_terms_for_section',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: terms?.length,
+            operation: 'bulkReplaceTermsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all term records for a specific section from the sectionid index
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of term objects for the section
+   */
+  static async getTermsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.TERMS, 'sectionid', sectionId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getTermsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_terms_by_section',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getTermsBySection',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single term record by its term ID
+   * @param {string} termId - The term ID to look up
+   * @returns {Promise<Object|null>} The term object or null if not found
+   */
+  static async getTermById(termId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.TERMS, termId)) || null;
+    } catch (error) {
+      logger.error('IndexedDB getTermById failed', {
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_term_by_id',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            termId,
+            operation: 'getTermById',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all term records from the terms store
+   * @returns {Promise<Array<Object>>} Array of all term objects
+   */
+  static async getAllTerms() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.TERMS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllTerms failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_terms',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllTerms',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
    * Retrieves a single event record by its event ID
    * @param {string} eventId - The event ID to look up
    * @returns {Promise<Object|null>} The event object or null if not found
