@@ -84,7 +84,7 @@ export const SharedEventMetadataSchema = z.object({
 export const TermSchema = z.object({
   termid: z.union([z.string(), z.number()]).transform(String),
   name: z.string().min(1),
-  sectionid: z.union([z.string(), z.number()]).optional(),
+  sectionid: z.union([z.string(), z.number()]).transform(Number),
   startdate: z.string().nullable().optional(),
   enddate: z.string().nullable().optional(),
 });
