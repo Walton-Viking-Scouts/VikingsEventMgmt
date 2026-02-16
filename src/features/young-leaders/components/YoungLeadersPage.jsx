@@ -7,8 +7,6 @@ import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx
 import { getListOfMembers } from '../../../shared/services/api/api/members.js';
 import { getTerms } from '../../../shared/services/api/api/terms.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
-import { isDemoMode } from '../../../config/demoMode.js';
 
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
@@ -123,17 +121,22 @@ function YoungLeadersPage() {
           }
         }
 
-        // Fallback to offline cached terms if API failed
         if (!allTerms) {
           try {
-            const demoMode = isDemoMode();
-            const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-            const cachedTerms = await UnifiedStorageService.get(termsKey);
-            if (cachedTerms) {
-              allTerms = typeof cachedTerms === 'string' ? JSON.parse(cachedTerms) : cachedTerms;
+            const cachedTerms = await databaseService.getAllTerms();
+            if (cachedTerms && cachedTerms.length > 0) {
+              const termsBySection = {};
+              for (const term of cachedTerms) {
+                const sid = String(term.sectionid);
+                if (!termsBySection[sid]) {
+                  termsBySection[sid] = [];
+                }
+                termsBySection[sid].push(term);
+              }
+              allTerms = termsBySection;
             }
           } catch (err) {
-            logger.warn('Failed to parse offline terms from storage', { error: err.message }, LOG_CATEGORIES.APP);
+            logger.warn('Failed to load offline terms from normalized store', { error: err.message }, LOG_CATEGORIES.APP);
           }
         }
 

@@ -609,22 +609,15 @@ function checkForCachedData() {
     const demoMode = isDemoMode();
     const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
     const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-    const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-    
+
     const cachedSections = localStorage.getItem(sectionsKey);
     const cachedStartupData = localStorage.getItem(startupKey);
-    const cachedTerms = localStorage.getItem(termsKey);
-    
-    // Check static cache keys
+
     if (cachedSections && JSON.parse(cachedSections).length > 0) {
       return true;
     }
-    
+
     if (cachedStartupData) {
-      return true;
-    }
-    
-    if (cachedTerms) {
       return true;
     }
     
@@ -690,11 +683,9 @@ export function logout() {
   // Clear all offline cached data
   const demoMode = isDemoMode();
   const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
-  const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
   const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-  
+
   localStorage.removeItem(sectionsKey);
-  localStorage.removeItem(termsKey);
   localStorage.removeItem(startupKey);
   
   // Clear all offline caches (demo & production): events, attendance, members, Flexi, metadata, shared attendance
