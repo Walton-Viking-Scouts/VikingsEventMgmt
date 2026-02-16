@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 3 in progress -- Events Normalization (plan 01 complete, plan 02 next)
+**Current focus:** Phase 3 complete -- Events Normalization done. Ready for Phase 4 (Attendance Normalization)
 
 ## Current Position
 
-Phase: 3 of 7 (Events Normalization)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-16 -- Completed 03-01 Events Store Normalization
+Phase: 3 of 7 (Events Normalization) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: Phase Complete
+Last activity: 2026-02-16 -- Completed 03-02 DatabaseService Events Integration
 
-Progress: [████░░░░░░] 36%
+Progress: [████░░░░░░] 45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 4 min
-- Total execution time: 0.27 hours
+- Total execution time: 0.30 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████░░░░░░] 36%
 |-------|-------|-------|----------|
 | 01-infrastructure-schema | 2/2 | 9 min | 4.5 min |
 | 02-sections-normalization | 1/1 | 5 min | 5 min |
-| 03-events-normalization | 1/2 | 2 min | 2 min |
+| 03-events-normalization | 2/2 | 4 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (6 min), 02-01 (5 min), 03-01 (2 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (6 min), 02-01 (5 min), 03-01 (2 min), 03-02 (2 min)
 - Trend: accelerating
 
 *Updated after each plan completion*
@@ -55,6 +55,8 @@ Recent decisions affecting current work:
 - [02-01]: Demo mode filtering stays in getSections (DatabaseService), not in IndexedDBService.getAllSections
 - [03-01]: Events use cursor-based section-scoped delete (not store.clear()) because events span multiple sections
 - [03-01]: Query methods return raw IndexedDB records (no .data unwrap) since normalized stores use direct keyPath
+- [03-02]: EventSchema import added alongside SectionSchema in database.js -- single import line for all schemas
+- [03-02]: Demo mode filtering for events uses eventid.startsWith('demo_event_') matching getSections pattern
 
 ### Pending Todos
 
@@ -68,5 +70,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 03-01-PLAN.md (Events Store Normalization) -- ready for 03-02
+Stopped at: Completed 03-02-PLAN.md (DatabaseService Events Integration) -- Phase 03 complete, ready for Phase 04
 Resume file: None
