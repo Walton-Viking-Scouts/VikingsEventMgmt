@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 4 complete -- Attendance Normalization (all 3 plans done). Ready for Phase 5.
+**Current focus:** Phase 5 in progress -- Terms Normalization (plan 1 of 3 done).
 
 ## Current Position
 
-Phase: 4 of 7 (Attendance Normalization)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-16 -- Completed 04-03 Consumer Migration to Normalized Store
+Phase: 5 of 7 (Terms Normalization)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-16 -- Completed 05-01 Terms Store and Schema
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 4 min
-- Total execution time: 0.50 hours
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [███████░░░] 67%
 | 02-sections-normalization | 1/1 | 5 min | 5 min |
 | 03-events-normalization | 2/2 | 4 min | 2 min |
 | 04-attendance-normalization | 3/3 | 12 min | 4 min |
+| 05-terms-normalization | 1/3 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2 min), 03-02 (2 min), 04-01 (2 min), 04-02 (4 min), 04-03 (6 min)
+- Last 5 plans: 03-02 (2 min), 04-01 (2 min), 04-02 (4 min), 04-03 (6 min), 05-01 (5 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - [04-03]: In-memory attendanceCache removed entirely -- all reads go through DatabaseService to IndexedDB
 - [04-03]: Core-fields-only writes strip enrichment fields (eventname, eventdate, sectionname) before saving
 - [04-03]: Demo mode shared metadata reads still use localStorage/safeGetItem (not migrated to normalized store)
+- [05-01]: TermSchema.sectionid made required (not optional) with .transform(Number) -- injected at write boundary
+- [05-01]: Terms CRUD read methods return fallback values on error (read-path resilience), matching attendance pattern
 
 ### Pending Todos
 
@@ -80,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 04-03-PLAN.md (Consumer Migration to Normalized Store) -- Phase 04 complete, ready for Phase 05
+Stopped at: Completed 05-01-PLAN.md (Terms Store and Schema) -- Phase 05 plan 1 of 3 done
 Resume file: None
