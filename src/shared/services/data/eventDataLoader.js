@@ -155,6 +155,12 @@ class EventDataLoader {
     }
   }
 
+  /**
+   * Syncs attendance for a single event from the API to the normalized store
+   * @param {Object} event - Event object with sectionid, eventid, termid
+   * @param {string} token - Auth token
+   * @returns {Promise<Array<Object>>} Core-fields-only attendance records
+   */
   async syncEventAttendance(event, token) {
     const attendanceRecords = await getEventAttendance(
       event.sectionid,
@@ -164,9 +170,15 @@ class EventDataLoader {
     );
 
     if (attendanceRecords.length > 0) {
-      await databaseService.saveAttendance(event.eventid, attendanceRecords, {
-        fromSync: true,
-      });
+      const coreRecords = attendanceRecords.map(record => ({
+        scoutid: record.scoutid,
+        eventid: String(event.eventid),
+        sectionid: Number(event.sectionid),
+        attending: record.attending,
+        patrol: record.patrol ?? null,
+        notes: record.notes ?? null,
+      }));
+      await databaseService.saveAttendance(event.eventid, coreRecords);
     }
 
     return attendanceRecords;
@@ -259,16 +271,21 @@ class EventDataLoader {
     return (Date.now() - this.lastSyncTime) < fiveMinutes;
   }
 
+  /**
+   * Syncs shared attendance for all events to the normalized store
+   * @param {Array<Object>} events - Events to sync shared attendance for
+   * @param {string} token - Auth token
+   * @returns {Promise<Object>} Sync results summary
+   */
   async syncSharedAttendance(events, token) {
     let apiCallCount = 0;
     let successCount = 0;
     let errorCount = 0;
 
-    logger.info('🌐 Starting shared attendance sync', {
+    logger.info('Starting shared attendance sync', {
       totalEvents: events.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
 
-    // Call getSharedEventAttendance for all events - it handles cache/API logic internally
     for (const event of events) {
       try {
         logger.debug('Syncing shared attendance for event', {
@@ -289,11 +306,30 @@ class EventDataLoader {
         const items = Array.isArray(sharedAttendanceData?.items) ? sharedAttendanceData.items : [];
         const combined = Array.isArray(sharedAttendanceData?.combined_attendance) ? sharedAttendanceData.combined_attendance : [];
         const attendance = items.length > 0 ? items : combined;
+
         if (attendance.length > 0) {
+          const coreSharedRecords = attendance.map(record => ({
+            scoutid: record.scoutid,
+            eventid: String(event.eventid),
+            sectionid: Number(record.sectionid || event.sectionid),
+            attending: record.attending,
+            patrol: record.patrol ?? null,
+            notes: record.notes ?? null,
+            isSharedSection: true,
+          }));
+          await databaseService.saveSharedAttendance(event.eventid, coreSharedRecords);
+
+          await databaseService.saveSharedEventMetadata({
+            eventid: String(event.eventid),
+            isSharedEvent: true,
+            ownerSectionId: Number(event.sectionid),
+            sections: [...new Set(attendance.map(r => Number(r.sectionid || event.sectionid)))],
+          });
+
           await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);
         }
 
-        logger.debug('✅ Shared attendance synced', {
+        logger.debug('Shared attendance synced', {
           eventName: event.name,
           eventId: event.eventid,
           attendeeCount: attendance.length,
@@ -310,7 +346,7 @@ class EventDataLoader {
       }
     }
 
-    logger.info('🌐 Shared attendance sync completed', {
+    logger.info('Shared attendance sync completed', {
       totalEvents: events.length,
       successCount,
       errorCount,
