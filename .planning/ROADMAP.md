@@ -90,10 +90,12 @@ Plans:
   1. Terms are stored as individual records keyed by termid with indexes on sectionid and startdate
   2. CurrentActiveTermsService continues to function correctly reading from normalized terms store
   3. Terms query methods return consistent shapes on both IndexedDB and SQLite
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- IndexedDB v7 upgrade for normalized terms store and CRUD methods
+- [ ] 05-02-PLAN.md -- DatabaseService terms methods, SQLite table, API layer integration
+- [ ] 05-03-PLAN.md -- Consumer migration from blob to normalized store
 
 ### Phase 6: Flexi Records Normalization
 **Goal**: All three flexi record stores (lists, structures, data) are normalized with proper composite keys, and FlexiRecordDataService is the single source of truth
