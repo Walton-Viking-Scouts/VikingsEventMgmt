@@ -26,13 +26,12 @@ export const NORMALIZED_STORES = {
     indexes: [
       { name: 'eventid', keyPath: 'eventid', unique: false },
       { name: 'scoutid', keyPath: 'scoutid', unique: false },
+      { name: 'sectionid', keyPath: 'sectionid', unique: false },
     ],
   },
-  shared_attendance: {
-    keyPath: ['eventid', 'sectionid'],
-    indexes: [
-      { name: 'eventid', keyPath: 'eventid', unique: false },
-    ],
+  shared_event_metadata: {
+    keyPath: 'eventid',
+    indexes: [],
   },
   terms: {
     keyPath: 'termid',

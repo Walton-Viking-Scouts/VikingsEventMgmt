@@ -37,34 +37,43 @@ export const EventSchema = z.object({
 
 /**
  * Zod schema for Attendance records from the OSM API.
- * Validates and coerces attendance data. scoutid is canonicalized to number,
- * eventid to string.
+ * Validates and coerces attendance data with core fields only.
+ * scoutid is canonicalized to number, eventid to string.
+ * Uses .passthrough() to allow unknown fields through without validation.
+ * Enrichment fields (firstname, lastname) are joined at read time from core_members.
  * @type {import('zod').ZodObject}
  */
 export const AttendanceSchema = z.object({
   scoutid: z.union([z.string(), z.number()]).transform(Number),
   eventid: z.union([z.string(), z.number()]).transform(String),
-  firstname: z.string().nullable().optional(),
-  lastname: z.string().nullable().optional(),
-  attending: z.string().nullable().optional(),
+  sectionid: z.union([z.string(), z.number()]).transform(Number),
+  attending: z.union([z.string(), z.number()]).transform(val => {
+    if (val === null || val === undefined) return null;
+    const str = String(val).toLowerCase().trim();
+    if (str === 'yes' || str === '1' || str === 'true') return 'Yes';
+    if (str === 'no' || str === '0' || str === 'false') return 'No';
+    if (str === 'invited') return 'Invited';
+    if (str === 'shown' || str === 'show in my.scout') return 'Shown';
+    return str;
+  }).nullable().optional(),
   patrol: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-});
+}).passthrough();
 
 /**
- * Zod schema for Shared Attendance records from the OSM API.
- * Validates cross-section attendance data. eventid is canonicalized to string,
- * sectionid to number.
+ * Zod schema for Shared Event Metadata records.
+ * Tracks which events are shared across sections and which sections participate.
+ * eventid is canonicalized to string, section IDs to number.
  * @type {import('zod').ZodObject}
  */
-export const SharedAttendanceSchema = z.object({
+export const SharedEventMetadataSchema = z.object({
   eventid: z.union([z.string(), z.number()]).transform(String),
-  sectionid: z.union([z.string(), z.number()]).transform(Number),
-  firstname: z.string().nullable().optional(),
-  lastname: z.string().nullable().optional(),
-  attending: z.string().nullable().optional(),
-  patrol: z.string().nullable().optional(),
-  scoutid: z.union([z.string(), z.number()]).transform(Number).optional(),
+  isSharedEvent: z.boolean().optional().default(true),
+  ownerSectionId: z.union([z.string(), z.number()]).transform(Number).nullable().optional(),
+  sections: z.array(z.object({
+    sectionid: z.union([z.string(), z.number()]).transform(Number),
+    sectionname: z.string().nullable().optional(),
+  }).passthrough()).optional().default([]),
 });
 
 /**
@@ -135,10 +144,10 @@ export const EventArraySchema = z.array(EventSchema);
 export const AttendanceArraySchema = z.array(AttendanceSchema);
 
 /**
- * Array schema for validating collections of Shared Attendance records.
+ * Array schema for validating collections of Shared Event Metadata records.
  * @type {import('zod').ZodArray}
  */
-export const SharedAttendanceArraySchema = z.array(SharedAttendanceSchema);
+export const SharedEventMetadataArraySchema = z.array(SharedEventMetadataSchema);
 
 /**
  * Array schema for validating collections of Term records.

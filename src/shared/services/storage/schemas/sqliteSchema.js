@@ -40,6 +40,15 @@ export const SQLITE_SCHEMAS = {
       PRIMARY KEY (extraid, sectionid, termid, scoutid)
     )
   `,
+  shared_event_metadata: `
+    CREATE TABLE IF NOT EXISTS shared_event_metadata (
+      eventid TEXT PRIMARY KEY,
+      is_shared_event INTEGER DEFAULT 1,
+      owner_section_id INTEGER,
+      sections TEXT,
+      updated_at INTEGER
+    )
+  `,
 };
 
 /**
