@@ -75,10 +75,12 @@ Plans:
   2. Shared attendance records are stored with compound key [eventid, sectionid] and queryable by event
   3. Bulk upsert for attendance replaces records per event scope atomically
   4. Attendance query methods return identical data shapes on IndexedDB and SQLite
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md -- Zod schemas, IndexedDB v6 upgrade (compound key store, shared_event_metadata, blob cleanup), CRUD methods
+- [ ] 04-02-PLAN.md -- DatabaseService attendance methods (Zod validation, IndexedDB/SQLite), integration tests
+- [ ] 04-03-PLAN.md -- Consumer updates (remove cache, data services, hooks, API layer to normalized store)
 
 ### Phase 5: Terms Normalization
 **Goal**: Terms are stored as individual indexed records while preserving existing CurrentActiveTermsService integration
