@@ -9,7 +9,6 @@ import {
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { safeGetItem } from '../../../utils/storageUtils.js';
-import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
@@ -393,39 +392,65 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
       return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
     });
 
-    // Cache the successful response in IndexedDB
     try {
-      const cacheKey = `viking_shared_attendance_${eventId}_${sectionId}_offline`;
-      await UnifiedStorageService.set(cacheKey, data);
-      logger.debug('Cached shared attendance data to IndexedDB', { eventId, sectionId }, LOG_CATEGORIES.API);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const combined = Array.isArray(data?.combined_attendance) ? data.combined_attendance : [];
+      const attendance = items.length > 0 ? items : combined;
+
+      if (attendance.length > 0) {
+        const coreSharedRecords = attendance.map(record => ({
+          scoutid: record.scoutid,
+          eventid: String(eventId),
+          sectionid: Number(record.sectionid || sectionId),
+          attending: record.attending,
+          patrol: record.patrol ?? null,
+          notes: record.notes ?? null,
+          isSharedSection: true,
+        }));
+        await databaseService.saveSharedAttendance(eventId, coreSharedRecords);
+
+        await databaseService.saveSharedEventMetadata({
+          eventid: String(eventId),
+          isSharedEvent: true,
+          ownerSectionId: Number(sectionId),
+          sections: [...new Set(attendance.map(r => Number(r.sectionid || sectionId)))],
+        });
+      }
+
+      logger.debug('Saved shared attendance to normalized store', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
-      logger.warn('Failed to cache shared attendance data', { error: cacheError.message }, LOG_CATEGORIES.API);
+      logger.warn('Failed to save shared attendance to normalized store', { error: cacheError.message }, LOG_CATEGORIES.API);
     }
 
     return data;
 
   } catch (error) {
-    logger.error('Error fetching shared event attendance', { 
-      eventId, 
-      sectionId, 
-      error: error.message, 
+    logger.error('Error fetching shared event attendance', {
+      eventId,
+      sectionId,
+      error: error.message,
     }, LOG_CATEGORIES.API);
-    
-    // Try to return stale cached data as a last resort
-    const demoMode = isDemoMode();
-    const prefix = demoMode ? 'demo_' : '';
-    const sharedCacheKey = `${prefix}viking_shared_attendance_${eventId}_${sectionId}_offline`;
+
     try {
-      const cachedData = demoMode ? safeGetItem(sharedCacheKey) : await UnifiedStorageService.get(sharedCacheKey);
-      if (cachedData) {
-        logger.info('Using stale cached shared attendance data (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
-        return cachedData;
+      if (isDemoMode()) {
+        const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
+        const cachedData = safeGetItem(sharedCacheKey);
+        if (cachedData) {
+          logger.info('Using stale cached shared attendance data (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
+          return cachedData;
+        }
+      } else {
+        const sharedRecords = await databaseService.getAttendance(eventId);
+        const cachedShared = (sharedRecords || []).filter(r => r.isSharedSection === true);
+        if (cachedShared.length > 0) {
+          logger.info('Using stale normalized shared attendance (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
+          return { items: cachedShared };
+        }
       }
     } catch (cacheError) {
       // Ignore cache errors in fallback
     }
-    
-    // Re-throw the error to let calling code handle it
+
     throw error;
   }
 }

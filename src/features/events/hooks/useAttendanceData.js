@@ -6,7 +6,9 @@ import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceH
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**
- * Custom hook for loading and managing attendance data
+ * Custom hook for loading and managing attendance data.
+ * Reads all attendance (regular and shared) from the normalized IndexedDB store
+ * via DatabaseService. Shared attendance records are identified by isSharedSection marker.
  *
  * @param {Array} events - Array of event data
  * @param {Array} members - Array of member data
@@ -20,7 +22,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load attendance data when events change or refresh is triggered
   useEffect(() => {
     loadAttendance();
   }, [events, members, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -30,7 +31,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
       setLoading(true);
       setError(null);
 
-      logger.info('Loading attendance data from IndexedDB', {
+      logger.info('Loading attendance data from normalized store', {
         eventCount: events.length,
         eventIds: events.map(e => e.eventid),
       }, LOG_CATEGORIES.COMPONENT);
@@ -47,31 +48,24 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           eventIds: Array.from(eventIds),
         }, LOG_CATEGORIES.COMPONENT);
 
-        const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
+        const regularAttendance = relevantAttendance.filter(r => !r.isSharedSection);
+        const finalAttendance = [...regularAttendance];
 
-        // Start with regular attendance (has full data: Yes, No, Invited, Not Invited)
-        const finalAttendance = [...relevantAttendance];
-
-        // Check for shared attendance to add inaccessible sections
-        // Create Set of sectionids we have regular attendance for (across all events)
-        // Convert to strings to avoid type mismatch issues
-        const regularSectionIds = new Set(relevantAttendance.map(r => String(r.sectionid)));
+        const regularSectionIds = new Set(regularAttendance.map(r => String(r.sectionid)));
 
         for (const event of events) {
-          const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
           try {
-            const sharedData = await UnifiedStorageService.get(sharedKey);
-            const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
+            const eventAttendance = await databaseService.getAttendance(event.eventid);
+            const sharedRecords = (eventAttendance || []).filter(r => r.isSharedSection === true);
 
-            if (sharedAttendance && Array.isArray(sharedAttendance) && sharedAttendance.length > 0) {
-              // Only add shared attendance from sections we DON'T have regular data for
-              const inaccessibleSectionRecords = sharedAttendance
+            if (sharedRecords.length > 0) {
+              const inaccessibleSectionRecords = sharedRecords
                 .filter(attendee => !regularSectionIds.has(String(attendee.sectionid)))
                 .map(attendee => ({
                   ...attendee,
                   eventid: event.eventid,
-                  sectionid: Number(attendee.sectionid), // Normalize to number
-                  scoutid: Number(attendee.scoutid), // Normalize to number
+                  sectionid: Number(attendee.sectionid),
+                  scoutid: Number(attendee.scoutid),
                   firstname: attendee.firstname || attendee.first_name,
                   lastname: attendee.lastname || attendee.last_name,
                   _isSharedSection: true,
@@ -87,20 +81,16 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           }
         }
 
-        // Load member data using the SAME working function as Sections page
-        // This ensures contact_groups and all other fields are properly loaded
         const uniqueSectionIds = [...new Set(finalAttendance.map(r => Number(r.sectionid)))];
         const allMembers = await databaseService.getMembers(uniqueSectionIds);
 
-        // Create map for quick lookup and merge with attendance data
         const memberMap = new Map(allMembers.map(m => [String(m.scoutid), m]));
 
-        // Build combined members with attendance data overlaying member data
         const combinedMembers = finalAttendance.map(record => {
           const member = memberMap.get(String(record.scoutid));
           return {
-            ...member, // Member data from database (includes contact_groups, sections, etc.)
-            ...record, // Attendance record fields (eventid, attendance status, etc.)
+            ...member,
+            ...record,
           };
         });
 
@@ -114,7 +104,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
       await loadVikingEventData();
 
     } catch (err) {
-      logger.error('Error loading attendance from IndexedDB', {
+      logger.error('Error loading attendance from normalized store', {
         error: err.message,
         eventCount: events.length,
       }, LOG_CATEGORIES.COMPONENT);
@@ -125,11 +115,10 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   };
 
 
-  // Load Viking Event Management flexirecord data (fresh preferred, cache fallback)
   const loadVikingEventData = async () => {
     try {
       const token = getToken();
-      
+
       if (!token) {
         logger.info(
           'useAttendanceData: No token available for FlexiRecord loading; attempting cache-only read',
@@ -137,7 +126,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           LOG_CATEGORIES.APP,
         );
         try {
-          // forceRefresh=false to use only local cache
           const cachedMap = await getVikingEventDataForEvents(events, null, false);
           if (cachedMap) {
             setVikingEventData(cachedMap);
@@ -151,20 +139,16 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
         }
         return;
       }
-      
-      // Load Viking Event Management data for all sections
-      // getVikingEventDataForEvents handles section-term combinations correctly
+
       const vikingEventMap = await getVikingEventDataForEvents(events, token, true);
 
       setVikingEventData(vikingEventMap);
 
-    } catch (error) {
+    } catch (_error) {
       // Don't set error state as this is supplementary data
     }
   };
 
-  // Create a memoized lookup map for Viking Event data to improve performance
-  // Builds once when vikingEventData changes, provides O(1) lookups instead of O(n×m) searches
   const vikingEventLookup = useMemo(() => {
     const lookup = new Map();
     for (const [, sectionData] of vikingEventData.entries()) {
@@ -177,7 +161,6 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
     return lookup;
   }, [vikingEventData]);
 
-  // Enhanced attendance data with Viking Event data attached
   const enhancedAttendanceData = useMemo(() => {
     if (!attendanceData || attendanceData.length === 0 || vikingEventLookup.size === 0) {
       return attendanceData;
@@ -192,7 +175,11 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
     });
   }, [attendanceData, vikingEventLookup]);
 
-  // Get Viking Event Management data for a specific member using optimized O(1) lookup
+  /**
+   * Gets Viking Event Management data for a specific member using optimized O(1) lookup
+   * @param {number|string} scoutid - Scout identifier
+   * @returns {Object|null} Viking event data or null
+   */
   const getVikingEventDataForMember = (scoutid) => {
     return vikingEventLookup.get(scoutid) || null;
   };

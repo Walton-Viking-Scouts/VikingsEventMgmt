@@ -30,29 +30,33 @@ describe('AttendanceDataService', () => {
     localStorage.clear();
   });
 
-  it('should initialize with empty cache', () => {
+  it('should initialize with no last fetch time', () => {
     expect(attendanceDataService.getLastFetchTime()).toBeNull();
   });
 
-  it('should return cached data when available', async () => {
-    attendanceDataService.attendanceCache = [
-      { scoutid: '123', eventid: 'event1', firstname: 'John' },
-    ];
-    attendanceDataService.lastFetchTime = Date.now();
+  it('should return data from IndexedDB when available', async () => {
+    databaseService.getSections = vi.fn().mockResolvedValue([
+      { sectionid: 123, sectionname: 'Test Section' },
+    ]);
+    databaseService.getEvents = vi.fn().mockResolvedValue([
+      { sectionid: 123, eventid: 'event1', name: 'Test Event', startdate: '2026-01-01', sectionname: 'Test Section' },
+    ]);
+    databaseService.getAttendance = vi.fn().mockResolvedValue([
+      { scoutid: '123', eventid: 'event1', sectionid: 123, attending: 'Yes' },
+    ]);
 
     const result = await attendanceDataService.getAttendanceData();
 
     expect(result).toHaveLength(1);
-    expect(result[0].firstname).toBe('John');
+    expect(result[0].eventname).toBe('Test Event');
+    expect(result[0].attending).toBe('Yes');
   });
 
-  it('should clear cache correctly', () => {
-    attendanceDataService.attendanceCache = [{ test: 'data' }];
+  it('should clear last fetch time correctly', () => {
     attendanceDataService.lastFetchTime = Date.now();
 
     attendanceDataService.clearCache();
 
-    expect(attendanceDataService.attendanceCache).toHaveLength(0);
     expect(attendanceDataService.getLastFetchTime()).toBeNull();
   });
 
@@ -75,17 +79,13 @@ describe('AttendanceDataService', () => {
       { scoutid: '123', firstname: 'John' },
     ]);
 
-    // Mock database service to return sections and events
     databaseService.getSections = vi.fn().mockResolvedValue([
       { sectionid: 123, sectionname: 'Test Section' },
     ]);
     databaseService.getEvents = vi.fn().mockResolvedValue([
-      { sectionid: 123, eventid: 'event1', termid: 456, name: 'Test Event' },
+      { sectionid: 123, eventid: 'event1', termid: 456, name: 'Test Event', startdate: '2026-01-01', sectionname: 'Test Section' },
     ]);
-
-    localStorage.setItem('viking_events_123_456_offline', JSON.stringify([
-      { sectionid: 123, eventid: 'event1', termid: 456, name: 'Test Event' },
-    ]));
+    databaseService.saveAttendance = vi.fn().mockResolvedValue();
 
     const result = await attendanceDataService.refreshAttendanceData();
 
@@ -93,6 +93,7 @@ describe('AttendanceDataService', () => {
     expect(result).toHaveLength(1);
     expect(result[0].firstname).toBe('John');
     expect(result[0].eventname).toBe('Test Event');
+    expect(databaseService.saveAttendance).toHaveBeenCalled();
     expect(attendanceDataService.getLastFetchTime()).not.toBeNull();
   });
 
