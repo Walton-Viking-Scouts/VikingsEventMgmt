@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 2 complete -- ready for Phase 3: Events
+**Current focus:** Phase 3 in progress -- Events Normalization (plan 01 complete, plan 02 next)
 
 ## Current Position
 
-Phase: 2 of 7 (Sections Normalization) -- COMPLETE
-Plan: 1 of 1 in current phase (all plans complete)
-Status: Phase Complete
-Last activity: 2026-02-15 -- Completed 02-01 Sections Normalization
+Phase: 3 of 7 (Events Normalization)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-16 -- Completed 03-01 Events Store Normalization
 
-Progress: [███░░░░░░░] 28%
+Progress: [████░░░░░░] 36%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 4.7 min
-- Total execution time: 0.23 hours
+- Total plans completed: 4
+- Average duration: 4 min
+- Total execution time: 0.27 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [███░░░░░░░] 28%
 |-------|-------|-------|----------|
 | 01-infrastructure-schema | 2/2 | 9 min | 4.5 min |
 | 02-sections-normalization | 1/1 | 5 min | 5 min |
+| 03-events-normalization | 1/2 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (6 min), 02-01 (5 min)
-- Trend: stable
+- Last 5 plans: 01-01 (3 min), 01-02 (6 min), 02-01 (5 min), 03-01 (2 min)
+- Trend: accelerating
 
 *Updated after each plan completion*
 
@@ -52,6 +53,8 @@ Recent decisions affecting current work:
 - [02-01]: Sections store uses clear+put in single transaction for atomic replacement (not merge/upsert)
 - [02-01]: Zod validation occurs at DatabaseService write boundary, not in IndexedDBService layer
 - [02-01]: Demo mode filtering stays in getSections (DatabaseService), not in IndexedDBService.getAllSections
+- [03-01]: Events use cursor-based section-scoped delete (not store.clear()) because events span multiple sections
+- [03-01]: Query methods return raw IndexedDB records (no .data unwrap) since normalized stores use direct keyPath
 
 ### Pending Todos
 
@@ -64,6 +67,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15
-Stopped at: Completed 02-01-PLAN.md (Sections Normalization) -- Phase 2 complete
+Last session: 2026-02-16
+Stopped at: Completed 03-01-PLAN.md (Events Store Normalization) -- ready for 03-02
 Resume file: None
