@@ -60,10 +60,11 @@ Plans:
   2. Querying events by section, by term, or by individual ID returns correct results on both platforms
   3. Syncing events for a section replaces all events in that section scope atomically (delete-before-insert in one transaction)
   4. Event data round-trips through Zod validation without data loss
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- IndexedDB events store migration and new CRUD methods
+- [ ] 03-02-PLAN.md -- DatabaseService events bypass, SQLite transaction wrapping, integration tests
 
 ### Phase 4: Attendance Normalization
 **Goal**: Attendance (regular and shared) is stored as individual records with compound keys, queryable by event or member on both platforms
