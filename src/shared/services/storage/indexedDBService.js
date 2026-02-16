@@ -498,6 +498,157 @@ export class IndexedDBService {
     }
   }
 
+  /**
+   * Replaces all event records for a specific section atomically using index cursor delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} events - Array of event objects with eventid as key
+   * @returns {Promise<number>} Number of events stored
+   */
+  static async bulkReplaceEventsForSection(sectionId, events) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.EVENTS, 'readwrite');
+      const store = tx.objectStore(STORES.EVENTS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(sectionId);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const event of events) {
+        await store.put({ ...event, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return events.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceEventsForSection failed', {
+        sectionId,
+        count: events?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_events_for_section',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: events?.length,
+            operation: 'bulkReplaceEventsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all event records for a specific section from the sectionid index
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of event objects for the section
+   */
+  static async getEventsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.EVENTS, 'sectionid', sectionId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getEventsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_events_by_section',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getEventsBySection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all event records for a specific term from the termid index
+   * @param {number|string} termId - The term ID to query
+   * @returns {Promise<Array<Object>>} Array of event objects for the term
+   */
+  static async getEventsByTerm(termId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.EVENTS, 'termid', termId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getEventsByTerm failed', {
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_events_by_term',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            termId,
+            operation: 'getEventsByTerm',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves a single event record by its event ID
+   * @param {string} eventId - The event ID to look up
+   * @returns {Promise<Object|null>} The event object or null if not found
+   */
+  static async getEventById(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.EVENTS, eventId)) || null;
+    } catch (error) {
+      logger.error('IndexedDB getEventById failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_event_by_id',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getEventById',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
   static async upsertCoreMember(memberData) {
     try {
       if (!memberData?.scoutid) {
