@@ -165,7 +165,7 @@ describe('IndexedDBService Database Upgrade and Store Creation', () => {
         'flexi_data',
         'events',
         'attendance',
-        'shared_attendance',
+        'shared_event_metadata',
         'members',
       ];
 
@@ -250,7 +250,7 @@ describe('IndexedDBService Database Upgrade and Store Creation', () => {
         FLEXI_DATA: 'flexi_data',
         EVENTS: 'events',
         ATTENDANCE: 'attendance',
-        SHARED_ATTENDANCE: 'shared_attendance',
+        SHARED_EVENT_METADATA: 'shared_event_metadata',
         CORE_MEMBERS: 'core_members',
         MEMBER_SECTION: 'member_section',
       };
@@ -579,7 +579,7 @@ describe('IndexedDB Schema Version Management', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      5,
+      6,
       expect.objectContaining({
         upgrade: expect.any(Function),
         blocked: expect.any(Function),
