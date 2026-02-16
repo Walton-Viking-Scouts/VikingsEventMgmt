@@ -1,11 +1,22 @@
 /**
  * SQLite CREATE TABLE statements for normalized tables that do not yet exist.
- * These are the three flexi record tables needed for Phase 6 implementation.
+ * Includes terms table (Phase 5) and flexi record tables (Phase 6).
  * Uses CREATE TABLE IF NOT EXISTS for idempotent execution.
  *
  * @type {Record<string, string>}
  */
 export const SQLITE_SCHEMAS = {
+  terms: `
+    CREATE TABLE IF NOT EXISTS terms (
+      termid TEXT PRIMARY KEY,
+      sectionid INTEGER,
+      name TEXT NOT NULL,
+      startdate TEXT,
+      enddate TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `,
   flexi_lists: `
     CREATE TABLE IF NOT EXISTS flexi_lists (
       extraid TEXT NOT NULL,
@@ -65,4 +76,6 @@ export const SQLITE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_attendance_eventid ON attendance(eventid)',
   'CREATE INDEX IF NOT EXISTS idx_attendance_scoutid ON attendance(scoutid)',
   'CREATE INDEX IF NOT EXISTS idx_sections_sectiontype ON sections(sectiontype)',
+  'CREATE INDEX IF NOT EXISTS idx_terms_sectionid ON terms(sectionid)',
+  'CREATE INDEX IF NOT EXISTS idx_terms_startdate ON terms(startdate)',
 ];

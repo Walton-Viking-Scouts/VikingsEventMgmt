@@ -24,7 +24,8 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
-import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, safeParseArray } from './schemas/validation.js';
+import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, TermSchema, safeParseArray } from './schemas/validation.js';
+import { CurrentActiveTermsService } from './currentActiveTermsService.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
@@ -1714,53 +1715,176 @@ class DatabaseService {
   }
 
   /**
+   * Saves terms for a section to normalized storage.
+   * Validates with Zod at the write boundary and stores to normalized
+   * IndexedDB (web) or SQLite with transaction wrapping (native).
+   * Replaces all existing terms for the specified section.
+   *
+   * @async
+   * @param {number|string} sectionId - Section identifier
+   * @param {Array<Object>} terms - Array of term objects to save
+   * @returns {Promise<void>}
+   */
+  async saveTerms(sectionId, terms) {
+    await this.initialize();
+
+    try {
+      const enrichedTerms = (Array.isArray(terms) ? terms : []).map(t => ({ ...t, sectionid: sectionId }));
+
+      const { data: validTerms, errors } = safeParseArray(TermSchema, enrichedTerms);
+      if (errors.length > 0) {
+        logger.warn('Term validation errors during save', {
+          errorCount: errors.length,
+          totalCount: enrichedTerms.length,
+          errors: errors.slice(0, 5),
+        }, LOG_CATEGORIES.DATABASE);
+      }
+
+      if (!this.isNative || !this.db) {
+        await IndexedDBService.bulkReplaceTermsForSection(sectionId, validTerms);
+        return;
+      }
+
+      await this.db.execute('BEGIN TRANSACTION');
+      try {
+        await this.db.run('DELETE FROM terms WHERE sectionid = ?', [sectionId]);
+
+        for (const term of validTerms) {
+          const insert = `
+            INSERT INTO terms (termid, sectionid, name, startdate, enddate)
+            VALUES (?, ?, ?, ?, ?)
+          `;
+          await this.db.run(insert, [
+            term.termid,
+            term.sectionid,
+            term.name,
+            term.startdate,
+            term.enddate,
+          ]);
+        }
+
+        await this.db.execute('COMMIT');
+      } catch (error) {
+        await this.db.execute('ROLLBACK');
+        throw error;
+      }
+
+      await this.updateSyncStatus('terms');
+    } catch (error) {
+      logger.error('Failed to save terms', {
+        sectionId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.saveTerms', sectionId });
+      throw error;
+    }
+  }
+
+  /**
    * Retrieves terms for a section from normalized storage
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
+   * @param {number|string} sectionId - Section identifier
    * @returns {Promise<Array<Object>>} Array of term objects
-   * @throws {Error} Not yet implemented - Phase 5
    */
-  async getTerms(_sectionId) {
+  async getTerms(sectionId) {
     await this.initialize();
-    throw new Error('Terms retrieval via normalized storage not yet implemented (Phase 5)');
+
+    try {
+      if (!this.isNative || !this.db) {
+        return IndexedDBService.getTermsBySection(sectionId);
+      }
+
+      const query = 'SELECT * FROM terms WHERE sectionid = ? ORDER BY startdate DESC';
+      const result = await this.db.query(query, [sectionId]);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get terms', {
+        sectionId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getTerms', sectionId });
+      return [];
+    }
   }
 
   /**
-   * Saves terms for a section to normalized storage
+   * Retrieves all terms from normalized storage across all sections
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
-   * @param {Array<Object>} _terms - Array of term objects to save
-   * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 5
+   * @returns {Promise<Array<Object>>} Array of all term objects
    */
-  async saveTerms(_sectionId, _terms) {
+  async getAllTerms() {
     await this.initialize();
-    throw new Error('Terms storage via normalized storage not yet implemented (Phase 5)');
+
+    try {
+      if (!this.isNative || !this.db) {
+        return IndexedDBService.getAllTerms();
+      }
+
+      const query = 'SELECT * FROM terms ORDER BY sectionid, startdate DESC';
+      const result = await this.db.query(query);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get all terms', {
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getAllTerms' });
+      return [];
+    }
   }
 
   /**
-   * Retrieves the current active term for a section
+   * Retrieves a specific term by its ID from normalized storage
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @returns {Promise<Object|null>} Term object or null if not found
+   */
+  async getTermById(termId) {
+    await this.initialize();
+
+    try {
+      if (!this.isNative || !this.db) {
+        return IndexedDBService.getTermById(termId);
+      }
+
+      const query = 'SELECT * FROM terms WHERE termid = ?';
+      const result = await this.db.query(query, [termId]);
+      return result.values?.[0] || null;
+    } catch (error) {
+      logger.error('Failed to get term by ID', {
+        termId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getTermById', termId });
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves the current active term for a section.
+   * Delegates to CurrentActiveTermsService.
+   *
+   * @async
+   * @param {number|string} sectionId - Section identifier
    * @returns {Promise<Object|null>} Current active term or null
-   * @throws {Error} Not yet implemented - Phase 5
    */
-  async getCurrentActiveTerm(_sectionId) {
-    await this.initialize();
-    throw new Error('Current active term retrieval via normalized storage not yet implemented (Phase 5)');
+  async getCurrentActiveTerm(sectionId) {
+    return CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
   }
 
   /**
-   * Sets the current active term for a section
+   * Sets the current active term for a section.
+   * Delegates to CurrentActiveTermsService.
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
-   * @param {Object} _term - Term object to set as active
+   * @param {number|string} sectionId - Section identifier
+   * @param {Object} term - Term object to set as active
    * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 5
    */
-  async setCurrentActiveTerm(_sectionId, _term) {
-    await this.initialize();
-    throw new Error('Current active term storage via normalized storage not yet implemented (Phase 5)');
+  async setCurrentActiveTerm(sectionId, term) {
+    return CurrentActiveTermsService.setCurrentActiveTerm(sectionId, term);
   }
 
   /**
