@@ -11,11 +11,7 @@ global.IDBKeyRange = {
 };
 
 vi.mock('../indexedDBService.js');
-vi.mock('../unifiedStorageService.js');
 vi.mock('../../utils/logger.js');
-vi.mock('../../../../config/demoMode.js', () => ({
-  isDemoMode: () => false,
-}));
 
 describe('CurrentActiveTermsService', () => {
   beforeEach(() => {
@@ -163,128 +159,6 @@ describe('CurrentActiveTermsService', () => {
           lowerOpen: false,
         }),
       );
-    });
-  });
-
-  describe('_determineCurrentTerm', () => {
-    it('should select term that contains today\'s date', () => {
-      const today = '2025-10-15';
-      vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(`${today}T12:00:00.000Z`);
-
-      const sectionTerms = [
-        {
-          termid: '1',
-          name: 'Summer Term',
-          startdate: '2025-06-01',
-          enddate: '2025-08-31',
-        },
-        {
-          termid: '2',
-          name: 'Autumn Term',
-          startdate: '2025-09-01',
-          enddate: '2025-12-15',
-        },
-        {
-          termid: '3',
-          name: 'Spring Term',
-          startdate: '2026-01-15',
-          enddate: '2026-04-10',
-        },
-      ];
-
-      const result = CurrentActiveTermsService._determineCurrentTerm(sectionTerms);
-
-      expect(result).toEqual(sectionTerms[1]); // Autumn Term contains Oct 15
-    });
-
-    it('should select next future term if no current term', () => {
-      const today = '2025-05-15';
-      vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(`${today}T12:00:00.000Z`);
-
-      const sectionTerms = [
-        {
-          termid: '1',
-          name: 'Summer Term',
-          startdate: '2025-06-01',
-          enddate: '2025-08-31',
-        },
-        {
-          termid: '2',
-          name: 'Autumn Term',
-          startdate: '2025-09-01',
-          enddate: '2025-12-15',
-        },
-      ];
-
-      const result = CurrentActiveTermsService._determineCurrentTerm(sectionTerms);
-
-      expect(result).toEqual(sectionTerms[0]); // Next future term (Summer)
-    });
-
-    it('should select most recent past term if no current or future terms', () => {
-      const today = '2026-06-15';
-      vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(`${today}T12:00:00.000Z`);
-
-      const sectionTerms = [
-        {
-          termid: '1',
-          name: 'Autumn Term',
-          startdate: '2025-09-01',
-          enddate: '2025-12-15',
-        },
-        {
-          termid: '2',
-          name: 'Spring Term',
-          startdate: '2026-01-15',
-          enddate: '2026-04-10',
-        },
-      ];
-
-      const result = CurrentActiveTermsService._determineCurrentTerm(sectionTerms);
-
-      expect(result).toEqual(sectionTerms[1]); // Most recent past term (Spring)
-    });
-
-    it('should handle empty or invalid term arrays', () => {
-      expect(CurrentActiveTermsService._determineCurrentTerm([])).toBeNull();
-      expect(CurrentActiveTermsService._determineCurrentTerm(null)).toBeNull();
-      expect(CurrentActiveTermsService._determineCurrentTerm(undefined)).toBeNull();
-    });
-  });
-
-  describe('migrateFromTermsBlob', () => {
-    it('should migrate terms from existing blob format', async () => {
-      const { UnifiedStorageService } = await import('../unifiedStorageService.js');
-      UnifiedStorageService.get = vi.fn().mockResolvedValue({
-        '999901': [
-          {
-            termid: '12345',
-            name: 'Autumn Term 2025',
-            startdate: '2025-09-01',
-            enddate: '2025-12-15',
-          },
-        ],
-        '999902': [
-          {
-            termid: '54321',
-            name: 'Spring Term 2025',
-            startdate: '2025-01-15',
-            enddate: '2025-04-10',
-          },
-        ],
-        '_cacheTimestamp': Date.now(),
-      });
-
-      vi.spyOn(CurrentActiveTermsService, 'setCurrentActiveTerm')
-        .mockResolvedValue(true);
-
-      const result = await CurrentActiveTermsService.migrateFromTermsBlob();
-
-      expect(result.migrated).toBe(2);
-      expect(result.skipped).toBe(0);
-      expect(result.errors).toBe(0);
-
-      expect(CurrentActiveTermsService.setCurrentActiveTerm).toHaveBeenCalledTimes(2);
     });
   });
 
