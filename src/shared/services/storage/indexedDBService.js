@@ -4,7 +4,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
@@ -20,6 +20,7 @@ const STORES = {
   SHARED_ATTENDANCE: 'shared_attendance',
   CORE_MEMBERS: 'core_members',
   MEMBER_SECTION: 'member_section',
+  SHARED_EVENT_METADATA: 'shared_event_metadata',
 };
 
 let dbPromise = null;
@@ -139,6 +140,42 @@ function getDB() {
           eventsStoreV5.createIndex('termid', 'termid', { unique: false });
           eventsStoreV5.createIndex('startdate', 'startdate', { unique: false });
           logger.info('IndexedDB v5 upgrade: events store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+        }
+
+        if (oldVersion < 6) {
+          if (db.objectStoreNames.contains(STORES.ATTENDANCE)) {
+            db.deleteObjectStore(STORES.ATTENDANCE);
+          }
+          const attendanceStoreV6 = db.createObjectStore(STORES.ATTENDANCE, { keyPath: ['eventid', 'scoutid'] });
+          attendanceStoreV6.createIndex('eventid', 'eventid', { unique: false });
+          attendanceStoreV6.createIndex('scoutid', 'scoutid', { unique: false });
+          attendanceStoreV6.createIndex('sectionid', 'sectionid', { unique: false });
+
+          if (db.objectStoreNames.contains(STORES.SHARED_ATTENDANCE)) {
+            db.deleteObjectStore(STORES.SHARED_ATTENDANCE);
+          }
+          db.createObjectStore(STORES.SHARED_EVENT_METADATA, { keyPath: 'eventid' });
+
+          try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (
+                /^(demo_)?viking_attendance_.+_offline$/.test(key) ||
+                /^(demo_)?viking_shared_attendance_.+_offline$/.test(key) ||
+                /^(demo_)?viking_shared_metadata_/.test(key)
+              ) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+          } catch (_e) {
+            // Best-effort localStorage cleanup
+          }
+
+          logger.info('IndexedDB v6 upgrade: attendance stores normalized', {
             dbName,
           }, LOG_CATEGORIES.DATABASE);
         }
@@ -646,6 +683,258 @@ export class IndexedDBService {
       });
 
       throw error;
+    }
+  }
+
+  /**
+   * Replaces all attendance records for a specific event atomically using cursor-based delete then put
+   * @param {string|number} eventId - The event ID to scope the replacement to
+   * @param {Array<Object>} records - Array of attendance record objects
+   * @returns {Promise<number>} Number of attendance records stored
+   */
+  static async bulkReplaceAttendanceForEvent(eventId, records) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.ATTENDANCE, 'readwrite');
+      const store = tx.objectStore(STORES.ATTENDANCE);
+      const index = store.index('eventid');
+
+      let cursor = await index.openCursor(String(eventId));
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const record of records) {
+        await store.put({ ...record, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return records.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceAttendanceForEvent failed', {
+        eventId,
+        count: records?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_attendance_for_event',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            count: records?.length,
+            operation: 'bulkReplaceAttendanceForEvent',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all attendance records for a specific event
+   * @param {string|number} eventId - The event ID to query
+   * @returns {Promise<Array<Object>>} Array of attendance records for the event
+   */
+  static async getAttendanceByEvent(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.ATTENDANCE, 'eventid', String(eventId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceByEvent failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_by_event',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getAttendanceByEvent',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves all attendance records for a specific scout
+   * @param {number|string} scoutId - The scout ID to query
+   * @returns {Promise<Array<Object>>} Array of attendance records for the scout
+   */
+  static async getAttendanceByScout(scoutId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.ATTENDANCE, 'scoutid', Number(scoutId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceByScout failed', {
+        scoutId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_by_scout',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            scoutId,
+            operation: 'getAttendanceByScout',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single attendance record by compound key [eventId, scoutId]
+   * @param {string|number} eventId - The event ID
+   * @param {number|string} scoutId - The scout ID
+   * @returns {Promise<Object|null>} The attendance record or null if not found
+   */
+  static async getAttendanceRecord(eventId, scoutId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.ATTENDANCE, [String(eventId), Number(scoutId)])) || null;
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceRecord failed', {
+        eventId,
+        scoutId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_record',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            scoutId,
+            operation: 'getAttendanceRecord',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Saves or updates shared event metadata
+   * @param {Object} metadata - The shared event metadata object with eventid
+   * @returns {Promise<Object>} The saved metadata record
+   */
+  static async saveSharedEventMetadata(metadata) {
+    try {
+      const db = await getDB();
+      const record = { ...metadata, updated_at: Date.now() };
+      await db.put(STORES.SHARED_EVENT_METADATA, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveSharedEventMetadata failed', {
+        eventId: metadata?.eventid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            eventId: metadata?.eventid,
+            operation: 'saveSharedEventMetadata',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves shared event metadata for a specific event
+   * @param {string|number} eventId - The event ID to look up
+   * @returns {Promise<Object|null>} The shared event metadata or null if not found
+   */
+  static async getSharedEventMetadata(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.SHARED_EVENT_METADATA, String(eventId))) || null;
+    } catch (error) {
+      logger.error('IndexedDB getSharedEventMetadata failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getSharedEventMetadata',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all shared event metadata records
+   * @returns {Promise<Array<Object>>} Array of all shared event metadata records
+   */
+  static async getAllSharedEventMetadata() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.SHARED_EVENT_METADATA)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllSharedEventMetadata failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllSharedEventMetadata',
+          },
+        },
+      });
+
+      return [];
     }
   }
 
