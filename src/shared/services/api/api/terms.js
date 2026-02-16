@@ -13,6 +13,7 @@ import { isDemoMode } from '../../../../config/demoMode.js';
 import { findMostRecentTerm } from '../../../utils/termUtils.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { CurrentActiveTermsService } from '../../storage/currentActiveTermsService.js';
+import DatabaseService from '../../storage/database.js';
 
 /**
  * Calculate and store current active terms from API response
@@ -112,6 +113,39 @@ async function calculateAndStoreCurrentTerms(termsData) {
 }
 
 /**
+ * Stores all terms to the normalized DatabaseService store for offline access.
+ * Iterates over each section in the terms data and saves via DatabaseService.saveTerms.
+ *
+ * @param {Object} termsData - Terms data keyed by section ID
+ * @returns {Promise<void>}
+ */
+async function storeTermsToNormalizedStore(termsData) {
+  if (!termsData || typeof termsData !== 'object') {
+    return;
+  }
+
+  try {
+    const databaseService = DatabaseService.getInstance();
+    for (const [sectionId, sectionTerms] of Object.entries(termsData)) {
+      if (sectionId.startsWith('_')) {
+        continue;
+      }
+      if (!Array.isArray(sectionTerms) || sectionTerms.length === 0) {
+        continue;
+      }
+      await databaseService.saveTerms(sectionId, sectionTerms);
+    }
+    logger.debug('Terms stored to normalized store', {
+      sectionCount: Object.keys(termsData).filter(k => !k.startsWith('_')).length,
+    }, LOG_CATEGORIES.DATABASE);
+  } catch (error) {
+    logger.error('Failed to store terms to normalized store', {
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+  }
+}
+
+/**
  * Retrieves OSM terms data with caching and offline support
  * @param {string} token - OSM authentication token
  * @param {boolean} [forceRefresh=false] - Force refresh from API instead of using cache
@@ -145,7 +179,6 @@ export async function getTerms(token, forceRefresh = false) {
         ],
       };
 
-      // Store current active terms from mock data
       try {
         await calculateAndStoreCurrentTerms(mockTerms);
       } catch (currentTermsError) {
@@ -153,6 +186,8 @@ export async function getTerms(token, forceRefresh = false) {
           error: currentTermsError.message,
         }, LOG_CATEGORIES.ERROR);
       }
+
+      await storeTermsToNormalizedStore(mockTerms);
 
       return mockTerms;
     }
@@ -173,7 +208,6 @@ export async function getTerms(token, forceRefresh = false) {
     });
     const terms = data || {};
 
-    // Only store current active terms in the new table
     try {
       await calculateAndStoreCurrentTerms(terms);
       logger.debug('Current active terms storage completed successfully', {
@@ -184,14 +218,14 @@ export async function getTerms(token, forceRefresh = false) {
         error: currentTermsError.message,
         stack: currentTermsError.stack,
       }, LOG_CATEGORIES.ERROR);
-      // Don't throw error - let the function return terms for immediate use
-      // but log it as a warning since this could affect sync
       logger.warn('Term storage failed - sync operations may fail to find terms', {
         affectedSections: Object.keys(terms || {}).filter(k => !k.startsWith('_')).length,
       }, LOG_CATEGORIES.API);
     }
-    
-    return terms; // Return original data without timestamp
+
+    await storeTermsToNormalizedStore(terms);
+
+    return terms;
     
   } catch (error) {
     logger.error('Error fetching terms - no fallback available', {
