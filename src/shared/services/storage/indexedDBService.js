@@ -130,6 +130,17 @@ function getDB() {
           logger.info('IndexedDB v5 upgrade: sections store normalized', {
             dbName,
           }, LOG_CATEGORIES.DATABASE);
+
+          if (db.objectStoreNames.contains(STORES.EVENTS)) {
+            db.deleteObjectStore(STORES.EVENTS);
+          }
+          const eventsStoreV5 = db.createObjectStore(STORES.EVENTS, { keyPath: 'eventid' });
+          eventsStoreV5.createIndex('sectionid', 'sectionid', { unique: false });
+          eventsStoreV5.createIndex('termid', 'termid', { unique: false });
+          eventsStoreV5.createIndex('startdate', 'startdate', { unique: false });
+          logger.info('IndexedDB v5 upgrade: events store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
         }
 
         logger.info('IndexedDB upgrade completed', {
