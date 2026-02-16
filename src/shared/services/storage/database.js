@@ -24,7 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
-import { SectionSchema, EventSchema, safeParseArray } from './schemas/validation.js';
+import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, safeParseArray } from './schemas/validation.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
@@ -220,22 +220,16 @@ class DatabaseService {
 
     const createAttendanceTable = `
       CREATE TABLE IF NOT EXISTS attendance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        eventid TEXT,
-        scoutid INTEGER,
-        firstname TEXT,
-        lastname TEXT,
+        eventid TEXT NOT NULL,
+        scoutid INTEGER NOT NULL,
+        sectionid INTEGER,
         attending TEXT,
         patrol TEXT,
         notes TEXT,
-        version INTEGER DEFAULT 1,
-        local_version INTEGER DEFAULT 1,
-        last_sync_version INTEGER DEFAULT 0,
-        is_locally_modified BOOLEAN DEFAULT 0,
+        isSharedSection INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_synced_at DATETIME,
-        conflict_resolution_needed BOOLEAN DEFAULT 0,
+        PRIMARY KEY (eventid, scoutid),
         FOREIGN KEY (eventid) REFERENCES events (eventid)
       );
     `;
@@ -343,6 +337,7 @@ class DatabaseService {
     await this.db.execute(SQLITE_SCHEMAS.flexi_lists);
     await this.db.execute(SQLITE_SCHEMAS.flexi_structure);
     await this.db.execute(SQLITE_SCHEMAS.flexi_data);
+    await this.db.execute(SQLITE_SCHEMAS.shared_event_metadata);
 
     for (const indexSql of SQLITE_INDEXES) {
       await this.db.execute(indexSql);
@@ -648,193 +643,264 @@ class DatabaseService {
   /**
    * Saves attendance records for a specific event
    *
-   * Stores individual scout attendance information for event tracking.
+   * Validates with Zod at the write boundary and stores to normalized
+   * IndexedDB (web) or SQLite with transaction wrapping (native).
    * Replaces all existing attendance records for the specified event.
-   * Critical for offline functionality during events when internet may
-   * be unreliable but attendance needs to be recorded.
+   * Unknown fields are logged to Sentry as warnings.
    *
    * @async
    * @param {string|number} eventId - Event identifier to save attendance for
    * @param {Array<Object>} attendanceData - Array of attendance records
-   * @param {number} attendanceData[].scoutid - Scout member identifier
-   * @param {string} attendanceData[].firstname - Scout's first name
-   * @param {string} attendanceData[].lastname - Scout's last name
-   * @param {string} attendanceData[].attending - Attendance status ("Yes"/"No"/"Maybe")
-   * @param {string} [attendanceData[].patrol] - Scout's patrol name
-   * @param {string} [attendanceData[].notes] - Additional attendance notes
-   * @param {Object} [options] - Additional options
-   * @param {boolean} [options.isLocalModification] - Whether this is a local modification
-   * @param {number} [options.remoteVersion] - Remote version number if syncing from server
-   * @param {boolean} [options.fromSync] - Whether this save is from a sync operation
    * @returns {Promise<void>} Resolves when attendance is saved
-   *
-   * @example
-   * // Record attendance for weekend camp
-   * const campAttendance = [
-   *   {
-   *     scoutid: 12345,
-   *     firstname: 'Alice',
-   *     lastname: 'Smith',
-   *     attending: 'Yes',
-   *     patrol: 'Red Patrol',
-   *     notes: 'Dietary requirements: vegetarian'
-   *   },
-   *   {
-   *     scoutid: 67890,
-   *     firstname: 'Bob',
-   *     lastname: 'Jones',
-   *     attending: 'No',
-   *     patrol: 'Blue Patrol',
-   *     notes: 'Family holiday'
-   *   }
-   * ];
-   *
-   * await databaseService.saveAttendance('camp_456', campAttendance);
    */
-  async saveAttendance(eventId, attendanceData, options = {}) {
+  async saveAttendance(eventId, attendanceData) {
     await this.initialize();
 
-    if (!this.isNative || !this.db) {
-      // Storage routing - add versioning metadata to localStorage
-      const key = `viking_attendance_${eventId}_offline`;
-      const enhancedData = Array.isArray(attendanceData) ?
-        attendanceData.map(record => ({
-          ...record,
-          version: record.version || 1,
-          local_version: options.isLocalModification ? (record.local_version || 1) + 1 : record.local_version || 1,
-          is_locally_modified: options.isLocalModification || false,
-          updated_at: Date.now(),
-          last_synced_at: options.fromSync ? Date.now() : record.last_synced_at,
-        })) : attendanceData;
+    const KNOWN_ATTENDANCE_KEYS = ['scoutid', 'eventid', 'sectionid', 'attending', 'patrol', 'notes', 'isSharedSection', 'updated_at'];
 
-      await UnifiedStorageService.set(key, enhancedData);
+    const { data: validRecords, errors } = safeParseArray(AttendanceSchema, attendanceData);
+    if (errors.length > 0) {
+      logger.warn('Attendance validation errors during save', {
+        errorCount: errors.length,
+        totalCount: attendanceData?.length,
+        errors: errors.slice(0, 5),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
+    for (const record of validRecords) {
+      const unknownKeys = Object.keys(record).filter(k => !KNOWN_ATTENDANCE_KEYS.includes(k));
+      if (unknownKeys.length > 0) {
+        sentryUtils.captureMessage('Attendance record has unknown fields', {
+          level: 'warning',
+          extra: { unknownKeys, eventid: eventId },
+        });
+        break;
+      }
+    }
+
+    if (!this.isNative || !this.db) {
+      await IndexedDBService.bulkReplaceAttendanceForEvent(eventId, validRecords);
       return;
     }
 
-    // For SQLite, handle versioning properly
-    const currentTime = new Date().toISOString();
-    const isLocalMod = options.isLocalModification || false;
-    const fromSync = options.fromSync || false;
-
-    // Begin transaction for atomic updates
     await this.db.execute('BEGIN TRANSACTION');
-
     try {
-      // Get existing records to preserve version information
-      const existingQuery = 'SELECT eventid, scoutid, version, local_version, last_sync_version FROM attendance WHERE eventid = ?';
-      const existingResult = await this.db.query(existingQuery, [eventId]);
-      const existingRecords = new Map();
+      await this.db.run('DELETE FROM attendance WHERE eventid = ?', [eventId]);
 
-      if (existingResult.values) {
-        for (const record of existingResult.values) {
-          existingRecords.set(record.scoutid, record);
-        }
-      }
-
-      // Delete existing attendance for this event
-      const deleteOld = 'DELETE FROM attendance WHERE eventid = ?';
-      await this.db.run(deleteOld, [eventId]);
-
-      for (const person of attendanceData) {
-        const existing = existingRecords.get(person.scoutid);
-
-        let version = person.version || 1;
-        let localVersion = person.local_version || 1;
-        let lastSyncVersion = person.last_sync_version || 0;
-
-        if (existing) {
-          if (isLocalMod) {
-            // Local modification - increment local version
-            localVersion = existing.local_version + 1;
-            version = Math.max(existing.version, version);
-          } else if (fromSync) {
-            // Sync from server - update version tracking
-            version = options.remoteVersion || version;
-            lastSyncVersion = version;
-          } else {
-            // Preserve existing versions
-            version = existing.version;
-            localVersion = existing.local_version;
-            lastSyncVersion = existing.last_sync_version;
-          }
-        }
-
+      for (const record of validRecords) {
         const insert = `
-          INSERT INTO attendance (
-            eventid, scoutid, firstname, lastname, attending, patrol, notes,
-            version, local_version, last_sync_version, is_locally_modified,
-            updated_at, last_synced_at, conflict_resolution_needed
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
-
         await this.db.run(insert, [
-          eventId,
-          person.scoutid,
-          person.firstname,
-          person.lastname,
-          person.attending,
-          person.patrol,
-          person.notes,
-          version,
-          localVersion,
-          lastSyncVersion,
-          isLocalMod ? 1 : 0,
-          currentTime,
-          fromSync ? currentTime : null,
-          person.conflict_resolution_needed ? 1 : 0,
+          record.eventid,
+          record.scoutid,
+          record.sectionid,
+          record.attending,
+          record.patrol,
+          record.notes,
+          record.isSharedSection ? 1 : 0,
         ]);
       }
 
       await this.db.execute('COMMIT');
-      await this.updateSyncStatus('attendance');
-
     } catch (error) {
       await this.db.execute('ROLLBACK');
       throw error;
     }
+
+    await this.updateSyncStatus('attendance');
   }
 
   /**
-   * Retrieves attendance records for a specific event
-   * 
-   * Loads attendance information with proper name ordering for easy review.
-   * Returns all scouts registered for the event with their attendance status.
-   * Critical for event check-in/check-out and attendance reporting.
-   * 
+   * Retrieves attendance records for a specific event from normalized storage
+   *
    * @async
    * @param {string|number} eventId - Event identifier to get attendance for
    * @returns {Promise<Array<Object>>} Array of attendance records
-   * @returns {number} returns[].scoutid - Scout member identifier
-   * @returns {string} returns[].firstname - Scout's first name
-   * @returns {string} returns[].lastname - Scout's last name
-   * @returns {string} returns[].attending - Attendance status
-   * @returns {string} [returns[].patrol] - Scout's patrol name
-   * @returns {string} [returns[].notes] - Attendance notes
-   * 
-   * @example
-   * // Get attendance for event check-in
-   * const attendance = await databaseService.getAttendance('camp_456');
-   * 
-   * const attending = attendance.filter(scout => scout.attending === 'Yes');
-   * console.log(`${attending.length} scouts attending the camp`);
-   * 
-   * // Display attendance list
-   * attendance.forEach(scout => {
-   *   console.log(`${scout.firstname} ${scout.lastname}: ${scout.attending}`);
-   * });
    */
   async getAttendance(eventId) {
     await this.initialize();
-    
+
     if (!this.isNative || !this.db) {
-      // Storage routing
-      const key = `viking_attendance_${eventId}_offline`;
-      return await UnifiedStorageService.get(key) || [];
+      return IndexedDBService.getAttendanceByEvent(String(eventId));
     }
-    
-    const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY lastname, firstname';
+
+    const query = 'SELECT * FROM attendance WHERE eventid = ? ORDER BY scoutid';
     const result = await this.db.query(query, [eventId]);
+    return result.values || [];
+  }
+
+  /**
+   * Saves shared attendance records for a specific event
+   *
+   * Stores attendance records with isSharedSection marker. Only replaces
+   * shared records for the event, preserving regular attendance records.
+   *
+   * @async
+   * @param {string|number} eventId - Event identifier
+   * @param {Array<Object>} attendanceData - Array of shared attendance records
+   * @returns {Promise<void>}
+   */
+  async saveSharedAttendance(eventId, attendanceData) {
+    await this.initialize();
+
+    const markedData = (Array.isArray(attendanceData) ? attendanceData : []).map(record => ({
+      ...record,
+      isSharedSection: true,
+    }));
+
+    const KNOWN_ATTENDANCE_KEYS = ['scoutid', 'eventid', 'sectionid', 'attending', 'patrol', 'notes', 'isSharedSection', 'updated_at'];
+
+    const { data: validRecords, errors } = safeParseArray(AttendanceSchema, markedData);
+    if (errors.length > 0) {
+      logger.warn('Shared attendance validation errors during save', {
+        errorCount: errors.length,
+        totalCount: attendanceData?.length,
+        errors: errors.slice(0, 5),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
+    for (const record of validRecords) {
+      const unknownKeys = Object.keys(record).filter(k => !KNOWN_ATTENDANCE_KEYS.includes(k));
+      if (unknownKeys.length > 0) {
+        sentryUtils.captureMessage('Shared attendance record has unknown fields', {
+          level: 'warning',
+          extra: { unknownKeys, eventid: eventId },
+        });
+        break;
+      }
+    }
+
+    if (!this.isNative || !this.db) {
+      const db = await IndexedDBService.getDB();
+      const tx = db.transaction('attendance', 'readwrite');
+      const store = tx.objectStore('attendance');
+      const index = store.index('eventid');
+
+      let cursor = await index.openCursor(String(eventId));
+      while (cursor) {
+        if (cursor.value.isSharedSection === true) {
+          await cursor.delete();
+        }
+        cursor = await cursor.continue();
+      }
+
+      for (const record of validRecords) {
+        await store.put({ ...record, updated_at: Date.now() });
+      }
+
+      await tx.done;
+      return;
+    }
+
+    await this.db.execute('BEGIN TRANSACTION');
+    try {
+      await this.db.run('DELETE FROM attendance WHERE eventid = ? AND isSharedSection = 1', [eventId]);
+
+      for (const record of validRecords) {
+        const insert = `
+          INSERT INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        await this.db.run(insert, [
+          record.eventid,
+          record.scoutid,
+          record.sectionid,
+          record.attending,
+          record.patrol,
+          record.notes,
+          1,
+        ]);
+      }
+
+      await this.db.execute('COMMIT');
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
+    }
+
+    await this.updateSyncStatus('attendance');
+  }
+
+  /**
+   * Saves shared event metadata
+   *
+   * @async
+   * @param {Object} metadata - Shared event metadata object with eventid
+   * @returns {Promise<void>}
+   */
+  async saveSharedEventMetadata(metadata) {
+    await this.initialize();
+
+    const result = SharedEventMetadataSchema.safeParse(metadata);
+    if (!result.success) {
+      logger.warn('SharedEventMetadata validation failed', {
+        issues: result.error.issues,
+      }, LOG_CATEGORIES.DATABASE);
+      throw new Error('SharedEventMetadata validation failed');
+    }
+    const validMetadata = result.data;
+
+    if (!this.isNative || !this.db) {
+      await IndexedDBService.saveSharedEventMetadata(validMetadata);
+      return;
+    }
+
+    const insert = `
+      INSERT OR REPLACE INTO shared_event_metadata (eventid, is_shared_event, owner_section_id, sections, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    await this.db.run(insert, [
+      validMetadata.eventid,
+      validMetadata.isSharedEvent ? 1 : 0,
+      validMetadata.ownerSectionId ?? null,
+      JSON.stringify(validMetadata.sections),
+      Date.now(),
+    ]);
+  }
+
+  /**
+   * Retrieves shared event metadata for a specific event
+   *
+   * @async
+   * @param {string|number} eventId - Event identifier
+   * @returns {Promise<Object|null>} Shared event metadata or null
+   */
+  async getSharedEventMetadata(eventId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return IndexedDBService.getSharedEventMetadata(String(eventId));
+    }
+
+    const query = 'SELECT * FROM shared_event_metadata WHERE eventid = ?';
+    const result = await this.db.query(query, [eventId]);
+    const row = result.values?.[0];
+    if (!row) return null;
+
+    return {
+      ...row,
+      sections: row.sections ? JSON.parse(row.sections) : [],
+    };
+  }
+
+  /**
+   * Retrieves attendance records for a specific scout across all events
+   *
+   * @async
+   * @param {number|string} scoutId - Scout identifier
+   * @returns {Promise<Array<Object>>} Array of attendance records
+   */
+  async getAttendanceByScout(scoutId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return IndexedDBService.getAttendanceByScout(Number(scoutId));
+    }
+
+    const query = 'SELECT * FROM attendance WHERE scoutid = ? ORDER BY eventid';
+    const result = await this.db.query(query, [scoutId]);
     return result.values || [];
   }
 
@@ -1599,8 +1665,7 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      const key = `viking_attendance_${eventId}_offline`;
-      await UnifiedStorageService.remove(key);
+      await IndexedDBService.bulkReplaceAttendanceForEvent(eventId, []);
       return;
     }
 
@@ -1777,30 +1842,6 @@ class DatabaseService {
     throw new Error('FlexiData storage via normalized storage not yet implemented (Phase 6)');
   }
 
-  /**
-   * Retrieves shared attendance data for an event from normalized storage
-   * @async
-   * @param {string} _eventId - Event identifier
-   * @returns {Promise<Object|null>} Shared attendance data or null
-   * @throws {Error} Not yet implemented - Phase 4
-   */
-  async getSharedAttendance(_eventId) {
-    await this.initialize();
-    throw new Error('SharedAttendance retrieval via normalized storage not yet implemented (Phase 4)');
-  }
-
-  /**
-   * Saves shared attendance data for an event to normalized storage
-   * @async
-   * @param {string} _eventId - Event identifier
-   * @param {Object} _data - Shared attendance data to save
-   * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 4
-   */
-  async saveSharedAttendance(_eventId, _data) {
-    await this.initialize();
-    throw new Error('SharedAttendance storage via normalized storage not yet implemented (Phase 4)');
-  }
 
   /**
    * Closes database connections and cleans up resources
