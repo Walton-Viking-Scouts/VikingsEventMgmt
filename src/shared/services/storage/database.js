@@ -24,7 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
-import { SectionSchema, safeParseArray } from './schemas/validation.js';
+import { SectionSchema, EventSchema, safeParseArray } from './schemas/validation.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 
@@ -508,32 +508,47 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      await this._saveWebStorageEvents(sectionId, events);
+      const { data: validEvents, errors } = safeParseArray(EventSchema, events);
+      if (errors.length > 0) {
+        logger.warn('Event validation errors during save', {
+          errorCount: errors.length,
+          totalCount: events?.length,
+          errors: errors.slice(0, 5),
+        }, LOG_CATEGORIES.DATABASE);
+      }
+      await IndexedDBService.bulkReplaceEventsForSection(sectionId, validEvents);
       return;
     }
-    
-    // Delete existing events for this section
-    const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
-    await this.db.run(deleteOld, [sectionId]);
 
-    for (const event of events) {
-      const insert = `
-        INSERT INTO events (eventid, sectionid, termid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      await this.db.run(insert, [
-        event.eventid, 
-        sectionId, 
-        event.termid || null,
-        event.name, 
-        event.date,
-        event.startdate, 
-        event.startdate_g,
-        event.enddate, 
-        event.enddate_g,
-        event.location, 
-        event.notes,
-      ]);
+    await this.db.execute('BEGIN TRANSACTION');
+    try {
+      const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
+      await this.db.run(deleteOld, [sectionId]);
+
+      for (const event of events) {
+        const insert = `
+          INSERT INTO events (eventid, sectionid, termid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        await this.db.run(insert, [
+          event.eventid,
+          sectionId,
+          event.termid || null,
+          event.name,
+          event.date,
+          event.startdate,
+          event.startdate_g,
+          event.enddate,
+          event.enddate_g,
+          event.location,
+          event.notes,
+        ]);
+      }
+
+      await this.db.execute('COMMIT');
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
     }
 
     await this.updateSyncStatus('events');
@@ -579,12 +594,55 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      return this._getWebStorageEvents(sectionId);
+      const events = await IndexedDBService.getEventsBySection(sectionId);
+      const { isDemoMode } = await import('../../../config/demoMode.js');
+      if (!isDemoMode()) {
+        return events.filter(e => !(typeof e?.eventid === 'string' && e.eventid.startsWith('demo_event_')));
+      }
+      return events;
     }
-    
+
     const query = 'SELECT * FROM events WHERE sectionid = ? ORDER BY startdate DESC';
     const result = await this.db.query(query, [sectionId]);
     return result.values || [];
+  }
+
+  /**
+   * Retrieves events for a specific term across all sections
+   *
+   * @async
+   * @param {string} termId - Term identifier to get events for
+   * @returns {Promise<Array<Object>>} Array of event objects for the term
+   */
+  async getEventsByTerm(termId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return IndexedDBService.getEventsByTerm(termId);
+    }
+
+    const query = 'SELECT * FROM events WHERE termid = ? ORDER BY startdate DESC';
+    const result = await this.db.query(query, [termId]);
+    return result.values || [];
+  }
+
+  /**
+   * Retrieves a single event by its event ID
+   *
+   * @async
+   * @param {string} eventId - Event identifier to look up
+   * @returns {Promise<Object|null>} The event object or null if not found
+   */
+  async getEventById(eventId) {
+    await this.initialize();
+
+    if (!this.isNative || !this.db) {
+      return IndexedDBService.getEventById(eventId);
+    }
+
+    const query = 'SELECT * FROM events WHERE eventid = ?';
+    const result = await this.db.query(query, [eventId]);
+    return result.values?.[0] || null;
   }
 
   /**
