@@ -2,7 +2,7 @@ import { updateFlexiRecord, multiUpdateFlexiRecord } from '../../../shared/servi
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { isDemoMode } from '../../../config/demoMode.js';
-import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js';
+import databaseService from '../../../shared/services/storage/database.js';
 
 /**
  * Service for managing camp group member allocations
@@ -10,57 +10,39 @@ import { safeGetItem, safeSetItem } from '../../../shared/utils/storageUtils.js'
  */
 
 /**
- * Move a member to a different camp group
- * 
- * @param {Object} moveData - The move operation data
- * @param {Object} moveData.member - Member being moved
- * @param {string} moveData.fromGroupNumber - Original group number
- * @param {string} moveData.fromGroupName - Original group name  
- * @param {string} moveData.toGroupNumber - Target group number
- * @param {string} moveData.toGroupName - Target group name
- * @param {Object} flexiRecordContext - FlexiRecord configuration
- * @param {string} flexiRecordContext.flexirecordid - FlexiRecord ID
- * @param {string} flexiRecordContext.columnid - Column ID for CampGroup field
- * @param {string} flexiRecordContext.sectionid - Section ID
- * @param {string} flexiRecordContext.termid - Term ID
- * @param {string} flexiRecordContext.section - Section name
- * @param {string} token - Authentication token
- * @returns {Promise<Object>} Result with success status and details
- */
-/**
  * Demo mode version of camp group assignment
- * Updates localStorage cache instead of calling OSM API
+ * Updates normalized store cache instead of calling OSM API
+ *
+ * @param {Object} moveData - The move operation data
+ * @param {Object} flexiRecordContext - FlexiRecord configuration
+ * @returns {Object} Result with success status
  */
-function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
+async function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
   try {
     const memberName = moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown';
-    
+
     logger.info('Demo mode: Assigning member to camp group', {
       memberId: moveData.member.scoutid,
       memberName,
       toGroup: moveData.toGroupNumber,
     }, LOG_CATEGORIES.API);
-    
-    // In demo mode, use standardized values
+
     const flexirecordid = flexiRecordContext?.flexirecordid || 'flexi_viking_event';
     const sectionid = flexiRecordContext?.sectionid || moveData.member.sectionid;
     const termid = flexiRecordContext?.termid || '12345';
-    
-    const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
-    const cached = safeGetItem(cacheKey, { items: [] });
-    
-    // Convert scoutid to match the type in cache (both to numbers for comparison)
+
+    const cached = await databaseService.getFlexiData(flexirecordid, sectionid, termid) || { items: [] };
+
     const memberScoutId = Number(moveData.member.scoutid);
     const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === memberScoutId);
     if (memberIndex >= 0) {
       const newValue = (moveData.toGroupNumber === 'Unassigned' || !moveData.toGroupNumber) ? '' : moveData.toGroupNumber.toString();
-      
-      // Update both f_1 (the flexi field) and CampGroup (the transformed field)
+
       cached.items[memberIndex].f_1 = newValue;
       cached.items[memberIndex].CampGroup = newValue;
-      
-      safeSetItem(cacheKey, cached);
-      
+
+      await databaseService.saveFlexiData(flexirecordid, sectionid, termid, cached);
+
       return {
         ok: true,
         success: true,
@@ -74,7 +56,7 @@ function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
       error: error.message,
       moveData,
     }, LOG_CATEGORIES.API);
-    
+
     return {
       ok: false,
       success: false,
@@ -83,22 +65,36 @@ function assignMemberToCampGroupDemo(moveData, flexiRecordContext) {
   }
 }
 
+/**
+ * Move a member to a different camp group
+ *
+ * @param {Object} moveData - The move operation data
+ * @param {Object} moveData.member - Member being moved
+ * @param {string} moveData.fromGroupNumber - Original group number
+ * @param {string} moveData.fromGroupName - Original group name
+ * @param {string} moveData.toGroupNumber - Target group number
+ * @param {string} moveData.toGroupName - Target group name
+ * @param {Object} flexiRecordContext - FlexiRecord configuration
+ * @param {string} flexiRecordContext.flexirecordid - FlexiRecord ID
+ * @param {string} flexiRecordContext.columnid - Column ID for CampGroup field
+ * @param {string} flexiRecordContext.sectionid - Section ID
+ * @param {string} flexiRecordContext.termid - Term ID
+ * @param {string} flexiRecordContext.section - Section name
+ * @param {string} token - Authentication token
+ * @returns {Promise<Object>} Result with success status and details
+ */
 export async function assignMemberToCampGroup(moveData, flexiRecordContext, token) {
-  // Handle demo mode
   if (isDemoMode()) {
     return assignMemberToCampGroupDemo(moveData, flexiRecordContext);
   }
-  
-  // Production mode continues below
+
   const startTime = Date.now();
-  
+
   try {
-    // Validate required data FIRST
     if (!moveData.member || !moveData.member.scoutid) {
       throw new Error('Invalid member data: missing scoutid');
     }
 
-    // Now safe to log with member data
     logger.info('Starting camp group assignment', {
       memberId: moveData.member.scoutid,
       memberName: moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown',
@@ -111,7 +107,6 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       throw new Error('Invalid FlexiRecord context: missing flexirecordid');
     }
 
-    // Validate all required FlexiRecord context fields
     if (!flexiRecordContext.sectionid) {
       throw new Error('Invalid FlexiRecord context: missing sectionid');
     }
@@ -124,23 +119,18 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       throw new Error('Invalid FlexiRecord context: missing section name');
     }
 
-    // Validate columnid follows the f_N pattern (e.g., f_1, f_2, f_3)
     if (!flexiRecordContext.columnid || !/^f_\d+$/.test(flexiRecordContext.columnid)) {
       throw new Error(`Invalid FlexiRecord field ID: expected format 'f_N', got '${flexiRecordContext.columnid || 'undefined'}'`);
     }
 
-    // Validate token is provided
     if (!token || typeof token !== 'string') {
       throw new Error('Invalid or missing authentication token');
     }
 
-    // Determine the new group value for the API
-    // Empty string or null for "Unassigned", otherwise the group number
-    const newGroupValue = (moveData.toGroupNumber === 'Unassigned' || !moveData.toGroupNumber) 
-      ? '' 
+    const newGroupValue = (moveData.toGroupNumber === 'Unassigned' || !moveData.toGroupNumber)
+      ? ''
       : moveData.toGroupNumber.toString();
 
-    // Call the existing updateFlexiRecord API
     const result = await updateFlexiRecord(
       flexiRecordContext.sectionid,
       moveData.member.scoutid,
@@ -152,7 +142,6 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       token,
     );
 
-    // Check for application-level failure (API can return HTTP 200 with ok: false)
     if (!result || result.ok === false || result.status === 'error' || result.success === false) {
       throw new Error(result?.message || result?.error || 'FlexiRecord update failed - API returned error status');
     }
@@ -177,7 +166,7 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+
     logger.error('Camp group assignment failed', {
       memberId: moveData.member?.scoutid,
       memberName: moveData.member ? (moveData.member.name || `${moveData.member.firstname} ${moveData.member.lastname}` || 'Unknown') : 'Unknown',
@@ -188,7 +177,6 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
       operation: 'assignMemberToCampGroup',
     }, LOG_CATEGORIES.ERROR);
 
-    // Capture in Sentry with context
     sentryUtils.captureException(error, {
       tags: {
         operation: 'assignMemberToCampGroup',
@@ -219,12 +207,11 @@ export async function assignMemberToCampGroup(moveData, flexiRecordContext, toke
 
 /**
  * Process multiple member moves in sequence
- * Useful for bulk operations or retry scenarios
- * 
+ *
  * @param {Array<Object>} moves - Array of move operations
- * @param {Object} flexiRecordContext - FlexiRecord configuration 
+ * @param {Object} flexiRecordContext - FlexiRecord configuration
  * @param {string} token - Authentication token
- * @returns {Promise<Array<Object>>} Array of results for each move
+ * @returns {Promise<Object>} Results for each move with summary
  */
 export async function batchAssignMembers(moves, flexiRecordContext, token) {
   logger.info('Starting batch camp group assignment', {
@@ -245,14 +232,13 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
 
       const result = await assignMemberToCampGroup(move, flexiRecordContext, token);
       results.push(result);
-      
+
       if (result.success) {
         successCount++;
       } else {
         errorCount++;
       }
 
-      // Rate limiting: small delay between API calls
       if (index < moves.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
@@ -291,7 +277,7 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
 
 /**
  * Extract FlexiRecord context from Viking Event data
- * 
+ *
  * @param {Object} vikingEventData - Viking Event Management FlexiRecord data
  * @param {string} sectionId - Section ID
  * @param {string} termId - Term ID
@@ -299,7 +285,6 @@ export async function batchAssignMembers(moves, flexiRecordContext, token) {
  * @returns {Object|null} FlexiRecord context or null if not available
  */
 export function extractFlexiRecordContext(vikingEventData, sectionId, termId, sectionName) {
-  // Debug: Log the actual data being passed
   logger.info('DEBUG: extractFlexiRecordContext called', {
     vikingEventData: vikingEventData ? Object.keys(vikingEventData) : 'null',
     vikingEventDataType: typeof vikingEventData,
@@ -308,10 +293,9 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
     sectionName,
     fullDataSample: vikingEventData ? JSON.stringify(vikingEventData, null, 2).substring(0, 500) + '...' : 'null',
   }, LOG_CATEGORIES.APP);
-  
-  // Try both _structure and structure properties for compatibility
+
   const structure = vikingEventData?._structure || vikingEventData?.structure;
-  
+
   if (!vikingEventData || !structure) {
     logger.warn('No Viking Event data or structure available', {
       hasData: !!vikingEventData,
@@ -323,12 +307,9 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
     return null;
   }
 
-  // Find the CampGroup field mapping from the structure
-  // Field mapping can be either a Map or an object (depending on parsing)
   let campGroupField = null;
   const fieldMapping = structure.fieldMapping || {};
 
-  // Handle Map format (parseFlexiStructure returns a Map)
   if (fieldMapping instanceof Map) {
     for (const [, fieldInfo] of fieldMapping.entries()) {
       if (fieldInfo.name === 'CampGroup') {
@@ -337,7 +318,6 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
       }
     }
   }
-  // Handle object format (cached structure might be an object)
   else if (fieldMapping && typeof fieldMapping === 'object') {
     campGroupField = Object.values(fieldMapping).find(field => field.name === 'CampGroup');
   }
@@ -362,7 +342,7 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
 
   return {
     flexirecordid: structure.flexirecordid,
-    columnid: campGroupField.columnId, // Should be f_1
+    columnid: campGroupField.columnId,
     sectionid: sectionId,
     termid: termId,
     section: sectionName,
@@ -371,14 +351,13 @@ export function extractFlexiRecordContext(vikingEventData, sectionId, termId, se
 
 /**
  * Validate that a member can be moved to a specific group
- * 
+ *
  * @param {Object} member - Member data
  * @param {string} targetGroupNumber - Target group number
  * @param {Object} currentGroups - Current group organization
  * @returns {Object} Validation result with success/error details
  */
 export function validateMemberMove(member, targetGroupNumber, currentGroups) {
-  // Validate member object exists
   if (!member) {
     return {
       valid: false,
@@ -386,7 +365,6 @@ export function validateMemberMove(member, targetGroupNumber, currentGroups) {
     };
   }
 
-  // Only Young People can be moved between camp groups
   if (member.person_type !== 'Young People') {
     return {
       valid: false,
@@ -394,12 +372,11 @@ export function validateMemberMove(member, targetGroupNumber, currentGroups) {
     };
   }
 
-  // Check if target group exists (unless it's "Unassigned")
   if (targetGroupNumber !== 'Unassigned' && targetGroupNumber !== '') {
     const targetGroup = Object.values(currentGroups).find(
       group => String(group.number) === String(targetGroupNumber),
     );
-    
+
     if (!targetGroup) {
       return {
         valid: false,
@@ -414,35 +391,28 @@ export function validateMemberMove(member, targetGroupNumber, currentGroups) {
 }
 
 /**
- * Bulk update camp group assignments for multiple members using multi-update API
- * More efficient than individual updates for operations like group renaming
- * 
+ * Bulk update camp group assignments for multiple members
+ *
  * @param {Array<string|number>} scoutIds - Array of scout/member IDs to update
  * @param {string} newGroupValue - New camp group value (empty string for "Unassigned")
  * @param {Object} flexiRecordContext - FlexiRecord configuration
- * @param {string} flexiRecordContext.flexirecordid - FlexiRecord ID
- * @param {string} flexiRecordContext.columnid - Column ID for CampGroup field
- * @param {string} flexiRecordContext.sectionid - Section ID
  * @param {string} token - Authentication token
  * @returns {Promise<Object>} Result with success status and details
  */
 export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordContext, token) {
-  // Handle demo mode
   if (isDemoMode()) {
     logger.info('Demo mode: Simulating bulk camp group update', {
       scoutCount: scoutIds.length,
       newGroupValue,
       flexirecordid: flexiRecordContext?.flexirecordid,
     }, LOG_CATEGORIES.API);
-    
-    // Update demo cache for each scout
+
     const flexirecordid = flexiRecordContext?.flexirecordid || 'flexi_viking_event';
     const sectionid = flexiRecordContext?.sectionid;
-    const termid = '12345'; // Demo term ID
-    
-    const cacheKey = `viking_flexi_data_${flexirecordid}_${sectionid}_${termid}_offline`;
-    const cached = safeGetItem(cacheKey, { items: [] });
-    
+    const termid = '12345';
+
+    const cached = await databaseService.getFlexiData(flexirecordid, sectionid, termid) || { items: [] };
+
     let updatedCount = 0;
     scoutIds.forEach(scoutId => {
       const memberIndex = cached.items.findIndex(m => Number(m.scoutid) === Number(scoutId));
@@ -452,9 +422,9 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
         updatedCount++;
       }
     });
-    
-    safeSetItem(cacheKey, cached);
-    
+
+    await databaseService.saveFlexiData(flexirecordid, sectionid, termid, cached);
+
     return {
       ok: true,
       success: true,
@@ -462,12 +432,10 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
       updatedCount,
     };
   }
-  
-  // Production mode
+
   const startTime = Date.now();
-  
+
   try {
-    // Validate required data
     if (!Array.isArray(scoutIds) || scoutIds.length === 0) {
       throw new Error('Invalid scout IDs: array is required and must not be empty');
     }
@@ -494,7 +462,6 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
       operation: 'bulkUpdateCampGroups',
     }, LOG_CATEGORIES.API);
 
-    // Call the multi-update API
     const result = await multiUpdateFlexiRecord(
       flexiRecordContext.sectionid,
       scoutIds,
@@ -504,7 +471,6 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
       token,
     );
 
-    // Check for application-level failure
     if (!result || result.ok === false || result.status === 'error' || result.success === false) {
       throw new Error(result?.message || result?.error || 'Multi-update FlexiRecord failed - API returned error status');
     }
@@ -528,7 +494,7 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    
+
     logger.error('Bulk camp group update failed', {
       scoutCount: scoutIds?.length || 0,
       newGroupValue,
@@ -537,7 +503,6 @@ export async function bulkUpdateCampGroups(scoutIds, newGroupValue, flexiRecordC
       operation: 'bulkUpdateCampGroups',
     }, LOG_CATEGORIES.ERROR);
 
-    // Capture in Sentry with context
     sentryUtils.captureException(error, {
       tags: {
         operation: 'bulkUpdateCampGroups',
