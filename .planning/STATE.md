@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 6 complete -- Flexi Records Normalization (all 5 plans done). Ready for Phase 7.
+**Current focus:** Phase 7 in progress -- Cleanup & Consolidation (UnifiedStorageService removal).
 
 ## Current Position
 
-Phase: 6 of 7 (Flexi Records Normalization)
-Plan: 5 of 5 in current phase
-Status: Phase Complete
-Last activity: 2026-02-17 -- Completed Phase 06 Flexi Records Normalization (all 5 plans)
+Phase: 7 of 7 (Cleanup & Consolidation)
+Plan: 2 of 5 in current phase
+Status: In Progress
+Last activity: 2026-02-17 -- Completed 07-02-PLAN.md (Events/Dashboard/Assignment UnifiedStorageService Removal)
 
-Progress: [██████████] 95%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
-- Average duration: 3.9 min
-- Total execution time: 1.03 hours
+- Total plans completed: 18
+- Average duration: 3.8 min
+- Total execution time: 1.1 hours
 
 **By Phase:**
 
@@ -33,9 +33,10 @@ Progress: [██████████] 95%
 | 04-attendance-normalization | 3/3 | 12 min | 4 min |
 | 05-terms-normalization | 3/3 | 19 min | 6.3 min |
 | 06-flexi-records-normalization | 5/5 | 13 min | 2.6 min |
+| 07-cleanup-consolidation | 2/5 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-03 (9 min), 06-01 (2 min), 06-02 (2 min), 06-03 (3 min), 06-05 (3 min)
+- Last 5 plans: 06-02 (2 min), 06-03 (3 min), 06-05 (3 min), 07-01 (3 min), 07-02 (3 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - [06-05]: CampGroupsView fallback uses getAllFlexiStructures() to find CampGroup-bearing structure (no key scanning)
 - [06-05]: useSignInOut iterates getAllFlexiStructures() checking for sign-in/out fields (no IndexedDBService key scanning)
 - [06-05]: clearFlexiRecordCaches retained as no-op; actual normalized store clearing deferred to Phase 7
+- [07-02]: lastSync uses IndexedDB cache_data store with key viking_last_sync (not localStorage)
+- [07-02]: AssignmentInterface drafts use localStorage directly with try-catch (matching storageUtils pattern)
+- [07-02]: Shared event metadata writes use databaseService.saveSharedEventMetadata() with eventid injected
 
 ### Pending Todos
 
@@ -103,5 +107,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-05-PLAN.md (Consumer Migration to Normalized Storage) -- Phase 06 complete (5/5 plans done)
+Stopped at: Completed 07-02-PLAN.md (Events/Dashboard/Assignment UnifiedStorageService Removal)
 Resume file: None
