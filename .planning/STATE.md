@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 7 of 7 (Cleanup & Consolidation)
-Plan: 2 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In Progress
-Last activity: 2026-02-17 -- Completed 07-02-PLAN.md (Events/Dashboard/Assignment UnifiedStorageService Removal)
+Last activity: 2026-02-17 -- Completed 07-04-PLAN.md (Attendance/Cache Legacy Cleanup)
 
-Progress: [██████████] 97%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
-- Average duration: 3.8 min
-- Total execution time: 1.1 hours
+- Total plans completed: 20
+- Average duration: 3.7 min
+- Total execution time: 1.2 hours
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [██████████] 97%
 | 04-attendance-normalization | 3/3 | 12 min | 4 min |
 | 05-terms-normalization | 3/3 | 19 min | 6.3 min |
 | 06-flexi-records-normalization | 5/5 | 13 min | 2.6 min |
-| 07-cleanup-consolidation | 2/5 | 6 min | 3 min |
+| 07-cleanup-consolidation | 4/5 | 12 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (2 min), 06-03 (3 min), 06-05 (3 min), 07-01 (3 min), 07-02 (3 min)
+- Last 5 plans: 06-05 (3 min), 07-01 (3 min), 07-02 (3 min), 07-03 (3 min), 07-04 (3 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -94,6 +94,9 @@ Recent decisions affecting current work:
 - [07-02]: lastSync uses IndexedDB cache_data store with key viking_last_sync (not localStorage)
 - [07-02]: AssignmentInterface drafts use localStorage directly with try-catch (matching storageUtils pattern)
 - [07-02]: Shared event metadata writes use databaseService.saveSharedEventMetadata() with eventid injected
+- [07-04]: getCachedEvents localStorage fallback removed entirely -- IndexedDB is sole data source
+- [07-04]: cacheCleanup simplified to demo-only: removes demo_ prefix keys from localStorage, no non-demo scanning
+- [07-04]: addTestData.js deleted -- localStorage migration test data no longer relevant
 
 ### Pending Todos
 
@@ -107,5 +110,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-02-PLAN.md (Events/Dashboard/Assignment UnifiedStorageService Removal)
+Stopped at: Completed 07-04-PLAN.md (Attendance/Cache Legacy Cleanup)
 Resume file: None
