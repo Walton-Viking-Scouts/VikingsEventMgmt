@@ -318,18 +318,6 @@ let isOnline = true;
 export { isOnline };
 
 /**
- * Clear all FlexiRecord-related caches.
- * Flexi data now lives in IndexedDB/SQLite normalized stores, not localStorage.
- * This function is retained as a no-op for any callers; actual store clearing
- * belongs in DatabaseService (Phase 7 cleanup).
- *
- * @returns {Object} Summary (always zero since localStorage flexi keys no longer exist)
- */
-export function clearFlexiRecordCaches() {
-  return { clearedLocalStorageKeys: 0 };
-}
-
-/**
  * Tests connectivity to the backend API server
  * @returns {Promise<Object>} Connection test result with status
  * @returns {Promise<{status: 'ok'}>} When connection successful

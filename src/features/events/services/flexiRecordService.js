@@ -1025,18 +1025,3 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
   }
 }
 
-/**
- * Clears all flexirecord caches from normalized stores
- *
- * @async
- * @returns {Promise<{cleared: boolean}>} Result indicating cache was cleared
- */
-export async function clearFlexiRecordCaches() {
-  try {
-    logger.info('Clearing all flexirecord caches from normalized stores', {}, LOG_CATEGORIES.DATABASE);
-    return { cleared: true };
-  } catch (error) {
-    logger.error('Failed to clear flexirecord caches', { error: error.message }, LOG_CATEGORIES.ERROR);
-    return { cleared: false };
-  }
-}
