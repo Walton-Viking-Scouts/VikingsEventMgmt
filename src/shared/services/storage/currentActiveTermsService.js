@@ -1,7 +1,5 @@
 import { IndexedDBService } from './indexedDBService.js';
-import { UnifiedStorageService } from './unifiedStorageService.js';
 import { logger, LOG_CATEGORIES } from '../utils/logger.js';
-import { isDemoMode } from '../../../config/demoMode.js';
 
 /* global IDBKeyRange */
 
@@ -123,101 +121,6 @@ export class CurrentActiveTermsService {
       }, LOG_CATEGORIES.ERROR);
       throw error;
     }
-  }
-
-  static async migrateFromTermsBlob() {
-    try {
-      const demoMode = isDemoMode();
-      const termsKey = demoMode ? 'demo_viking_terms_offline' : 'viking_terms_offline';
-
-      const termsBlob = await UnifiedStorageService.get(termsKey);
-      if (!termsBlob) {
-        logger.info('No terms blob found to migrate', { demoMode }, LOG_CATEGORIES.DATABASE);
-        return { migrated: 0, skipped: 0, errors: 0 };
-      }
-
-      let migrated = 0;
-      let skipped = 0;
-      let errors = 0;
-
-      for (const [sectionId, sectionTerms] of Object.entries(termsBlob)) {
-        if (sectionId.startsWith('_')) continue;
-
-        try {
-          if (!Array.isArray(sectionTerms) || sectionTerms.length === 0) {
-            skipped++;
-            continue;
-          }
-
-          const currentTerm = this._determineCurrentTerm(sectionTerms);
-          if (!currentTerm) {
-            skipped++;
-            continue;
-          }
-
-          await this.setCurrentActiveTerm(sectionId, currentTerm);
-          migrated++;
-        } catch (error) {
-          logger.error('Migration error for section', {
-            sectionId,
-            error: error.message,
-          }, LOG_CATEGORIES.ERROR);
-          errors++;
-        }
-      }
-
-      const result = { migrated, skipped, errors };
-      logger.info('Current active terms migration completed', result, LOG_CATEGORIES.DATABASE);
-      return result;
-    } catch (error) {
-      logger.error('Migration failed', {
-        error: error.message,
-      }, LOG_CATEGORIES.ERROR);
-      throw error;
-    }
-  }
-
-  static _determineCurrentTerm(sectionTerms) {
-    if (!Array.isArray(sectionTerms) || sectionTerms.length === 0) {
-      return null;
-    }
-
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-
-    const currentTerms = sectionTerms.filter(term => {
-      const startDate = term.startdate || term.startDate;
-      const endDate = term.enddate || term.endDate;
-      return startDate <= today && today <= endDate;
-    });
-
-    if (currentTerms.length > 0) {
-      return currentTerms[0];
-    }
-
-    const futureTerms = sectionTerms.filter(term => {
-      const startDate = term.startdate || term.startDate;
-      return startDate > today;
-    }).sort((a, b) => {
-      const aStart = a.startdate || a.startDate;
-      const bStart = b.startdate || b.startDate;
-      return aStart.localeCompare(bStart);
-    });
-
-    if (futureTerms.length > 0) {
-      return futureTerms[0];
-    }
-
-    const pastTerms = sectionTerms.filter(term => {
-      const endDate = term.enddate || term.endDate;
-      return endDate < today;
-    }).sort((a, b) => {
-      const aEnd = a.enddate || a.endDate;
-      const bEnd = b.enddate || b.endDate;
-      return bEnd.localeCompare(aEnd);
-    });
-
-    return pastTerms.length > 0 ? pastTerms[0] : sectionTerms[0];
   }
 
   static async clearAllCurrentActiveTerms() {

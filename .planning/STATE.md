@@ -1,0 +1,119 @@
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-02-15)
+
+**Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
+**Current focus:** Phase 7 COMPLETE -- Cleanup & Consolidation finished. All legacy blob storage removed.
+
+## Current Position
+
+Phase: 7 of 7 (Cleanup & Consolidation)
+Plan: 5 of 5 in current phase (ALL COMPLETE)
+Status: Complete
+Last activity: 2026-02-17 -- Completed 07-05-PLAN.md (Final Verification Sweep)
+
+Progress: [██████████] 100%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 20
+- Average duration: 3.7 min
+- Total execution time: 1.2 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 01-infrastructure-schema | 2/2 | 9 min | 4.5 min |
+| 02-sections-normalization | 1/1 | 5 min | 5 min |
+| 03-events-normalization | 2/2 | 4 min | 2 min |
+| 04-attendance-normalization | 3/3 | 12 min | 4 min |
+| 05-terms-normalization | 3/3 | 19 min | 6.3 min |
+| 06-flexi-records-normalization | 5/5 | 13 min | 2.6 min |
+| 07-cleanup-consolidation | 5/5 | 14 min | 2.8 min |
+
+**Recent Trend:**
+- Last 5 plans: 07-02 (3 min), 07-03 (3 min), 07-04 (3 min), 07-03-redo (3 min), 07-05 (2 min)
+- Trend: steady
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [Roadmap]: 7 phases following dependency order -- sections first (referenced by all), flexi last (highest complexity)
+- [Roadmap]: Cross-cutting requirements (XCUT) split between Phase 1 (infrastructure) and Phase 7 (validation of end-to-end flow)
+- [01-01]: Zod v4 installed with v3-compatible import path -- all schemas use `import { z } from 'zod'`
+- [01-01]: All ID fields use .transform() for canonical type coercion (eventid->String, sectionid->Number)
+- [01-02]: Version 5 upgrade guard is intentionally a no-op -- phases 2-6 add store migration logic inside the block
+- [01-02]: Method stubs use underscore-prefixed params to satisfy ESLint while preserving API signatures
+- [02-01]: Sections store uses clear+put in single transaction for atomic replacement (not merge/upsert)
+- [02-01]: Zod validation occurs at DatabaseService write boundary, not in IndexedDBService layer
+- [02-01]: Demo mode filtering stays in getSections (DatabaseService), not in IndexedDBService.getAllSections
+- [03-01]: Events use cursor-based section-scoped delete (not store.clear()) because events span multiple sections
+- [03-01]: Query methods return raw IndexedDB records (no .data unwrap) since normalized stores use direct keyPath
+- [03-02]: EventSchema import added alongside SectionSchema in database.js -- single import line for all schemas
+- [03-02]: Demo mode filtering for events uses eventid.startsWith('demo_event_') matching getSections pattern
+- [04-01]: AttendanceSchema uses passthrough for unknown fields -- API may send extra fields that should be preserved
+- [04-01]: Query methods return empty array/null fallback on error (read-path resilience); write methods rethrow
+- [04-01]: SharedAttendanceSchema fully replaced by SharedEventMetadataSchema (no backwards compat per policy)
+- [04-02]: saveAttendance drops legacy versioning/sync columns in favor of normalized compound-key schema
+- [04-02]: Shared attendance uses cursor-based selective delete to preserve regular records
+- [04-02]: Unknown field detection logs once per batch (break after first match) to avoid Sentry noise
+- [04-03]: In-memory attendanceCache removed entirely -- all reads go through DatabaseService to IndexedDB
+- [04-03]: Core-fields-only writes strip enrichment fields (eventname, eventdate, sectionname) before saving
+- [04-03]: Demo mode shared metadata reads still use localStorage/safeGetItem (not migrated to normalized store)
+- [05-01]: TermSchema.sectionid made required (not optional) with .transform(Number) -- injected at write boundary
+- [05-01]: Terms CRUD read methods return fallback values on error (read-path resilience), matching attendance pattern
+- [05-02]: getCurrentActiveTerm/setCurrentActiveTerm delegate to CurrentActiveTermsService (no initialize() needed)
+- [05-02]: storeTermsToNormalizedStore helper swallows errors to avoid breaking API response flow
+- [05-03]: demoMode.js unchanged -- API getTerms() already seeds normalized store; direct import would create circular dependency
+- [05-03]: migrateFromTermsBlob and _determineCurrentTerm removed entirely (no backwards compat per policy)
+- [06-01]: sectionId coerced to Number() in flexi_lists cursor queries to match compound keyPath type
+- [06-01]: Read methods return fallback values ([] or null) on error; write methods rethrow
+- [06-01]: flexi_structure has no indexes (only queried by primary key extraid)
+- [06-02]: saveFlexiStructure uses single-record safeParse (not array) since structures are stored individually
+- [06-02]: getFlexiData returns different types per platform: object on web, array on native (intentional asymmetry)
+- [06-02]: saveFlexiData extracts data.items if passed full API response object, normalizing to row array for SQLite
+- [06-03]: getSectionInfo unified to databaseService.getSections() on both platforms (native SQL query removed)
+- [06-03]: storeData groups lists by sectionId before calling saveFlexiLists (matching per-section API)
+- [06-03]: getFlexiRecordStructures with empty IDs calls getAllFlexiStructures() for full listing
+- [06-04]: clearFlexiRecordCaches simplified to no-op since normalized stores handle their own lifecycle
+- [06-04]: assignMemberToCampGroupDemo made async to support databaseService calls (was synchronous with safeGetItem)
+- [06-04]: Demo mode uses same databaseService path as production -- no separate demo_ key prefix construction
+- [06-05]: CampGroupsView fallback uses getAllFlexiStructures() to find CampGroup-bearing structure (no key scanning)
+- [06-05]: useSignInOut iterates getAllFlexiStructures() checking for sign-in/out fields (no IndexedDBService key scanning)
+- [06-05]: clearFlexiRecordCaches retained as no-op; actual normalized store clearing deferred to Phase 7
+- [07-02]: lastSync uses IndexedDB cache_data store with key viking_last_sync (not localStorage)
+- [07-02]: AssignmentInterface drafts use localStorage directly with try-catch (matching storageUtils pattern)
+- [07-02]: Shared event metadata writes use databaseService.saveSharedEventMetadata() with eventid injected
+- [07-03]: UnifiedStorageService deleted entirely -- all consumers migrated to IndexedDBService in Plans 01/02
+- [07-03]: hasOfflineData migrated from UnifiedStorageService.getSections to IndexedDBService.getAllSections
+- [07-03]: clearFlexiRecordCaches removed entirely (zero callers in codebase)
+- [07-03]: safeCacheWithLogging removed entirely (zero callers in codebase)
+- [07-04]: getCachedEvents localStorage fallback removed entirely -- IndexedDB is sole data source
+- [07-04]: cacheCleanup simplified to demo-only: removes demo_ prefix keys from localStorage, no non-demo scanning
+- [07-04]: addTestData.js deleted -- localStorage migration test data no longer relevant
+- [07-05]: Final sweep confirms zero legacy references -- only documentation needed updating (IMPLEMENTATION_SUMMARY.md, currentActiveTermsSchema.md)
+
+### Pending Todos
+
+None yet.
+
+### Blockers/Concerns
+
+- Phase 6 (Flexi Records) flagged as highest risk -- three interrelated stores with complex query patterns. May need research-phase during planning.
+- REQUIREMENTS.md listed 31 total v1 requirements but actual count is 40. Traceability section corrected.
+
+## Session Continuity
+
+Last session: 2026-02-17
+Stopped at: Completed 07-05-PLAN.md (Final Verification Sweep) -- Phase 7 COMPLETE, all phases done
+Resume file: None

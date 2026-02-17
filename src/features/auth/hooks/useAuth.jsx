@@ -5,7 +5,7 @@ import authService, { generateOAuthUrl, getAndClearReturnPath } from '../service
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
 
 // Create Auth Context
@@ -55,8 +55,8 @@ function useAuthLogic() {
       const cachedSections = await databaseService.getSections();
       const hasCache = cachedSections && cachedSections.length > 0;
       
-      // Get last sync time from storage
-      const lastSync = await UnifiedStorageService.getLastSync();
+      const lastSyncRecord = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync');
+      const lastSync = lastSyncRecord?.timestamp ?? null;
       setLastSyncTime(typeof lastSync === 'string' ? parseInt(lastSync, 10) : lastSync);
       
       // Check if token has expired based on stored expiration time
@@ -312,9 +312,8 @@ function useAuthLogic() {
           // Use progress callbacks to trigger UI updates as data loads
           const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
             onEventsLoaded: async () => {
-              // Trigger UI re-render as soon as events are loaded (before attendance)
               const eventsLoadedTime = Date.now();
-              await UnifiedStorageService.setLastSync(eventsLoadedTime);
+              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: eventsLoadedTime });
               if (import.meta.env.DEV) {
                 logger.debug('Events loaded - triggering initial render', {
                   eventsLoadedTime,
@@ -323,9 +322,8 @@ function useAuthLogic() {
               setLastSyncTime(eventsLoadedTime);
             },
             onAttendanceLoaded: async () => {
-              // Trigger UI re-render when attendance is loaded (before FlexiRecords)
               const attendanceLoadedTime = Date.now();
-              await UnifiedStorageService.setLastSync(attendanceLoadedTime);
+              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: attendanceLoadedTime });
               if (import.meta.env.DEV) {
                 logger.debug('Attendance loaded - triggering render with attendance', {
                   attendanceLoadedTime,
@@ -350,9 +348,8 @@ function useAuthLogic() {
             }, LOG_CATEGORIES.AUTH);
           }
 
-          // Update last sync time again after ALL data loads (including attendance)
           const syncTime = Date.now();
-          await UnifiedStorageService.setLastSync(syncTime);
+          await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
           if (import.meta.env.DEV) {
             logger.debug('All data loaded - final sync time', {
               syncTime,
@@ -511,7 +508,7 @@ function useAuthLogic() {
 
   // Logout function
   const logout = useCallback(async () => {
-    authService.logout();
+    await authService.logout();
     broadcastAuthSync();
     setIsAuthenticated(false);
     setUser(null);

@@ -12,7 +12,6 @@ export {
   logRateLimitInfo,
   handleAPIResponseWithRateLimit,
   isOnline,
-  clearFlexiRecordCaches,
   testBackendConnection,
 } from './base.js';
 

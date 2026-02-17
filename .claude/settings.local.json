@@ -39,6 +39,10 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "task-master-ai"
+    "task-master-ai",
+    "playwright",
+    "context7",
+    "sentry",
+    "sequential-thinking"
   ]
 }

@@ -82,7 +82,16 @@ describe('EventDataLoader', () => {
       expect(result.details.syncedEvents).toBe(1);
       expect(result.details.failedEvents).toBe(0);
       expect(api.getEventAttendance).toHaveBeenCalledWith(1, 'event1', 'term1', 'valid-token');
-      expect(databaseService.saveAttendance).toHaveBeenCalledWith('event1', mockAttendance, { fromSync: true });
+      expect(databaseService.saveAttendance).toHaveBeenCalledWith('event1', [
+        {
+          scoutid: 123,
+          eventid: 'event1',
+          sectionid: 1,
+          attending: 'Yes',
+          patrol: null,
+          notes: null,
+        },
+      ]);
     });
   });
 });

@@ -6,35 +6,27 @@ import { getScoutFriendlyMessage } from '../../utils/scoutErrorHandler.js';
 
 class AttendanceDataService {
   constructor() {
-    this.attendanceCache = [];
     this.lastFetchTime = null;
     this.isLoading = false;
     this.refreshPromise = null;
   }
 
+  /**
+   * Retrieves attendance data, preferring IndexedDB cache then API refresh
+   * @param {boolean} forceRefresh - Force API refresh instead of using cache
+   * @returns {Promise<Array<Object>>} Enriched attendance records
+   */
   async getAttendanceData(forceRefresh = false) {
-    // First check in-memory cache
-    if (!forceRefresh && this.attendanceCache.length > 0) {
-      logger.debug('Returning in-memory cached attendance data', {
-        recordCount: this.attendanceCache.length,
-        cacheAge: this.lastFetchTime ? Date.now() - this.lastFetchTime : null,
-      }, LOG_CATEGORIES.DATA_SERVICE);
-
-      return this.attendanceCache;
-    }
-
-    // If no in-memory cache, try to load from IndexedDB cache first
     if (!forceRefresh) {
       try {
         const cachedData = await this.loadAttendanceFromCache();
         if (cachedData.length > 0) {
-          logger.debug('Loaded attendance data from IndexedDB cache', {
+          logger.debug('Loaded attendance data from IndexedDB', {
             recordCount: cachedData.length,
           }, LOG_CATEGORIES.DATA_SERVICE);
 
-          this.attendanceCache = cachedData;
           this.lastFetchTime = Date.now();
-          return this.attendanceCache;
+          return cachedData;
         }
       } catch (error) {
         logger.warn('Failed to load attendance from cache, will try refresh if token available', {
@@ -43,35 +35,42 @@ class AttendanceDataService {
       }
     }
 
-    // Only refresh from API if token is available and forceRefresh is requested
     const token = getToken();
     if (forceRefresh && token) {
       return await this.refreshAttendanceData();
     }
 
-    // If no token or not forcing refresh, return whatever we have (could be empty)
-    logger.debug('No token available or refresh not requested, returning cached data', {
+    logger.debug('No token available or refresh not requested, returning empty', {
       hasToken: !!token,
       forceRefresh,
-      cacheLength: this.attendanceCache.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
 
-    return this.attendanceCache;
+    return [];
   }
 
+  /**
+   * Refreshes attendance data from the API, deduplicating concurrent requests
+   * @returns {Promise<Array<Object>>} Enriched attendance records
+   */
   async refreshAttendanceData() {
     if (this.isLoading) {
       logger.debug('Attendance data refresh already in progress', {}, LOG_CATEGORIES.DATA_SERVICE);
       if (this.refreshPromise) {
         return await this.refreshPromise;
       }
-      return this.attendanceCache;
+      return [];
     }
 
     this.refreshPromise = this._doRefresh();
     return await this.refreshPromise;
   }
 
+  /**
+   * Performs the actual API refresh, saves core records to normalized store,
+   * and returns enriched records for display
+   * @private
+   * @returns {Promise<Array<Object>>} Enriched attendance records
+   */
   async _doRefresh() {
     try {
       this.isLoading = true;
@@ -110,12 +109,20 @@ class AttendanceDataService {
             token,
           );
 
-          return attendanceRecords.map(record => ({
+          const coreRecords = attendanceRecords.map(record => ({
             ...record,
             eventid: event.eventid,
+            sectionid: event.sectionid,
+          }));
+
+          if (coreRecords.length > 0) {
+            await databaseService.saveAttendance(event.eventid, coreRecords);
+          }
+
+          return coreRecords.map(record => ({
+            ...record,
             eventname: event.name,
             eventdate: event.startdate,
-            sectionid: event.sectionid,
             sectionname: event.sectionname,
           }));
 
@@ -134,7 +141,6 @@ class AttendanceDataService {
         .filter(result => result.status === 'fulfilled')
         .flatMap(result => result.value);
 
-      this.attendanceCache = allAttendance;
       this.lastFetchTime = Date.now();
 
       logger.info('Optimized attendance data refresh completed', {
@@ -146,7 +152,7 @@ class AttendanceDataService {
         failedResults: results.filter(r => r.status === 'rejected').length,
       }, LOG_CATEGORIES.DATA_SERVICE);
 
-      return this.attendanceCache;
+      return allAttendance;
 
     } catch (error) {
       const scoutMessage = getScoutFriendlyMessage(error, 'refresh attendance data');
@@ -155,7 +161,6 @@ class AttendanceDataService {
         scoutMessage,
       }, LOG_CATEGORIES.DATA_SERVICE);
 
-      // Create new error with Scout-friendly message but preserve stack trace
       const scoutError = new Error(scoutMessage);
       scoutError.originalError = error;
       throw scoutError;
@@ -165,40 +170,18 @@ class AttendanceDataService {
     }
   }
 
+  /**
+   * Returns the timestamp of the last successful data fetch
+   * @returns {number|null} Timestamp or null if never fetched
+   */
   getLastFetchTime() {
     return this.lastFetchTime;
   }
 
-  getCachedEvents() {
-    const events = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes('viking_events_') || key.includes('demo_viking_events_')) && key.endsWith('_offline')) {
-        try {
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            const eventItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
-            events.push(...eventItems);
-          }
-        } catch (error) {
-          logger.debug('Failed to parse cached events', {
-            cacheKey: key,
-            error: error.message,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-        }
-      }
-    }
-
-    logger.debug('Found cached events for attendance', {
-      eventCount: events.length,
-      events: events.map(e => ({ sectionid: e.sectionid, eventid: e.eventid, name: e.name })),
-    }, LOG_CATEGORIES.DATA_SERVICE);
-
-    return events;
-  }
-
+  /**
+   * Retrieves events from DatabaseService (normalized store)
+   * @returns {Promise<Array<Object>>} Array of events from all sections
+   */
   async getCachedEventsOptimized() {
     try {
       const sections = await databaseService.getSections();
@@ -235,41 +218,36 @@ class AttendanceDataService {
 
       return allEvents;
     } catch (error) {
-      logger.error('Failed to get cached events optimized, falling back to localStorage scan', {
+      logger.error('Failed to get cached events from database', {
         error: error.message,
       }, LOG_CATEGORIES.DATA_SERVICE);
-      return this.getCachedEvents();
+      return [];
     }
   }
 
+  /**
+   * Loads attendance from normalized IndexedDB store with read-time enrichment
+   * @returns {Promise<Array<Object>>} Enriched attendance records
+   */
   async loadAttendanceFromCache() {
     try {
-      // Get all events from cached data
       const cachedEvents = await this.getCachedEventsOptimized();
       if (cachedEvents.length === 0) {
         logger.debug('No cached events found for attendance loading', {}, LOG_CATEGORIES.DATA_SERVICE);
         return [];
       }
 
-      // Get attendance data for each event from IndexedDB
       const attendancePromises = cachedEvents.map(async (event) => {
         try {
-          const attendanceRecords = await databaseService.getAttendance(event.eventid);
-          if (!attendanceRecords || attendanceRecords.length === 0) {
+          const records = await databaseService.getAttendance(event.eventid);
+          if (!records || records.length === 0) {
             return [];
           }
 
-          // Handle both array and object formats
-          const records = Array.isArray(attendanceRecords)
-            ? attendanceRecords
-            : (attendanceRecords.items || []);
-
           return records.map(record => ({
             ...record,
-            eventid: event.eventid,
             eventname: event.name,
             eventdate: event.startdate,
-            sectionid: event.sectionid,
             sectionname: event.sectionname,
           }));
         } catch (error) {
@@ -286,7 +264,7 @@ class AttendanceDataService {
         .filter(result => result.status === 'fulfilled')
         .flatMap(result => result.value);
 
-      logger.debug('Loaded attendance data from IndexedDB cache', {
+      logger.debug('Loaded attendance data from IndexedDB', {
         eventCount: cachedEvents.length,
         recordCount: allAttendance.length,
         successfulEvents: results.filter(r => r.status === 'fulfilled').length,
@@ -301,8 +279,10 @@ class AttendanceDataService {
     }
   }
 
+  /**
+   * Clears the last fetch timestamp
+   */
   clearCache() {
-    this.attendanceCache = [];
     this.lastFetchTime = null;
     logger.debug('Attendance data cache cleared', {}, LOG_CATEGORIES.DATA_SERVICE);
   }

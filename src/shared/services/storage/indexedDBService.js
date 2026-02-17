@@ -4,7 +4,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 8;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
@@ -20,6 +20,7 @@ const STORES = {
   SHARED_ATTENDANCE: 'shared_attendance',
   CORE_MEMBERS: 'core_members',
   MEMBER_SECTION: 'member_section',
+  SHARED_EVENT_METADATA: 'shared_event_metadata',
 };
 
 let dbPromise = null;
@@ -119,6 +120,100 @@ function getDB() {
           memberSectionStore.createIndex('scoutid', 'scoutid', { unique: false });
           memberSectionStore.createIndex('sectionid', 'sectionid', { unique: false });
           memberSectionStore.createIndex('person_type', 'person_type', { unique: false });
+        }
+
+        if (oldVersion < 5) {
+          if (db.objectStoreNames.contains(STORES.SECTIONS)) {
+            db.deleteObjectStore(STORES.SECTIONS);
+          }
+          const sectionsStoreV5 = db.createObjectStore(STORES.SECTIONS, { keyPath: 'sectionid' });
+          sectionsStoreV5.createIndex('sectiontype', 'sectiontype', { unique: false });
+          logger.info('IndexedDB v5 upgrade: sections store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+
+          if (db.objectStoreNames.contains(STORES.EVENTS)) {
+            db.deleteObjectStore(STORES.EVENTS);
+          }
+          const eventsStoreV5 = db.createObjectStore(STORES.EVENTS, { keyPath: 'eventid' });
+          eventsStoreV5.createIndex('sectionid', 'sectionid', { unique: false });
+          eventsStoreV5.createIndex('termid', 'termid', { unique: false });
+          eventsStoreV5.createIndex('startdate', 'startdate', { unique: false });
+          logger.info('IndexedDB v5 upgrade: events store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+        }
+
+        if (oldVersion < 6) {
+          if (db.objectStoreNames.contains(STORES.ATTENDANCE)) {
+            db.deleteObjectStore(STORES.ATTENDANCE);
+          }
+          const attendanceStoreV6 = db.createObjectStore(STORES.ATTENDANCE, { keyPath: ['eventid', 'scoutid'] });
+          attendanceStoreV6.createIndex('eventid', 'eventid', { unique: false });
+          attendanceStoreV6.createIndex('scoutid', 'scoutid', { unique: false });
+          attendanceStoreV6.createIndex('sectionid', 'sectionid', { unique: false });
+
+          if (db.objectStoreNames.contains(STORES.SHARED_ATTENDANCE)) {
+            db.deleteObjectStore(STORES.SHARED_ATTENDANCE);
+          }
+          db.createObjectStore(STORES.SHARED_EVENT_METADATA, { keyPath: 'eventid' });
+
+          try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (
+                /^(demo_)?viking_attendance_.+_offline$/.test(key) ||
+                /^(demo_)?viking_shared_attendance_.+_offline$/.test(key) ||
+                /^(demo_)?viking_shared_metadata_/.test(key)
+              ) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+          } catch (_e) {
+            // Best-effort localStorage cleanup
+          }
+
+          logger.info('IndexedDB v6 upgrade: attendance stores normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+        }
+
+        if (oldVersion < 7) {
+          if (db.objectStoreNames.contains(STORES.TERMS)) {
+            db.deleteObjectStore(STORES.TERMS);
+          }
+          const termsStoreV7 = db.createObjectStore(STORES.TERMS, { keyPath: 'termid' });
+          termsStoreV7.createIndex('sectionid', 'sectionid', { unique: false });
+          termsStoreV7.createIndex('startdate', 'startdate', { unique: false });
+          logger.info('IndexedDB v7 upgrade: terms store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+        }
+
+        if (oldVersion < 8) {
+          if (db.objectStoreNames.contains(STORES.FLEXI_LISTS)) {
+            db.deleteObjectStore(STORES.FLEXI_LISTS);
+          }
+          const flexiListsStoreV8 = db.createObjectStore(STORES.FLEXI_LISTS, { keyPath: ['sectionid', 'extraid'] });
+          flexiListsStoreV8.createIndex('sectionid', 'sectionid', { unique: false });
+
+          if (db.objectStoreNames.contains(STORES.FLEXI_STRUCTURE)) {
+            db.deleteObjectStore(STORES.FLEXI_STRUCTURE);
+          }
+          db.createObjectStore(STORES.FLEXI_STRUCTURE, { keyPath: 'extraid' });
+
+          if (db.objectStoreNames.contains(STORES.FLEXI_DATA)) {
+            db.deleteObjectStore(STORES.FLEXI_DATA);
+          }
+          const flexiDataStoreV8 = db.createObjectStore(STORES.FLEXI_DATA, { keyPath: ['extraid', 'sectionid', 'termid'] });
+          flexiDataStoreV8.createIndex('extraid', 'extraid', { unique: false });
+          flexiDataStoreV8.createIndex('sectionid', 'sectionid', { unique: false });
+
+          logger.info('IndexedDB v8 upgrade: flexi stores normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
         }
 
         logger.info('IndexedDB upgrade completed', {
@@ -399,6 +494,631 @@ export class IndexedDBService {
       }, LOG_CATEGORIES.ERROR);
 
       throw error;
+    }
+  }
+
+  /**
+   * Replaces all section records atomically using clear-then-put in a single transaction
+   * @param {Array<Object>} sections - Array of section objects with sectionid as key
+   * @returns {Promise<number>} Number of sections stored
+   */
+  static async bulkReplaceSections(sections) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.SECTIONS, 'readwrite');
+      const store = tx.objectStore(STORES.SECTIONS);
+
+      await store.clear();
+
+      for (const section of sections) {
+        await store.put({ ...section, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return sections.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceSections failed', {
+        count: sections?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_sections',
+          store: STORES.SECTIONS,
+        },
+        contexts: {
+          indexedDB: {
+            count: sections?.length,
+            operation: 'bulkReplaceSections',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all section records from the sections store
+   * @returns {Promise<Array<Object>>} Array of section objects
+   */
+  static async getAllSections() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.SECTIONS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllSections failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_sections',
+          store: STORES.SECTIONS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllSections',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces all event records for a specific section atomically using index cursor delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} events - Array of event objects with eventid as key
+   * @returns {Promise<number>} Number of events stored
+   */
+  static async bulkReplaceEventsForSection(sectionId, events) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.EVENTS, 'readwrite');
+      const store = tx.objectStore(STORES.EVENTS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(sectionId);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const event of events) {
+        await store.put({ ...event, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return events.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceEventsForSection failed', {
+        sectionId,
+        count: events?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_events_for_section',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: events?.length,
+            operation: 'bulkReplaceEventsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all event records for a specific section from the sectionid index
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of event objects for the section
+   */
+  static async getEventsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.EVENTS, 'sectionid', sectionId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getEventsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_events_by_section',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getEventsBySection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all event records for a specific term from the termid index
+   * @param {number|string} termId - The term ID to query
+   * @returns {Promise<Array<Object>>} Array of event objects for the term
+   */
+  static async getEventsByTerm(termId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.EVENTS, 'termid', termId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getEventsByTerm failed', {
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_events_by_term',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            termId,
+            operation: 'getEventsByTerm',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces all term records for a specific section atomically using cursor-based delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} terms - Array of term objects with termid as key
+   * @returns {Promise<number>} Number of terms stored
+   */
+  static async bulkReplaceTermsForSection(sectionId, terms) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.TERMS, 'readwrite');
+      const store = tx.objectStore(STORES.TERMS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(sectionId);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const term of terms) {
+        await store.put({ ...term, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return terms.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceTermsForSection failed', {
+        sectionId,
+        count: terms?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_terms_for_section',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: terms?.length,
+            operation: 'bulkReplaceTermsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all term records for a specific section from the sectionid index
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of term objects for the section
+   */
+  static async getTermsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.TERMS, 'sectionid', sectionId)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getTermsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_terms_by_section',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getTermsBySection',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single term record by its term ID
+   * @param {string} termId - The term ID to look up
+   * @returns {Promise<Object|null>} The term object or null if not found
+   */
+  static async getTermById(termId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.TERMS, termId)) || null;
+    } catch (error) {
+      logger.error('IndexedDB getTermById failed', {
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_term_by_id',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            termId,
+            operation: 'getTermById',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all term records from the terms store
+   * @returns {Promise<Array<Object>>} Array of all term objects
+   */
+  static async getAllTerms() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.TERMS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllTerms failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_terms',
+          store: STORES.TERMS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllTerms',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single event record by its event ID
+   * @param {string} eventId - The event ID to look up
+   * @returns {Promise<Object|null>} The event object or null if not found
+   */
+  static async getEventById(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.EVENTS, eventId)) || null;
+    } catch (error) {
+      logger.error('IndexedDB getEventById failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_event_by_id',
+          store: STORES.EVENTS,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getEventById',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces all attendance records for a specific event atomically using cursor-based delete then put
+   * @param {string|number} eventId - The event ID to scope the replacement to
+   * @param {Array<Object>} records - Array of attendance record objects
+   * @returns {Promise<number>} Number of attendance records stored
+   */
+  static async bulkReplaceAttendanceForEvent(eventId, records) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.ATTENDANCE, 'readwrite');
+      const store = tx.objectStore(STORES.ATTENDANCE);
+      const index = store.index('eventid');
+
+      let cursor = await index.openCursor(String(eventId));
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const record of records) {
+        await store.put({ ...record, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return records.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceAttendanceForEvent failed', {
+        eventId,
+        count: records?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_attendance_for_event',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            count: records?.length,
+            operation: 'bulkReplaceAttendanceForEvent',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all attendance records for a specific event
+   * @param {string|number} eventId - The event ID to query
+   * @returns {Promise<Array<Object>>} Array of attendance records for the event
+   */
+  static async getAttendanceByEvent(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.ATTENDANCE, 'eventid', String(eventId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceByEvent failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_by_event',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getAttendanceByEvent',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves all attendance records for a specific scout
+   * @param {number|string} scoutId - The scout ID to query
+   * @returns {Promise<Array<Object>>} Array of attendance records for the scout
+   */
+  static async getAttendanceByScout(scoutId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.ATTENDANCE, 'scoutid', Number(scoutId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceByScout failed', {
+        scoutId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_by_scout',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            scoutId,
+            operation: 'getAttendanceByScout',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves a single attendance record by compound key [eventId, scoutId]
+   * @param {string|number} eventId - The event ID
+   * @param {number|string} scoutId - The scout ID
+   * @returns {Promise<Object|null>} The attendance record or null if not found
+   */
+  static async getAttendanceRecord(eventId, scoutId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.ATTENDANCE, [String(eventId), Number(scoutId)])) || null;
+    } catch (error) {
+      logger.error('IndexedDB getAttendanceRecord failed', {
+        eventId,
+        scoutId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_attendance_record',
+          store: STORES.ATTENDANCE,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            scoutId,
+            operation: 'getAttendanceRecord',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Saves or updates shared event metadata
+   * @param {Object} metadata - The shared event metadata object with eventid
+   * @returns {Promise<Object>} The saved metadata record
+   */
+  static async saveSharedEventMetadata(metadata) {
+    try {
+      const db = await getDB();
+      const record = { ...metadata, updated_at: Date.now() };
+      await db.put(STORES.SHARED_EVENT_METADATA, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveSharedEventMetadata failed', {
+        eventId: metadata?.eventid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            eventId: metadata?.eventid,
+            operation: 'saveSharedEventMetadata',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves shared event metadata for a specific event
+   * @param {string|number} eventId - The event ID to look up
+   * @returns {Promise<Object|null>} The shared event metadata or null if not found
+   */
+  static async getSharedEventMetadata(eventId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.SHARED_EVENT_METADATA, String(eventId))) || null;
+    } catch (error) {
+      logger.error('IndexedDB getSharedEventMetadata failed', {
+        eventId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            eventId,
+            operation: 'getSharedEventMetadata',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all shared event metadata records
+   * @returns {Promise<Array<Object>>} Array of all shared event metadata records
+   */
+  static async getAllSharedEventMetadata() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.SHARED_EVENT_METADATA)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllSharedEventMetadata failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_shared_event_metadata',
+          store: STORES.SHARED_EVENT_METADATA,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllSharedEventMetadata',
+          },
+        },
+      });
+
+      return [];
     }
   }
 
@@ -865,6 +1585,339 @@ export class IndexedDBService {
       });
 
       throw error;
+    }
+  }
+
+  /**
+   * Replaces all flexi list records for a specific section atomically using cursor-based delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} lists - Array of flexi list objects
+   * @returns {Promise<number>} Number of flexi lists stored
+   */
+  static async bulkReplaceFlexiListsForSection(sectionId, lists) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.FLEXI_LISTS, 'readwrite');
+      const store = tx.objectStore(STORES.FLEXI_LISTS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(Number(sectionId));
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const list of lists) {
+        await store.put({ ...list, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return lists.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceFlexiListsForSection failed', {
+        sectionId,
+        count: lists?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_flexi_lists_for_section',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: lists?.length,
+            operation: 'bulkReplaceFlexiListsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all flexi list records for a specific section
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of flexi list objects for the section
+   */
+  static async getFlexiListsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.FLEXI_LISTS, 'sectionid', Number(sectionId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getFlexiListsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_lists_by_section',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getFlexiListsBySection',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves all flexi list records from the flexi_lists store
+   * @returns {Promise<Array<Object>>} Array of all flexi list objects
+   */
+  static async getAllFlexiLists() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.FLEXI_LISTS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllFlexiLists failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_flexi_lists',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllFlexiLists',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Saves or updates a flexi record structure
+   * @param {Object} structure - The flexi record structure object with extraid
+   * @returns {Promise<Object>} The saved structure record
+   */
+  static async saveFlexiRecordStructure(structure) {
+    try {
+      const db = await getDB();
+      const record = { ...structure, updated_at: Date.now() };
+      await db.put(STORES.FLEXI_STRUCTURE, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveFlexiRecordStructure failed', {
+        extraId: structure?.extraid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_flexi_record_structure',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            extraId: structure?.extraid,
+            operation: 'saveFlexiRecordStructure',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves a single flexi record structure by its extra ID
+   * @param {string|number} extraId - The extra ID to look up
+   * @returns {Promise<Object|null>} The flexi record structure or null if not found
+   */
+  static async getFlexiRecordStructure(extraId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.FLEXI_STRUCTURE, String(extraId))) || null;
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordStructure failed', {
+        extraId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_structure',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            operation: 'getFlexiRecordStructure',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all flexi record structures from the flexi_structure store
+   * @returns {Promise<Array<Object>>} Array of all flexi record structure objects
+   */
+  static async getAllFlexiRecordStructures() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.FLEXI_STRUCTURE)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllFlexiRecordStructures failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_flexi_record_structures',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllFlexiRecordStructures',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Saves flexi record data for a specific extra/section/term combination
+   * @param {string|number} extraId - The extra record ID
+   * @param {number|string} sectionId - The section ID
+   * @param {string|number} termId - The term ID
+   * @param {Object} data - The full API response object containing items array
+   * @returns {Promise<Object>} The saved flexi data record
+   */
+  static async saveFlexiRecordData(extraId, sectionId, termId, data) {
+    try {
+      const db = await getDB();
+      const record = {
+        ...data,
+        extraid: String(extraId),
+        sectionid: Number(sectionId),
+        termid: String(termId),
+        updated_at: Date.now(),
+      };
+      await db.put(STORES.FLEXI_DATA, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveFlexiRecordData failed', {
+        extraId,
+        sectionId,
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_flexi_record_data',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            sectionId,
+            termId,
+            operation: 'saveFlexiRecordData',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves flexi record data for a specific extra/section/term combination
+   * @param {string|number} extraId - The extra record ID
+   * @param {number|string} sectionId - The section ID
+   * @param {string|number} termId - The term ID
+   * @returns {Promise<Object|null>} The flexi data record or null if not found
+   */
+  static async getFlexiRecordData(extraId, sectionId, termId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.FLEXI_DATA, [String(extraId), Number(sectionId), String(termId)])) || null;
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordData failed', {
+        extraId,
+        sectionId,
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_data',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            sectionId,
+            termId,
+            operation: 'getFlexiRecordData',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all flexi record data for a specific extra record ID
+   * @param {string|number} extraId - The extra record ID to query
+   * @returns {Promise<Array<Object>>} Array of flexi data records for the extra ID
+   */
+  static async getFlexiRecordDataByExtra(extraId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.FLEXI_DATA, 'extraid', String(extraId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordDataByExtra failed', {
+        extraId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_data_by_extra',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            operation: 'getFlexiRecordDataByExtra',
+          },
+        },
+      });
+
+      return [];
     }
   }
 

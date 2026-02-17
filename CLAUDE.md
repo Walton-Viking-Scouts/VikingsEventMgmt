@@ -170,7 +170,8 @@ git checkout main && git pull origin main  # Just sync with merged PR
 - Functional components with hooks only
 - Props interface above component
 - Export default at bottom
-- **DO NOT ADD COMMENTS** unless explicitly requested
+- **JSDoc Documentation**: Add JSDoc to all functions and components with reasonable coverage
+- **DO NOT ADD INLINE COMMENTS** unless explicitly requested (JSDoc documentation is required, inline comments are not)
 
 ### Development Principles
 - **Offline-First**: All functionality must work without internet

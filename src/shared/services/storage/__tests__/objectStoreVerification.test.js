@@ -36,6 +36,10 @@ vi.mock('idb', () => ({
         },
       },
 
+      deleteObjectStore: function(storeName) {
+        mockDB._stores.delete(storeName);
+      },
+
       createObjectStore: function(name, options) {
         const store = {
           name,
@@ -113,7 +117,7 @@ describe('Object Store Creation Verification', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      4,
+      8,
       expect.objectContaining({
         upgrade: expect.any(Function),
       }),
@@ -143,7 +147,7 @@ describe('Object Store Creation Verification', () => {
       'flexi_data',
       'events',
       'attendance',
-      'shared_attendance',
+      'shared_event_metadata',
       'core_members',
       'member_section',
     ];
@@ -174,7 +178,7 @@ describe('Object Store Creation Verification', () => {
       'FLEXI_DATA',
       'EVENTS',
       'ATTENDANCE',
-      'SHARED_ATTENDANCE',
+      'SHARED_EVENT_METADATA',
       'CORE_MEMBERS',
       'MEMBER_SECTION',
     ];

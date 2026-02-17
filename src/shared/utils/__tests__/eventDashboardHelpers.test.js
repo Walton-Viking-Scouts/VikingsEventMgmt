@@ -26,12 +26,6 @@ vi.mock('../attendanceHelpers_new.js', () => ({
   loadAllAttendanceFromDatabase: vi.fn(),
 }));
 
-vi.mock('../../services/storage/unifiedStorageService.js', () => ({
-  UnifiedStorageService: {
-    get: vi.fn(),
-  },
-}));
-
 vi.mock('../../services/utils/logger.js', () => ({
   default: {
     error: vi.fn(),
@@ -49,7 +43,6 @@ import databaseService from '../../services/storage/database.js';
 import attendanceDataService from '../../services/data/attendanceDataService.js';
 import logger from '../../services/utils/logger.js';
 import { loadAllAttendanceFromDatabase } from '../attendanceHelpers_new.js';
-import { UnifiedStorageService } from '../../services/storage/unifiedStorageService.js';
 
 describe('EventDashboard Helper Functions', () => {
   beforeEach(() => {
@@ -180,7 +173,7 @@ describe('EventDashboard Helper Functions', () => {
 
     it('should load attendance from loadAllAttendanceFromDatabase and filter for event', async () => {
       loadAllAttendanceFromDatabase.mockResolvedValue(mockAllAttendanceData);
-      UnifiedStorageService.get.mockRejectedValue(new Error('No shared attendance'));
+      databaseService.getSharedEventMetadata = vi.fn().mockResolvedValue(null);
 
       const result = await fetchEventAttendance(mockEvent);
 
@@ -190,7 +183,7 @@ describe('EventDashboard Helper Functions', () => {
 
     it('should filter attendance data for specific event only', async () => {
       loadAllAttendanceFromDatabase.mockResolvedValue(mockAllAttendanceData);
-      UnifiedStorageService.get.mockRejectedValue(new Error('No shared attendance'));
+      databaseService.getSharedEventMetadata = vi.fn().mockResolvedValue(null);
 
       const result = await fetchEventAttendance(mockEvent);
 

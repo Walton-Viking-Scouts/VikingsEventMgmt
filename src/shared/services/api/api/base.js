@@ -318,43 +318,6 @@ let isOnline = true;
 export { isOnline };
 
 /**
- * Clear all FlexiRecord-related caches from localStorage
- * Useful after fixing authentication issues or when data becomes stale
- * @returns {Object} Summary of cleared cache entries
- * 
- * @example
- * const result = clearFlexiRecordCaches();
- * console.log(`Cleared ${result.clearedLocalStorageKeys} cache entries`);
- */
-export function clearFlexiRecordCaches() {
-  // Clear localStorage caches (especially consolidated cache which shouldn't exist)
-  const keys = Object.keys(localStorage);
-  const flexiKeys = keys.filter(key => 
-    key.includes('viking_flexi_records_') || 
-    key.includes('viking_flexi_structure_') ||
-    key.includes('viking_flexi_consolidated_'),
-  );
-  
-  // Log what we're clearing for debugging
-  const consolidatedKeys = flexiKeys.filter(key => key.includes('viking_flexi_consolidated_'));
-  if (consolidatedKeys.length > 0) {
-    logger.info('Clearing old consolidated cache entries', {
-      count: consolidatedKeys.length,
-      keys: consolidatedKeys,
-    }, LOG_CATEGORIES.API);
-  }
-  
-  flexiKeys.forEach(key => {
-    localStorage.removeItem(key);
-    logger.debug('Removed localStorage key', { key }, LOG_CATEGORIES.API);
-  });
-  
-  return {
-    clearedLocalStorageKeys: flexiKeys.length,
-  };
-}
-
-/**
  * Tests connectivity to the backend API server
  * @returns {Promise<Object>} Connection test result with status
  * @returns {Promise<{status: 'ok'}>} When connection successful

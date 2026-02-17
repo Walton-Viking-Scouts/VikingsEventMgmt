@@ -91,12 +91,8 @@ export const fetchEventAttendance = async (event) => {
       eventAttendance: eventAttendance.length,
     }, LOG_CATEGORIES.COMPONENT);
 
-    // Load shared attendance data from IndexedDB
-    const { UnifiedStorageService } = await import('../services/storage/unifiedStorageService.js');
-    const sharedKey = `viking_shared_attendance_${event.eventid}_${event.sectionid}_offline`;
-
     try {
-      const sharedData = await UnifiedStorageService.get(sharedKey);
+      const sharedData = await databaseService.getSharedEventMetadata(String(event.eventid));
       const sharedAttendance = sharedData?.items || sharedData?.combined_attendance;
 
       if (sharedAttendance && Array.isArray(sharedAttendance)) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getListOfMembers } from '../../../shared/services/api/api/members.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui';
+import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';

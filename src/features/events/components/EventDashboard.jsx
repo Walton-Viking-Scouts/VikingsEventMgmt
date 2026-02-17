@@ -5,12 +5,12 @@ import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
-import { SectionsList } from '../../sections';
+import { SectionsList } from '../../sections/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
-import { Alert, RefreshButton } from '../../../shared/components/ui';
-import ConfirmModal from '../../../shared/components/ui/ConfirmModal';
+import { Alert, RefreshButton } from '../../../shared/components/ui/index.js';
+import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import {
   fetchAllSectionEvents,
   fetchEventAttendance,
@@ -141,8 +141,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
               }
             }, 300);
 
-            // Set last sync time from storage
-            const lastSyncEpoch = await UnifiedStorageService.getLastSync();
+            const lastSyncRecord = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync');
+            const lastSyncEpoch = lastSyncRecord?.timestamp ?? null;
             if (lastSyncEpoch) {
               const lastSyncMs = Number(lastSyncEpoch);
               if (Number.isFinite(lastSyncMs)) {
@@ -210,8 +210,8 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       // Check if we have offline data
       const hasOfflineData = await databaseService.hasOfflineData();
 
-      // Check if data is recent enough (less than 30 minutes old)
-      const lastSyncEpoch = await UnifiedStorageService.getLastSync();
+      const bgSyncRecord = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync');
+      const lastSyncEpoch = bgSyncRecord?.timestamp ?? null;
       const lastSyncMs = Number(lastSyncEpoch);
       const isDataFresh =
         lastSyncEpoch &&

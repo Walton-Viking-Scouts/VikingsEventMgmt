@@ -1,20 +1,19 @@
 /**
  * @file FlexiRecord Service for Viking Event Management
- * 
+ *
  * Comprehensive service for managing OSM FlexiRecord operations with offline-first
  * architecture and intelligent caching. Handles Scout attendance data, section
  * movement tracking, and custom data fields with automatic fallback mechanisms.
- * 
+ *
  * Key features:
- * - Offline-first with localStorage caching and TTL management
+ * - Offline-first with normalized IndexedDB/SQLite storage via DatabaseService
  * - Specialized support for Viking Event Management and Section Movers FlexiRecords
  * - Network-aware operations with automatic fallback to cached data
  * - Demo mode data segregation and comprehensive error handling
  * - Field mapping and data transformation for meaningful FlexiRecord usage
  * - Multi-section FlexiRecord discovery and validation
- * 
+ *
  * @module FlexiRecordService
- * @requires ../../../shared/utils/storageUtils
  * @requires ../../../shared/utils/networkUtils
  * @requires ../../../shared/services/utils/logger
  * @requires ../../../shared/services/utils/sentry
@@ -22,18 +21,10 @@
 
 /**
  * Validates if authentication token is usable for API calls
- * 
+ *
  * @private
  * @param {string} token - Authentication token to validate
  * @returns {boolean} True if token is usable for API requests
- * 
- * @example
- * // Check token before API call
- * if (hasUsableToken(authToken)) {
- *   // Proceed with API request
- * } else {
- *   // Use cached data only
- * }
  */
 function hasUsableToken(token) {
   if (typeof token !== 'string') {
@@ -44,17 +35,12 @@ function hasUsableToken(token) {
 
 /**
  * Normalizes ID values to strings with validation
- * 
+ *
  * @private
  * @param {string|number} id - ID to normalize
  * @param {string} name - Name of the ID for error messages
  * @returns {string} Normalized string ID
  * @throws {Error} If ID is invalid or empty
- * 
- * @example
- * // Normalize section ID
- * const sectionId = normalizeId(123, 'sectionId'); // Returns "123"
- * const termId = normalizeId('term_456', 'termId'); // Returns "term_456"
  */
 function normalizeId(id, name) {
   if (typeof id === 'number') return String(id);
@@ -62,12 +48,11 @@ function normalizeId(id, name) {
   throw new Error(`Valid ${name} (string or number) is required`);
 }
 
-import { safeGetItem } from '../../../shared/utils/storageUtils.js';
 import { checkNetworkStatus } from '../../../shared/utils/networkUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { isDemoMode } from '../../../config/demoMode.js';
-import UnifiedStorageService from '../../../shared/services/storage/unifiedStorageService.js';
+import databaseService from '../../../shared/services/storage/database.js';
 import {
   getFlexiRecords,
   getFlexiStructure,
@@ -76,7 +61,7 @@ import {
 
 /**
  * Cache TTL constants for different types of FlexiRecord data
- * 
+ *
  * Optimized for different data change frequencies:
  * - Structures change rarely (field definitions are static)
  * - Data changes frequently (attendance is live during events)
@@ -84,56 +69,23 @@ import {
  */
 
 /** @constant {number} Cache TTL for FlexiRecord structures (1 hour) */
-const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000; // 1 hour - field definitions are static
+const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000;
 
 /** @constant {number} Cache TTL for FlexiRecord data (5 minutes) */
-const FLEXI_DATA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - attendance changes frequently
+const FLEXI_DATA_CACHE_TTL = 5 * 60 * 1000;
 
 /** @constant {number} Cache TTL for FlexiRecord lists (30 minutes) */
-const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - available flexirecords per section
+const FLEXI_LISTS_CACHE_TTL = 30 * 60 * 1000;
 
 /**
- * Gets cached data from unified storage with fallback to localStorage
+ * Checks if cached data is still valid based on TTL
  *
  * @private
- * @param {string} cacheKey - Cache key to retrieve
- * @param {*} defaultValue - Default value if no data found
- * @returns {Promise<*>} Cached data or default value
- */
-async function getCachedData(cacheKey, defaultValue = null) {
-  try {
-    // Try UnifiedStorageService first (will handle migration logic)
-    const data = await UnifiedStorageService.get(cacheKey);
-    return data || defaultValue;
-  } catch (error) {
-    logger.warn('Failed to get data from UnifiedStorageService, falling back to localStorage', {
-      cacheKey,
-      error: error.message,
-    }, LOG_CATEGORIES.DATABASE);
-
-    // Fallback to direct localStorage access
-    return safeGetItem(cacheKey, defaultValue);
-  }
-}
-
-/**
- * Checks if cache is still valid based on TTL
- *
- * @private
- * @param {string} cacheKey - Cache key to check
+ * @param {*} cached - Cached data object (must have _cacheTimestamp)
  * @param {number} ttl - Time-to-live in milliseconds
- * @returns {Promise<{valid: boolean, data: *, cacheAgeMinutes: number}>} Cache validity result with data and age information
- *
- * @example
- * // Check if events cache is valid
- * const cacheCheck = await isCacheValid('viking_events_1_offline', FLEXI_LISTS_CACHE_TTL);
- * if (cacheCheck.valid) {
- *   console.log(`Using cache from ${cacheCheck.cacheAgeMinutes} minutes ago`);
- *   return cacheCheck.data;
- * }
+ * @returns {{valid: boolean, data: *, cacheAgeMinutes: number}} Cache validity result
  */
-async function isCacheValid(cacheKey, ttl) {
-  const cached = await getCachedData(cacheKey, null);
+function checkCacheTTL(cached, ttl) {
   if (!cached || !cached._cacheTimestamp) {
     return { valid: false, data: null };
   }
@@ -145,151 +97,54 @@ async function isCacheValid(cacheKey, ttl) {
 }
 
 /**
- * Caches data with timestamp and comprehensive error handling
- *
- * @private
- * @param {string} cacheKey - Cache key for storage
- * @param {*} data - Data to cache (will be JSON serialized)
- * @returns {Promise<*>} Original data without timestamp (for chaining)
- *
- * @example
- * // Cache FlexiRecord data with automatic timestamp
- * const cachedData = await cacheData('viking_flexi_data_123_offline', flexiData);
- * return cachedData; // Returns original data for immediate use
- */
-async function cacheData(cacheKey, data) {
-  const cachedData = {
-    ...data,
-    _cacheTimestamp: Date.now(),
-  };
-
-  // Pre-compute once; guard against (de)serialisation errors in logs
-  const itemCount = Array.isArray(cachedData.items) ? cachedData.items.length : 0;
-  let dataSize;
-  try {
-    dataSize = new globalThis.TextEncoder().encode(JSON.stringify(cachedData)).length;
-  } catch {
-    dataSize = null; // not JSON-serialisable
-  }
-
-  try {
-    const success = await UnifiedStorageService.set(cacheKey, cachedData);
-    if (success) {
-      // FlexiRecord data cached successfully
-    } else {
-      logger.error('FlexiRecord caching failed - UnifiedStorageService.set returned falsy', {
-        cacheKey,
-        dataSize,
-        itemCount,
-      }, LOG_CATEGORIES.ERROR);
-    }
-  } catch (cacheError) {
-    logger.error('FlexiRecord caching error', {
-      cacheKey,
-      error: cacheError.message,
-      dataSize,
-      itemCount,
-    }, LOG_CATEGORIES.ERROR);
-
-    sentryUtils.captureException(cacheError, {
-      tags: {
-        operation: 'flexirecord_cache',
-        cacheKey,
-      },
-      contexts: {
-        data: {
-          size: dataSize,
-          hasItems: itemCount > 0,
-          itemCount,
-        },
-      },
-    });
-  }
-
-  return data; // Return original data without timestamp
-}
-
-/**
  * Gets available FlexiRecords for a Scout section with intelligent caching
- * 
- * Retrieves list of FlexiRecords available for a section with offline-first
- * approach and demo mode support. Uses localStorage caching with configurable
- * TTL and automatically falls back to cached data when offline or on API failure.
- * 
+ *
  * @async
  * @param {string|number} sectionId - Section identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
  * @returns {Promise<{items: Array, _cacheTimestamp: number}>} FlexiRecords list with metadata
- * 
- * @example
- * // Get FlexiRecords for Beavers section
- * const flexiRecords = await getFlexiRecordsList(1, authToken);
- * 
- * console.log(`Found ${flexiRecords.items.length} FlexiRecords:`);
- * flexiRecords.items.forEach(record => {
- *   console.log(`- ${record.name} (ID: ${record.extraid})`);
- * });
- * 
- * @example
- * // Force refresh for up-to-date data
- * const freshRecords = await getFlexiRecordsList(sectionId, token, true);
- * 
- * @example
- * // Offline usage with cached data
- * const cachedRecords = await getFlexiRecordsList(sectionId, null);
  */
 export async function getFlexiRecordsList(sectionId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');
-  
+
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
   }
-  
+
   try {
-    // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const cacheKey = `demo_viking_flexi_lists_${sectionId}_offline`;
-      const cached = await getCachedData(cacheKey, { items: [] });
-      return cached;
+      const cached = await databaseService.getFlexiLists(sectionId);
+      return cached || { items: [] };
     }
-    
-    const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
-    
-    // If no token available, skip API calls and use empty cache fallback
+
     if (!hasUsableToken(token)) {
       logger.info('No usable token for section, skipping API call', { sectionId }, LOG_CATEGORIES.APP);
-      const emptyCache = await getCachedData(cacheKey, { items: [] });
-      return emptyCache;
+      const cached = await databaseService.getFlexiLists(sectionId);
+      return cached || { items: [] };
     }
-    
-    // Check network status first
+
     const isOnline = await checkNetworkStatus();
-    
-    // Check if we have valid cached data (unless force refresh)
+
     if (!forceRefresh && isOnline) {
-      const cacheCheck = await isCacheValid(cacheKey, FLEXI_LISTS_CACHE_TTL);
+      const cached = await databaseService.getFlexiLists(sectionId);
+      const cacheCheck = checkCacheTTL(cached, FLEXI_LISTS_CACHE_TTL);
       if (cacheCheck.valid) {
         return cacheCheck.data;
       }
     }
-    
-    // If offline, get from storage regardless of age
+
     if (!isOnline) {
-      const cached = await getCachedData(cacheKey, { items: [] });
-      return cached;
+      const cached = await databaseService.getFlexiLists(sectionId);
+      return cached || { items: [] };
     }
 
-    // token is guaranteed here due to early return above
-
-    // Get fresh data from API
     const flexiRecords = await getFlexiRecords(sectionId, token);
 
-    // Cache data with timestamp
-    const cachedData = await cacheData(cacheKey, flexiRecords);
+    await databaseService.saveFlexiLists(sectionId, flexiRecords.items || []);
 
-    return cachedData;
-    
+    return flexiRecords;
+
   } catch (error) {
     logger.error('Error fetching flexirecords list', {
       sectionId,
@@ -297,10 +152,8 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
 
-    // Try cache as fallback
     try {
-      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
-      const cached = await getCachedData(cacheKey, null);
+      const cached = await databaseService.getFlexiLists(sectionId);
       if (cached) {
         logger.warn('Using cached flexirecords list after API failure', { sectionId });
         return cached;
@@ -315,101 +168,67 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
 
 /**
  * Gets FlexiRecord structure with field definitions and metadata
- * 
- * Retrieves the structure/schema for a specific FlexiRecord including field
- * definitions, types, and configuration. Cached longer than data as field
- * definitions rarely change. Essential for understanding FlexiRecord layout
- * and mapping field IDs to meaningful names.
- * 
+ *
  * @async
  * @param {string|number} flexirecordId - FlexiRecord identifier
  * @param {string|number} sectionId - Section identifier
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force API call ignoring cache validity
- * @returns {Promise<{name: string, extraid: string, structure: Object, _cacheTimestamp: number}|null>} FlexiRecord structure or null if not found
- * 
- * @example
- * // Get structure for Viking Event Management FlexiRecord
- * const structure = await getFlexiRecordStructure('flexi_123', 1, 'term_456', token);
- * 
- * if (structure) {
- *   console.log(`FlexiRecord: ${structure.name}`);
- *   console.log('Available fields:', Object.keys(structure.structure.columns));
- * }
- * 
- * @example
- * // Use structure to understand field mappings
- * const structure = await getFlexiRecordStructure(flexiId, sectionId, termId, token);
- * const fieldMapping = parseFlexiStructure(structure);
- * 
- * // Map field IDs to human-readable names
- * fieldMapping.forEach((fieldInfo, fieldId) => {
- *   console.log(`Field ${fieldId}: ${fieldInfo.name} (${fieldInfo.type})`);
- * });
+ * @returns {Promise<Object|null>} FlexiRecord structure or null if not found
  */
 export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, token, forceRefresh = false) {
   flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
   sectionId = normalizeId(sectionId, 'sectionId');
   termId = normalizeId(termId, 'termId');
-  
+
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
   }
-  
+
   try {
-    // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const cacheKey = `demo_viking_flexi_structure_${flexirecordId}_offline`;
-      const cached = await getCachedData(cacheKey, null);
-      return cached;
+      const cached = await databaseService.getFlexiStructure(flexirecordId);
+      return cached || null;
     }
-    
-    const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
-    
-    // If no token available, skip API calls and use cached data only
+
     if (!hasUsableToken(token)) {
-      const cached = await getCachedData(cacheKey, null);
-      return cached;
+      const cached = await databaseService.getFlexiStructure(flexirecordId);
+      return cached || null;
     }
-    
-    // Check network status first
+
     const isOnline = await checkNetworkStatus();
-    
-    // Check if we have valid cached data (unless force refresh)
+
     if (!forceRefresh && isOnline) {
-      const cacheCheck = await isCacheValid(cacheKey, FLEXI_STRUCTURES_CACHE_TTL);
+      const cached = await databaseService.getFlexiStructure(flexirecordId);
+      const cacheCheck = checkCacheTTL(cached, FLEXI_STRUCTURES_CACHE_TTL);
       if (cacheCheck.valid) {
-        // Using cached flexirecord structure
         return cacheCheck.data;
       }
     }
-    
-    // If offline, get from storage regardless of age
+
     if (!isOnline) {
-      const cached = await getCachedData(cacheKey, null);
+      const cached = await databaseService.getFlexiStructure(flexirecordId);
       if (cached) {
-        // Retrieved structure from storage while offline
         return cached;
       }
       return null;
     }
 
-    // token is guaranteed here due to early return above
-
-    // Get fresh data from API
-    // Fetching flexirecord structure from API
     const structure = await getFlexiStructure(flexirecordId, sectionId, termId, token);
 
     if (!structure) {
       throw new Error('Failed to retrieve flexirecord structure');
     }
 
-    // Cache data with timestamp
-    const cachedData = await cacheData(cacheKey, structure);
+    const cachedData = {
+      ...structure,
+      _cacheTimestamp: Date.now(),
+    };
+    await databaseService.saveFlexiStructure(flexirecordId, cachedData);
 
-    return cachedData;
-    
+    return structure;
+
   } catch (error) {
     logger.error('Error fetching flexirecord structure', {
       flexirecordId,
@@ -418,10 +237,8 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
 
-    // Try cache as fallback
     try {
-      const cacheKey = `viking_flexi_structure_${flexirecordId}_offline`;
-      const cached = await getCachedData(cacheKey, null);
+      const cached = await databaseService.getFlexiStructure(flexirecordId);
       if (cached) {
         logger.warn('Using cached flexirecord structure after API failure', { flexirecordId });
         return cached;
@@ -435,76 +252,68 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
 }
 
 /**
- * Get flexirecord attendance data - refreshed frequently as it changes often
+ * Gets flexirecord attendance data with frequent refresh
+ *
+ * @async
  * @param {string|number} flexirecordId - FlexiRecord ID
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token
- * @param {boolean} forceRefresh - Force API call ignoring cache (default: true)
+ * @param {boolean} [forceRefresh=true] - Force API call ignoring cache
  * @returns {Promise<Object>} FlexiRecord attendance data
  */
 export async function getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh = true) {
   flexirecordId = normalizeId(flexirecordId, 'flexirecordId');
   sectionId = normalizeId(sectionId, 'sectionId');
   termId = normalizeId(termId, 'termId');
-  
+
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = true;
   }
-  
+
   try {
-    // Skip API calls in demo mode - use cached data only
     if (isDemoMode()) {
-      const storageKey = `demo_viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
-      const cached = await getCachedData(storageKey, null);
-      return cached;
+      const cached = await databaseService.getFlexiData(flexirecordId, sectionId, termId);
+      return cached || null;
     }
-    
-    const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
-    
-    // If no token available, skip API calls and use cached data only
+
     if (!hasUsableToken(token)) {
-      const cached = await getCachedData(storageKey, null);
-      return cached;
+      const cached = await databaseService.getFlexiData(flexirecordId, sectionId, termId);
+      return cached || null;
     }
-    
-    // Check network status first
+
     const isOnline = await checkNetworkStatus();
-    
-    // Check if we have valid cached data (unless force refresh)
+
     if (!forceRefresh && isOnline) {
-      const cacheCheck = await isCacheValid(storageKey, FLEXI_DATA_CACHE_TTL);
+      const cached = await databaseService.getFlexiData(flexirecordId, sectionId, termId);
+      const cacheCheck = checkCacheTTL(cached, FLEXI_DATA_CACHE_TTL);
       if (cacheCheck.valid) {
-        // Using cached flexirecord data
         return cacheCheck.data;
       }
     }
-    
-    // If offline, get from storage regardless of age
+
     if (!isOnline) {
-      const cached = await getCachedData(storageKey, null);
+      const cached = await databaseService.getFlexiData(flexirecordId, sectionId, termId);
       if (cached) {
-        // Retrieved flexirecord data from storage while offline
         return cached;
       }
       return null;
     }
 
-    // token is guaranteed here due to early return above
-
-    // Get fresh data from API
-    // Fetching flexirecord data from API
     const data = await getSingleFlexiRecord(flexirecordId, sectionId, termId, token);
 
     if (!data) {
       throw new Error('Failed to retrieve flexirecord data');
     }
 
-    // Cache data with timestamp
-    const cachedData = await cacheData(storageKey, data);
+    const cachedData = {
+      ...data,
+      _cacheTimestamp: Date.now(),
+    };
+    await databaseService.saveFlexiData(flexirecordId, sectionId, termId, cachedData);
 
-    return cachedData;
-    
+    return data;
+
   } catch (error) {
     logger.error('Error fetching flexirecord data', {
       flexirecordId,
@@ -514,10 +323,8 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
 
-    // Try cache as fallback
     try {
-      const storageKey = `viking_flexi_data_${flexirecordId}_${sectionId}_${termId}_offline`;
-      const cached = await getCachedData(storageKey, null);
+      const cached = await databaseService.getFlexiData(flexirecordId, sectionId, termId);
       if (cached) {
         logger.warn('Using cached flexirecord data after API failure', { flexirecordId });
         return cached;
@@ -532,51 +339,15 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
 
 /**
  * Gets consolidated FlexiRecord data with meaningful field names and structure
- * 
- * Main function that combines FlexiRecord structure and data retrieval with
- * intelligent caching and field mapping. Transforms raw FlexiRecord data into
- * a usable format with human-readable field names and proper data types.
- * This is the primary function for working with FlexiRecord data.
- * 
+ *
  * @async
  * @param {string|number} sectionId - Section identifier
  * @param {string|number} flexirecordId - FlexiRecord identifier (extraid)
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<{items: Array, _structure: {name: string, extraid: string, archived: boolean, fieldMapping: Object}}>} Consolidated FlexiRecord with structure and data
+ * @returns {Promise<Object>} Consolidated FlexiRecord with structure and data
  * @throws {Error} If required parameters missing or API calls fail
- * 
- * @example
- * // Get consolidated Viking Event Management data
- * const eventData = await getConsolidatedFlexiRecord(
- *   sectionId, 
- *   'viking_event_flexi_123', 
- *   termId, 
- *   authToken
- * );
- * 
- * // Access data with meaningful field names
- * eventData.items.forEach(record => {
- *   console.log(`Scout: ${record.scoutName}`);
- *   console.log(`Attendance: ${record.eventAttendance}`);
- *   console.log(`Notes: ${record.attendanceNotes}`);
- * });
- * 
- * // Use field mapping for dynamic field access
- * const fieldMapping = eventData._structure.fieldMapping;
- * Object.values(fieldMapping).forEach(field => {
- *   console.log(`Field: ${field.name} - Type: ${field.type}`);
- * });
- * 
- * @example
- * // Handle offline mode gracefully
- * try {
- *   const data = await getConsolidatedFlexiRecord(sectionId, flexiId, termId, null);
- *   // Use cached data
- * } catch (error) {
- *   console.log('No cached data available - need internet connection');
- * }
  */
 export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termId, token, forceRefresh = false) {
   try {
@@ -584,12 +355,9 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
       throw new Error('Missing required parameters: sectionId, flexirecordId, and termId are required');
     }
 
-    // Getting consolidated flexirecord data
-
-    // Get structure and data using service layer caching
     const [structureData, flexiData] = await Promise.all([
-      getFlexiRecordStructure(flexirecordId, sectionId, termId, token, false), // Structure cached longer
-      getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh), // Data refreshed more often
+      getFlexiRecordStructure(flexirecordId, sectionId, termId, token, false),
+      getFlexiRecordData(flexirecordId, sectionId, termId, token, forceRefresh),
     ]);
 
     if (!structureData) {
@@ -600,15 +368,11 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
       throw new Error('Failed to retrieve flexirecord data');
     }
 
-    // Parse structure to get field mapping (moved to transforms)
     const { parseFlexiStructure, transformFlexiRecordData } = await import('../../../shared/utils/flexiRecordTransforms.js');
     const fieldMapping = parseFlexiStructure(structureData);
 
-    // Transform data using field mapping
     const consolidatedData = transformFlexiRecordData(flexiData, fieldMapping);
 
-    // Convert fieldMapping Map to object for easier access
-    // Use fieldId as key to ensure uniqueness and prevent overwrites
     const fieldMappingObj = {};
     fieldMapping.forEach((fieldInfo, fieldId) => {
       fieldMappingObj[fieldId] = {
@@ -617,18 +381,15 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
       };
     });
 
-    // Add structure metadata to result
     consolidatedData._structure = {
       name: structureData.name,
       extraid: structureData.extraid,
-      flexirecordid: structureData.extraid, // Alias for backward compatibility
+      flexirecordid: structureData.extraid,
       sectionid: structureData.sectionid,
       archived: structureData.archived === '1',
       softDeleted: structureData.soft_deleted === '1',
-      fieldMapping: fieldMappingObj, // Add the field mapping for drag-and-drop context
+      fieldMapping: fieldMappingObj,
     };
-
-    // Successfully consolidated flexirecord data
 
     return consolidatedData;
   } catch (error) {
@@ -660,68 +421,26 @@ export async function getConsolidatedFlexiRecord(sectionId, flexirecordId, termI
 
 /**
  * Gets Viking Event Management FlexiRecord data for a Scout section
- * 
- * Specialized function that looks for the "Viking Event Mgmt" FlexiRecord
- * within a section and returns consolidated data with meaningful field names.
- * This is the primary function for accessing Scout event attendance data
- * in the Vikings Event Management system.
- * 
+ *
  * @async
  * @param {string|number} sectionId - Section identifier
  * @param {string|number} termId - Term identifier
  * @param {string} token - OSM authentication token (null for offline mode)
  * @param {boolean} [forceRefresh=false] - Force refresh of data cache
- * @returns {Promise<{items: Array, _structure: {name: string, fieldMapping: Object}}|null>} Viking Event Mgmt FlexiRecord data or null if not found
- * 
- * @example
- * // Get Viking Event data for Beavers section
- * const eventData = await getVikingEventData(1, 'term_2024_spring', authToken);
- * 
- * if (eventData) {
- *   console.log(`Found ${eventData.items.length} attendance records`);
- *   
- *   // Process attendance data
- *   eventData.items.forEach(record => {
- *     console.log(`${record.scoutName}: ${record.eventAttendance}`);
- *     if (record.attendanceNotes) {
- *       console.log(`  Notes: ${record.attendanceNotes}`);
- *     }
- *   });
- * } else {
- *   console.log('No Viking Event Management FlexiRecord found for this section');
- * }
- * 
- * @example
- * // Use for event dashboard display
- * const sections = await getSections();
- * 
- * for (const section of sections) {
- *   const eventData = await getVikingEventData(section.sectionid, termId, token);
- *   if (eventData) {
- *     const attendingCount = eventData.items.filter(
- *       record => record.eventAttendance === 'Yes'
- *     ).length;
- *     console.log(`${section.sectionname}: ${attendingCount} attending`);
- *   }
- * }
+ * @returns {Promise<Object|null>} Viking Event Mgmt FlexiRecord data or null if not found
  */
 export async function getVikingEventData(sectionId, termId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');
   termId = normalizeId(termId, 'termId');
-  
+
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
   }
-  
-  try {
 
-    // Getting Viking Event data for section
-    
-    // Get flexirecords list
+  try {
     const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
 
-    // Find the Viking Event Mgmt flexirecord ID from the list
-    const vikingEventFlexiRecord = flexiRecordsList.items?.find(record => 
+    const vikingEventFlexiRecord = flexiRecordsList.items?.find(record =>
       record.name === 'Viking Event Mgmt',
     );
 
@@ -730,22 +449,17 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
         sectionId,
         availableRecords: flexiRecordsList.items?.map(r => r.name || 'Unknown') || [],
       }, LOG_CATEGORIES.APP);
-      
+
       return null;
     }
 
-    // Found "Viking Event Mgmt" flexirecord in list
-
-    // Get the consolidated data (structure + data) for the "Viking Event Mgmt" flexirecord
     const vikingEventRecord = await getConsolidatedFlexiRecord(
-      sectionId, 
-      vikingEventFlexiRecord.extraid, 
-      termId, 
+      sectionId,
+      vikingEventFlexiRecord.extraid,
+      termId,
       token,
-      forceRefresh, // Pass through forceRefresh parameter
+      forceRefresh,
     );
-
-    // Found "Viking Event Mgmt" flexirecord
 
     return vikingEventRecord;
   } catch (error) {
@@ -774,32 +488,27 @@ export async function getVikingEventData(sectionId, termId, token, forceRefresh 
 }
 
 /**
- * Get Viking Section Movers flexirecord for a section
- * Looks for flexirecord with name="Viking Section Movers"
- * 
+ * Gets Viking Section Movers flexirecord for a section
+ *
+ * @async
  * @param {string|number} sectionId - Section ID
  * @param {string|number} termId - Term ID
  * @param {string} token - Authentication token (null for offline)
- * @param {boolean} forceRefresh - Force refresh of data cache (default: false)
+ * @param {boolean} [forceRefresh=false] - Force refresh of data cache
  * @returns {Promise<Object|null>} Viking Section Movers flexirecord data or null if not found
  */
 export async function getVikingSectionMoversData(sectionId, termId, token, forceRefresh = false) {
   sectionId = normalizeId(sectionId, 'sectionId');
   termId = normalizeId(termId, 'termId');
-  
+
   if (typeof forceRefresh !== 'boolean') {
     forceRefresh = false;
   }
-  
+
   try {
-
-    // Getting Viking Section Movers data for section
-
-    // Get flexirecords list
     const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
 
-    // Find the Viking Section Movers flexirecord ID from the list
-    const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record => 
+    const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record =>
       record.name === 'Viking Section Movers',
     );
 
@@ -808,22 +517,17 @@ export async function getVikingSectionMoversData(sectionId, termId, token, force
         sectionId,
         availableRecords: flexiRecordsList.items?.map(r => r.name || 'Unknown') || [],
       }, LOG_CATEGORIES.APP);
-      
+
       return null;
     }
 
-    // Found "Viking Section Movers" flexirecord in list
-
-    // Get the consolidated data (structure + data) for the "Viking Section Movers" flexirecord
     const vikingSectionMoversRecord = await getConsolidatedFlexiRecord(
-      sectionId, 
-      vikingSectionMoversFlexiRecord.extraid, 
-      termId, 
+      sectionId,
+      vikingSectionMoversFlexiRecord.extraid,
+      termId,
       token,
-      forceRefresh, // Pass through forceRefresh parameter
+      forceRefresh,
     );
-
-    // Found "Viking Section Movers" flexirecord
 
     return vikingSectionMoversRecord;
   } catch (error) {
@@ -852,20 +556,17 @@ export async function getVikingSectionMoversData(sectionId, termId, token, force
 }
 
 /**
- * Extract field mapping for Viking Section Movers FlexiRecord
- * Maps required fields (Member ID, Date of Birth, Current Section, Target Section, Assignment Term)
- * following the extractFlexiRecordContext pattern
- * 
- * @param {Object} vikingSectionMoversData - Viking Section Movers FlexiRecord data  
+ * Extracts field mapping for Viking Section Movers FlexiRecord
+ *
+ * @param {Object} vikingSectionMoversData - Viking Section Movers FlexiRecord data
  * @param {string} sectionId - Section ID
  * @param {string} termId - Term ID
  * @param {string} sectionName - Section name
  * @returns {Object|null} Field mapping context or null if not available
  */
 export function extractVikingSectionMoversContext(vikingSectionMoversData, sectionId, termId, sectionName) {
-  // Try both _structure and structure properties for compatibility
   const structure = vikingSectionMoversData?._structure || vikingSectionMoversData?.structure;
-  
+
   if (!vikingSectionMoversData || !structure) {
     logger.warn('No Viking Section Movers data or structure available', {
       hasData: !!vikingSectionMoversData,
@@ -878,26 +579,22 @@ export function extractVikingSectionMoversContext(vikingSectionMoversData, secti
   }
 
   const fieldMapping = structure.fieldMapping || {};
-  
-  // Find required fields from the structure
+
   const memberIdField = Object.values(fieldMapping).find(field => field.name === 'Member ID');
   const dateOfBirthField = Object.values(fieldMapping).find(field => field.name === 'Date of Birth');
   const currentSectionField = Object.values(fieldMapping).find(field => field.name === 'Current Section');
   const targetSectionField = Object.values(fieldMapping).find(field => field.name === 'Target Section');
   const assignmentTermField = Object.values(fieldMapping).find(field => field.name === 'Assignment Term');
-  
-  // New assignment tracking fields
+
   const assignedSectionField = Object.values(fieldMapping).find(field => field.name === 'AssignedSection');
   const assignedTermField = Object.values(fieldMapping).find(field => field.name === 'AssignedTerm');
   const assignmentOverrideField = Object.values(fieldMapping).find(field => field.name === 'AssignmentOverride');
   const assignmentDateField = Object.values(fieldMapping).find(field => field.name === 'AssignmentDate');
   const assignedByField = Object.values(fieldMapping).find(field => field.name === 'AssignedBy');
 
-  // Check for missing critical fields - using actual field names
-  // Note: Viking Section Movers FlexiRecord doesn't have Member ID - it only tracks assignments
   const missingFields = [];
   if (!assignedSectionField) missingFields.push('AssignedSection');
-  
+
   if (missingFields.length > 0) {
     logger.warn('Missing critical fields in Viking Section Movers FlexiRecord structure', {
       missingFields,
@@ -914,7 +611,6 @@ export function extractVikingSectionMoversContext(vikingSectionMoversData, secti
     sectionid: sectionId,
     termid: termId,
     section: sectionName,
-    // Return the actual field IDs for use in API calls
     assignedSection: assignedSectionField?.fieldId || assignedSectionField?.columnId,
     assignedTerm: assignedTermField?.fieldId || assignedTermField?.columnId,
     fields: {
@@ -923,7 +619,6 @@ export function extractVikingSectionMoversContext(vikingSectionMoversData, secti
       currentSection: currentSectionField,
       targetSection: targetSectionField,
       assignmentTerm: assignmentTermField,
-      // New assignment tracking fields
       assignedSection: assignedSectionField,
       assignedTerm: assignedTermField,
       assignmentOverride: assignmentOverrideField,
@@ -935,9 +630,8 @@ export function extractVikingSectionMoversContext(vikingSectionMoversData, secti
 }
 
 /**
- * Validate Viking Section Movers FlexiRecord structure
- * Checks if required fields exist for section movement assignments
- * 
+ * Validates Viking Section Movers FlexiRecord structure
+ *
  * @param {Object} consolidatedData - Consolidated flexirecord data from getVikingSectionMoversData
  * @returns {Object} Validation result with status and missing fields
  */
@@ -946,19 +640,18 @@ export function validateVikingSectionMoversFields(consolidatedData) {
     'Member ID',
     'Target Section',
   ];
-  
+
   const optionalFields = [
     'Date of Birth',
-    'Current Section', 
+    'Current Section',
     'Assignment Term',
-    // New assignment tracking fields (optional for backward compatibility)
     'AssignedSection',
     'AssignedTerm',
     'AssignmentOverride',
     'AssignmentDate',
     'AssignedBy',
   ];
-  
+
   if (!consolidatedData || !consolidatedData._structure) {
     return {
       isValid: false,
@@ -967,13 +660,13 @@ export function validateVikingSectionMoversFields(consolidatedData) {
       error: 'FlexiRecord structure not found',
     };
   }
-  
+
   const fieldMapping = consolidatedData._structure.fieldMapping || {};
   const availableFields = Object.values(fieldMapping).map(field => field.name);
-  
+
   const missingRequired = requiredFields.filter(field => !availableFields.includes(field));
   const missingOptional = optionalFields.filter(field => !availableFields.includes(field));
-  
+
   return {
     isValid: missingRequired.length === 0,
     missingFields: missingRequired,
@@ -985,15 +678,14 @@ export function validateVikingSectionMoversFields(consolidatedData) {
 }
 
 /**
- * Create assignment tracking data for Viking Section Movers FlexiRecord
- * This function creates the data structure needed to track member assignments
- * 
+ * Creates assignment tracking data for Viking Section Movers FlexiRecord
+ *
  * @param {string} memberId - Member ID
  * @param {string} assignedSectionId - Section ID where member will be assigned
  * @param {string} assignedSectionName - Section name where member will be assigned
  * @param {string} assignedTerm - Term when the assignment is effective
  * @param {string} assignedBy - User who made the assignment
- * @param {boolean} isOverride - Whether this assignment overrides age-based logic
+ * @param {boolean} [isOverride=false] - Whether this assignment overrides age-based logic
  * @param {Object} fieldContext - Field context from extractVikingSectionMoversContext
  * @returns {Object} FlexiRecord data structure for assignment tracking
  */
@@ -1013,7 +705,6 @@ export function createAssignmentTrackingData(
   const assignmentDate = new Date().toISOString();
   const assignmentData = {};
 
-  // Map the assignment data to the appropriate field IDs
   const { fields } = fieldContext;
 
   if (fields.memberId) {
@@ -1058,9 +749,8 @@ export function createAssignmentTrackingData(
 }
 
 /**
- * Validate assignment tracking data structure
- * Ensures all required fields for assignment tracking are present
- * 
+ * Validates assignment tracking data structure
+ *
  * @param {Object} assignmentData - Assignment data to validate
  * @param {Object} fieldContext - Field context for validation
  * @returns {Object} Validation result
@@ -1081,7 +771,6 @@ export function validateAssignmentTrackingData(assignmentData, fieldContext) {
   const { fields } = fieldContext;
   const { metadata } = assignmentData;
 
-  // Check required metadata
   const requiredMetadata = ['memberId', 'assignedSectionName', 'assignedTerm', 'assignedBy'];
   requiredMetadata.forEach(field => {
     if (!metadata || !metadata[field]) {
@@ -1089,7 +778,6 @@ export function validateAssignmentTrackingData(assignmentData, fieldContext) {
     }
   });
 
-  // Check for assignment tracking field availability
   if (!fields.assignedSection) {
     validationResult.warnings.push('AssignedSection field not found in FlexiRecord structure');
   }
@@ -1112,9 +800,8 @@ export function validateAssignmentTrackingData(assignmentData, fieldContext) {
 }
 
 /**
- * Validate a collection of Viking Section Movers FlexiRecords
- * Filters out invalid records and returns validation summary
- * 
+ * Validates a collection of Viking Section Movers FlexiRecords
+ *
  * @param {Array} discoveredFlexiRecords - Array of discovered FlexiRecord metadata
  * @param {Map} fieldMappings - Map of sectionId to field mapping context
  * @returns {Object} Validation summary with valid/invalid records
@@ -1126,7 +813,7 @@ export function validateVikingSectionMoversCollection(discoveredFlexiRecords, fi
 
   discoveredFlexiRecords.forEach(record => {
     const fieldMapping = fieldMappings.get(record.sectionId);
-    
+
     if (!fieldMapping) {
       invalidRecords.push({
         ...record,
@@ -1139,17 +826,16 @@ export function validateVikingSectionMoversCollection(discoveredFlexiRecords, fi
       return;
     }
 
-    // Check if required fields exist
     const hasRequiredFields = fieldMapping.fields.memberId && fieldMapping.fields.targetSection;
-    
+
     if (hasRequiredFields) {
       validRecords.push(record);
       validationResults.set(record.sectionId, {
         isValid: true,
-        hasOptionalFields: !!(fieldMapping.fields.dateOfBirth && 
-                            fieldMapping.fields.currentSection && 
+        hasOptionalFields: !!(fieldMapping.fields.dateOfBirth &&
+                            fieldMapping.fields.currentSection &&
                             fieldMapping.fields.assignmentTerm),
-        availableFields: Object.keys(fieldMapping.fields).filter(key => 
+        availableFields: Object.keys(fieldMapping.fields).filter(key =>
           fieldMapping.fields[key] !== null && fieldMapping.fields[key] !== undefined,
         ),
       });
@@ -1157,7 +843,7 @@ export function validateVikingSectionMoversCollection(discoveredFlexiRecords, fi
       const missingFields = [];
       if (!fieldMapping.fields.memberId) missingFields.push('Member ID');
       if (!fieldMapping.fields.targetSection) missingFields.push('Target Section');
-      
+
       invalidRecords.push({
         ...record,
         validationError: `Missing required fields: ${missingFields.join(', ')}`,
@@ -1184,51 +870,45 @@ export function validateVikingSectionMoversCollection(discoveredFlexiRecords, fi
 }
 
 /**
- * Discover all accessible FlexiRecords matching "Viking Section Movers" pattern
- * Scans through all accessible sections to find Viking Section Movers FlexiRecords
- * 
+ * Discovers all accessible FlexiRecords matching "Viking Section Movers" pattern
+ *
+ * @async
  * @param {string} token - Authentication token (null for offline)
- * @param {boolean} forceRefresh - Force refresh of cache (default: false)
+ * @param {boolean} [forceRefresh=false] - Force refresh of cache
  * @returns {Promise<Array>} Array of discovered FlexiRecords with section metadata
  */
 export async function discoverVikingSectionMoversFlexiRecords(token, forceRefresh = false) {
   try {
-    const { default: databaseService } = await import('../../../shared/services/storage/database.js');
-    
-    // Get all accessible sections
     const sectionsData = await databaseService.getSections();
-    
+
     if (!sectionsData || sectionsData.length === 0) {
       logger.warn('No sections available for Viking Section Movers discovery', {}, LOG_CATEGORIES.APP);
       return [];
     }
 
-    // Discover Viking Section Movers FlexiRecords across all sections
     const discoveryPromises = sectionsData.map(async (section) => {
       try {
         const sectionId = section.sectionid.toString();
         const sectionName = section.sectionname || section.name || 'Unknown Section';
-        
-        // Get FlexiRecords list for this section
+
         const flexiRecordsList = await getFlexiRecordsList(sectionId, token, forceRefresh);
-        
-        // Find Viking Section Movers FlexiRecord
-        const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record => 
+
+        const vikingSectionMoversFlexiRecord = flexiRecordsList.items?.find(record =>
           record.name === 'Viking Section Movers',
         );
-        
+
         if (vikingSectionMoversFlexiRecord) {
           return {
             sectionId,
             sectionName,
             flexiRecordId: vikingSectionMoversFlexiRecord.extraid,
             flexiRecordName: vikingSectionMoversFlexiRecord.name,
-            section: section, // Full section object for additional metadata
+            section: section,
           };
         }
-        
-        return null; // No Viking Section Movers FlexiRecord found for this section
-        
+
+        return null;
+
       } catch (error) {
         logger.warn('Failed to check Viking Section Movers FlexiRecord for section', {
           sectionId: section.sectionid,
@@ -1237,22 +917,22 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
           stack: error.stack,
           hasToken: !!token,
         }, LOG_CATEGORIES.APP);
-        
+
         return null;
       }
     });
-    
+
     const discoveryResults = await Promise.all(discoveryPromises);
     const discoveredFlexiRecords = discoveryResults.filter(result => result !== null);
-    
+
     logger.info('Viking Section Movers FlexiRecord discovery completed', {
       totalSections: sectionsData.length,
       discoveredCount: discoveredFlexiRecords.length,
       discoveredSections: discoveredFlexiRecords.map(d => d.sectionName),
     }, LOG_CATEGORIES.APP);
-    
+
     return discoveredFlexiRecords;
-    
+
   } catch (error) {
     logger.error('Error discovering Viking Section Movers FlexiRecords', {
       error: error.message,
@@ -1270,31 +950,27 @@ export async function discoverVikingSectionMoversFlexiRecords(token, forceRefres
 }
 
 /**
- * Get Viking Event Management data for all sections involved in events
- * Each event contains its own termId, so we use section-term combinations from the events
- * 
+ * Gets Viking Event Management data for all sections involved in events
+ *
+ * @async
  * @param {Array} events - Array of events (each must have sectionid and termid)
  * @param {string} token - Authentication token (null for offline)
- * @param {boolean} forceRefresh - Force refresh of data cache (default: true for dynamic data)
+ * @param {boolean} [forceRefresh=true] - Force refresh of data cache
  * @returns {Promise<Map>} Map of sectionId to Viking Event data
  */
 export async function getVikingEventDataForEvents(events, token, forceRefresh = true) {
   try {
-    
+
     if (!events || !Array.isArray(events)) {
       throw new Error('Invalid events: must be an array');
     }
 
-    // Get unique section-term combinations from events
     const sectionTermCombos = [...new Set(
       events.map(e => JSON.stringify([String(e.sectionid), String(e.termid)])),
     )].map(key => {
       const [sectionId, termId] = JSON.parse(key);
       return { sectionId, termId };
     });
-
-
-    // Getting Viking Event data for section-term combinations
 
     const vikingEventPromises = sectionTermCombos.map(async ({ sectionId, termId }) => {
       try {
@@ -1310,7 +986,7 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
           termId,
           error: error.message,
         }, LOG_CATEGORIES.APP);
-        
+
         return { sectionId, vikingEventData: null };
       }
     });
@@ -1319,10 +995,6 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
     const vikingEventDataBySections = new Map(
       results.map(({ sectionId, vikingEventData }) => [String(sectionId), vikingEventData]),
     );
-
-    // const successCount = results.filter(r => r.vikingEventData !== null).length;
-
-    // Completed loading Viking Event data for sections
 
     return vikingEventDataBySections;
   } catch (error) {
@@ -1349,25 +1021,3 @@ export async function getVikingEventDataForEvents(events, token, forceRefresh = 
   }
 }
 
-/**
- * Clear all flexirecord caches (useful for debugging or when data needs refresh)
- */
-export function clearFlexiRecordCaches() {
-  // Clearing all flexirecord caches
-  
-  // Clear localStorage caches
-  const keys = Object.keys(localStorage);
-  const flexiKeys = keys.filter(key => 
-    key.includes('viking_flexi_') && key.includes('_offline'),
-  );
-  
-  flexiKeys.forEach(key => {
-    localStorage.removeItem(key);
-  });
-  
-  // Cleared flexirecord caches
-  
-  return {
-    clearedLocalStorageKeys: flexiKeys.length,
-  };
-}

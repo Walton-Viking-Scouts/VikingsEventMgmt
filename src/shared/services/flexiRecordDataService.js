@@ -5,12 +5,6 @@ import { isDemoMode } from '../../config/demoMode.js';
 import { getFlexiRecords, getFlexiStructure, getSingleFlexiRecord } from './api/api/flexiRecords.js';
 import dataServiceOrchestrator from './data/dataServiceOrchestrator.js';
 
-const _CACHE_KEYS = {
-  FLEXI_LISTS: 'viking_flexirecord_lists_offline',
-  FLEXI_STRUCTURES: 'viking_flexirecord_structures_offline',
-  FLEXI_DATA: 'viking_flexirecord_data_offline',
-};
-
 class FlexiRecordDataService {
   constructor(orchestrator = dataServiceOrchestrator) {
     this.orchestrator = orchestrator;
@@ -18,6 +12,12 @@ class FlexiRecordDataService {
     this.isInitialized = false;
   }
 
+  /**
+   * Initializes the FlexiRecord data service and underlying database service.
+   * No-ops if already initialized.
+   *
+   * @returns {Promise<void>}
+   */
   async initialize() {
     if (this.isInitialized) return;
 
@@ -30,6 +30,12 @@ class FlexiRecordDataService {
     }, LOG_CATEGORIES.STORAGE);
   }
 
+  /**
+   * Checks whether a given FlexiRecord ID corresponds to a Viking Event Management record.
+   *
+   * @param {number|string} flexiRecordId - The FlexiRecord ID to check
+   * @returns {Promise<boolean>} True if the record is a Viking Event Mgmt record
+   */
   async isVikingEventManagementFlexiRecord(flexiRecordId) {
     try {
       logger.debug('Checking if FlexiRecord is Viking Event Mgmt', { flexiRecordId }, LOG_CATEGORIES.DATA_SERVICE);
@@ -49,13 +55,6 @@ class FlexiRecordDataService {
       const structure = structures[0];
       const isVikingEvent = structure.name === 'Viking Event Mgmt';
 
-      logger.debug('Structure check result', {
-        flexiRecordId,
-        structureName: structure.name,
-        isVikingEvent,
-        structureKeys: Object.keys(structure),
-      }, LOG_CATEGORIES.DATA_SERVICE);
-
       logger.debug('Checked if FlexiRecord is Viking Event Mgmt', {
         flexiRecordId,
         structureName: structure.name,
@@ -72,6 +71,14 @@ class FlexiRecordDataService {
     }
   }
 
+  /**
+   * Fetches FlexiRecord lists from the API and stores them via DatabaseService.
+   *
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @param {string} token - API authentication token
+   * @returns {Promise<{success: boolean, listCount: number}>}
+   */
   async fetchAndStoreFlexiRecordLists(sectionId, termId, token) {
     await this.initialize();
 
@@ -85,7 +92,7 @@ class FlexiRecordDataService {
 
     const flexiRecordLists = this.normalizeFlexiRecordLists(apiData.items, sectionId, termId, _sectionInfo);
 
-    await this.storeFlexiRecordLists(flexiRecordLists);
+    await this.storeFlexiRecordLists(sectionId, flexiRecordLists);
 
     logger.info('FlexiRecord lists fetched and stored successfully', {
       sectionId,
@@ -95,6 +102,15 @@ class FlexiRecordDataService {
     return { success: true, listCount: flexiRecordLists.length };
   }
 
+  /**
+   * Fetches a FlexiRecord structure from the API, normalizes it, and stores via DatabaseService.
+   *
+   * @param {number} flexiRecordId - The FlexiRecord ID
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @param {string} token - API authentication token
+   * @returns {Promise<{success: boolean, structure: Object}>}
+   */
   async fetchAndStoreFlexiRecordStructure(flexiRecordId, sectionId, termId, token) {
     await this.initialize();
 
@@ -116,6 +132,16 @@ class FlexiRecordDataService {
     return { success: true, structure: normalizedStructure };
   }
 
+  /**
+   * Fetches FlexiRecord data from the API and processes it.
+   * Viking Event records are processed via the orchestrator; other records are logged but not stored.
+   *
+   * @param {number} flexiRecordId - The FlexiRecord ID
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @param {string} token - API authentication token
+   * @returns {Promise<{success: boolean, dataCount: number}>}
+   */
   async fetchAndStoreFlexiRecordData(flexiRecordId, sectionId, termId, token) {
     await this.initialize();
 
@@ -155,26 +181,21 @@ class FlexiRecordDataService {
     }
   }
 
+  /**
+   * Retrieves section info from DatabaseService.
+   *
+   * @param {number} sectionId - Section identifier
+   * @returns {Promise<{sectionname: string, section: string|null, sectionType: string|null}>}
+   */
   async getSectionInfo(sectionId) {
     try {
-      if (this.isNative) {
-        const db = await databaseService.getDatabase();
-        const result = await db.query('SELECT sectionname, section, sectionType FROM sections WHERE sectionid = ?', [sectionId]);
-        const section = result.values?.[0];
-        return {
-          sectionname: section?.sectionname || `Section ${sectionId}`,
-          section: section?.section || null,
-          sectionType: section?.sectionType || null,
-        };
-      } else {
-        const sections = await databaseService.storageBackend.getSections();
-        const section = sections.find(s => s.sectionid === sectionId);
-        return {
-          sectionname: section?.sectionname || `Section ${sectionId}`,
-          section: section?.section || null,
-          sectionType: section?.sectionType || null,
-        };
-      }
+      const sections = await databaseService.getSections();
+      const section = sections.find(s => s.sectionid === sectionId);
+      return {
+        sectionname: section?.sectionname || `Section ${sectionId}`,
+        section: section?.section || null,
+        sectionType: section?.sectionType || null,
+      };
     } catch (error) {
       logger.warn('Could not lookup section info', {
         sectionId,
@@ -188,6 +209,15 @@ class FlexiRecordDataService {
     }
   }
 
+  /**
+   * Normalizes raw API FlexiRecord list items into the storage format.
+   *
+   * @param {Object[]} items - Raw API items
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @param {Object} sectionInfo - Section metadata
+   * @returns {Object[]} Normalized flexi record list objects
+   */
   normalizeFlexiRecordLists(items, sectionId, termId, sectionInfo) {
     const flexiRecordLists = [];
 
@@ -208,6 +238,13 @@ class FlexiRecordDataService {
     return flexiRecordLists;
   }
 
+  /**
+   * Normalizes raw API FlexiRecord structure data into the storage format.
+   *
+   * @param {Object} apiData - Raw API structure data
+   * @param {number} flexiRecordId - The FlexiRecord ID
+   * @returns {Object} Normalized structure object
+   */
   normalizeFlexiRecordStructure(apiData, flexiRecordId) {
     return {
       ...apiData,
@@ -217,6 +254,15 @@ class FlexiRecordDataService {
     };
   }
 
+  /**
+   * Normalizes raw API FlexiRecord data items into the storage format.
+   *
+   * @param {Object[]} items - Raw API data items
+   * @param {number} flexiRecordId - The FlexiRecord ID
+   * @param {number} sectionId - Section identifier
+   * @param {Object} sectionInfo - Section metadata
+   * @returns {Object[]} Normalized flexi record data objects
+   */
   normalizeFlexiRecordData(items, flexiRecordId, sectionId, sectionInfo) {
     const flexiRecordData = [];
 
@@ -248,99 +294,134 @@ class FlexiRecordDataService {
     return flexiRecordData;
   }
 
-
-  async storeData(flexiRecordLists, flexiRecordStructures, flexiRecordData) {
+  /**
+   * Stores flexi record lists, structures, and data via DatabaseService.
+   *
+   * @param {Object[]} flexiRecordLists - Normalized list objects
+   * @param {Object[]} flexiRecordStructures - Normalized structure objects
+   * @param {Object[]} _flexiRecordData - Normalized data objects (unused -- Viking Event data goes through orchestrator)
+   * @returns {Promise<void>}
+   */
+  async storeData(flexiRecordLists, flexiRecordStructures, _flexiRecordData) {
     if (Array.isArray(flexiRecordLists) && flexiRecordLists.length) {
-      await this.storeFlexiRecordLists(flexiRecordLists);
+      const bySectionId = new Map();
+      for (const list of flexiRecordLists) {
+        const sid = Number(list.section_id || list.sectionid);
+        if (!bySectionId.has(sid)) bySectionId.set(sid, []);
+        bySectionId.get(sid).push(list);
+      }
+      for (const [sectionId, lists] of bySectionId) {
+        await databaseService.saveFlexiLists(sectionId, lists);
+      }
     }
     if (Array.isArray(flexiRecordStructures) && flexiRecordStructures.length) {
       for (const s of flexiRecordStructures) {
-        await this.storeFlexiRecordStructure(s);
+        const recordId = s.extraid || s.flexirecord_id;
+        await databaseService.saveFlexiStructure(recordId, s);
       }
     }
-    if (Array.isArray(flexiRecordData) && flexiRecordData.length && !this.isNative) {
-      await databaseService.storageBackend.saveFlexiRecordData(flexiRecordData);
-    }
   }
 
-  async storeFlexiRecordLists(flexiRecordLists) {
-    if (this.isNative) {
-      await this.storeFlexiRecordListsInSQLite(flexiRecordLists);
-    } else {
-      await this.storeFlexiRecordListsInIndexedDB(flexiRecordLists);
-    }
+  /**
+   * Stores flexi record lists via DatabaseService.
+   *
+   * @param {number} sectionId - Section identifier for the lists
+   * @param {Object[]} flexiRecordLists - Normalized list objects
+   * @returns {Promise<void>}
+   */
+  async storeFlexiRecordLists(sectionId, flexiRecordLists) {
+    await databaseService.saveFlexiLists(Number(sectionId), flexiRecordLists);
   }
 
+  /**
+   * Stores a flexi record structure via DatabaseService, including parsed field mapping.
+   *
+   * @param {Object} structure - Normalized structure object with flexirecord_id or extraid
+   * @returns {Promise<void>}
+   */
   async storeFlexiRecordStructure(structure) {
-    if (this.isNative) {
-      await this.storeFlexiRecordStructureInSQLite(structure);
-    } else {
-      await this.storeFlexiRecordStructureInIndexedDB(structure);
-    }
-  }
-
-
-
-  async storeFlexiRecordListsInIndexedDB(flexiRecordLists) {
-    logger.debug('Storing FlexiRecord lists to IndexedDB', {
-      listCount: flexiRecordLists.length,
-    }, LOG_CATEGORIES.STORAGE);
-
-    await databaseService.storageBackend.saveFlexiRecordLists(flexiRecordLists);
-
-    logger.debug('Successfully stored FlexiRecord lists to IndexedDB', {}, LOG_CATEGORIES.STORAGE);
-  }
-
-  async storeFlexiRecordStructureInIndexedDB(structure) {
-    logger.debug('Storing FlexiRecord structure to IndexedDB', {
-      flexiRecordId: structure.flexirecord_id,
-      structureName: structure.name,
-    }, LOG_CATEGORIES.STORAGE);
-
-    // Parse the complex structure once and store simplified field mapping
     const { parseFlexiStructure } = await import('../utils/flexiRecordTransforms.js');
     const fieldMapping = parseFlexiStructure(structure);
 
-    // Convert Map to plain object for storage
     const fieldMappingObject = {};
     for (const [fieldId, fieldInfo] of fieldMapping.entries()) {
       fieldMappingObject[fieldId] = fieldInfo;
     }
 
-    // Store both original structure and parsed field mapping
     const enhancedStructure = {
       ...structure,
       parsedFieldMapping: fieldMappingObject,
     };
 
-    await databaseService.storageBackend.saveFlexiRecordStructure(enhancedStructure);
+    const recordId = enhancedStructure.extraid || enhancedStructure.flexirecord_id;
+    await databaseService.saveFlexiStructure(recordId, enhancedStructure);
 
-    logger.debug('Successfully stored FlexiRecord structure with parsed field mapping to IndexedDB', {
+    logger.debug('Stored FlexiRecord structure with parsed field mapping', {
       fieldCount: fieldMapping.size,
     }, LOG_CATEGORIES.STORAGE);
   }
 
-
+  /**
+   * Retrieves flexi record lists from DatabaseService for the given section IDs.
+   *
+   * @param {number[]} [sectionIds=[]] - Section IDs to filter by. If empty, returns empty array.
+   * @returns {Promise<Object[]>} Array of flexi list objects
+   */
   async getFlexiRecordLists(sectionIds = []) {
     await this.initialize();
 
-    if (this.isNative) {
-      return await this.getFlexiRecordListsFromSQLite(sectionIds);
-    } else {
-      return await this.getFlexiRecordListsFromIndexedDB(sectionIds);
+    const results = [];
+    for (const sectionId of sectionIds) {
+      const lists = await databaseService.getFlexiLists(Number(sectionId));
+      results.push(...lists);
     }
+
+    logger.debug('Retrieved FlexiRecord lists', {
+      sectionCount: sectionIds.length,
+      listCount: results.length,
+    }, LOG_CATEGORIES.STORAGE);
+
+    return results;
   }
 
+  /**
+   * Retrieves flexi record structures from DatabaseService for the given record IDs.
+   *
+   * @param {number[]} [flexiRecordIds=[]] - FlexiRecord IDs to filter by. If empty, returns all structures.
+   * @returns {Promise<Object[]>} Array of flexi structure objects
+   */
   async getFlexiRecordStructures(flexiRecordIds = []) {
     await this.initialize();
 
-    if (this.isNative) {
-      return await this.getFlexiRecordStructuresFromSQLite(flexiRecordIds);
-    } else {
-      return await this.getFlexiRecordStructuresFromIndexedDB(flexiRecordIds);
+    if (flexiRecordIds.length === 0) {
+      const allStructures = await databaseService.getAllFlexiStructures();
+      return allStructures;
     }
+
+    const results = [];
+    for (const recordId of flexiRecordIds) {
+      const structure = await databaseService.getFlexiStructure(recordId);
+      if (structure) {
+        results.push(structure);
+      }
+    }
+
+    logger.debug('Retrieved FlexiRecord structures', {
+      requestedCount: flexiRecordIds.length,
+      foundCount: results.length,
+    }, LOG_CATEGORIES.STORAGE);
+
+    return results;
   }
 
+  /**
+   * Retrieves flexi record data. Viking Event records are returned via the orchestrator;
+   * other record types are not stored.
+   *
+   * @param {number[]} [flexiRecordIds=[]] - FlexiRecord IDs to retrieve data for
+   * @param {number[]} [_sectionIds=[]] - Section IDs (unused, kept for API compatibility)
+   * @returns {Promise<Object[]>} Array of flexi record data objects
+   */
   async getFlexiRecordData(flexiRecordIds = [], _sectionIds = []) {
     await this.initialize();
 
@@ -391,74 +472,6 @@ class FlexiRecordDataService {
     }, LOG_CATEGORIES.STORAGE);
 
     return [];
-  }
-
-  async getFlexiRecordListsFromSQLite(_sectionIds) {
-    // TODO: Implement SQLite retrieval for FlexiRecord lists
-    throw new Error('SQLite retrieval for FlexiRecord lists not yet implemented');
-  }
-
-  async getFlexiRecordStructuresFromSQLite(_flexiRecordIds) {
-    // TODO: Implement SQLite retrieval for FlexiRecord structures
-    throw new Error('SQLite retrieval for FlexiRecord structures not yet implemented');
-  }
-
-  async getFlexiRecordDataFromSQLite(_flexiRecordIds, _sectionIds) {
-    // TODO: Implement SQLite retrieval for FlexiRecord data
-    throw new Error('SQLite retrieval for FlexiRecord data not yet implemented');
-  }
-
-  async storeFlexiRecordListsInSQLite(_flexiRecordLists) {
-    // TODO: Implement SQLite storage for FlexiRecord lists
-    throw new Error('SQLite storage for FlexiRecord lists not yet implemented');
-  }
-
-  async storeFlexiRecordStructureInSQLite(_structure) {
-    // TODO: Implement SQLite storage for FlexiRecord structures
-    throw new Error('SQLite storage for FlexiRecord structures not yet implemented');
-  }
-
-  async getFlexiRecordListsFromIndexedDB(sectionIds) {
-    logger.debug('Reading FlexiRecord lists from IndexedDB', {
-      sectionFilter: sectionIds?.length || 'all',
-    }, LOG_CATEGORIES.STORAGE);
-
-    const flexiRecordLists = await databaseService.storageBackend.getFlexiRecordLists(sectionIds);
-
-    logger.debug('Retrieved FlexiRecord lists from IndexedDB', {
-      listCount: flexiRecordLists.length,
-    }, LOG_CATEGORIES.STORAGE);
-
-    return flexiRecordLists;
-  }
-
-  async getFlexiRecordStructuresFromIndexedDB(flexiRecordIds) {
-    logger.debug('Reading FlexiRecord structures from IndexedDB', {
-      structureFilter: flexiRecordIds?.length || 'all',
-    }, LOG_CATEGORIES.STORAGE);
-
-    const flexiRecordStructures = await databaseService.storageBackend.getFlexiRecordStructures(flexiRecordIds);
-
-    logger.debug('Retrieved FlexiRecord structures from IndexedDB', {
-      structureCount: flexiRecordStructures.length,
-    }, LOG_CATEGORIES.STORAGE);
-
-    return flexiRecordStructures;
-  }
-
-  async getFlexiRecordDataFromIndexedDB(flexiRecordIds, sectionIds) {
-    logger.debug('Reading FlexiRecord data from IndexedDB', {
-      recordFilter: flexiRecordIds?.length || 'all',
-      sectionFilter: sectionIds?.length || 'all',
-    }, LOG_CATEGORIES.STORAGE);
-
-    const flexiRecordData = await databaseService.storageBackend.getFlexiRecordData(flexiRecordIds, sectionIds);
-
-    logger.debug('Retrieved FlexiRecord data from IndexedDB', {
-      dataCount: flexiRecordData.length,
-    }, LOG_CATEGORIES.STORAGE);
-
-    return flexiRecordData;
   }
 }
 

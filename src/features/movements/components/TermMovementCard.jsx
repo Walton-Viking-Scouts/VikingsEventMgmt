@@ -7,7 +7,7 @@ import { discoverVikingSectionMoversFlexiRecords, extractVikingSectionMoversCont
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import databaseService from '../../../shared/services/storage/database.js';
 
 function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectionTypeTotals, onDataRefresh, allTerms }) {
   
@@ -260,54 +260,46 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
         throw new Error('No Viking Section Movers FlexiRecords found');
       }
 
-      // Use the first discovered FlexiRecord
-      const firstRecord = discoveredRecords[0];
-      
-      // Get preloaded structure from cache and process fieldMapping
-      const cacheKey = `viking_flexi_structure_${firstRecord.flexiRecordId}_offline`;
-      const structureData = await UnifiedStorageService.get(cacheKey);
-      
-      if (!structureData) {
-        const errorMsg = 'FlexiRecord structure not found in cache. Please refresh the app.';
-        showToast('error', errorMsg);
-        throw new Error('FlexiRecord structure not found in cache');
+      const { parseFlexiStructure } = await import('../../../shared/utils/flexiRecordTransforms.js');
+
+      const contextBySectionId = new Map();
+      for (const record of discoveredRecords) {
+        const structureData = await databaseService.getFlexiStructure(record.flexiRecordId);
+        if (!structureData) {
+          logger.warn('FlexiRecord structure missing for section, skipping assignment', {
+            sectionId: record.sectionId,
+            flexiRecordId: record.flexiRecordId,
+          }, LOG_CATEGORIES.API);
+          continue;
+        }
+
+        const fieldMapping = parseFlexiStructure(structureData);
+        const fieldMappingObj = {};
+        fieldMapping.forEach((fieldInfo, fieldId) => {
+          fieldMappingObj[fieldId] = { columnId: fieldId, ...fieldInfo };
+        });
+
+        const processedStructure = { ...structureData, fieldMapping: fieldMappingObj };
+        const context = extractVikingSectionMoversContext(
+          { _structure: processedStructure },
+          record.sectionId,
+          null,
+          record.sectionName,
+        );
+
+        if (context) {
+          contextBySectionId.set(record.sectionId, context);
+        }
       }
 
-      // Process the raw structure to create fieldMapping like in getConsolidatedFlexiRecord
-      const { parseFlexiStructure } = await import('../../../shared/utils/flexiRecordTransforms.js');
-      const fieldMapping = parseFlexiStructure(structureData);
-      
-      // Convert fieldMapping Map to object for easier access
-      const fieldMappingObj = {};
-      fieldMapping.forEach((fieldInfo, fieldId) => {
-        fieldMappingObj[fieldId] = {
-          columnId: fieldId,
-          ...fieldInfo,
-        };
-      });
-
-      // Create structure with fieldMapping for extraction
-      const processedStructure = {
-        ...structureData,
-        fieldMapping: fieldMappingObj,
-      };
-
-      // Extract context using the processed structure
-      const context = extractVikingSectionMoversContext(
-        { _structure: processedStructure },
-        firstRecord.sectionId,
-        null, // termId not needed for field mapping
-        null,  // sectionName not needed for field mapping
-      );
-
-      if (!context) {
+      if (contextBySectionId.size === 0) {
         const errorMsg = 'Unable to extract FlexiRecord field mappings. Check that AssignedSection and AssignedTerm fields exist.';
         showToast('error', errorMsg);
-        throw new Error('Could not extract FlexiRecord context for assignments');
+        throw new Error('Could not extract FlexiRecord context for any section');
       }
 
 
-      if (context.assignedTerm) {
+      {
         const termGroups = new Map();
 
         for (const assignment of changedAssignments) {
@@ -330,36 +322,40 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
           termGroups.get(groupKey).memberIds.push(memberId);
         }
 
-
-        // Make one API call per unique (section, term value) combination
         for (const group of termGroups.values()) {
-          if (group.memberIds.length > 0) {
-            // Get the correct FlexiRecord ID for this specific section
-            const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
-            const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
-            
-            if (sectionFlexiRecordId) {
-              await multiUpdateFlexiRecord(
-                group.sectionId,
-                group.memberIds,
-                group.termValue, // Single value for all members in this section
-                context.assignedTerm,
-                sectionFlexiRecordId,
-                token,
-              );
-            } else {
-              logger.warn('No FlexiRecord ID for section during term update', {
-                sectionId: group.sectionId,
-              }, LOG_CATEGORIES.API);
-            }
+          if (group.memberIds.length === 0) continue;
+
+          const sectionContext = contextBySectionId.get(group.sectionId);
+          if (!sectionContext?.assignedTerm) {
+            logger.warn('No FlexiRecord context for section during term update', {
+              sectionId: group.sectionId,
+            }, LOG_CATEGORIES.API);
+            continue;
+          }
+
+          const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
+          const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
+
+          if (sectionFlexiRecordId) {
+            await multiUpdateFlexiRecord(
+              group.sectionId,
+              group.memberIds,
+              group.termValue,
+              sectionContext.assignedTerm,
+              sectionFlexiRecordId,
+              token,
+            );
+          } else {
+            logger.warn('No FlexiRecord ID for section during term update', {
+              sectionId: group.sectionId,
+            }, LOG_CATEGORIES.API);
           }
         }
       }
       
-      // Group by section values per current section
-      if (context.assignedSection) {
-        const sectionGroups = new Map(); // Key: "currentSectionId|targetSectionValue"
-        
+      {
+        const sectionGroups = new Map();
+
         for (const assignment of changedAssignments) {
           const sectionValue = assignment.sectionId
             ? (assignment.sectionName || 'Not Known')
@@ -367,7 +363,7 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
           const memberId = assignment.memberId || assignment.scoutId;
           const currentSectionId = assignment.currentSectionId;
           const groupKey = `${currentSectionId}|${sectionValue}`;
-          
+
           if (!sectionGroups.has(groupKey)) {
             sectionGroups.set(groupKey, {
               sectionId: currentSectionId,
@@ -378,23 +374,29 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
           sectionGroups.get(groupKey).memberIds.push(memberId);
         }
 
-        // Make one API call per unique (current section, target section value) combination
         for (const group of sectionGroups.values()) {
-          if (group.memberIds.length > 0) {
-            // Get the correct FlexiRecord ID for this specific section
-            const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
-            const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
-            
-            if (sectionFlexiRecordId) {
-              await multiUpdateFlexiRecord(
-                group.sectionId,
-                group.memberIds,
-                group.sectionValue, // Single value for all members in this section
-                context.assignedSection,
-                sectionFlexiRecordId,
-                token,
-              );
-            }
+          if (group.memberIds.length === 0) continue;
+
+          const sectionContext = contextBySectionId.get(group.sectionId);
+          if (!sectionContext?.assignedSection) {
+            logger.warn('No FlexiRecord context for section during section update', {
+              sectionId: group.sectionId,
+            }, LOG_CATEGORIES.API);
+            continue;
+          }
+
+          const sectionRecord = discoveredRecords.find(r => r.sectionId === group.sectionId);
+          const sectionFlexiRecordId = sectionRecord?.flexiRecordId;
+
+          if (sectionFlexiRecordId) {
+            await multiUpdateFlexiRecord(
+              group.sectionId,
+              group.memberIds,
+              group.sectionValue,
+              sectionContext.assignedSection,
+              sectionFlexiRecordId,
+              token,
+            );
           }
         }
       }
