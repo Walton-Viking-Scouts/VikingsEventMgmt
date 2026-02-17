@@ -1588,6 +1588,339 @@ export class IndexedDBService {
     }
   }
 
+  /**
+   * Replaces all flexi list records for a specific section atomically using cursor-based delete then put
+   * @param {number|string} sectionId - The section ID to scope the replacement to
+   * @param {Array<Object>} lists - Array of flexi list objects
+   * @returns {Promise<number>} Number of flexi lists stored
+   */
+  static async bulkReplaceFlexiListsForSection(sectionId, lists) {
+    try {
+      const db = await getDB();
+      const tx = db.transaction(STORES.FLEXI_LISTS, 'readwrite');
+      const store = tx.objectStore(STORES.FLEXI_LISTS);
+      const index = store.index('sectionid');
+
+      let cursor = await index.openCursor(Number(sectionId));
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+
+      for (const list of lists) {
+        await store.put({ ...list, updated_at: Date.now() });
+      }
+
+      await tx.done;
+
+      return lists.length;
+    } catch (error) {
+      logger.error('IndexedDB bulkReplaceFlexiListsForSection failed', {
+        sectionId,
+        count: lists?.length,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_bulk_replace_flexi_lists_for_section',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            count: lists?.length,
+            operation: 'bulkReplaceFlexiListsForSection',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all flexi list records for a specific section
+   * @param {number|string} sectionId - The section ID to query
+   * @returns {Promise<Array<Object>>} Array of flexi list objects for the section
+   */
+  static async getFlexiListsBySection(sectionId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.FLEXI_LISTS, 'sectionid', Number(sectionId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getFlexiListsBySection failed', {
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_lists_by_section',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            sectionId,
+            operation: 'getFlexiListsBySection',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Retrieves all flexi list records from the flexi_lists store
+   * @returns {Promise<Array<Object>>} Array of all flexi list objects
+   */
+  static async getAllFlexiLists() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.FLEXI_LISTS)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllFlexiLists failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_flexi_lists',
+          store: STORES.FLEXI_LISTS,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllFlexiLists',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Saves or updates a flexi record structure
+   * @param {Object} structure - The flexi record structure object with extraid
+   * @returns {Promise<Object>} The saved structure record
+   */
+  static async saveFlexiRecordStructure(structure) {
+    try {
+      const db = await getDB();
+      const record = { ...structure, updated_at: Date.now() };
+      await db.put(STORES.FLEXI_STRUCTURE, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveFlexiRecordStructure failed', {
+        extraId: structure?.extraid,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_flexi_record_structure',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            extraId: structure?.extraid,
+            operation: 'saveFlexiRecordStructure',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves a single flexi record structure by its extra ID
+   * @param {string|number} extraId - The extra ID to look up
+   * @returns {Promise<Object|null>} The flexi record structure or null if not found
+   */
+  static async getFlexiRecordStructure(extraId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.FLEXI_STRUCTURE, String(extraId))) || null;
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordStructure failed', {
+        extraId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_structure',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            operation: 'getFlexiRecordStructure',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all flexi record structures from the flexi_structure store
+   * @returns {Promise<Array<Object>>} Array of all flexi record structure objects
+   */
+  static async getAllFlexiRecordStructures() {
+    try {
+      const db = await getDB();
+      return (await db.getAll(STORES.FLEXI_STRUCTURE)) || [];
+    } catch (error) {
+      logger.error('IndexedDB getAllFlexiRecordStructures failed', {
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_all_flexi_record_structures',
+          store: STORES.FLEXI_STRUCTURE,
+        },
+        contexts: {
+          indexedDB: {
+            operation: 'getAllFlexiRecordStructures',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
+  /**
+   * Saves flexi record data for a specific extra/section/term combination
+   * @param {string|number} extraId - The extra record ID
+   * @param {number|string} sectionId - The section ID
+   * @param {string|number} termId - The term ID
+   * @param {Object} data - The full API response object containing items array
+   * @returns {Promise<Object>} The saved flexi data record
+   */
+  static async saveFlexiRecordData(extraId, sectionId, termId, data) {
+    try {
+      const db = await getDB();
+      const record = {
+        ...data,
+        extraid: String(extraId),
+        sectionid: Number(sectionId),
+        termid: String(termId),
+        updated_at: Date.now(),
+      };
+      await db.put(STORES.FLEXI_DATA, record);
+      return record;
+    } catch (error) {
+      logger.error('IndexedDB saveFlexiRecordData failed', {
+        extraId,
+        sectionId,
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_save_flexi_record_data',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            sectionId,
+            termId,
+            operation: 'saveFlexiRecordData',
+          },
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves flexi record data for a specific extra/section/term combination
+   * @param {string|number} extraId - The extra record ID
+   * @param {number|string} sectionId - The section ID
+   * @param {string|number} termId - The term ID
+   * @returns {Promise<Object|null>} The flexi data record or null if not found
+   */
+  static async getFlexiRecordData(extraId, sectionId, termId) {
+    try {
+      const db = await getDB();
+      return (await db.get(STORES.FLEXI_DATA, [String(extraId), Number(sectionId), String(termId)])) || null;
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordData failed', {
+        extraId,
+        sectionId,
+        termId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_data',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            sectionId,
+            termId,
+            operation: 'getFlexiRecordData',
+          },
+        },
+      });
+
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves all flexi record data for a specific extra record ID
+   * @param {string|number} extraId - The extra record ID to query
+   * @returns {Promise<Array<Object>>} Array of flexi data records for the extra ID
+   */
+  static async getFlexiRecordDataByExtra(extraId) {
+    try {
+      const db = await getDB();
+      return (await db.getAllFromIndex(STORES.FLEXI_DATA, 'extraid', String(extraId))) || [];
+    } catch (error) {
+      logger.error('IndexedDB getFlexiRecordDataByExtra failed', {
+        extraId,
+        error: error.message,
+        stack: error.stack,
+      }, LOG_CATEGORIES.ERROR);
+
+      sentryUtils.captureException(error, {
+        tags: {
+          operation: 'indexeddb_get_flexi_record_data_by_extra',
+          store: STORES.FLEXI_DATA,
+        },
+        contexts: {
+          indexedDB: {
+            extraId,
+            operation: 'getFlexiRecordDataByExtra',
+          },
+        },
+      });
+
+      return [];
+    }
+  }
+
   static async getAllMemberSectionsForScouts(scoutids) {
     try {
       if (!Array.isArray(scoutids) || scoutids.length === 0) {
