@@ -179,40 +179,6 @@ class AttendanceDataService {
   }
 
   /**
-   * Retrieves cached events from localStorage (legacy fallback)
-   * @returns {Array<Object>} Array of cached events
-   */
-  getCachedEvents() {
-    const events = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes('viking_events_') || key.includes('demo_viking_events_')) && key.endsWith('_offline')) {
-        try {
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            const eventItems = Array.isArray(parsed) ? parsed : (parsed.items || []);
-            events.push(...eventItems);
-          }
-        } catch (error) {
-          logger.debug('Failed to parse cached events', {
-            cacheKey: key,
-            error: error.message,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-        }
-      }
-    }
-
-    logger.debug('Found cached events for attendance', {
-      eventCount: events.length,
-      events: events.map(e => ({ sectionid: e.sectionid, eventid: e.eventid, name: e.name })),
-    }, LOG_CATEGORIES.DATA_SERVICE);
-
-    return events;
-  }
-
-  /**
    * Retrieves events from DatabaseService (normalized store)
    * @returns {Promise<Array<Object>>} Array of events from all sections
    */
@@ -252,10 +218,10 @@ class AttendanceDataService {
 
       return allEvents;
     } catch (error) {
-      logger.error('Failed to get cached events optimized, falling back to localStorage scan', {
+      logger.error('Failed to get cached events from database', {
         error: error.message,
       }, LOG_CATEGORIES.DATA_SERVICE);
-      return this.getCachedEvents();
+      return [];
     }
   }
 
