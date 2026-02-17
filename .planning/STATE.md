@@ -84,6 +84,9 @@ Recent decisions affecting current work:
 - [06-03]: getSectionInfo unified to databaseService.getSections() on both platforms (native SQL query removed)
 - [06-03]: storeData groups lists by sectionId before calling saveFlexiLists (matching per-section API)
 - [06-03]: getFlexiRecordStructures with empty IDs calls getAllFlexiStructures() for full listing
+- [06-04]: clearFlexiRecordCaches simplified to no-op since normalized stores handle their own lifecycle
+- [06-04]: assignMemberToCampGroupDemo made async to support databaseService calls (was synchronous with safeGetItem)
+- [06-04]: Demo mode uses same databaseService path as production -- no separate demo_ key prefix construction
 - [06-05]: CampGroupsView fallback uses getAllFlexiStructures() to find CampGroup-bearing structure (no key scanning)
 - [06-05]: useSignInOut iterates getAllFlexiStructures() checking for sign-in/out fields (no IndexedDBService key scanning)
 - [06-05]: clearFlexiRecordCaches retained as no-op; actual normalized store clearing deferred to Phase 7
