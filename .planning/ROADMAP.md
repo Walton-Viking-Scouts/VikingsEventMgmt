@@ -126,11 +126,14 @@ Plans:
   3. No localStorage fallback paths exist for any data type (auth/token storage excluded)
   4. Every data type follows a single write path: API -> validate -> normalize -> store individual records
   5. All consumer files import from normalized storage services with no dual-write code paths remaining
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- Replace UnifiedStorageService in auth.js, useSignInOut.js, api/auth.js
+- [ ] 07-02-PLAN.md -- Replace UnifiedStorageService in useAuth.jsx, EventDashboard.jsx, eventsService.js, eventDashboardHelpers.js, AssignmentInterface.jsx
+- [ ] 07-03-PLAN.md -- Delete UnifiedStorageService, remove legacy database.js methods, clean up storageUtils.js
+- [ ] 07-04-PLAN.md -- Clean up attendanceDataService, cacheCleanup, test files, addTestData.js
+- [ ] 07-05-PLAN.md -- Final verification sweep and documentation cleanup
 
 ## Progress
 
@@ -146,7 +149,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Attendance Normalization | 0/1 | Not started | - |
 | 5. Terms Normalization | 0/1 | Not started | - |
 | 6. Flexi Records Normalization | 5/5 | Complete | 2026-02-17 |
-| 7. Cleanup & Consolidation | 0/2 | Not started | - |
+| 7. Cleanup & Consolidation | 0/5 | Planned | - |
 
 ---
 *Roadmap created: 2026-02-15*
