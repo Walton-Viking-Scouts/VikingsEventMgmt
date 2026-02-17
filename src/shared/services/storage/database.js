@@ -334,6 +334,7 @@ class DatabaseService {
     await this.db.execute(createEventDashboardTable);
     await this.db.execute(createSyncMetadataTable);
 
+    await this.db.execute(SQLITE_SCHEMAS.terms);
     await this.db.execute(SQLITE_SCHEMAS.flexi_lists);
     await this.db.execute(SQLITE_SCHEMAS.flexi_structure);
     await this.db.execute(SQLITE_SCHEMAS.flexi_data);
