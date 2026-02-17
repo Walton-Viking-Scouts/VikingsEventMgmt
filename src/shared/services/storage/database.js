@@ -24,7 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
-import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, TermSchema, safeParseArray } from './schemas/validation.js';
+import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, TermSchema, FlexiListSchema, FlexiStructureSchema, FlexiDataSchema, safeParseArray } from './schemas/validation.js';
 import { CurrentActiveTermsService } from './currentActiveTermsService.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
@@ -1889,81 +1889,289 @@ class DatabaseService {
 
   /**
    * Retrieves flexi lists for a section from normalized storage
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
+   * @param {number} sectionId - Section identifier
    * @returns {Promise<Array<Object>>} Array of flexi list objects
-   * @throws {Error} Not yet implemented - Phase 6
    */
-  async getFlexiLists(_sectionId) {
+  async getFlexiLists(sectionId) {
     await this.initialize();
-    throw new Error('FlexiLists retrieval via normalized storage not yet implemented (Phase 6)');
+
+    try {
+      if (!this.isNative || !this.db) {
+        return await IndexedDBService.getFlexiListsBySection(sectionId);
+      }
+
+      const query = 'SELECT * FROM flexi_lists WHERE sectionid = ?';
+      const result = await this.db.query(query, [Number(sectionId)]);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get flexi lists', {
+        sectionId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiLists', sectionId });
+      return [];
+    }
   }
 
   /**
-   * Saves flexi lists for a section to normalized storage
+   * Saves flexi lists for a section to normalized storage.
+   * Validates with Zod at the write boundary.
+   *
    * @async
-   * @param {number} _sectionId - Section identifier
-   * @param {Array<Object>} _lists - Array of flexi list objects to save
+   * @param {number} sectionId - Section identifier
+   * @param {Array<Object>} lists - Array of flexi list objects to save
    * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 6
    */
-  async saveFlexiLists(_sectionId, _lists) {
+  async saveFlexiLists(sectionId, lists) {
     await this.initialize();
-    throw new Error('FlexiLists storage via normalized storage not yet implemented (Phase 6)');
+
+    const enriched = (Array.isArray(lists) ? lists : []).map(l => ({ ...l, sectionid: sectionId }));
+    const { data: valid, errors } = safeParseArray(FlexiListSchema, enriched);
+    if (errors.length > 0) {
+      logger.warn('FlexiList validation errors during save', {
+        errorCount: errors.length,
+        totalCount: enriched.length,
+        errors: errors.slice(0, 5),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
+    if (!this.isNative || !this.db) {
+      await IndexedDBService.bulkReplaceFlexiListsForSection(sectionId, valid);
+      return;
+    }
+
+    await this.db.execute('BEGIN TRANSACTION');
+    try {
+      await this.db.run('DELETE FROM flexi_lists WHERE sectionid = ?', [Number(sectionId)]);
+
+      for (const item of valid) {
+        const insert = 'INSERT OR REPLACE INTO flexi_lists (sectionid, extraid, name) VALUES (?, ?, ?)';
+        await this.db.run(insert, [Number(item.sectionid), String(item.extraid), item.name]);
+      }
+
+      await this.db.execute('COMMIT');
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
+    }
   }
 
   /**
    * Retrieves flexi structure for a record from normalized storage
+   *
    * @async
-   * @param {string} _recordId - Flexi record identifier
+   * @param {string} recordId - Flexi record identifier
    * @returns {Promise<Object|null>} Flexi structure object or null
-   * @throws {Error} Not yet implemented - Phase 6
    */
-  async getFlexiStructure(_recordId) {
+  async getFlexiStructure(recordId) {
     await this.initialize();
-    throw new Error('FlexiStructure retrieval via normalized storage not yet implemented (Phase 6)');
+
+    try {
+      if (!this.isNative || !this.db) {
+        return await IndexedDBService.getFlexiRecordStructure(recordId);
+      }
+
+      const query = 'SELECT * FROM flexi_structure WHERE extraid = ?';
+      const result = await this.db.query(query, [String(recordId)]);
+      return result.values?.[0] || null;
+    } catch (error) {
+      logger.error('Failed to get flexi structure', {
+        recordId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiStructure', recordId });
+      return null;
+    }
   }
 
   /**
-   * Saves flexi structure for a record to normalized storage
+   * Saves flexi structure for a record to normalized storage.
+   * Validates with Zod at the write boundary.
+   *
    * @async
-   * @param {string} _recordId - Flexi record identifier
-   * @param {Object} _structure - Flexi structure object to save
+   * @param {string} recordId - Flexi record identifier
+   * @param {Object} structure - Flexi structure object to save
    * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 6
    */
-  async saveFlexiStructure(_recordId, _structure) {
+  async saveFlexiStructure(recordId, structure) {
     await this.initialize();
-    throw new Error('FlexiStructure storage via normalized storage not yet implemented (Phase 6)');
+
+    const enriched = { ...structure, extraid: recordId };
+    const result = FlexiStructureSchema.safeParse(enriched);
+    if (!result.success) {
+      logger.warn('FlexiStructure validation failed', {
+        issues: result.error.issues,
+      }, LOG_CATEGORIES.DATABASE);
+      throw new Error('FlexiStructure validation failed');
+    }
+    const valid = result.data;
+
+    if (!this.isNative || !this.db) {
+      await IndexedDBService.saveFlexiRecordStructure(valid);
+      return;
+    }
+
+    const insert = 'INSERT OR REPLACE INTO flexi_structure (extraid, name, config, structure) VALUES (?, ?, ?, ?)';
+    await this.db.run(insert, [
+      String(valid.extraid),
+      valid.name || null,
+      valid.config || null,
+      valid.structure ? JSON.stringify(valid.structure) : null,
+    ]);
+  }
+
+  /**
+   * Retrieves all flexi structures from normalized storage across all records.
+   * Needed by CampGroupsView in Plan 05.
+   *
+   * @async
+   * @returns {Promise<Array<Object>>} Array of all flexi structure objects
+   */
+  async getAllFlexiStructures() {
+    await this.initialize();
+
+    try {
+      if (!this.isNative || !this.db) {
+        return await IndexedDBService.getAllFlexiRecordStructures();
+      }
+
+      const query = 'SELECT * FROM flexi_structure';
+      const result = await this.db.query(query);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get all flexi structures', {
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getAllFlexiStructures' });
+      return [];
+    }
   }
 
   /**
    * Retrieves flexi data for a record, section, and term from normalized storage
+   *
    * @async
-   * @param {string} _recordId - Flexi record identifier
-   * @param {number} _sectionId - Section identifier
-   * @param {string} _termId - Term identifier
-   * @returns {Promise<Array<Object>>} Array of flexi data objects
-   * @throws {Error} Not yet implemented - Phase 6
+   * @param {string} recordId - Flexi record identifier
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @returns {Promise<Object|Array|null>} Flexi data (object on web, array on native, null on error)
    */
-  async getFlexiData(_recordId, _sectionId, _termId) {
+  async getFlexiData(recordId, sectionId, termId) {
     await this.initialize();
-    throw new Error('FlexiData retrieval via normalized storage not yet implemented (Phase 6)');
+
+    try {
+      if (!this.isNative || !this.db) {
+        return await IndexedDBService.getFlexiRecordData(recordId, sectionId, termId);
+      }
+
+      const query = 'SELECT * FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?';
+      const result = await this.db.query(query, [String(recordId), Number(sectionId), String(termId)]);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get flexi data', {
+        recordId, sectionId, termId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiData', recordId, sectionId, termId });
+      if (!this.isNative || !this.db) {
+        return null;
+      }
+      return [];
+    }
   }
 
   /**
-   * Saves flexi data for a record, section, and term to normalized storage
+   * Saves flexi data for a record, section, and term to normalized storage.
+   * Validates with Zod at the write boundary for SQLite rows.
+   * Web stores the full API response as one record; native stores individual rows.
+   *
    * @async
-   * @param {string} _recordId - Flexi record identifier
-   * @param {number} _sectionId - Section identifier
-   * @param {string} _termId - Term identifier
-   * @param {Array<Object>} _data - Array of flexi data objects to save
+   * @param {string} recordId - Flexi record identifier
+   * @param {number} sectionId - Section identifier
+   * @param {string} termId - Term identifier
+   * @param {Array<Object>|Object} data - Flexi data (array of rows or full API response object)
    * @returns {Promise<void>}
-   * @throws {Error} Not yet implemented - Phase 6
    */
-  async saveFlexiData(_recordId, _sectionId, _termId, _data) {
+  async saveFlexiData(recordId, sectionId, termId, data) {
     await this.initialize();
-    throw new Error('FlexiData storage via normalized storage not yet implemented (Phase 6)');
+
+    if (!this.isNative || !this.db) {
+      await IndexedDBService.saveFlexiRecordData(recordId, sectionId, termId, data);
+      return;
+    }
+
+    let rows = data;
+    if (data && !Array.isArray(data) && data.items) {
+      rows = data.items;
+    }
+
+    if (!Array.isArray(rows)) {
+      rows = [];
+    }
+
+    const { data: valid, errors } = safeParseArray(FlexiDataSchema, rows);
+    if (errors.length > 0) {
+      logger.warn('FlexiData validation errors during save', {
+        errorCount: errors.length,
+        totalCount: rows.length,
+        errors: errors.slice(0, 5),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
+    await this.db.execute('BEGIN TRANSACTION');
+    try {
+      await this.db.run('DELETE FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?', [String(recordId), Number(sectionId), String(termId)]);
+
+      for (const row of valid) {
+        const { scoutid, firstname, lastname, ...rest } = row;
+        const insert = 'INSERT OR REPLACE INTO flexi_data (extraid, sectionid, termid, scoutid, firstname, lastname, data) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        await this.db.run(insert, [
+          String(recordId),
+          Number(sectionId),
+          String(termId),
+          String(scoutid),
+          firstname || null,
+          lastname || null,
+          JSON.stringify(rest),
+        ]);
+      }
+
+      await this.db.execute('COMMIT');
+    } catch (error) {
+      await this.db.execute('ROLLBACK');
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all flexi data rows for a given extraId across all sections and terms.
+   * Needed by useSignInOut and useSectionMovements in Plan 05.
+   *
+   * @async
+   * @param {string} extraId - Flexi record extra identifier
+   * @returns {Promise<Array<Object>>} Array of flexi data objects
+   */
+  async getFlexiRecordDataByExtra(extraId) {
+    await this.initialize();
+
+    try {
+      if (!this.isNative || !this.db) {
+        return await IndexedDBService.getFlexiRecordDataByExtra(extraId);
+      }
+
+      const query = 'SELECT * FROM flexi_data WHERE extraid = ?';
+      const result = await this.db.query(query, [String(extraId)]);
+      return result.values || [];
+    } catch (error) {
+      logger.error('Failed to get flexi record data by extra', {
+        extraId,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiRecordDataByExtra', extraId });
+      return [];
+    }
   }
 
 
