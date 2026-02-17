@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Events Normalization** - Events stored as individual indexed records with section/term scoping
 - [ ] **Phase 4: Attendance Normalization** - Attendance and shared attendance with compound keys
 - [ ] **Phase 5: Terms Normalization** - Terms normalized with CurrentActiveTermsService integration preserved
-- [ ] **Phase 6: Flexi Records Normalization** - Three interrelated stores (lists, structures, data) normalized
+- [x] **Phase 6: Flexi Records Normalization** - Three interrelated stores (lists, structures, data) normalized (2026-02-17)
 - [ ] **Phase 7: Cleanup & Consolidation** - Legacy blob storage, dual-write paths, and fallbacks removed
 
 ## Phase Details
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Events Normalization | 0/1 | Not started | - |
 | 4. Attendance Normalization | 0/1 | Not started | - |
 | 5. Terms Normalization | 0/1 | Not started | - |
-| 6. Flexi Records Normalization | 0/2 | Not started | - |
+| 6. Flexi Records Normalization | 5/5 | Complete | 2026-02-17 |
 | 7. Cleanup & Consolidation | 0/2 | Not started | - |
 
 ---
