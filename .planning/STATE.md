@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 5 complete -- Terms Normalization (all 3 plans done). Ready for Phase 6.
+**Current focus:** Phase 6 in progress -- Flexi Records Normalization (1/5 plans done).
 
 ## Current Position
 
-Phase: 5 of 7 (Terms Normalization)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-16 -- Completed 05-03 Legacy Blob Consumer Migration
+Phase: 6 of 7 (Flexi Records Normalization)
+Plan: 1 of 5 in current phase
+Status: In Progress
+Last activity: 2026-02-17 -- Completed 06-01 IndexedDB v8 Flexi Stores
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 4.5 min
-- Total execution time: 0.82 hours
+- Total plans completed: 12
+- Average duration: 4.3 min
+- Total execution time: 0.85 hours
 
 **By Phase:**
 
@@ -32,9 +32,10 @@ Progress: [█████████░] 85%
 | 03-events-normalization | 2/2 | 4 min | 2 min |
 | 04-attendance-normalization | 3/3 | 12 min | 4 min |
 | 05-terms-normalization | 3/3 | 19 min | 6.3 min |
+| 06-flexi-records-normalization | 1/5 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (4 min), 04-03 (6 min), 05-01 (5 min), 05-02 (5 min), 05-03 (9 min)
+- Last 5 plans: 04-03 (6 min), 05-01 (5 min), 05-02 (5 min), 05-03 (9 min), 06-01 (2 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [05-02]: storeTermsToNormalizedStore helper swallows errors to avoid breaking API response flow
 - [05-03]: demoMode.js unchanged -- API getTerms() already seeds normalized store; direct import would create circular dependency
 - [05-03]: migrateFromTermsBlob and _determineCurrentTerm removed entirely (no backwards compat per policy)
+- [06-01]: sectionId coerced to Number() in flexi_lists cursor queries to match compound keyPath type
+- [06-01]: Read methods return fallback values ([] or null) on error; write methods rethrow
+- [06-01]: flexi_structure has no indexes (only queried by primary key extraid)
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed 05-03-PLAN.md (Legacy Blob Consumer Migration) -- Phase 05 complete (3/3 plans done)
+Last session: 2026-02-17
+Stopped at: Completed 06-01-PLAN.md (IndexedDB v8 Flexi Stores) -- Phase 06 in progress (1/5 plans done)
 Resume file: None
