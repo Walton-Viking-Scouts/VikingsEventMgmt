@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 7 of 7 (Cleanup & Consolidation)
-Plan: 4 of 5 in current phase
+Plan: 5 of 5 in current phase
 Status: In Progress
-Last activity: 2026-02-17 -- Completed 07-04-PLAN.md (Attendance/Cache Legacy Cleanup)
+Last activity: 2026-02-17 -- Completed 07-03-PLAN.md (Dead Code Removal)
 
 Progress: [██████████] 98%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 98%
 | 07-cleanup-consolidation | 4/5 | 12 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-05 (3 min), 07-01 (3 min), 07-02 (3 min), 07-03 (3 min), 07-04 (3 min)
+- Last 5 plans: 07-01 (3 min), 07-02 (3 min), 07-03 (3 min), 07-04 (3 min), 07-03-redo (3 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -94,6 +94,10 @@ Recent decisions affecting current work:
 - [07-02]: lastSync uses IndexedDB cache_data store with key viking_last_sync (not localStorage)
 - [07-02]: AssignmentInterface drafts use localStorage directly with try-catch (matching storageUtils pattern)
 - [07-02]: Shared event metadata writes use databaseService.saveSharedEventMetadata() with eventid injected
+- [07-03]: UnifiedStorageService deleted entirely -- all consumers migrated to IndexedDBService in Plans 01/02
+- [07-03]: hasOfflineData migrated from UnifiedStorageService.getSections to IndexedDBService.getAllSections
+- [07-03]: clearFlexiRecordCaches removed entirely (zero callers in codebase)
+- [07-03]: safeCacheWithLogging removed entirely (zero callers in codebase)
 - [07-04]: getCachedEvents localStorage fallback removed entirely -- IndexedDB is sole data source
 - [07-04]: cacheCleanup simplified to demo-only: removes demo_ prefix keys from localStorage, no non-demo scanning
 - [07-04]: addTestData.js deleted -- localStorage migration test data no longer relevant
@@ -110,5 +114,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-04-PLAN.md (Attendance/Cache Legacy Cleanup)
+Stopped at: Completed 07-03-PLAN.md (Dead Code Removal)
 Resume file: None
