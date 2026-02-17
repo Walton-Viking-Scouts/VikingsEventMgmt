@@ -141,8 +141,8 @@ describe.skip('IndexedDB Store Creation and Upgrade Logic - Disabled for CI/CD',
         'flexi_data',
         'events',
         'attendance',
-        'shared_attendance',
-        'members',
+        'core_members',
+        'member_section',
       ];
 
       expectedStores.forEach(storeName => {
@@ -186,8 +186,9 @@ describe.skip('IndexedDB Store Creation and Upgrade Logic - Disabled for CI/CD',
         FLEXI_DATA: 'flexi_data',
         EVENTS: 'events',
         ATTENDANCE: 'attendance',
-        SHARED_ATTENDANCE: 'shared_attendance',
-        MEMBERS: 'members',
+        CORE_MEMBERS: 'core_members',
+        MEMBER_SECTION: 'member_section',
+        SHARED_EVENT_METADATA: 'shared_event_metadata',
       };
 
       Object.entries(expectedStores).forEach(([constant, value]) => {

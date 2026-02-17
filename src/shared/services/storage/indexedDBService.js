@@ -17,7 +17,6 @@ const STORES = {
   FLEXI_DATA: 'flexi_data',
   EVENTS: 'events',
   ATTENDANCE: 'attendance',
-  SHARED_ATTENDANCE: 'shared_attendance',
   CORE_MEMBERS: 'core_members',
   MEMBER_SECTION: 'member_section',
   SHARED_EVENT_METADATA: 'shared_event_metadata',
@@ -102,8 +101,8 @@ function getDB() {
           attendanceStore.createIndex('eventId', 'eventId', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains(STORES.SHARED_ATTENDANCE)) {
-          const sharedAttendanceStore = db.createObjectStore(STORES.SHARED_ATTENDANCE, { keyPath: 'key' });
+        if (!db.objectStoreNames.contains('shared_attendance')) {
+          const sharedAttendanceStore = db.createObjectStore('shared_attendance', { keyPath: 'key' });
           sharedAttendanceStore.createIndex('eventId', 'eventId', { unique: false });
         }
 
@@ -153,8 +152,8 @@ function getDB() {
           attendanceStoreV6.createIndex('scoutid', 'scoutid', { unique: false });
           attendanceStoreV6.createIndex('sectionid', 'sectionid', { unique: false });
 
-          if (db.objectStoreNames.contains(STORES.SHARED_ATTENDANCE)) {
-            db.deleteObjectStore(STORES.SHARED_ATTENDANCE);
+          if (db.objectStoreNames.contains('shared_attendance')) {
+            db.deleteObjectStore('shared_attendance');
           }
           db.createObjectStore(STORES.SHARED_EVENT_METADATA, { keyPath: 'eventid' });
 
