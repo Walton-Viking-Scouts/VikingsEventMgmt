@@ -14,7 +14,6 @@ import { getEvents, fetchMostRecentTermId } from '../api/index.js';
 import { handleScoutError, isOfflineError } from '../../utils/scoutErrorHandler.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import databaseService from '../storage/database.js';
-import { UnifiedStorageService } from '../storage/unifiedStorageService.js';
 
 /**
  * Loads events for all sections
@@ -296,9 +295,10 @@ async function detectAndStoreSharedEventsAcrossSections(results) {
             eventDate: eventInstance.startdate,
           };
 
-          // Store metadata using the key pattern that useSharedAttendance expects
-          const metadataKey = `viking_shared_metadata_${eventInstance.eventid}`;
-          await UnifiedStorageService.set(metadataKey, sharedMetadata);
+          await databaseService.saveSharedEventMetadata({
+            ...sharedMetadata,
+            eventid: String(eventInstance.eventid),
+          });
         }
 
         logger.info('🔄 SHARED EVENT DETECTED AND STORED', {
