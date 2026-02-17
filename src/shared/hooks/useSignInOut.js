@@ -8,8 +8,8 @@ import { parseFlexiStructure } from '../utils/flexiRecordTransforms.js';
 import { getToken } from '../services/auth/tokenService.js';
 import { safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';
-import UnifiedStorageService from '../services/storage/unifiedStorageService.js';
 import databaseService from '../services/storage/database.js';
+import { IndexedDBService } from '../services/storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../constants/signInDataConstants.js';
 
@@ -50,10 +50,14 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
       return userInfo;
     }
 
-    // Fallback to startup data using unified storage service (IndexedDB or localStorage)
     const demoMode = isDemoMode();
-    const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-    const startupData = await UnifiedStorageService.get(cacheKey) || {};
+    let startupData;
+    if (demoMode) {
+      const raw = localStorage.getItem('demo_viking_startup_data_offline');
+      startupData = raw ? JSON.parse(raw) : {};
+    } else {
+      startupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data') || {};
+    }
     // Prefer globals (where user info is actually stored) before falling back
     const fromGlobals = startupData?.globals
       ? { firstname: startupData.globals.firstname, lastname: startupData.globals.lastname }
@@ -253,12 +257,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
         throw new Error('No term ID available - required for flexirecord updates');
       }
       
-      // Get section type from cached section config
-      const demoMode = isDemoMode();
-      const sectionsKey = demoMode
-        ? 'demo_viking_sections_offline'
-        : 'viking_sections_offline';
-      const cachedSections = await UnifiedStorageService.get(sectionsKey) || [];
+      const cachedSections = await databaseService.getSections() || [];
       const sectionConfig = cachedSections.find(section => section.sectionid === member.sectionid);
       const sectionType = sectionConfig?.sectiontype || 'beavers';
       

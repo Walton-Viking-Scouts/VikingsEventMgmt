@@ -13,8 +13,8 @@ import { isDemoMode } from '../../../../config/demoMode.js';
 import { authHandler } from '../../auth/authHandler.js';
 import { sentryUtils } from '../../utils/sentry.js';
 import databaseService from '../../storage/database.js';
+import { IndexedDBService } from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
-import UnifiedStorageService from '../../storage/unifiedStorageService.js';
 
 /**
  * Helper function to retrieve user info with multiple fallback strategies
@@ -47,14 +47,12 @@ async function retrieveUserInfo(token) {
   } catch (startupError) {
     logger.warn('Failed to get startup data for user info:', startupError.message);
     
-    // Fallback: try to get from storage with demo mode awareness
     const demoMode = isDemoMode();
     let cachedStartupData;
     if (demoMode) {
-      const cacheKey = 'demo_viking_startup_data_offline';
-      cachedStartupData = safeGetItem(cacheKey);
+      cachedStartupData = safeGetItem('demo_viking_startup_data_offline');
     } else {
-      cachedStartupData = await UnifiedStorageService.get('viking_startup_data_offline');
+      cachedStartupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
     }
     if (cachedStartupData && cachedStartupData.globals) {
       const userInfo = {
@@ -278,21 +276,13 @@ export async function getStartupData(token) {
     // Skip API calls in demo mode - use cached data only
     const demoMode = isDemoMode();
     if (demoMode) {
-      return await UnifiedStorageService.get('demo_viking_startup_data_offline');
+      return safeGetItem('demo_viking_startup_data_offline', null);
     }
-    
-    // Check network status first
+
     const isOnline = await checkNetworkStatus();
-    
-    // If offline, get from storage
+
     if (!isOnline) {
-      const demoMode = isDemoMode();
-      if (demoMode) {
-        const cacheKey = 'demo_viking_startup_data_offline';
-        return safeGetItem(cacheKey, null);
-      } else {
-        return await UnifiedStorageService.get('viking_startup_data_offline');
-      }
+      return await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
     }
 
     validateTokenBeforeAPICall(token, 'getStartupData');
@@ -311,13 +301,12 @@ export async function getStartupData(token) {
     // Cache startup data for offline use - enhanced error handling
     if (startupData) {
       try {
-        const demoMode = isDemoMode();
+        const cacheDemoMode = isDemoMode();
         let success;
-        if (demoMode) {
-          const cacheKey = 'demo_viking_startup_data_offline';
-          success = safeSetItem(cacheKey, startupData);
+        if (cacheDemoMode) {
+          success = safeSetItem('demo_viking_startup_data_offline', startupData);
         } else {
-          success = await UnifiedStorageService.set('viking_startup_data_offline', startupData);
+          success = await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data', startupData);
         }
         if (success) {
           logger.info('Startup data successfully cached', {
@@ -349,16 +338,14 @@ export async function getStartupData(token) {
       throw error;
     }
     
-    // If online request fails (non-auth errors), try storage as fallback
-    const isOnline = await checkNetworkStatus();
-    if (isOnline) {
+    const isOnlineFallback = await checkNetworkStatus();
+    if (isOnlineFallback) {
       try {
-        const demoMode = isDemoMode();
-        if (demoMode) {
-          const cacheKey = 'demo_viking_startup_data_offline';
-          return safeGetItem(cacheKey, null);
+        const fallbackDemoMode = isDemoMode();
+        if (fallbackDemoMode) {
+          return safeGetItem('demo_viking_startup_data_offline', null);
         } else {
-          return await UnifiedStorageService.get('viking_startup_data_offline');
+          return await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
         }
       } catch (cacheError) {
         logger.error('Cache fallback failed', { cacheError: cacheError.message }, LOG_CATEGORIES.API);
