@@ -249,89 +249,44 @@ function CampGroupsView({
       
       let sectionVikingEventData = vikingEventData?.get(String(sectionId));
       
-      // Fallback: if Map is empty, try to load directly from localStorage
       if (!sectionVikingEventData && (!vikingEventData || vikingEventData.size === 0)) {
         if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-          logger.debug('Loading Viking Event data from localStorage fallback', { sectionId }, LOG_CATEGORIES.COMPONENT);
+          logger.debug('Loading Viking Event data from normalized storage fallback', { sectionId }, LOG_CATEGORIES.COMPONENT);
         }
         try {
-          // Look for Viking Event structure data in localStorage
-          const structureKeys = Object.keys(localStorage).filter(key => 
-            key.includes('viking_flexi_structure_') && key.includes('offline'),
-          );
+          const allStructures = await databaseService.getAllFlexiStructures();
           if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-            logger.debug('Found Viking Event structure keys', { count: structureKeys.length }, LOG_CATEGORIES.COMPONENT);
+            logger.debug('Found flexi structures in normalized storage', { count: allStructures.length }, LOG_CATEGORIES.COMPONENT);
           }
-          
-          // Look for Viking Event data for this specific section
-          const dataKeys = Object.keys(localStorage).filter(key => 
-            key.includes('viking_flexi_data_') && key.includes(`_${sectionId}_`) && key.includes('offline'),
-          );
-          if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-            logger.debug('Found Viking Event data keys for section', { sectionId, count: dataKeys.length }, LOG_CATEGORIES.COMPONENT);
-          }
-          
-          if (structureKeys.length > 0 && dataKeys.length > 0) {
-            // Try to find a structure that has a CampGroup field
+
+          if (allStructures.length > 0) {
             let foundStructure = null;
-            for (const structureKey of structureKeys) {
-              try {
-                const structureData = JSON.parse(localStorage.getItem(structureKey));
-                
-                // Check if this structure has a CampGroup field in its fieldMapping
-                const fieldMapping = structureData?.fieldMapping || {};
-                
-                // Look for CampGroup field (try different variations)
-                const hasCampGroupField = Object.values(fieldMapping).some(field => {
-                  const name = field.name?.toLowerCase();
-                  return name === 'campgroup' || name === 'camp group' || name === 'camp_group' || 
-                         name?.includes('camp') || name?.includes('group');
-                });
-                
-                if (hasCampGroupField) {
-                  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                    logger.debug('Found structure with CampGroup field', { structureKey }, LOG_CATEGORIES.COMPONENT);
-                  }
-                  foundStructure = structureData;
-                  break;
+            for (const structureData of allStructures) {
+              const fieldMapping = structureData?.fieldMapping || {};
+              const hasCampGroupField = Object.values(fieldMapping).some(field => {
+                const name = field.name?.toLowerCase();
+                return name === 'campgroup' || name === 'camp group' || name === 'camp_group' ||
+                       name?.includes('camp') || name?.includes('group');
+              });
+
+              if (hasCampGroupField) {
+                if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
+                  logger.debug('Found structure with CampGroup field', { extraid: structureData.extraid }, LOG_CATEGORIES.COMPONENT);
                 }
-              } catch {
-                // Ignore parse errors
+                foundStructure = structureData;
+                break;
               }
             }
-            
+
             if (foundStructure) {
-              if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                logger.debug('Using structure with CampGroup field', { hasStructure: !!foundStructure }, LOG_CATEGORIES.COMPONENT);
-              }
               sectionVikingEventData = { structure: foundStructure };
             } else {
-              if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                logger.debug('No structure found with CampGroup field, creating fallback structure', {}, LOG_CATEGORIES.COMPONENT);
-              }
-              
-              // Check if any member in attendees has CampGroup data
               const memberWithCampGroup = attendees.find(m => m.vikingEventData?.CampGroup !== undefined);
-              if (memberWithCampGroup && dataKeys.length > 0) {
+              if (memberWithCampGroup && allStructures.length > 0) {
+                const realFlexiRecordId = allStructures[0].extraid;
                 if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                  logger.debug('Found member with CampGroup data', { 
-                    memberId: memberWithCampGroup.scoutid,
-                    hasCampGroup: !!memberWithCampGroup.vikingEventData?.CampGroup, 
-                  }, LOG_CATEGORIES.COMPONENT);
+                  logger.debug('Creating fallback structure from normalized storage', { realFlexiRecordId }, LOG_CATEGORIES.COMPONENT);
                 }
-                
-                // Extract the real flexirecordid from the data key
-                // Format: viking_flexi_data_FLEXIID_SECTIONID_TERMID_offline
-                const dataKey = dataKeys[0];
-                const keyParts = dataKey.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
-                const realFlexiRecordId = keyParts[0];
-                const realTermId = keyParts[2];
-                
-                if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                  logger.debug('Extracted flexi record metadata', { realFlexiRecordId, realTermId }, LOG_CATEGORIES.COMPONENT);
-                }
-                
-                // Create a structure with the real flexi record ID in the correct format
                 sectionVikingEventData = {
                   _structure: {
                     flexirecordid: realFlexiRecordId,
@@ -348,9 +303,6 @@ function CampGroupsView({
                     },
                   },
                 };
-                if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-                  logger.debug('Created fallback structure', { realFlexiRecordId }, LOG_CATEGORIES.COMPONENT);
-                }
               }
             }
           }

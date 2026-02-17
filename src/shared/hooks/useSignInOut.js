@@ -9,7 +9,7 @@ import { getToken } from '../services/auth/tokenService.js';
 import { safeGetSessionItem } from '../utils/storageUtils.js';
 import { isDemoMode } from '../../config/demoMode.js';
 import UnifiedStorageService from '../services/storage/unifiedStorageService.js';
-import IndexedDBService from '../services/storage/indexedDBService.js';
+import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../constants/signInDataConstants.js';
 
@@ -111,58 +111,16 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
     }
 
     try {
-      // Get all FlexiRecord structures from IndexedDB
-      const structureKeys = await IndexedDBService.getAllKeys('flexi_structure');
-      const structures = [];
-      for (const key of structureKeys) {
-        const data = await IndexedDBService.get('flexi_structure', key);
-        if (data) {
-          structures.push({ key, value: data.data });
-        }
-      }
+      const allStructures = await databaseService.getAllFlexiStructures();
 
-      // Get FlexiRecord data for this section from IndexedDB
-      const dataKeys = await IndexedDBService.getAllKeys('flexi_data');
-      const sectionData = [];
-      for (const key of dataKeys) {
-        if (key.includes(`_${sectionId}_`)) {
-          const data = await IndexedDBService.get('flexi_data', key);
-          if (data) {
-            sectionData.push({ key, value: data.data });
-          }
-        }
-      }
-
-      // Found IndexedDB data for FlexiRecord lookup
-
-      if (structures.length > 0 && sectionData.length > 0) {
-        // Extract FlexiRecord ID from the section data key
-        const dataItem = sectionData[0];
-        const keyParts = dataItem.key.replace('viking_flexi_data_', '').replace('_offline', '').split('_');
-        const realFlexiRecordId = keyParts[0];
-
-        // Extract FlexiRecord ID from section data key
-
-        // Find a structure that matches this FlexiRecord ID
-        for (const structureItem of structures) {
+      if (allStructures.length > 0) {
+        for (const structureData of allStructures) {
           try {
-            const structureData = structureItem.value;
+            const structureFlexiRecordId = structureData?.extraid || structureData?.flexirecordid;
+            if (!structureFlexiRecordId) continue;
 
-            // Examining structure for FlexiRecord ID match
-
-            // Check if this structure matches the FlexiRecord ID from the data
-            const structureFlexiRecordId = structureData?.extraid || structureData?._structure?.extraid ||
-                                         structureData?.flexirecordid || structureData?._structure?.flexirecordid;
-            if (String(structureFlexiRecordId) !== String(realFlexiRecordId)) {
-              // Structure FlexiRecord ID mismatch, skipping
-              continue;
-            }
-
-            // Look for SignedOutBy and SignedInBy fields (case insensitive)
-            // Extract field mapping from structure.rows (IndexedDB format) or fallback to old format
             let fieldMapping = structureData?.vikingFlexiRecord?.fieldMapping || structureData?._structure?.vikingFlexiRecord?.fieldMapping;
 
-            // If no direct fieldMapping, extract from structure.rows (IndexedDB format)
             if (!fieldMapping && structureData?._structure?.rows) {
               fieldMapping = {};
               structureData._structure.rows.forEach((row, index) => {
@@ -184,26 +142,19 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             });
 
             if (hasSignInOutFields) {
-              // Found Viking Event structure with sign-in/out fields
-
               return {
-                extraid: realFlexiRecordId,
+                extraid: structureFlexiRecordId,
                 structure: structureData,
                 fieldMapping: structureData?.vikingFlexiRecord?.fieldMapping || structureData?._structure?.vikingFlexiRecord?.fieldMapping,
               };
-            } else {
-              // Structure missing required sign-in/out fields
             }
           } catch (error) {
-            console.warn('Failed to parse Viking Event structure:', structureItem.key, error);
+            console.warn('Failed to parse Viking Event structure:', structureData?.extraid, error);
           }
         }
       }
-
-      // No suitable Viking Event structure found in cache
-
     } catch (error) {
-      console.warn('Failed to load Viking Event data from cache:', error);
+      console.warn('Failed to load Viking Event data from normalized storage:', error);
     }
 
     // Fallback to Viking Event FlexiRecords approach (same as camp groups)
