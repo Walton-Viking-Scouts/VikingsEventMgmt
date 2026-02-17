@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DraggableMover from './DraggableMover.jsx';
 import SectionDropZone from './SectionDropZone.jsx';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function AssignmentInterface({
@@ -43,26 +42,18 @@ function AssignmentInterface({
         },
       };
 
-      const success = await UnifiedStorageService.set(draftKey, draftData);
-      
-      if (success) {
-        setDraftSaved(true);
-        setLastSaveTime(draftData.lastSaved);
-        
-        logger.info('Assignment draft saved to localStorage', {
-          draftKey,
-          assignmentCount: assignments.size,
-          termType: term.type,
-          termYear: term.year,
-        }, LOG_CATEGORIES.APP);
-      } else {
-        logger.warn('Failed to save assignment draft to localStorage', {
-          draftKey,
-          assignmentCount: assignments.size,
-        }, LOG_CATEGORIES.ERROR);
-      }
-      
-      return success;
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+      setDraftSaved(true);
+      setLastSaveTime(draftData.lastSaved);
+
+      logger.info('Assignment draft saved to localStorage', {
+        draftKey,
+        assignmentCount: assignments.size,
+        termType: term.type,
+        termYear: term.year,
+      }, LOG_CATEGORIES.APP);
+
+      return true;
     } catch (error) {
       logger.error('Error saving assignment draft', {
         error: error.message,
@@ -75,7 +66,10 @@ function AssignmentInterface({
 
   const loadDraftFromStorage = useCallback(async () => {
     try {
-      const draftData = await UnifiedStorageService.get(draftKey);
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return 0;
+
+      const draftData = JSON.parse(raw);
 
       if (draftData && draftData.assignments) {
         if (draftData.term?.type === term.type && draftData.term?.year === term.year) {
@@ -83,13 +77,13 @@ function AssignmentInterface({
           setAssignments(loadedAssignments);
           setDraftSaved(true);
           setLastSaveTime(draftData.lastSaved);
-          
+
           logger.info('Assignment draft loaded from localStorage', {
             draftKey,
             assignmentCount: loadedAssignments.size,
             lastSaved: draftData.lastSaved,
           }, LOG_CATEGORIES.APP);
-          
+
           return loadedAssignments.size;
         } else {
           logger.info('Draft term mismatch, not loading', {
@@ -110,10 +104,10 @@ function AssignmentInterface({
 
   const clearDraftFromStorage = useCallback(async () => {
     try {
-      await UnifiedStorageService.remove(draftKey);
+      localStorage.removeItem(draftKey);
       setDraftSaved(false);
       setLastSaveTime(null);
-      
+
       logger.info('Assignment draft cleared from localStorage', {
         draftKey,
       }, LOG_CATEGORIES.APP);
