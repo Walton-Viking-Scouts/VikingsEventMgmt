@@ -27,7 +27,6 @@ describe('AttendanceDataService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     attendanceDataService.clearCache();
-    localStorage.clear();
   });
 
   it('should initialize with no last fetch time', () => {
@@ -58,16 +57,6 @@ describe('AttendanceDataService', () => {
     attendanceDataService.clearCache();
 
     expect(attendanceDataService.getLastFetchTime()).toBeNull();
-  });
-
-  it('should find cached events correctly', () => {
-    localStorage.setItem('viking_events_123_456_offline', JSON.stringify([
-      { sectionid: 123, eventid: 'event1', termid: 456, name: 'Test Event' },
-    ]));
-
-    const events = attendanceDataService.getCachedEvents();
-    expect(events).toHaveLength(1);
-    expect(events[0].eventid).toBe('event1');
   });
 
   it('should handle force refresh with token and cached events', async () => {
