@@ -24,6 +24,7 @@ import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalcu
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 import { notifyError } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
  * User preferences utilities for persistent storage
@@ -176,7 +177,12 @@ function SectionMovementTracker({ onBack }) {
         if (!hasVikingSectionMovers) {
           missingSections.push(sectionName);
         }
-      } catch (_error) {
+      } catch (error) {
+        logger.warn('Failed to check FlexiRecord list for section', {
+          sectionId,
+          sectionName,
+          error: error.message,
+        }, LOG_CATEGORIES.COMPONENT);
         missingSections.push(sectionName);
       }
     }

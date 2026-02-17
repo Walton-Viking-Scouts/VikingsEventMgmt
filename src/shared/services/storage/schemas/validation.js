@@ -98,7 +98,7 @@ export const FlexiListSchema = z.object({
   extraid: z.union([z.string(), z.number()]).transform(String),
   name: z.string(),
   sectionid: z.union([z.string(), z.number()]).transform(Number).optional(),
-});
+}).passthrough();
 
 /**
  * Zod schema for Flexi Structure records from the OSM API.
@@ -110,7 +110,7 @@ export const FlexiStructureSchema = z.object({
   name: z.string().optional(),
   config: z.string().optional(),
   structure: z.array(z.any()).optional(),
-});
+}).passthrough();
 
 /**
  * Zod schema for Flexi Data records from the OSM API.

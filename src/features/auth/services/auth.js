@@ -445,7 +445,11 @@ export async function getUserInfo() {
   let startupData;
   if (demoMode) {
     const raw = localStorage.getItem('demo_viking_startup_data_offline');
-    startupData = raw ? JSON.parse(raw) : null;
+    try {
+      startupData = raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      startupData = null;
+    }
   } else {
     startupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
   }
@@ -621,8 +625,12 @@ async function checkForCachedData() {
 
     if (demoMode) {
       const raw = localStorage.getItem('demo_viking_sections_offline');
-      if (raw && JSON.parse(raw).length > 0) {
-        return true;
+      try {
+        if (raw && JSON.parse(raw).length > 0) {
+          return true;
+        }
+      } catch (_) {
+        // corrupted data, fall through
       }
       if (localStorage.getItem('demo_viking_startup_data_offline')) {
         return true;
@@ -642,7 +650,9 @@ async function checkForCachedData() {
 
     return false;
   } catch (error) {
-    logger.error('Error checking cached data', { error }, LOG_CATEGORIES.AUTH);
+    logger.error('Error checking cached data - assume no cache available', {
+      error: error.message,
+    }, LOG_CATEGORIES.AUTH);
     return false;
   }
 }
@@ -707,9 +717,17 @@ export async function logout() {
   }
 
   try {
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       Object.values(IndexedDBService.STORES).map(store => IndexedDBService.clear(store)),
     );
+    const failures = results.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      logger.error('Some IndexedDB stores failed to clear during logout', {
+        failureCount: failures.length,
+        totalStores: results.length,
+        failureReasons: failures.map(f => f.reason?.message || 'Unknown'),
+      }, LOG_CATEGORIES.AUTH);
+    }
   } catch (clearError) {
     logger.error('Failed to clear IndexedDB stores during logout', {
       error: clearError.message,

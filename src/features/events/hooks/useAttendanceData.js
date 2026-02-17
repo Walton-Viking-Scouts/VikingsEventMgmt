@@ -144,8 +144,11 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
 
       setVikingEventData(vikingEventMap);
 
-    } catch (_error) {
-      // Don't set error state as this is supplementary data
+    } catch (error) {
+      logger.warn('Failed to load Viking Event data - supplementary data unavailable', {
+        error: error.message,
+        eventCount: events?.length,
+      }, LOG_CATEGORIES.COMPONENT);
     }
   };
 

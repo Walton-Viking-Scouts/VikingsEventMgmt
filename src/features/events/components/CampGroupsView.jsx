@@ -306,8 +306,10 @@ function CampGroupsView({
               }
             }
           }
-        } catch {
-          // Ignore errors when loading fallback data
+        } catch (fallbackError) {
+          logger.debug('Failed to load fallback camp group data', {
+            error: fallbackError.message,
+          }, LOG_CATEGORIES.COMPONENT);
         }
       }
       

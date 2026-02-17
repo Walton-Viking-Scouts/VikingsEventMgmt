@@ -579,7 +579,7 @@ describe('IndexedDB Schema Version Management', () => {
 
     expect(openDB).toHaveBeenCalledWith(
       'vikings-eventmgmt',
-      7,
+      8,
       expect.objectContaining({
         upgrade: expect.any(Function),
         blocked: expect.any(Function),

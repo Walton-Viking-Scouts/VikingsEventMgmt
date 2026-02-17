@@ -265,7 +265,13 @@ function TermMovementCard({ term, sectionSummaries, sectionsData, movers, sectio
       const contextBySectionId = new Map();
       for (const record of discoveredRecords) {
         const structureData = await databaseService.getFlexiStructure(record.flexiRecordId);
-        if (!structureData) continue;
+        if (!structureData) {
+          logger.warn('FlexiRecord structure missing for section, skipping assignment', {
+            sectionId: record.sectionId,
+            flexiRecordId: record.flexiRecordId,
+          }, LOG_CATEGORIES.API);
+          continue;
+        }
 
         const fieldMapping = parseFlexiStructure(structureData);
         const fieldMappingObj = {};

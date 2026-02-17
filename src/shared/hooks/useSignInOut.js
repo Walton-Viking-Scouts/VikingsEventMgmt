@@ -54,7 +54,11 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
     let startupData;
     if (demoMode) {
       const raw = localStorage.getItem('demo_viking_startup_data_offline');
-      startupData = raw ? JSON.parse(raw) : {};
+      try {
+        startupData = raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        startupData = null;
+      }
     } else {
       startupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data') || {};
     }

@@ -508,7 +508,7 @@ function useAuthLogic() {
 
   // Logout function
   const logout = useCallback(async () => {
-    authService.logout();
+    await authService.logout();
     broadcastAuthSync();
     setIsAuthenticated(false);
     setUser(null);

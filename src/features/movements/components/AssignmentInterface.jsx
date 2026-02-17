@@ -69,7 +69,12 @@ function AssignmentInterface({
       const raw = localStorage.getItem(draftKey);
       if (!raw) return 0;
 
-      const draftData = JSON.parse(raw);
+      let draftData;
+      try {
+        draftData = JSON.parse(raw);
+      } catch (_) {
+        draftData = null;
+      }
 
       if (draftData && draftData.assignments) {
         if (draftData.term?.type === term.type && draftData.term?.year === term.year) {

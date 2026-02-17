@@ -38,8 +38,10 @@ export function useSharedAttendance(events, viewMode) {
             if (metadata._isSharedEvent === true) {
               return true;
             }
-          } catch {
-            // Ignore parse errors
+          } catch (parseError) {
+            logger.debug('Failed to parse shared attendance data', {
+              error: parseError.message,
+            }, LOG_CATEGORIES.COMPONENT);
           }
         }
       }
@@ -97,8 +99,10 @@ export function useSharedAttendance(events, viewMode) {
                   } else if (attendanceData && Array.isArray(attendanceData.items)) {
                     combinedData.push(...attendanceData.items);
                   }
-                } catch {
-                  // Ignore parse errors
+                } catch (parseError) {
+                  logger.debug('Failed to parse shared attendance data', {
+                    error: parseError.message,
+                  }, LOG_CATEGORIES.COMPONENT);
                 }
               }
             }
