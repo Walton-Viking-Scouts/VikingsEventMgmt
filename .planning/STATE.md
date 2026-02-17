@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Every data type stored as properly keyed, individually queryable records -- no more blob arrays stuffed under a single key.
-**Current focus:** Phase 6 in progress -- Flexi Records Normalization (1/5 plans done).
+**Current focus:** Phase 6 in progress -- Flexi Records Normalization (2/5 plans done).
 
 ## Current Position
 
 Phase: 6 of 7 (Flexi Records Normalization)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In Progress
-Last activity: 2026-02-17 -- Completed 06-01 IndexedDB v8 Flexi Stores
+Last activity: 2026-02-17 -- Completed 06-02 DatabaseService Flexi Methods
 
 Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 4.3 min
-- Total execution time: 0.85 hours
+- Total plans completed: 13
+- Average duration: 4.2 min
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [█████████░] 87%
 | 03-events-normalization | 2/2 | 4 min | 2 min |
 | 04-attendance-normalization | 3/3 | 12 min | 4 min |
 | 05-terms-normalization | 3/3 | 19 min | 6.3 min |
-| 06-flexi-records-normalization | 1/5 | 2 min | 2 min |
+| 06-flexi-records-normalization | 2/5 | 4 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (6 min), 05-01 (5 min), 05-02 (5 min), 05-03 (9 min), 06-01 (2 min)
+- Last 5 plans: 05-01 (5 min), 05-02 (5 min), 05-03 (9 min), 06-01 (2 min), 06-02 (2 min)
 - Trend: steady
 
 *Updated after each plan completion*
@@ -78,6 +78,9 @@ Recent decisions affecting current work:
 - [06-01]: sectionId coerced to Number() in flexi_lists cursor queries to match compound keyPath type
 - [06-01]: Read methods return fallback values ([] or null) on error; write methods rethrow
 - [06-01]: flexi_structure has no indexes (only queried by primary key extraid)
+- [06-02]: saveFlexiStructure uses single-record safeParse (not array) since structures are stored individually
+- [06-02]: getFlexiData returns different types per platform: object on web, array on native (intentional asymmetry)
+- [06-02]: saveFlexiData extracts data.items if passed full API response object, normalizing to row array for SQLite
 
 ### Pending Todos
 
@@ -91,5 +94,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-01-PLAN.md (IndexedDB v8 Flexi Stores) -- Phase 06 in progress (1/5 plans done)
+Stopped at: Completed 06-02-PLAN.md (DatabaseService Flexi Methods) -- Phase 06 in progress (2/5 plans done)
 Resume file: None
