@@ -166,7 +166,8 @@ describe('IndexedDBService Database Upgrade and Store Creation', () => {
         'events',
         'attendance',
         'shared_event_metadata',
-        'members',
+        'core_members',
+        'member_section',
       ];
 
       // Ensure all expected stores exist

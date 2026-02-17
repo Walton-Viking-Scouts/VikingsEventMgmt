@@ -239,7 +239,7 @@ function CampGroupsView({
       }
 
       // Get Viking Event data structure for this section from the Map
-      logger.info('DEBUG: vikingEventData Map inspection', {
+      logger.debug('DEBUG: vikingEventData Map inspection', {
         hasVikingEventData: !!vikingEventData,
         mapSize: vikingEventData?.size || 0,
         mapKeys: vikingEventData ? Array.from(vikingEventData.keys()) : [],
@@ -265,8 +265,8 @@ function CampGroupsView({
               const fieldMapping = structureData?.fieldMapping || {};
               const hasCampGroupField = Object.values(fieldMapping).some(field => {
                 const name = field.name?.toLowerCase();
-                return name === 'campgroup' || name === 'camp group' || name === 'camp_group' ||
-                       name?.includes('camp') || name?.includes('group');
+                const normalized = name?.replace(/[\s_-]/g, '') || '';
+                return normalized === 'campgroup';
               });
 
               if (hasCampGroupField) {
@@ -313,7 +313,7 @@ function CampGroupsView({
         }
       }
       
-      logger.info('DEBUG: sectionVikingEventData for section', {
+      logger.debug('DEBUG: sectionVikingEventData for section', {
         sectionId,
         hasSectionData: !!sectionVikingEventData,
         sectionDataKeys: sectionVikingEventData ? Object.keys(sectionVikingEventData) : null,

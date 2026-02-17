@@ -385,7 +385,10 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
 
     logger.debug('multiUpdateFlexiRecord: Making API call', {
       url: `${BACKEND_URL}/multi-update-flexi-record`,
-      requestBody,
+      sectionid,
+      scoutCount: scouts?.length,
+      column,
+      flexirecordid,
     }, LOG_CATEGORIES.API);
 
     const response = await fetch(`${BACKEND_URL}/multi-update-flexi-record`, {
@@ -406,7 +409,6 @@ export async function multiUpdateFlexiRecord(sectionid, scouts, value, column, f
 
     logger.debug('multiUpdateFlexiRecord: Response processed', {
       success: data?.data?.success,
-      data: data,
     }, LOG_CATEGORIES.API);
 
     return data || null;
