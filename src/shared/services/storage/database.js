@@ -21,7 +21,6 @@
 
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
-import UnifiedStorageService from './unifiedStorageService.js';
 import IndexedDBService from './indexedDBService.js';
 import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
 import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, TermSchema, FlexiListSchema, FlexiStructureSchema, FlexiDataSchema, safeParseArray } from './schemas/validation.js';
@@ -117,7 +116,7 @@ class DatabaseService {
     try {
       // Only initialize SQLite on native platforms
       if (!this.isNative) {
-        logger.info('Running in browser - SQLite not available, using IndexedDB via UnifiedStorageService', {}, LOG_CATEGORIES.DATABASE);
+        logger.info('Running in browser - SQLite not available, using IndexedDB', {}, LOG_CATEGORIES.DATABASE);
         this.isInitialized = true;
         return;
       }
@@ -1433,107 +1432,13 @@ class DatabaseService {
     await this.initialize();
 
     if (!this.isNative || !this.db) {
-      const sections = await UnifiedStorageService.getSections();
+      const sections = await IndexedDBService.getAllSections();
       return Array.isArray(sections) && sections.length > 0;
     }
 
     const sectionsQuery = 'SELECT COUNT(*) as count FROM sections';
     const result = await this.db.query(sectionsQuery);
     return result.values?.[0]?.count > 0;
-  }
-
-  /**
-   * Helper method to get sections from web storage (localStorage/IndexedDB)
-   *
-   * @async
-   * @private
-   * @returns {Promise<Array<Object>>} Array of section objects
-   */
-  async _getWebStorageSections() {
-    const sectionsData = await UnifiedStorageService.getSections();
-    const sections = this._normalizeSectionsData(sectionsData);
-
-    const { isDemoMode } = await import('../../../config/demoMode.js');
-
-    if (!isDemoMode()) {
-      return sections.filter((section) => {
-        const name = section?.sectionname;
-        return !(typeof name === 'string' && name.startsWith('Demo '));
-      });
-    }
-
-    return sections;
-  }
-
-  /**
-   * Normalizes sections data from different storage formats
-   *
-   * @private
-   * @param {*} sectionsData - Raw sections data from storage
-   * @returns {Array<Object>} Normalized array of section objects
-   */
-  _normalizeSectionsData(sectionsData) {
-    if (Array.isArray(sectionsData)) {
-      return sectionsData;
-    } else if (sectionsData && typeof sectionsData === 'object' && sectionsData.items) {
-      return sectionsData.items;
-    }
-    return [];
-  }
-
-  /**
-   * Helper method to get events from web storage (localStorage/IndexedDB)
-   *
-   * @async
-   * @private
-   * @param {number} sectionId - Section identifier to get events for
-   * @returns {Promise<Array<Object>>} Array of event objects
-   */
-  async _getWebStorageEvents(sectionId) {
-    const key = `viking_events_${sectionId}_offline`;
-    const eventsData = await UnifiedStorageService.get(key) || [];
-    const events = this._normalizeEventsData(eventsData);
-
-    const { isDemoMode } = await import('../../../config/demoMode.js');
-
-    if (!isDemoMode()) {
-      return events.filter((event) => {
-        const eid = event?.eventid;
-        return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
-      });
-    }
-
-    return events;
-  }
-
-  /**
-   * Normalizes events data from different storage formats
-   *
-   * @private
-   * @param {*} eventsData - Raw events data from storage
-   * @returns {Array<Object>} Normalized array of event objects
-   */
-  _normalizeEventsData(eventsData) {
-    if (Array.isArray(eventsData)) {
-      return eventsData;
-    } else if (eventsData && typeof eventsData === 'object' && eventsData.items) {
-      return eventsData.items;
-    }
-    return [];
-  }
-
-  /**
-   * Helper method to save events to web storage (localStorage/IndexedDB)
-   *
-   * @async
-   * @private
-   * @param {number} sectionId - Section identifier to save events for
-   * @param {Array<Object>} events - Array of event objects to save
-   * @returns {Promise<void>} Resolves when events are saved
-   */
-  async _saveWebStorageEvents(sectionId, events) {
-    const key = `viking_events_${sectionId}_offline`;
-    await UnifiedStorageService.set(key, events);
   }
 
   /**
