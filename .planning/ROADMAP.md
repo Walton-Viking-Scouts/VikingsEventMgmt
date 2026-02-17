@@ -107,11 +107,14 @@ Plans:
   3. FlexiRecordDataService is the only code path that reads/writes flexi data -- no backdoor access through UnifiedStorageService
   4. Bulk upsert methods exist for all three flexi store types
   5. Flexi data round-trips correctly on both platforms with consistent query shapes
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- IndexedDB v8 upgrade + CRUD methods for all three flexi stores
+- [ ] 06-02-PLAN.md -- DatabaseService flexi methods (replace stubs) + SQLite implementation
+- [ ] 06-03-PLAN.md -- FlexiRecordDataService migration (replace storageBackend + remove dead code)
+- [ ] 06-04-PLAN.md -- Feature-layer consumer migration (flexiRecordService, flexiRecords API, campGroupAllocationService)
+- [ ] 06-05-PLAN.md -- Component/hook consumer migration (CampGroupsView, useSignInOut, movements, base.js)
 
 ### Phase 7: Cleanup & Consolidation
 **Goal**: All legacy blob storage code, dual-write paths, and localStorage fallbacks are removed -- normalized stores are the only data path
