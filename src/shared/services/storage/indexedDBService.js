@@ -4,7 +4,7 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 
 const getDatabaseName = () => isDemoMode() ? 'vikings-eventmgmt-demo' : 'vikings-eventmgmt';
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 
 const STORES = {
   CACHE_DATA: 'cache_data',
@@ -188,6 +188,30 @@ function getDB() {
           termsStoreV7.createIndex('sectionid', 'sectionid', { unique: false });
           termsStoreV7.createIndex('startdate', 'startdate', { unique: false });
           logger.info('IndexedDB v7 upgrade: terms store normalized', {
+            dbName,
+          }, LOG_CATEGORIES.DATABASE);
+        }
+
+        if (oldVersion < 8) {
+          if (db.objectStoreNames.contains(STORES.FLEXI_LISTS)) {
+            db.deleteObjectStore(STORES.FLEXI_LISTS);
+          }
+          const flexiListsStoreV8 = db.createObjectStore(STORES.FLEXI_LISTS, { keyPath: ['sectionid', 'extraid'] });
+          flexiListsStoreV8.createIndex('sectionid', 'sectionid', { unique: false });
+
+          if (db.objectStoreNames.contains(STORES.FLEXI_STRUCTURE)) {
+            db.deleteObjectStore(STORES.FLEXI_STRUCTURE);
+          }
+          db.createObjectStore(STORES.FLEXI_STRUCTURE, { keyPath: 'extraid' });
+
+          if (db.objectStoreNames.contains(STORES.FLEXI_DATA)) {
+            db.deleteObjectStore(STORES.FLEXI_DATA);
+          }
+          const flexiDataStoreV8 = db.createObjectStore(STORES.FLEXI_DATA, { keyPath: ['extraid', 'sectionid', 'termid'] });
+          flexiDataStoreV8.createIndex('extraid', 'extraid', { unique: false });
+          flexiDataStoreV8.createIndex('sectionid', 'sectionid', { unique: false });
+
+          logger.info('IndexedDB v8 upgrade: flexi stores normalized', {
             dbName,
           }, LOG_CATEGORIES.DATABASE);
         }
