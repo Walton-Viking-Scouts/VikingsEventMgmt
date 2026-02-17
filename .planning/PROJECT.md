@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A data storage normalization project for the Viking Event Management iOS/web app. The member data has already been migrated to a normalized dual-store pattern (core_members + member_section with proper keys and indexes). This project extends that same treatment to all remaining data types — events, attendance, flexi records, terms, and sections — replacing the current blob-in-a-key storage pattern with individual indexed records. Both platforms (IndexedDB for web, SQLite for native) are in scope, and all legacy blob storage code will be removed.
+A data storage normalization layer for the Viking Event Management iOS/web app. All data types (sections, events, attendance, terms, flexi records) are now stored as properly keyed, individually queryable records in IndexedDB (web) and SQLite (native), with Zod validation at every write boundary. The legacy blob-in-a-key storage pattern and UnifiedStorageService have been fully removed.
 
 ## Core Value
 
@@ -12,70 +12,67 @@ Every data type stored as properly keyed, individually queryable records — no 
 
 ### Validated
 
+- ✓ Events stored as individual records keyed by eventid, indexed by sectionid/termid — v1.0
+- ✓ Attendance stored as individual records keyed by [eventid, scoutid], indexed by eventid — v1.0
+- ✓ Sections stored as individual records keyed by sectionid — v1.0
+- ✓ Terms normalized from blob to individual records per section — v1.0
+- ✓ FlexiRecord lists stored as individual records, not blob arrays — v1.0
+- ✓ FlexiRecord structures stored as individual records with proper indexes — v1.0
+- ✓ FlexiRecord data stored as individual records keyed by record+section — v1.0
+- ✓ Shared attendance stored as individual records with proper indexes — v1.0
+- ✓ Old blob storage keys removed (viking_*_offline pattern) — v1.0
+- ✓ UnifiedStorageService blob-routing logic removed — v1.0
+- ✓ localStorage fallback paths for data storage removed — v1.0
+- ✓ Dual-write code paths eliminated — v1.0
+- ✓ All data flows through: API → validate → normalize → store individual records — v1.0
+- ✓ Query functions return consistent shapes regardless of platform — v1.0
 - ✓ Members normalized into core_members + member_section dual-store — existing
-- ✓ IndexedDB service operational with 12+ object stores — existing
-- ✓ localStorage → IndexedDB migration complete (phases 1-5) — existing
+- ✓ IndexedDB service operational with 14 object stores — v1.0
+- ✓ localStorage → IndexedDB migration complete — existing
 - ✓ current_active_terms normalized from blob to table — existing
 - ✓ Demo mode uses separate IndexedDB database — existing
 - ✓ person_type reads from member_section, not calculated — existing
 
 ### Active
 
-- [ ] Events stored as individual records keyed by eventid, indexed by sectionid/termid
-- [ ] Attendance stored as individual records keyed by [eventid, scoutid], indexed by eventid
-- [ ] Sections stored as individual records keyed by sectionid
-- [ ] Terms normalized from blob to individual records per section
-- [ ] FlexiRecord lists stored as individual records, not blob arrays
-- [ ] FlexiRecord structures stored as individual records with proper indexes
-- [ ] FlexiRecord data stored as individual records keyed by record+section
-- [ ] Shared attendance stored as individual records with proper indexes
-- [ ] SQLite FlexiRecord methods implemented (5 methods currently throw Error)
-- [ ] SQLite schemas match IndexedDB normalization for events, attendance, sections, terms
-- [ ] Old blob storage keys removed (viking_*_offline pattern)
-- [ ] UnifiedStorageService blob-routing logic removed
-- [ ] localStorage fallback paths for data storage removed
-- [ ] Dual-write code paths eliminated
-- [ ] All data flows through: API → validate → normalize → store individual records
-- [ ] Query functions return consistent shapes regardless of platform
+(No active requirements — next milestone not yet planned)
 
 ### Out of Scope
 
-- Member storage changes — already normalized and working
 - Authentication/token storage — stays in sessionStorage/localStorage (not data)
 - UI component refactoring — data layer only, UI reads through existing service interfaces
 - Automatic sync/conflict resolution — manual sync only, read-only offline (existing design)
 - State management migration (AppStateContext phases) — separate project
-- Circular dependency refactor (Task 91) — separate concern, can benefit from this work but not blocked by it
+- Circular dependency refactor (Task 91) — separate concern
 
 ## Context
 
-- **Existing codebase**: React 19 + Capacitor 7 mobile/web app for Scout event management
-- **Codebase map available**: `.planning/codebase/` has ARCHITECTURE.md, STACK.md, CONCERNS.md etc.
-- **Storage backends**: SQLite (native via @capacitor-community/sqlite), IndexedDB (web via idb), localStorage (fallback — being removed)
-- **API source**: Node.js Express backend proxying OSM (Online Scout Manager) API
-- **Data types**: sections, terms, events, attendance, shared attendance, flexi records (lists/structures/data), members (done)
-- **Current state**: All data moved from localStorage to IndexedDB (phases 84-89 done), but stored as blob arrays under old key patterns. Members are the only data type with proper per-record normalization.
-- **Reference implementation**: Members dual-store (core_members + member_section) in indexedDBService.js and database.js — this is the pattern to follow
-- **Existing Task Master tasks**: Tasks 69-71, 72-83, 85, 90, 91, 92 exist in `.taskmaster/tasks/tasks.json` — most will be cancelled/superseded by this project's tasks. Tasks 72-83 specifically should be cancelled.
-- **Known issues**: FlexiRecord SQLite methods unimplemented (throw Error), storage layer fragmented across 3+ services, dual-write inconsistencies in flexi system (Task 90)
-
-## Constraints
-
-- **Backwards compatibility**: NOT required per project policy — old patterns can be deleted, not maintained alongside new
-- **Offline-first**: All normalized stores must support offline reads — data must be accessible without network
-- **Rate limiting**: No additional API calls — normalization happens at storage time, not fetch time. Same API responses, different storage format.
-- **Platform parity**: IndexedDB and SQLite schemas must store the same data shapes — platform-specific implementation, but same logical schema
-- **No UI changes**: Components continue to call the same service methods (getEvents, getAttendance, etc.) — only the storage internals change
+- **Shipped:** v1.0 Data Storage Normalization (2026-02-17)
+- **Stats:** 7 phases, 21 plans, 74 commits, 117 files changed, +14,036/-3,339 LOC
+- **Codebase:** React 19 + Capacitor 7, IndexedDB v8 (13 active stores), SQLite with matching schemas
+- **Storage backends:** IndexedDB (web via idb), SQLite (native via @capacitor-community/sqlite)
+- **API source:** Node.js Express backend proxying OSM (Online Scout Manager) API
+- **Tech debt:** SQLite terms table creation was missing (fixed in PR #175), 3 minor items tracked in audit
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Follow members dual-store pattern | Proven, working, well-tested reference implementation | — Pending |
-| Both platforms in scope | SQLite methods throwing Error is blocking native; normalize both simultaneously | — Pending |
-| Full cleanup, no gradual migration | Backwards compatibility not required; clean break is simpler than maintaining two paths | — Pending |
-| Cancel tasks 72-83 | Were for a member rewrite that's already done; replaced by this broader scope | — Pending |
-| Data layer only, no UI changes | Minimize blast radius; services return same shapes to components | — Pending |
+| Follow members dual-store pattern | Proven, working, well-tested reference implementation | ✓ Good — all 7 data types follow same pattern |
+| Both platforms in scope | SQLite methods throwing Error was blocking native | ✓ Good — all methods implemented |
+| Full cleanup, no gradual migration | Backwards compatibility not required; clean break is simpler | ✓ Good — UnifiedStorageService fully deleted |
+| Data layer only, no UI changes | Minimize blast radius; services return same shapes | ✓ Good — zero UI component changes needed |
+| Zod validation at write boundary | Catch malformed API data before storage | ✓ Good — graceful degradation via safeParseArray |
+| Compound keys for attendance | [eventid, scoutid] enables efficient queries | ✓ Good — both indexes used |
+| Read-time member enrichment | Don't store firstname/lastname in attendance | ✓ Good — single source of truth in core_members |
+| .passthrough() on flexible schemas | Preserve dynamic fields (f_1, parsedFieldMapping) | ✓ Good — prevented data loss bug |
+
+## Constraints
+
+- **Offline-first**: All normalized stores support offline reads
+- **Rate limiting**: No additional API calls — normalization happens at storage time
+- **Platform parity**: IndexedDB and SQLite schemas store same data shapes
+- **No UI changes**: Components call same service methods
 
 ---
-*Last updated: 2026-02-15 after initialization*
+*Last updated: 2026-02-17 after v1.0 milestone*
