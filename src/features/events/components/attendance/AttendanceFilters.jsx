@@ -1,6 +1,6 @@
 import React from 'react';
 import CompactAttendanceFilter from '../CompactAttendanceFilter.jsx';
-import { SectionFilter } from '../../../../shared/components/ui';
+import { SectionFilter } from '../../../../shared/components/ui/index.js';
 
 function AttendanceFilters({
   attendanceFilters,

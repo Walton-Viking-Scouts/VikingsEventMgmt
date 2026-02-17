@@ -141,11 +141,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
 
     const flexiRecords = await getFlexiRecords(sectionId, token);
 
-    const cachedData = {
-      ...flexiRecords,
-      _cacheTimestamp: Date.now(),
-    };
-    await databaseService.saveFlexiLists(sectionId, cachedData);
+    await databaseService.saveFlexiLists(sectionId, flexiRecords.items || []);
 
     return flexiRecords;
 

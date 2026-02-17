@@ -413,7 +413,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
           eventid: String(eventId),
           isSharedEvent: true,
           ownerSectionId: Number(sectionId),
-          sections: [...new Set(attendance.map(r => Number(r.sectionid || sectionId)))],
+          sections: [...new Set(attendance.map(r => Number(r.sectionid || sectionId)))].map(sid => ({ sectionid: sid })),
         });
       }
 

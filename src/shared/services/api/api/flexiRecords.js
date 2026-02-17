@@ -82,11 +82,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     }
 
     try {
-      const cachedData = {
-        ...flexiData,
-        _cacheTimestamp: Date.now(),
-      };
-      await databaseService.saveFlexiLists(sectionId, cachedData);
+      await databaseService.saveFlexiLists(sectionId, flexiData.items || []);
     } catch (cacheError) {
       logger.error('FlexiRecord list caching error', {
         error: cacheError.message,

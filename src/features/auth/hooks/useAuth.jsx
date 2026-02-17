@@ -313,7 +313,7 @@ function useAuthLogic() {
           const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
             onEventsLoaded: async () => {
               const eventsLoadedTime = Date.now();
-              await IndexedDBService.put(IndexedDBService.STORES.CACHE_DATA, { key: 'viking_last_sync', timestamp: eventsLoadedTime });
+              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: eventsLoadedTime });
               if (import.meta.env.DEV) {
                 logger.debug('Events loaded - triggering initial render', {
                   eventsLoadedTime,
@@ -323,7 +323,7 @@ function useAuthLogic() {
             },
             onAttendanceLoaded: async () => {
               const attendanceLoadedTime = Date.now();
-              await IndexedDBService.put(IndexedDBService.STORES.CACHE_DATA, { key: 'viking_last_sync', timestamp: attendanceLoadedTime });
+              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: attendanceLoadedTime });
               if (import.meta.env.DEV) {
                 logger.debug('Attendance loaded - triggering render with attendance', {
                   attendanceLoadedTime,
@@ -349,7 +349,7 @@ function useAuthLogic() {
           }
 
           const syncTime = Date.now();
-          await IndexedDBService.put(IndexedDBService.STORES.CACHE_DATA, { key: 'viking_last_sync', timestamp: syncTime });
+          await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
           if (import.meta.env.DEV) {
             logger.debug('All data loaded - final sync time', {
               syncTime,

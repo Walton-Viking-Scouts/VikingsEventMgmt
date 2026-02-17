@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
-import { SectionsList } from '../components';
-import { RefreshButton } from '../../../shared/components/ui';
+import { SectionsList } from './index.js';
+import { RefreshButton } from '../../../shared/components/ui/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';

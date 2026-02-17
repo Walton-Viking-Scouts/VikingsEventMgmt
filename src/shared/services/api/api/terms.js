@@ -125,7 +125,6 @@ async function storeTermsToNormalizedStore(termsData) {
   }
 
   try {
-    const databaseService = DatabaseService.getInstance();
     for (const [sectionId, sectionTerms] of Object.entries(termsData)) {
       if (sectionId.startsWith('_')) {
         continue;
@@ -133,7 +132,7 @@ async function storeTermsToNormalizedStore(termsData) {
       if (!Array.isArray(sectionTerms) || sectionTerms.length === 0) {
         continue;
       }
-      await databaseService.saveTerms(sectionId, sectionTerms);
+      await DatabaseService.saveTerms(sectionId, sectionTerms);
     }
     logger.debug('Terms stored to normalized store', {
       sectionCount: Object.keys(termsData).filter(k => !k.startsWith('_')).length,

@@ -11,7 +11,7 @@ export const SectionSchema = z.object({
   sectiontype: z.string().optional(),
   section: z.string().optional(),
   isDefault: z.boolean().optional(),
-  permissions: z.record(z.number()).optional(),
+  permissions: z.record(z.string(), z.number()).optional(),
 });
 
 /**
@@ -44,7 +44,7 @@ export const EventSchema = z.object({
  * @type {import('zod').ZodObject}
  */
 export const AttendanceSchema = z.object({
-  scoutid: z.union([z.string(), z.number()]).transform(Number),
+  scoutid: z.union([z.string(), z.number()]),
   eventid: z.union([z.string(), z.number()]).transform(String),
   sectionid: z.union([z.string(), z.number()]).transform(Number),
   attending: z.union([z.string(), z.number()]).transform(val => {

@@ -1797,26 +1797,36 @@ class DatabaseService {
    *
    * @async
    * @param {number} sectionId - Section identifier
-   * @returns {Promise<Array<Object>>} Array of flexi list objects
+   * @returns {Promise<{items: Array<Object>, _cacheTimestamp: number}|null>} Flexi lists with cache timestamp, or null if none found
    */
   async getFlexiLists(sectionId) {
     await this.initialize();
 
     try {
       if (!this.isNative || !this.db) {
-        return await IndexedDBService.getFlexiListsBySection(sectionId);
+        const records = await IndexedDBService.getFlexiListsBySection(sectionId);
+        if (!records || records.length === 0) return null;
+        return {
+          items: records,
+          _cacheTimestamp: Math.max(...records.map(r => r.updated_at || 0)),
+        };
       }
 
       const query = 'SELECT * FROM flexi_lists WHERE sectionid = ?';
       const result = await this.db.query(query, [Number(sectionId)]);
-      return result.values || [];
+      const rows = result.values || [];
+      if (rows.length === 0) return null;
+      return {
+        items: rows,
+        _cacheTimestamp: Math.max(...rows.map(r => r.updated_at || 0)),
+      };
     } catch (error) {
       logger.error('Failed to get flexi lists', {
         sectionId,
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
       sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiLists', sectionId });
-      return [];
+      return null;
     }
   }
 
@@ -1832,7 +1842,8 @@ class DatabaseService {
   async saveFlexiLists(sectionId, lists) {
     await this.initialize();
 
-    const enriched = (Array.isArray(lists) ? lists : []).map(l => ({ ...l, sectionid: sectionId }));
+    const rawItems = Array.isArray(lists) ? lists : (Array.isArray(lists?.items) ? lists.items : []);
+    const enriched = rawItems.map(l => ({ ...l, sectionid: sectionId }));
     const { data: valid, errors } = safeParseArray(FlexiListSchema, enriched);
     if (errors.length > 0) {
       logger.warn('FlexiList validation errors during save', {
@@ -1875,7 +1886,11 @@ class DatabaseService {
 
     try {
       if (!this.isNative || !this.db) {
-        return await IndexedDBService.getFlexiRecordStructure(recordId);
+        const record = await IndexedDBService.getFlexiRecordStructure(recordId);
+        if (record?.updated_at && !record._cacheTimestamp) {
+          record._cacheTimestamp = record.updated_at;
+        }
+        return record;
       }
 
       const query = 'SELECT * FROM flexi_structure WHERE extraid = ?';

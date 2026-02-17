@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import EventDashboard from './EventDashboard.jsx';
-import { EventAttendance } from './attendance';
+import { EventAttendance } from './attendance/index.js';
 import { notifyError, notifyWarning } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';

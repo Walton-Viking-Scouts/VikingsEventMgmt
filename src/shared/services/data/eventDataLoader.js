@@ -323,7 +323,7 @@ class EventDataLoader {
             eventid: String(event.eventid),
             isSharedEvent: true,
             ownerSectionId: Number(event.sectionid),
-            sections: [...new Set(attendance.map(r => Number(r.sectionid || event.sectionid)))],
+            sections: [...new Set(attendance.map(r => Number(r.sectionid || event.sectionid)))].map(sid => ({ sectionid: sid })),
           });
 
           await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);

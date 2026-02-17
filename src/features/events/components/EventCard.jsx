@@ -143,7 +143,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
     const hasSharedEventData = events.some(
       (e) =>
         Array.isArray(e.attendanceData) &&
-        e.attendanceData.some((a) => a.scoutid?.startsWith('synthetic-')),
+        e.attendanceData.some((a) => String(a.scoutid ?? '').startsWith('synthetic-')),
     );
 
     if (hasSharedEventData) {
@@ -155,7 +155,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         ...new Set(
           events
             .flatMap((e) => e.attendanceData || [])
-            .filter((a) => a.scoutid?.startsWith('synthetic-'))
+            .filter((a) => String(a.scoutid ?? '').startsWith('synthetic-'))
             .map((a) => a.sectionname)
             .filter((sectionName) => !!sectionName && sectionName !== 'null'),
         ),
@@ -189,14 +189,14 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           // Check if this is real attendance data (not synthetic)
           const hasRealData = event.attendanceData.some(
             (person) =>
-              !person.scoutid || !person.scoutid.startsWith('synthetic-'),
+              !person.scoutid || !String(person.scoutid).startsWith('synthetic-'),
           );
 
           if (hasRealData) {
             // Use detailed section-specific data
             event.attendanceData.forEach((person) => {
               // Skip synthetic attendees for sections we have real data for
-              if (person.scoutid && person.scoutid.startsWith('synthetic-'))
+              if (person.scoutid && String(person.scoutid).startsWith('synthetic-'))
                 return;
 
               // Ensure grid entry exists for this person's section (safety check)
@@ -234,7 +234,7 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
             // Only use synthetic data if we don't have real data for this section
             if (
               person.scoutid &&
-              person.scoutid.startsWith('synthetic-') &&
+              String(person.scoutid).startsWith('synthetic-') &&
               !accessibleSections.has(sectionName)
             ) {
               // Ensure grid entry exists for this section (safety check)
@@ -262,8 +262,9 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         if (Array.isArray(event.attendanceData)) {
           event.attendanceData.forEach((person) => {
             // Remove synthetic prefix to get real scoutid
-            const realScoutId = person.scoutid?.startsWith('synthetic-')
-              ? person.scoutid.substring(10)
+            const scoutidStr = String(person.scoutid ?? '');
+            const realScoutId = scoutidStr.startsWith('synthetic-')
+              ? scoutidStr.substring(10)
               : person.scoutid;
 
             const uniqueKey = `${realScoutId}-${person.attending}`;
