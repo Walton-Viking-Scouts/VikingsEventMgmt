@@ -81,7 +81,7 @@ interface CurrentActiveTerm {
 ### Existing Infrastructure
 The schema integrates seamlessly with:
 - **`IndexedDBService`** - Base IndexedDB operations
-- **`UnifiedStorageService`** - Storage routing and migration support
+- **`DatabaseService`** - Application-level data access with validation
 - **Demo mode system** - Separate demo/production data
 - **Logging infrastructure** - Structured error and debug logging
 
@@ -159,8 +159,8 @@ console.log(`Total sections with current terms: ${stats.totalTerms}`);
 ## Project Integration Status
 
 ### ✅ Already Integrated
-- Database version 3 includes the schema
-- UnifiedStorageService routing configured
+- Database version 5 includes the schema
+- DatabaseService provides application-level access
 - IndexedDBService store constants defined
 - Demo mode support implemented
 

@@ -65,17 +65,11 @@ if (!db.objectStoreNames.contains(STORES.CURRENT_ACTIVE_TERMS)) {
 }
 ```
 
-### UnifiedStorageService Routing
+### DatabaseService Integration
 
-**File**: `/src/shared/services/storage/unifiedStorageService.js`
+**File**: `/src/shared/services/storage/database.js`
 
-The routing logic already supports both production and demo mode keys:
-
-```javascript
-if (key === 'viking_current_active_terms' || key === 'demo_viking_current_active_terms') {
-  return IndexedDBService.STORES.CURRENT_ACTIVE_TERMS;
-}
-```
+The `DatabaseService` provides application-level access with Zod validation for all normalized stores, including `current_active_terms`. Data flows through: API -> validate (Zod) -> normalize -> store individual records via IndexedDBService.
 
 ## Usage Patterns
 
@@ -125,23 +119,18 @@ const recentTerms = await IndexedDBService.getByIndex(
 );
 ```
 
-### Integration with UnifiedStorageService
+### Integration with DatabaseService
 
-For consistency with existing patterns, use UnifiedStorageService:
+For application-level access, use DatabaseService which provides Zod validation:
 
 ```javascript
-import { UnifiedStorageService } from '../services/storage/unifiedStorageService.js';
-import { isDemoMode } from '../../../config/demoMode.js';
-
-// Key selection based on demo mode
-const demoMode = isDemoMode();
-const baseKey = demoMode ? 'demo_viking_current_active_terms' : 'viking_current_active_terms';
+import { databaseService } from '../services/storage/database.js';
 
 // Store current active term for a section
-await UnifiedStorageService.set(`${baseKey}_${sectionId}`, currentActiveTerm);
+await databaseService.setCurrentActiveTerm(sectionId, currentActiveTerm);
 
 // Retrieve current active term for a section
-const currentActiveTerm = await UnifiedStorageService.get(`${baseKey}_${sectionId}`);
+const currentActiveTerm = await databaseService.getCurrentActiveTerm(sectionId);
 ```
 
 ## Performance Benefits
@@ -163,10 +152,10 @@ const currentActiveTerm = await UnifiedStorageService.get(`${baseKey}_${sectionI
 ### Query Performance
 
 ```javascript
-// OLD: Parse entire terms blob
-const termsBlob = await UnifiedStorageService.get('viking_terms_offline');
-const sectionTerms = termsBlob[sectionId];
-const currentTerm = sectionTerms.find(term => /* logic to determine current */);
+// OLD: Parse entire terms blob from localStorage
+// const termsBlob = JSON.parse(localStorage.getItem('viking_terms_offline'));
+// const sectionTerms = termsBlob[sectionId];
+// const currentTerm = sectionTerms.find(term => /* logic to determine current */);
 
 // NEW: Direct indexed lookup
 const currentTerm = await IndexedDBService.get(
@@ -236,7 +225,7 @@ When syncing with backend APIs, the normalized structure simplifies:
 
 ---
 
-**Status**: ✅ Schema is fully implemented and ready for use
-**Location**: `indexedDBService.js` lines 59-62, 13
-**Integration**: `unifiedStorageService.js` routing implemented
-**Next Steps**: Begin using the new schema in application logic
+**Status**: ✅ Schema is fully implemented and in active use
+**Location**: `indexedDBService.js` store definitions
+**Integration**: `DatabaseService` provides validated application-level access
+**Architecture**: All data flows through API -> validate (Zod) -> normalize -> store individual records
