@@ -23,6 +23,8 @@ import { config } from '../../../config/env.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { authHandler } from './simpleAuthHandler.js';
 import { isDemoMode } from '../../../config/demoMode.js';
+import databaseService from '../../../shared/services/storage/database.js';
+import { IndexedDBService } from '../../../shared/services/storage/indexedDBService.js';
 
 // OAuth configuration now handled server-side for security
 
@@ -433,14 +435,20 @@ export function generateOAuthUrl(storeCurrentPath = false) {
   return authUrl;
 }
 
-// User data management
+/**
+ * Retrieves cached user info from startup data in IndexedDB
+ * @returns {Promise<Object|null>} User info object or null if not available
+ */
 export async function getUserInfo() {
-  const { UnifiedStorageService } = await import('../../../shared/services/storage/unifiedStorageService.js');
-  const { isDemoMode } = await import('../../../config/demoMode.js');
-
   const demoMode = isDemoMode();
-  const cacheKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
-  const startupData = await UnifiedStorageService.get(cacheKey);
+
+  let startupData;
+  if (demoMode) {
+    const raw = localStorage.getItem('demo_viking_startup_data_offline');
+    startupData = raw ? JSON.parse(raw) : null;
+  } else {
+    startupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
+  }
 
   if (startupData?.globals) {
     const globals = startupData.globals;
@@ -602,39 +610,36 @@ export async function validateToken() {
   }
 }
 
-// Helper function to check for cached data
-function checkForCachedData() {
+/**
+ * Checks whether the application has cached data available for offline use.
+ * Uses DatabaseService for normal mode, localStorage for demo mode.
+ * @returns {Promise<boolean>} True if cached data exists
+ */
+async function checkForCachedData() {
   try {
-    // Check localStorage for all cached data types (comprehensive check)
     const demoMode = isDemoMode();
-    const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
-    const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
 
-    const cachedSections = localStorage.getItem(sectionsKey);
-    const cachedStartupData = localStorage.getItem(startupKey);
+    if (demoMode) {
+      const raw = localStorage.getItem('demo_viking_sections_offline');
+      if (raw && JSON.parse(raw).length > 0) {
+        return true;
+      }
+      if (localStorage.getItem('demo_viking_startup_data_offline')) {
+        return true;
+      }
+      return false;
+    }
 
-    if (cachedSections && JSON.parse(cachedSections).length > 0) {
+    const sections = await databaseService.getSections();
+    if (sections && sections.length > 0) {
       return true;
     }
 
-    if (cachedStartupData) {
+    const startupData = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_startup_data');
+    if (startupData) {
       return true;
     }
-    
-    // Check for dynamic keys (events, attendance, members) - include demo keys
-    const hasEventData = Object.keys(localStorage).some(key => 
-      key.startsWith('viking_events_') || 
-      key.startsWith('viking_attendance_') || 
-      key.startsWith('viking_members_') ||
-      key.startsWith('demo_viking_events_') || 
-      key.startsWith('demo_viking_attendance_') || 
-      key.startsWith('demo_viking_members_'),
-    );
-    
-    if (hasEventData) {
-      return true;
-    }
-    
+
     return false;
   } catch (error) {
     logger.error('Error checking cached data', { error }, LOG_CATEGORIES.AUTH);
@@ -643,15 +648,14 @@ function checkForCachedData() {
 }
 
 // Enhanced error handling for API authentication failures
-export function handleApiAuthError(error) {
+export async function handleApiAuthError(error) {
   if (error?.status === 401 || error?.status === 403) {
-    logger.info('API authentication failed - clearing token and redirecting to login', { 
+    logger.info('API authentication failed - clearing token and redirecting to login', {
       status: error.status,
-      message: error.message, 
+      message: error.message,
     }, LOG_CATEGORIES.AUTH);
-    
-    // Check if we have cached data before fully logging out
-    const hasCachedData = checkForCachedData();
+
+    const hasCachedData = await checkForCachedData();
     
     if (hasCachedData) {
       logger.info('API auth failed but cached data available - enabling offline mode', {}, LOG_CATEGORIES.AUTH);
@@ -676,37 +680,43 @@ export function checkWritePermission() {
   }
 }
 
-// Logout function
-export function logout() {
+/**
+ * Logs out the user by clearing auth tokens and all offline cached data.
+ * Clears all normalized IndexedDB stores for production mode and
+ * demo localStorage keys for demo mode.
+ * @returns {Promise<void>}
+ */
+export async function logout() {
   clearToken();
-  
-  // Clear all offline cached data
-  const demoMode = isDemoMode();
-  const sectionsKey = demoMode ? 'demo_viking_sections_offline' : 'viking_sections_offline';
-  const startupKey = demoMode ? 'demo_viking_startup_data_offline' : 'viking_startup_data_offline';
 
-  localStorage.removeItem(sectionsKey);
-  localStorage.removeItem(startupKey);
-  
-  // Clear all offline caches (demo & production): events, attendance, members, Flexi, metadata, shared attendance
-  const prefixes = ['viking_', 'demo_viking_'];
-  const patterns = [
-    'events_',
-    'attendance_',
-    'members_',
-    'flexi_lists_',
-    'flexi_structure_',
-    'flexi_data_',
-    'shared_metadata_',
-    'shared_attendance_',
-  ];
-  Object.keys(localStorage).forEach(key => {
-    if (prefixes.some(p => patterns.some(pt => key.startsWith(p + pt)))) {
-      localStorage.removeItem(key);
-    }
-  });
-  
-  logger.info('User logged out - all cached data cleared including FlexiRecords and shared metadata', {}, LOG_CATEGORIES.AUTH);
+  const demoMode = isDemoMode();
+
+  if (demoMode) {
+    localStorage.removeItem('demo_viking_sections_offline');
+    localStorage.removeItem('demo_viking_startup_data_offline');
+    const demoPatterns = [
+      'demo_viking_events_', 'demo_viking_attendance_', 'demo_viking_members_',
+      'demo_viking_flexi_lists_', 'demo_viking_flexi_structure_', 'demo_viking_flexi_data_',
+      'demo_viking_shared_metadata_', 'demo_viking_shared_attendance_',
+    ];
+    Object.keys(localStorage).forEach(key => {
+      if (demoPatterns.some(p => key.startsWith(p))) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  try {
+    await Promise.allSettled(
+      Object.values(IndexedDBService.STORES).map(store => IndexedDBService.clear(store)),
+    );
+  } catch (clearError) {
+    logger.error('Failed to clear IndexedDB stores during logout', {
+      error: clearError.message,
+    }, LOG_CATEGORIES.AUTH);
+  }
+
+  logger.info('User logged out - all cached data cleared', {}, LOG_CATEGORIES.AUTH);
 }
 
 // Check for blocked status
