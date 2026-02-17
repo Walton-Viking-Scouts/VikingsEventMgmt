@@ -53,60 +53,42 @@ export default function useSectionMovements() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Direct cache access function - bypasses API discovery when it fails
   const loadFlexiRecordsFromDirectCache = async (sectionsData) => {
     const allMembersData = [];
-    
+
     for (const section of sectionsData) {
       try {
         const sectionId = section.sectionid;
         const sectionName = section.sectionname || section.name || 'Unknown Section';
-        
-        // Check if there's cached FlexiRecord list for this section
-        const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
-        const cachedList = localStorage.getItem(cacheKey);
-        
-        if (cachedList) {
-          const parsedList = JSON.parse(cachedList);
-          
-          // Find Viking Section Movers FlexiRecord
-          const vikingMoversRecord = parsedList.items?.find(record => 
-            record.name === 'Viking Section Movers',
+
+        const flexiLists = await databaseService.getFlexiLists(sectionId);
+        const listsArray = Array.isArray(flexiLists) ? flexiLists : (flexiLists?.items || []);
+
+        const vikingMoversRecord = listsArray.find(record =>
+          record.name === 'Viking Section Movers',
+        );
+
+        if (vikingMoversRecord) {
+          const dataRows = await databaseService.getFlexiRecordDataByExtra(vikingMoversRecord.extraid);
+          const sectionRows = (Array.isArray(dataRows) ? dataRows : []).filter(
+            row => String(row.sectionid) === String(sectionId),
           );
-          
-          if (vikingMoversRecord) {
-            
-            // Try to load the actual FlexiRecord data
-            const allKeys = Object.keys(localStorage);
-            const matchingDataKeys = allKeys.filter(key => 
-              key.includes(`viking_flexi_data_${vikingMoversRecord.extraid}_${sectionId}_`),
-            );
-            
-            if (matchingDataKeys.length > 0) {
-              const dataKey = matchingDataKeys[0]; // Use first matching key
-              const cachedData = localStorage.getItem(dataKey);
-              
-              if (cachedData) {
-                const parsedData = JSON.parse(cachedData);
-                
-                // Add members with consistent section information
-                const membersWithSection = (parsedData.items || []).map(member => ({
-                  ...member,
-                  section_id: sectionId,
-                  sectionid: sectionId,
-                  sectionname: sectionName,
-                }));
-                
-                allMembersData.push(...membersWithSection);
-              }
-            }
+
+          if (sectionRows.length > 0) {
+            const membersWithSection = sectionRows.map(member => ({
+              ...member,
+              section_id: sectionId,
+              sectionid: sectionId,
+              sectionname: sectionName,
+            }));
+            allMembersData.push(...membersWithSection);
           }
         }
       } catch (error) {
-        console.warn(`❌ Error loading direct cache for section ${section.sectionid}:`, error.message);
+        console.warn(`Error loading direct cache for section ${section.sectionid}:`, error.message);
       }
     }
-    
+
     return allMembersData;
   };
 

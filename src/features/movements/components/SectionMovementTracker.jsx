@@ -23,7 +23,7 @@ import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
 import { notifyError } from '../../../shared/utils/notifications.js';
-import { UnifiedStorageService } from '../../../shared/services/storage/unifiedStorageService.js';
+import databaseService from '../../../shared/services/storage/database.js';
 
 /**
  * User preferences utilities for persistent storage
@@ -160,26 +160,23 @@ function SectionMovementTracker({ onBack }) {
         continue; // Section has FlexiRecord loaded, treat as present
       }
 
-      // Check if FlexiRecord list exists in storage for this section
-      const cacheKey = `viking_flexi_lists_${sectionId}_offline`;
       try {
-        const flexiRecordsList = await UnifiedStorageService.get(cacheKey);
+        const flexiLists = await databaseService.getFlexiLists(sectionId);
+        const listsArray = Array.isArray(flexiLists) ? flexiLists : (flexiLists?.items || []);
 
-        if (!flexiRecordsList || !flexiRecordsList.items) {
+        if (listsArray.length === 0) {
           missingSections.push(sectionName);
           continue;
         }
 
-        // Check if Viking Section Movers FlexiRecord exists in the list
-        const hasVikingSectionMovers = flexiRecordsList.items.some(record =>
+        const hasVikingSectionMovers = listsArray.some(record =>
           record.name === 'Viking Section Movers',
         );
 
         if (!hasVikingSectionMovers) {
           missingSections.push(sectionName);
         }
-      } catch (error) {
-        // If we can't access storage, assume missing
+      } catch (_error) {
         missingSections.push(sectionName);
       }
     }
