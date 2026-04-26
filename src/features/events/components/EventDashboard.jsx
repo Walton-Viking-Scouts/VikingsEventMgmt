@@ -310,7 +310,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     try {
       await loadInitialDataInBackground();
     } catch (error) {
-      logger.error('Manual refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Manual refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
       // Don't affect UI on error - just log it
     }
   };

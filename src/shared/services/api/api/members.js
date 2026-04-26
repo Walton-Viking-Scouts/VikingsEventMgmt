@@ -154,7 +154,7 @@ export async function getMembersGrid(sectionId, termId, token) {
     return [];
 
   } catch (error) {
-    logger.error('Error fetching members grid', { sectionId, error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching members grid', { sectionId, error: error }, LOG_CATEGORIES.API);
     
     // If online request fails, try local database as fallback
     const isOnline = await checkNetworkStatus();
@@ -365,7 +365,7 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
       });
       
     } catch (sectionError) {
-      logger.warn('Failed to fetch members for section', { sectionId: section.sectionid, error: sectionError.message }, LOG_CATEGORIES.API);
+      logger.warn('Failed to fetch members for section', { sectionId: section.sectionid, error: sectionError }, LOG_CATEGORIES.API);
       // Continue with other sections
     }
   }

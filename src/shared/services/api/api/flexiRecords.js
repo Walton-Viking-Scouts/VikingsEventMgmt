@@ -93,7 +93,7 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
     return flexiData;
 
   } catch (error) {
-    logger.error('Error fetching flexi records', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching flexi records', { error: error }, LOG_CATEGORIES.API);
 
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
@@ -155,7 +155,7 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
     return data || { identifier: null, items: [] };
 
   } catch (error) {
-    logger.error('Error fetching single flexi record', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching single flexi record', { error: error }, LOG_CATEGORIES.API);
     throw error;
   }
 }
@@ -243,7 +243,7 @@ export async function getFlexiStructure(extraid, sectionid, termid, token, force
     return structureData;
 
   } catch (error) {
-    logger.error('Error fetching flexi structure', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching flexi structure', { error: error }, LOG_CATEGORIES.API);
 
     const isOnline = await checkNetworkStatus();
     if (isOnline) {
@@ -323,7 +323,7 @@ export async function updateFlexiRecord(sectionid, scoutid, flexirecordid, colum
     return data || null;
 
   } catch (error) {
-    logger.error('Error updating flexi record', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error updating flexi record', { error: error }, LOG_CATEGORIES.API);
     throw error;
   }
 }

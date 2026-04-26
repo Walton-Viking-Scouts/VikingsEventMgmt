@@ -248,7 +248,7 @@ export async function getUserRoles(token) {
               logger.warn('No cached sections available for fallback');
             }
           } catch (dbError) {
-            logger.error('Database fallback also failed', { error: dbError.message });
+            logger.error('Database fallback also failed', { error: dbError });
             span.setAttribute('fallback.successful', false);
           }
         }
@@ -330,7 +330,7 @@ export async function getStartupData(token) {
     return startupData;
         
   } catch (error) {
-    logger.error('Error fetching startup data', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching startup data', { error: error }, LOG_CATEGORIES.API);
     
     // Don't fall back to cache for authentication errors - these need to be handled by auth system
     if (error.status === 401 || error.status === 403) {

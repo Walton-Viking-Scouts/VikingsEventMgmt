@@ -356,7 +356,7 @@ export async function testBackendConnection() {
     
     return result;
   } catch (error) {
-    logger.error('Backend connection test error', { error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Backend connection test error', { error: error }, LOG_CATEGORIES.API);
     return { status: 'error', error: error.message };
   }
 }

@@ -93,7 +93,7 @@ export async function getEvents(sectionId, termId, token) {
     return eventsWithTermId;
 
   } catch (error) {
-    logger.error('Error fetching events', { sectionId, termId, error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching events', { sectionId, termId, error: error }, LOG_CATEGORIES.API);
         
     // If online request fails, try local database as fallback
     const isOnlineNow = await checkNetworkStatus();
@@ -183,7 +183,7 @@ export async function getEventAttendance(sectionId, eventId, termId, token) {
     return attendance;
 
   } catch (error) {
-    logger.error('Error fetching event attendance', { eventId, error: error.message }, LOG_CATEGORIES.API);
+    logger.error('Error fetching event attendance', { eventId, error: error }, LOG_CATEGORIES.API);
         
     // If online request fails, try local database as fallback
     const isOnlineNow = await checkNetworkStatus();
@@ -419,7 +419,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
       logger.debug('Saved shared attendance to normalized store', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
-      logger.warn('Failed to save shared attendance to normalized store', { error: cacheError.message }, LOG_CATEGORIES.API);
+      logger.warn('Failed to save shared attendance to normalized store', { error: cacheError }, LOG_CATEGORIES.API);
     }
 
     return data;

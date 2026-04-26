@@ -50,7 +50,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
           setEventCards([]);
         }
       } catch (err) {
-        logger.error('Failed to build event cards for overview', { error: err.message }, LOG_CATEGORIES.ERROR);
+        logger.error('Failed to build event cards for overview', { error: err }, LOG_CATEGORIES.ERROR);
         setError(err.message);
         setEventCards([]);
       } finally {
