@@ -87,7 +87,7 @@ export default function useSectionMovements() {
       } catch (error) {
         logger.warn(
           'Error loading direct cache for section',
-          { sectionid: section.sectionid, error: error.message },
+          { sectionid: section.sectionid, error },
           LOG_CATEGORIES.OFFLINE,
         );
       }

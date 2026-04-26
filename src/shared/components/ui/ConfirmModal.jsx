@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import Modal from './Modal';
 
 /**
@@ -17,6 +17,7 @@ const ConfirmModal = ({
   cancelVariant = 'secondary',
   ...props
 }) => {
+  const titleId = useId();
   // Map Button variants to Tailwind classes
   const getVariantClasses = (variant) => {
     const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -48,10 +49,11 @@ const ConfirmModal = ({
       closeOnOverlayClick={false}
       closeOnEscape={true}
       showCloseButton={false}
+      ariaLabelledBy={titleId}
       {...props}
     >
       <Modal.Header>
-        <Modal.Title>{title}</Modal.Title>
+        <Modal.Title id={titleId}>{title}</Modal.Title>
       </Modal.Header>
 
       <Modal.Body>

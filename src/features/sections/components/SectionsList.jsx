@@ -88,7 +88,8 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
         const membersData = await getListOfMembers(sections, token);
         setMembers(membersData || []);
       } catch (error) {
-        logger.error('Failed to load members', { error: error.message }, LOG_CATEGORIES.API);
+        logger.error('Failed to load members', { error }, LOG_CATEGORIES.API);
+        notifyError('Failed to load members. Please check your connection and try again.');
         setMembers([]);
       } finally {
         setLoading(false);
@@ -300,7 +301,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       
       notifySuccess(`Exported ${members.length} member records`);
     } catch (error) {
-      logger.error('Error exporting CSV', { error: error.message }, LOG_CATEGORIES.USER_ACTION);
+      logger.error('Error exporting CSV', { error }, LOG_CATEGORIES.USER_ACTION);
       notifyError('Failed to export member data');
     }
   };

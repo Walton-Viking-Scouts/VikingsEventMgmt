@@ -73,7 +73,7 @@ const Modal = ({
       if (!modalRef.current) return [];
       return Array.from(
         modalRef.current.querySelectorAll(FOCUSABLE_SELECTOR),
-      ).filter((el) => !el.hasAttribute('aria-hidden'));
+      ).filter((el) => el.getAttribute('aria-hidden') !== 'true');
     };
 
     const focusable = getFocusable();

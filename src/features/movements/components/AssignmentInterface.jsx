@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DraggableMover from './DraggableMover.jsx';
 import SectionDropZone from './SectionDropZone.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+import { notifyError } from '../../../shared/utils/notifications.js';
 
 function AssignmentInterface({
   term,
@@ -179,7 +180,8 @@ function AssignmentInterface({
         onAssignmentChange(newAssignment, 'add');
       }
     } catch (error) {
-      logger.error('Error handling mover drop', { error: error.message }, LOG_CATEGORIES.USER_ACTION);
+      logger.error('Error handling mover drop', { error }, LOG_CATEGORIES.USER_ACTION);
+      notifyError('Could not assign member. Please try again.');
     }
   }, [term, onAssignmentChange]);
 
