@@ -54,7 +54,7 @@ function AppContent() {
       }
     } catch (error) {
       const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
-      logger.error('Refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
     }
   };
 

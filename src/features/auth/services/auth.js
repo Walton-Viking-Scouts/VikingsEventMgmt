@@ -572,7 +572,7 @@ export async function fetchUserInfoFromAPI() {
       return fallbackUserInfo;
     }
   } catch (error) {
-    logger.error('Failed to fetch user info from API', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.error('Failed to fetch user info from API', { error: error }, LOG_CATEGORIES.AUTH);
     throw error;
   }
 }

@@ -280,7 +280,7 @@ export async function fetchMostRecentTermId(sectionId, token) {
 
       return termId;
     } catch (error) {
-      logger.error('Error fetching most recent term ID', { sectionId, error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Error fetching most recent term ID', { sectionId, error: error }, LOG_CATEGORIES.ERROR);
       throw error;
     }
   });

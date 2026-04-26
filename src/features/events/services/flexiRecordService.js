@@ -159,7 +159,7 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
         return cached;
       }
     } catch (cacheError) {
-      logger.error('Cache fallback failed', { error: cacheError.message });
+      logger.error('Cache fallback failed', { error: cacheError });
     }
 
     throw error;
@@ -244,7 +244,7 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
         return cached;
       }
     } catch (cacheError) {
-      logger.error('Cache fallback failed', { error: cacheError.message });
+      logger.error('Cache fallback failed', { error: cacheError });
     }
 
     throw error;
@@ -330,7 +330,7 @@ export async function getFlexiRecordData(flexirecordId, sectionId, termId, token
         return cached;
       }
     } catch (cacheError) {
-      logger.error('Cache fallback failed', { error: cacheError.message });
+      logger.error('Cache fallback failed', { error: cacheError });
     }
 
     throw error;

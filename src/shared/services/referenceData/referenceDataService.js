@@ -66,7 +66,7 @@ export async function loadInitialReferenceData(token) {
       isWarning: true,
     });
     errors.push({ type: 'terms', message, originalError: error.message });
-    logger.warn('Terms data loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.warn('Terms data loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
   // Load user roles
@@ -83,7 +83,7 @@ export async function loadInitialReferenceData(token) {
       isWarning: true,
     });
     errors.push({ type: 'userRoles', message, originalError: error.message });
-    logger.warn('User roles loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.warn('User roles loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
   // Load startup data
@@ -124,7 +124,7 @@ export async function loadInitialReferenceData(token) {
       isWarning: true,
     });
     errors.push({ type: 'startupData', message, originalError: error.message });
-    logger.warn('Startup data loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.warn('Startup data loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
   // Load members data
@@ -146,7 +146,7 @@ export async function loadInitialReferenceData(token) {
       isWarning: true,
     });
     errors.push({ type: 'members', message, originalError: error.message });
-    logger.warn('Members data loading failed', { error: error.message }, LOG_CATEGORIES.AUTH);
+    logger.warn('Members data loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
   const hasErrors = errors.length > 0;

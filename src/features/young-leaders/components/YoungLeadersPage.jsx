@@ -117,7 +117,7 @@ function YoungLeadersPage() {
           try {
             allTerms = await getTerms(token);
           } catch (err) {
-            logger.error('Error loading terms, will use fallback', { error: err.message }, LOG_CATEGORIES.ERROR);
+            logger.error('Error loading terms, will use fallback', { error: err }, LOG_CATEGORIES.ERROR);
           }
         }
 
@@ -136,7 +136,7 @@ function YoungLeadersPage() {
               allTerms = termsBySection;
             }
           } catch (err) {
-            logger.warn('Failed to load offline terms from normalized store', { error: err.message }, LOG_CATEGORIES.APP);
+            logger.warn('Failed to load offline terms from normalized store', { error: err }, LOG_CATEGORIES.APP);
           }
         }
 

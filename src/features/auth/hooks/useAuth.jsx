@@ -84,7 +84,7 @@ function useAuthLogic() {
         return 'no_data';
       }
     } catch (error) {
-      logger.warn('Error determining auth state', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.warn('Error determining auth state', { error: error }, LOG_CATEGORIES.ERROR);
       return isAuth ? 'authenticated' : 'no_data';
     }
   }, []);
@@ -478,7 +478,7 @@ function useAuthLogic() {
       setAuthState(newAuthState);
       
     } catch (error) {
-      logger.error('Error checking authentication', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Error checking authentication', { error: error }, LOG_CATEGORIES.ERROR);
       setIsAuthenticated(false);
       setUser(null);
       setAuthState('no_data'); // Fallback to no_data state on error

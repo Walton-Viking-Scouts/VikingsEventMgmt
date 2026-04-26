@@ -127,7 +127,7 @@ function AssignmentInterface({
 
   useEffect(() => {
     loadDraftFromStorage().catch(error => {
-      logger.error('Failed to load draft from storage', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Failed to load draft from storage', { error: error }, LOG_CATEGORIES.ERROR);
     });
   }, [loadDraftFromStorage]);
 

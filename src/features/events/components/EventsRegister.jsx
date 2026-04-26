@@ -64,7 +64,7 @@ function EventsRegister() {
           }
         }
       } catch (err) {
-        logger.error('Failed to load events data for register', { error: err.message }, LOG_CATEGORIES.ERROR);
+        logger.error('Failed to load events data for register', { error: err }, LOG_CATEGORIES.ERROR);
         setError(err.message);
       } finally {
         setLoading(false);

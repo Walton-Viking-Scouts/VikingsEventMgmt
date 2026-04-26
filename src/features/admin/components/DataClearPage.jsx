@@ -26,7 +26,7 @@ function DataClearPage() {
           stores: Object.values(IndexedDBService.STORES),
         }, LOG_CATEGORIES.APP);
       } catch (dbError) {
-        logger.error('Failed to clear IndexedDB', { error: dbError.message }, LOG_CATEGORIES.ERROR);
+        logger.error('Failed to clear IndexedDB', { error: dbError }, LOG_CATEGORIES.ERROR);
         throw dbError; // Re-throw to handle in outer catch
       }
 
@@ -72,7 +72,7 @@ function DataClearPage() {
       }, 2000);
 
     } catch (error) {
-      logger.error('Failed to clear application data', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Failed to clear application data', { error: error }, LOG_CATEGORIES.ERROR);
       setIsClearing(false);
     }
   };

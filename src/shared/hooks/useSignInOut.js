@@ -195,7 +195,7 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
         try {
           fieldMapping = parseFlexiStructure(structure);
         } catch (parseError) {
-          logger.error('Failed to parse FlexiRecord structure with parseFlexiStructure()', { error: parseError.message }, LOG_CATEGORIES.ERROR);
+          logger.error('Failed to parse FlexiRecord structure with parseFlexiStructure()', { error: parseError }, LOG_CATEGORIES.ERROR);
 
           // Fallback: try to access pre-parsed data (though this usually doesn't exist)
           if (structure?.vikingFlexiRecord?.fieldMapping) {

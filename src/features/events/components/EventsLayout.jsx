@@ -40,7 +40,7 @@ function EventsLayoutContent() {
         await loadInitialReferenceData(token);
       }
     } catch (error) {
-      logger.error('Manual refresh failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+      logger.error('Manual refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
       notifyError('Refresh failed. Please try again.');
     } finally {
       setIsRefreshing(false);
