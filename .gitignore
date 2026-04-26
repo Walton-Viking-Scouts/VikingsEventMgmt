@@ -22,6 +22,11 @@ build/
 .env.staging
 .env.*.local
 
+# Local TLS certificates (private keys) - NEVER commit
+*.pem
+*.key
+*.crt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -70,9 +75,6 @@ cypress.env.json
 
 # Sentry Config File
 .env.sentry-build-plugin
-
-# Builder configuration
-builder.config.json
 
 dev-debug.log
 # Dependency directories

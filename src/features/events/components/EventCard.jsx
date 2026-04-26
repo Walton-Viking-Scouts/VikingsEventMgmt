@@ -428,37 +428,34 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
       className={cn('bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col break-inside-avoid')}
       role="article"
       aria-labelledby={`event-title-${slug}`}
-      data-oid="3kxvx32"
     >
-      <div className={cn('px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg pb-3')} data-oid="20kbjde">
-        <div className="flex justify-between items-start" data-oid="oey::ov">
-          <div className="flex-1" data-oid="0w-_rn.">
+      <div className={cn('px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg pb-3')}>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
             <h3
               className={cn('text-lg font-semibold text-gray-900 m-0 mb-1')}
               id={`event-title-${slug}`}
-              data-oid="pqa5tp."
             >
               {eventCard.name}
             </h3>
             <p 
               className="text-sm text-gray-600 mb-2" 
               id={`event-${slug}-description`}
-              data-oid="4fslyto"
             >
               {formatDateRange(eventCard.events)}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1" data-oid="--y.h.3">
+          <div className="flex flex-col items-end gap-1">
             {aggregatedStatus === 'ongoing' ? (
-              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white" data-oid="ei1z:j_">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-green text-white">
                 Ongoing
               </span>
             ) : aggregatedStatus === 'upcoming' ? (
-              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white" data-oid="v1xw_so">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-scout-blue text-white">
                 Upcoming
               </span>
             ) : aggregatedStatus === 'past' ? (
-              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-gray-50 text-gray-600 border border-gray-200" data-oid="qex6lwv">
+              <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-sm bg-gray-50 text-gray-600 border border-gray-200">
                 Past
               </span>
             ) : null}
@@ -466,38 +463,36 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
         </div>
       </div>
 
-      <div className={cn('p-4 flex-1 pt-0')} data-oid="6ll9qi7">
+      <div className={cn('p-4 flex-1 pt-0')}>
         {hasAttendanceData ? (
           <div className="mt-3 -mx-4">
-            <AttendanceGrid data={attendanceGrid} data-oid="g_kymnd" />
+            <AttendanceGrid data={attendanceGrid} />
           </div>
         ) : (
-          <div className="text-center py-4" data-oid="_t7fg-:">
-            <div className="text-gray-400 mb-2" data-oid="64422ln">
+          <div className="text-center py-4">
+            <div className="text-gray-400 mb-2">
               <svg
                 className="mx-auto h-8 w-8"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="chp6dte"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  data-oid="nm81inc"
                 />
               </svg>
             </div>
-            <p className="text-sm text-gray-500" data-oid="13n62x.">
+            <p className="text-sm text-gray-500">
               No attendance data available
             </p>
           </div>
         )}
       </div>
 
-      <div className={cn('px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg pt-3')} data-oid="bfx2bop">
+      <div className={cn('px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg pt-3')}>
         <button
           onClick={() => onViewAttendees(eventCard)}
           className="w-full inline-flex items-center justify-center gap-2 rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -505,7 +500,6 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
           disabled={loading}
           aria-labelledby={`event-title-${slug} view-attendees-label-${slug}`}
           aria-describedby={`event-${slug}-description`}
-          data-oid="5s0-rzy"
         >
           {loading ? (
             <>
@@ -513,7 +507,6 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 className="animate-spin h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
-                data-oid="stn251d"
               >
                 <circle
                   className="opacity-25"
@@ -522,13 +515,11 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                   r="10"
                   stroke="currentColor"
                   strokeWidth="4"
-                  data-oid="thmt3ef"
                 ></circle>
                 <path
                   className="opacity-75"
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  data-oid="stejrrd"
                 ></path>
               </svg>
               <span id={`view-attendees-label-${slug}`} className="sr-only">View Attendees</span>
@@ -541,14 +532,12 @@ function EventCard({ eventCard, onViewAttendees, loading = false }) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="6w_ii9m"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  data-oid="8ll3aah"
                 />
               </svg>
               <span id={`view-attendees-label-${slug}`}>View Attendees</span>

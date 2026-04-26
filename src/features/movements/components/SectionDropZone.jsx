@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function SectionDropZone({
   sectionData,
@@ -78,7 +79,7 @@ function SectionDropZone({
 
       await onMoverDrop(dragData, sectionData);
     } catch (error) {
-      console.error('Error handling mover drop:', error);
+      logger.error('Error handling mover drop', { error: error.message }, LOG_CATEGORIES.USER_ACTION);
     }
   }, [onMoverDrop, canAcceptDrop, sectionData, isAtCapacity]);
 

@@ -299,22 +299,23 @@ function GroupNamesEditModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      data-oid="ksa0d1_"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-names-edit-title"
         className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-        data-oid="_xzti1v"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200" data-oid="w:j50.b">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h2
+            id="group-names-edit-title"
             className="text-xl font-semibold text-gray-900"
-            data-oid="b0x9x7h"
           >
             Edit Group Names
           </h2>
-          <p className="text-sm text-gray-600 mt-1" data-oid="18iiy_7">
+          <p className="text-sm text-gray-600 mt-1">
             Rename camp groups - all members in each group will be updated
           </p>
         </div>
@@ -322,18 +323,17 @@ function GroupNamesEditModal({
         {/* Content */}
         <div
           className="px-6 py-4 overflow-y-auto max-h-[60vh]"
-          data-oid="fbpcw7a"
         >
           {Object.keys(errors).length > 0 && (
-            <Alert variant="error" className="mb-4" data-oid="9i3l0tz">
-              <Alert.Title data-oid="4qhsz54">Validation Errors</Alert.Title>
-              <Alert.Description data-oid="e4spk6t">
+            <Alert variant="error" className="mb-4">
+              <Alert.Title>Validation Errors</Alert.Title>
+              <Alert.Description>
                 Please fix the errors below before saving.
               </Alert.Description>
             </Alert>
           )}
 
-          <div className="space-y-4" data-oid="stc4uf5">
+          <div className="space-y-4">
             {groupEntries.map(([originalGroupName, group]) => {
               const memberCount =
                 (group.youngPeople?.length || 0) + (group.leaders?.length || 0);
@@ -344,16 +344,14 @@ function GroupNamesEditModal({
                 <div
                   key={originalGroupName}
                   className="flex items-center space-x-4 p-4 border rounded-lg"
-                  data-oid="ilsgv4g"
                 >
                   <div
                     className="flex-shrink-0 w-20 text-sm text-gray-600"
-                    data-oid="nszj1qy"
                   >
                     {memberCount} member{memberCount !== 1 ? 's' : ''}
                   </div>
 
-                  <div className="flex-1" data-oid="-ed6jek">
+                  <div className="flex-1">
                     <input
                       id={`group-${originalGroupName}`}
                       type="text"
@@ -363,16 +361,20 @@ function GroupNamesEditModal({
                       }
                       placeholder="Enter new group name"
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-scout-blue ${
-                        hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300'
+                        hasError ? 'border-scout-red focus:border-scout-red focus:ring-scout-red/30' : 'border-gray-300'
                       }`}
                       disabled={loading}
-                      data-oid="vy.2us4"
+                      required
+                      aria-required="true"
+                      aria-invalid={hasError ? 'true' : 'false'}
+                      aria-describedby={hasError ? `group-${originalGroupName}-error` : undefined}
                     />
 
                     {hasError && (
                       <p
-                        className="text-red-500 text-xs mt-1"
-                        data-oid="zmfjdao"
+                        id={`group-${originalGroupName}-error`}
+                        role="alert"
+                        className="text-scout-red text-xs mt-1"
                       >
                         {hasError}
                       </p>
@@ -385,10 +387,9 @@ function GroupNamesEditModal({
                     <button
                       onClick={() => handleDeleteGroup(originalGroupName)}
                       disabled={loading}
-                      className="px-3 py-1.5 text-sm border border-scout-red-light text-scout-red hover:text-scout-red-dark hover:bg-scout-red-light hover:bg-opacity-10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-red-light focus:ring-opacity-50"
+                      className="px-3 py-1.5 text-sm border border-scout-red-light text-scout-red hover:text-scout-red-dark hover:bg-scout-red-light/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-red-light/50"
                       type="button"
                       title={`Delete ${originalGroupName} (move ${memberCount} member${memberCount !== 1 ? 's' : ''} to Unassigned)`}
-                      data-oid=":t.ilsz"
                     >
                         Delete
                     </button>
@@ -399,7 +400,7 @@ function GroupNamesEditModal({
           </div>
 
           {groupEntries.length === 0 && (
-            <div className="text-center py-8 text-gray-500" data-oid="wrs_muw">
+            <div className="text-center py-8 text-gray-500">
               No groups available to rename
             </div>
           )}
@@ -408,23 +409,20 @@ function GroupNamesEditModal({
         {/* Footer */}
         <div
           className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3"
-          data-oid="5st6.ue"
         >
           <button
             onClick={handleCancel}
             disabled={loading}
-            className="px-4 py-2 border border-gray-300 text-gray-700 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue focus:ring-opacity-50"
+            className="px-4 py-2 border border-gray-300 text-gray-700 hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue/50"
             type="button"
-            data-oid="qsz0ya4"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading || Object.keys(errors).length > 0 || !hasChanges}
-            className="px-4 py-2 bg-scout-blue text-white hover:bg-scout-blue-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue-light focus:ring-opacity-50"
+            className="px-4 py-2 bg-scout-blue text-white hover:bg-scout-blue-dark disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-scout-blue-light/50"
             type="button"
-            data-oid="a9cq49p"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>

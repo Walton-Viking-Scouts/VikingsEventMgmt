@@ -8,6 +8,7 @@ import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 import { resolveSectionName } from '../../../shared/utils/memberUtils.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 function SectionsList({
   sections,
@@ -19,15 +20,14 @@ function SectionsList({
   
   if (!sections || sections.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="de.aoaz">
-        <div className="text-center p-8" data-oid="ry9t81c">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="text-center p-8">
           <h2
             className="text-xl font-semibold text-gray-900 mb-2"
-            data-oid="a4t6f:."
           >
             No Sections Available
           </h2>
-          <p className="text-gray-600" data-oid="fbi04qa">
+          <p className="text-gray-600">
             No sections found for your account. Please check your OSM
             permissions.
           </p>
@@ -40,10 +40,10 @@ function SectionsList({
 
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-oid="2c.s3hh">
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="d7c-ou8">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 m-0" data-oid="solgnx_">Select Sections</h2>
+          <h2 className="text-lg font-semibold text-gray-900 m-0">Select Sections</h2>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
         const membersData = await getListOfMembers(sections, token);
         setMembers(membersData || []);
       } catch (error) {
-        console.error('Failed to load members:', error);
+        logger.error('Failed to load members', { error: error.message }, LOG_CATEGORIES.API);
         setMembers([]);
       } finally {
         setLoading(false);
@@ -300,7 +300,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       
       notifySuccess(`Exported ${members.length} member records`);
     } catch (error) {
-      console.error('Error exporting CSV:', error);
+      logger.error('Error exporting CSV', { error: error.message }, LOG_CATEGORIES.USER_ACTION);
       notifyError('Failed to export member data');
     }
   };

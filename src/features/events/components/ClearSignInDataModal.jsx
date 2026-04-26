@@ -42,7 +42,7 @@ function ClearSignInDataModal({
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Background overlay */}
         <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-gray-500/75 transition-opacity"
           aria-hidden="true"
           onClick={!loading ? onClose : undefined}
         />
@@ -95,6 +95,8 @@ function ClearSignInDataModal({
                         onChange={(e) => setConfirmText(e.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={loading}
+                        required
+                        aria-required="true"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="Type CLEAR here"
                         autoComplete="off"

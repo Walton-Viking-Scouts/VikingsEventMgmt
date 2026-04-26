@@ -47,7 +47,6 @@ function DraggableMember({
   };
 
   const handleClick = (e) => {
-    // Don't trigger click if we're dragging
     if (isTouchDragging) {
       e.preventDefault();
       return;
@@ -55,6 +54,16 @@ function DraggableMember({
 
     if (onMemberClick) {
       onMemberClick(member);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (onMemberClick) {
+        onMemberClick(member);
+      }
     }
   };
 
@@ -148,6 +157,10 @@ function DraggableMember({
 
   return (
     <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-label={`${member.firstname} ${member.lastname}, ${group.name}${disabled ? '' : '. Press Enter to view details.'}`}
+      aria-disabled={disabled}
       draggable={!disabled}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -155,8 +168,9 @@ function DraggableMember({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       className={`
-        relative bg-white border border-gray-200 rounded p-2 transition-all duration-200
+        relative bg-white border border-gray-200 rounded p-2 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-scout-blue focus-visible:ring-offset-1
         ${disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}
         ${isDragging ? 'opacity-50 transform scale-95 shadow-lg border-scout-blue bg-scout-blue/5' : 'hover:shadow-md hover:border-gray-300'}
         ${isTouchDragging ? 'opacity-75 transform scale-105 shadow-lg z-10' : ''}

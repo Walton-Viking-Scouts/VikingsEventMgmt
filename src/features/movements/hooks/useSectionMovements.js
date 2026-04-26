@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import databaseService from '../../../shared/services/storage/database.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { 
   discoverVikingSectionMoversFlexiRecords,
   getVikingSectionMoversData,
 } from '../../events/services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { fetchMostRecentTermId } from '../../../shared/services/api/api/terms.js';
-import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 export default function useSectionMovements() {
   const [sections, setSections] = useState([]);
@@ -85,7 +85,11 @@ export default function useSectionMovements() {
           }
         }
       } catch (error) {
-        console.warn(`Error loading direct cache for section ${section.sectionid}:`, error.message);
+        logger.warn(
+          'Error loading direct cache for section',
+          { sectionid: section.sectionid, error: error.message },
+          LOG_CATEGORIES.OFFLINE,
+        );
       }
     }
 

@@ -68,7 +68,7 @@ const resolvedVersion = resolveVersion();
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     sentryVitePlugin({
       org: 'walton-vikings',
       project: 'viking-event-mgmt',

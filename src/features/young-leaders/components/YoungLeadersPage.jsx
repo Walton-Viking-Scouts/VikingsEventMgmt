@@ -216,7 +216,7 @@ function YoungLeadersPage() {
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-            <div className="text-red-600">
+            <div className="text-scout-red">
               <h2 className="text-lg font-semibold mb-2">Error Loading Young Leaders</h2>
               <p>{error}</p>
               <button

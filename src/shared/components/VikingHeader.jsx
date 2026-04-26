@@ -23,14 +23,12 @@ function VikingHeader({
   return (
     <header
       className="bg-white shadow-sm border-b border-gray-200 px-6 py-4"
-      data-oid="v-qjxzy"
     >
       <div
         className="flex justify-between items-center max-w-7xl mx-auto"
-        data-oid="pua2r8c"
       >
-        <div className="flex flex-col" data-oid=".fyugfv">
-          <h1 className="text-2xl font-bold text-scout-blue" data-oid="dfv63mf">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-scout-blue">
             Viking Scouts (1st Walton on Thames)
           </h1>
           {user && (
@@ -58,7 +56,7 @@ function VikingHeader({
           )}
         </div>
 
-        <div className="flex items-center space-x-4" data-oid="36ufks8">
+        <div className="flex items-center space-x-4">
           <AuthButton
             authState={authState}
             onLogin={_onLogin}
@@ -67,7 +65,6 @@ function VikingHeader({
             className="mr-2"
             size="sm"
             data-testid="auth-button"
-            data-oid="-wvy88p"
           />
 
           {user && (
@@ -76,7 +73,6 @@ function VikingHeader({
               onClick={handleLogout}
               type="button"
               aria-label={isOfflineMode ? 'Clear cached data and logout' : 'Logout from application'}
-              data-oid="fhg::su"
             >
               {isOfflineMode ? 'Clear Data' : 'Logout'}
             </button>
@@ -101,7 +97,6 @@ function VikingHeader({
         }}
         onCancel={() => setShowLogoutModal(false)}
         confirmVariant="error"
-        data-oid="hx.8rc_"
       />
 
     </header>

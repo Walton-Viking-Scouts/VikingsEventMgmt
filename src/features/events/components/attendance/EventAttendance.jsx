@@ -595,7 +595,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     return (
       <div className="p-6">
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-          <div className="text-red-600">
+          <div className="text-scout-red">
             <h2 className="text-lg font-semibold mb-2">Error Loading Attendance</h2>
             <p>{error}</p>
           </div>

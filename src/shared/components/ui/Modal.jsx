@@ -2,9 +2,26 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../utils/cn';
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /**
- * Tailwind-based Modal component with Scout theming
- * Supports different sizes and accessibility features
+ * Tailwind-based Modal component with Scout theming.
+ * Renders an accessible dialog with focus trap, return-focus on close,
+ * body scroll lock, and Escape-to-close.
+ *
+ * @param {Object} props
+ * @param {boolean} props.isOpen - Whether the modal is rendered.
+ * @param {() => void} props.onClose - Called on overlay click, Escape, or close button.
+ * @param {('xs'|'sm'|'md'|'lg'|'xl'|'2xl'|'3xl'|'4xl'|'5xl'|'6xl'|'7xl'|'full')} [props.size]
+ * @param {boolean} [props.showCloseButton]
+ * @param {boolean} [props.closeOnOverlayClick]
+ * @param {boolean} [props.closeOnEscape]
+ * @param {string} [props.ariaLabelledBy] - ID of the element labelling the dialog (preferred).
+ * @param {string} [props.ariaLabel] - Fallback accessible name when no labelledby is provided.
+ * @param {string} [props.ariaDescribedBy] - ID of the element describing the dialog.
+ * @param {string} [props.className] - Additional classes applied to the dialog container.
+ * @param {React.ReactNode} props.children - Modal content.
  */
 const Modal = ({
   isOpen = false,
@@ -14,12 +31,14 @@ const Modal = ({
   closeOnOverlayClick = true,
   closeOnEscape = true,
   className = '',
+  ariaLabelledBy,
+  ariaLabel,
+  ariaDescribedBy,
   children,
   ...props
 }) => {
   const modalRef = useRef(null);
 
-  // Handle escape key
   useEffect(() => {
     if (!closeOnEscape || !isOpen) return;
 
@@ -33,7 +52,6 @@ const Modal = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, closeOnEscape, onClose]);
 
-  // Handle body scroll lock
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -46,11 +64,59 @@ const Modal = ({
     };
   }, [isOpen]);
 
-  // Focus management
   useEffect(() => {
-    if (isOpen && modalRef.current) {
-      modalRef.current.focus();
+    if (!isOpen) return;
+
+    const previousActive = document.activeElement;
+
+    const getFocusable = () => {
+      if (!modalRef.current) return [];
+      return Array.from(
+        modalRef.current.querySelectorAll(FOCUSABLE_SELECTOR),
+      ).filter((el) => !el.hasAttribute('aria-hidden'));
+    };
+
+    const focusable = getFocusable();
+    if (focusable.length > 0) {
+      focusable[0].focus();
+    } else {
+      modalRef.current?.focus();
     }
+
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Tab') return;
+
+      const items = getFocusable();
+      if (items.length === 0) {
+        e.preventDefault();
+        modalRef.current?.focus();
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const insideModal = modalRef.current?.contains(active);
+
+      if (e.shiftKey) {
+        if (!insideModal || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (!insideModal || active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousActive && typeof previousActive.focus === 'function') {
+        previousActive.focus();
+      }
+    };
   }, [isOpen]);
 
   const sizes = {
@@ -77,50 +143,49 @@ const Modal = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 overflow-y-auto" data-oid="0j002ev">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-black/50 transition-opacity"
         onClick={handleOverlayClick}
-        data-oid="9xzdqvm"
       />
 
       {/* Modal */}
       <div
         className="flex items-center justify-center min-h-full p-4"
-        data-oid="gup2bpa"
       >
         <div
           ref={modalRef}
           tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={ariaLabelledBy}
+          aria-label={ariaLabelledBy ? undefined : (ariaLabel || 'Dialog')}
+          aria-describedby={ariaDescribedBy}
           className={cn(
             'relative bg-white rounded-lg shadow-xl transform transition-all w-full',
             sizes[size],
             className,
           )}
           {...props}
-          data-oid="cja.ic5"
         >
           {showCloseButton && (
             <button
               onClick={onClose}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
               aria-label="Close modal"
-              data-oid="kk.x6s6"
             >
               <svg
                 className="w-6 h-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                data-oid="yz3e3lm"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M6 18L18 6M6 6l12 12"
-                  data-oid="7y0ojfl"
                 />
               </svg>
             </button>
@@ -141,7 +206,6 @@ const ModalHeader = ({ children, className = '', ...props }) => {
     <div
       className={cn('px-6 py-4 border-b border-gray-200', className)}
       {...props}
-      data-oid="u_gqh6x"
     >
       {children}
     </div>
@@ -158,7 +222,6 @@ const ModalTitle = ({
     <Component
       className={cn('text-xl font-semibold text-gray-900 pr-8', className)}
       {...props}
-      data-oid="fyw.-_:"
     >
       {children}
     </Component>
@@ -167,7 +230,7 @@ const ModalTitle = ({
 
 const ModalBody = ({ children, className = '', ...props }) => {
   return (
-    <div className={cn('px-6 py-4', className)} {...props} data-oid="6je2995">
+    <div className={cn('px-6 py-4', className)} {...props}>
       {children}
     </div>
   );
@@ -194,7 +257,6 @@ const ModalFooter = ({
         className,
       )}
       {...props}
-      data-oid="nc3lcsc"
     >
       {children}
     </div>

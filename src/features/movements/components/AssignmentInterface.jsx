@@ -179,7 +179,7 @@ function AssignmentInterface({
         onAssignmentChange(newAssignment, 'add');
       }
     } catch (error) {
-      console.error('Error handling mover drop:', error);
+      logger.error('Error handling mover drop', { error: error.message }, LOG_CATEGORIES.USER_ACTION);
     }
   }, [term, onAssignmentChange]);
 
