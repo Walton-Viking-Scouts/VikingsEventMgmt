@@ -1,38 +1,86 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-15
+**Analysis Date:** 2026-04-26
 
 ## Test Framework
 
-**Runner:**
-- **Vitest** v3.2.4 - Modern test runner (configured in `vite.config.js`)
-- **Environment:** jsdom - Browser-like DOM environment for testing React components
-- **Setup file:** `src/test/setup.js` - Initializes global mocks (localStorage, sessionStorage, window.location)
+**Unit/Integration runner:**
+- **Vitest** `^3.2.4` — configured inline in `vite.config.js` (no separate `vitest.config.*`).
+- Config block (`vite.config.js` lines 152-156):
+  ```javascript
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+  },
+  ```
+- `globals: true` means `describe`, `it`, `expect`, `vi`, etc. are auto-injected (still imported explicitly in most test files for clarity).
+- `environment: 'jsdom'` (provided by `jsdom` `^26.1.0`).
 
-**Assertion Library:**
-- **Vitest built-in expect** - Use `expect()` for all assertions
-- **Testing Library** - `@testing-library/react` v16.3.0 for component testing
-- **Jest DOM matchers** - `@testing-library/jest-dom` v6.6.3 for DOM assertions
+**Assertion library:**
+- Vitest's built-in `expect` (Jest-compatible API).
+- `@testing-library/jest-dom` (`^6.6.3`) loaded via `src/test/setup.js` for matchers like `toBeInTheDocument`, `toHaveTextContent`.
 
-**Run Commands:**
+**React component testing:**
+- `@testing-library/react` `^16.3.0`
+- `@testing-library/dom` `^10.4.0`
+- `@testing-library/user-event` `^14.6.1`
+
+**Accessibility testing:**
+- `jest-axe` `^10.0.0` available (devDep), not yet widely used in current tests.
+
+**E2E runner:**
+- **Cypress** `^14.5.0` — config in `cypress.config.js`.
+- E2E specs at `cypress/e2e/**/*.cy.{js,jsx,ts,tsx}`.
+- Cypress Cloud project ID `ehjysh` configured for parallel/recorded runs.
+- Component testing also configured (vite + react bundler) with spec pattern `src/**/*.cy.{js,jsx,ts,tsx}` (no component specs currently exist).
+
+**Run commands:**
 ```bash
-npm run test:run        # Run all tests once (CI mode)
-npm run test            # Watch mode (development)
-npm run test:ui         # Browser UI for test exploration
-npm run test:e2e        # End-to-end tests with Cypress (starts dev server)
+npm run test            # Vitest watch mode
+npm run test:run        # Vitest single run (CI mode)
+npm run test:ui         # Vitest UI
+
+npm run cypress:open    # Open Cypress runner
+npm run cypress:run     # Headless Cypress run
+npm run cypress:run:chrome  # Run in Chrome
+npm run test:e2e        # Start dev server + run Cypress
+npm run test:e2e:open   # Start dev server + open Cypress
+npm run test:e2e:cloud  # Cypress Cloud run
+npm run test:e2e:cloud:parallel  # Parallel cloud run
+
+npm run test:ci         # Unit + cloud E2E
+npm run test:all        # Unit + local E2E
 ```
 
 ## Test File Organization
 
-**Location:**
-- Co-located with source in `__tests__` subdirectories
-- Pattern: `src/shared/utils/__tests__/asyncUtils.test.js` → tests `src/shared/utils/asyncUtils.js`
-- E2E/integration tests: `cypress/e2e/**/*.cy.js`
+**Unit/Integration tests:**
+- Co-located with source in `__tests__/` subdirectories (Jest-style convention).
+- Naming: `<sourceFileBase>.test.js`.
+- Examples:
+  - `src/shared/utils/__tests__/asyncUtils.test.js` (tests `src/shared/utils/asyncUtils.js`)
+  - `src/shared/utils/__tests__/storageUtils.test.js`
+  - `src/shared/utils/__tests__/scoutErrorHandler.test.js`
+  - `src/shared/utils/__tests__/eventDashboardHelpers.test.js`
+  - `src/shared/utils/__tests__/termUtils.test.js`
+  - `src/shared/utils/sectionMovements/__tests__/ageCalculations.test.js`
+  - `src/shared/services/storage/__tests__/indexedDBService.test.js`
+  - `src/shared/services/storage/__tests__/saveMembersDataMerge.test.js`
+  - `src/shared/services/data/__tests__/attendanceDataService.test.js`
+  - `src/features/events/services/__tests__/signInDataConstants.test.js`
+  - `src/features/movements/services/__tests__/movementCalculator.test.js`
+- A self-test for setup itself: `src/test/setup.test.js`.
 
-**Naming:**
-- Unit tests: `[moduleName].test.js`
-- Cypress tests: `[feature].cy.js`
-- Example: `storageUtils.test.js`, `indexedDBService.test.js`
+**E2E tests:**
+- `cypress/e2e/<NN>-<feature>.cy.js` (numbered ordering).
+- Skipped specs use `.cy.js.skip` extension to disable.
+- Current specs:
+  - `cypress/e2e/01-app-loading.cy.js`
+  - `cypress/e2e/02-authentication.cy.js`
+  - `cypress/e2e/03-responsive-layout.cy.js`
+  - `cypress/e2e/04-offline-functionality.cy.js.skip`
+  - `cypress/e2e/05-user-workflow.cy.js.skip`
 
 **Structure:**
 ```
@@ -43,407 +91,313 @@ src/
 │   │   └── __tests__/
 │   │       └── asyncUtils.test.js
 │   └── services/
-│       ├── storage/
-│       │   ├── indexedDBService.js
-│       │   └── __tests__/
-│       │       └── indexedDBService.test.js
-└── features/
-    └── movements/
-        └── services/
-            ├── movementCalculator.js
-            └── __tests__/
-                └── movementCalculator.test.js
+│       └── storage/
+│           ├── indexedDBService.js
+│           └── __tests__/
+│               └── indexedDBService.test.js
+└── test/
+    ├── setup.js          # Global test setup (loaded by vitest)
+    └── setup.test.js     # Tests verifying setup itself
+
+cypress/
+├── e2e/                  # E2E spec files
+├── fixtures/             # JSON test data
+├── support/
+│   ├── commands.js       # Custom Cypress commands
+│   ├── e2e.js            # Loaded automatically before each spec
+│   └── api-mocks.js      # API interception system
+├── downloads/
+├── screenshots/
+└── videos/
 ```
+
+## Global Test Setup
+
+**File:** `src/test/setup.js`
+
+Key responsibilities:
+- Imports `@testing-library/jest-dom` for DOM matchers.
+- Imports `fake-indexeddb/auto` so `indexedDB` works in jsdom.
+- Mocks `global.sessionStorage` (vi.fn-only stub).
+- Mocks `global.localStorage` with a backing `Map` so reads return what was written.
+- Mocks `window.location` (`href`, `origin`, `pathname`, `reload`, `assign`).
+
+The setup is itself tested in `src/test/setup.test.js` (~555 lines covering every facet of the mocks).
 
 ## Test Structure
 
-**Suite Organization:**
+**Standard pattern** (from `src/shared/utils/__tests__/asyncUtils.test.js`):
 ```javascript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { functionToTest } from '../functionToTest.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { sleep } from '../asyncUtils.js';
 
-// Mock external dependencies
 vi.mock('../../services/utils/logger.js', () => ({
-  default: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-  LOG_CATEGORIES: {
-    APP: 'APP',
-    API: 'API',
-    ERROR: 'ERROR',
-  },
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  LOG_CATEGORIES: { APP: 'APP', API: 'API', ERROR: 'ERROR' },
 }));
 
-describe('Function Name', () => {
-  let logger;
+vi.mock('../../services/utils/sentry.js', () => ({
+  sentryUtils: { captureException: vi.fn() },
+}));
+
+describe('Async Utilities', () => {
+  let logger, sentryUtils;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-
-    // Import mocked modules after clearing
+    vi.useFakeTimers();
     logger = (await import('../../services/utils/logger.js')).default;
+    sentryUtils = (await import('../../services/utils/sentry.js')).sentryUtils;
   });
 
   afterEach(() => {
-    // Cleanup if needed
+    vi.useRealTimers();
   });
 
-  describe('Specific behavior', () => {
-    it('should do something specific', () => {
-      const result = functionToTest('input');
-      expect(result).toBe('expected output');
-    });
-
-    it('should handle edge cases', () => {
-      expect(() => functionToTest(null)).toThrow('Expected error message');
+  describe('sleep', () => {
+    it('should resolve after specified milliseconds', async () => {
+      const promise = sleep(1000);
+      vi.advanceTimersByTime(1000);
+      await expect(promise).resolves.toBeUndefined();
     });
   });
 });
 ```
 
-**Patterns:**
-- **Setup pattern:** Use `beforeEach` to reset mocks and import fresh module references
-- **Teardown pattern:** Use `afterEach` for timer cleanup (e.g., `vi.useRealTimers()`)
-- **Async testing:** Mark test as `async`, use `await import()` for fresh module imports
-- **Assertion pattern:** Arrange-Act-Assert - Set up data, execute function, verify results
+**Conventions:**
+- Vitest globals are imported explicitly at the top of every test file even though `globals: true` is set.
+- Top-level `describe` per module, nested `describe` per function/method.
+- `it('should ...', ...)` is the dominant form; `it('does X', ...)` also accepted.
+- Setup pattern: `vi.clearAllMocks()` in `beforeEach`. Use `vi.useFakeTimers()` / `vi.useRealTimers()` when timing matters.
+- Re-import mocked modules inside `beforeEach` after `vi.clearAllMocks()` to grab the current mock references.
+- Assertion pattern: assert both return values and side effects (mock invocations with `toHaveBeenCalledWith(...)`).
 
 ## Mocking
 
-**Framework:** Vitest's `vi` module provides mocking utilities
+**Framework:** Vitest's `vi` API (`vi.mock`, `vi.fn`, `vi.spyOn`, `vi.useFakeTimers`).
 
-**Patterns:**
-
-### Module Mocking
+**Module-level mocking** at the top of test files:
 ```javascript
-vi.mock('../../services/utils/logger.js', () => ({
-  default: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-  LOG_CATEGORIES: {
-    APP: 'APP',
-    API: 'API',
-    ERROR: 'ERROR',
-  },
+vi.mock('../../utils/sentry.js', () => ({
+  sentryUtils: { captureException: vi.fn() },
+}));
+
+vi.mock('../../utils/logger.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  LOG_CATEGORIES: { DATABASE: 'DATABASE', ERROR: 'ERROR' },
 }));
 ```
 
-### Spy and Implementation Mocking
+**Module mock with closure state** (from `src/shared/services/storage/__tests__/indexedDBService.test.js`):
 ```javascript
-beforeEach(() => {
-  vi.clearAllMocks();
-  localStorage.getItem.mockReturnValue(JSON.stringify({ key: 'value' }));
-  localStorage.setItem.mockImplementation(() => {});
+let globalMockDB;
+vi.mock('idb', () => {
+  const mockOpenDB = vi.fn().mockImplementation(() => {
+    return Promise.resolve(globalMockDB || createMockDB());
+  });
+  return { openDB: mockOpenDB };
 });
 ```
 
-### Timer Mocking
+**Storage mocks** are global (created in `src/test/setup.js`); reset per-test via:
 ```javascript
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-it('should resolve after specified time', async () => {
-  const promise = sleep(1000);
-  vi.advanceTimersByTime(1000);
-  await expect(promise).resolves.toBeUndefined();
-});
+localStorage.getItem.mockClear();
+localStorage.setItem.mockClear();
+sessionStorage.getItem.mockClear();
+sessionStorage.setItem.mockClear();
 ```
 
-**What to Mock:**
-- **Always mock:** External services (logger, sentry, storage, API clients)
-- **Always mock:** Global objects with side effects (window.location, localStorage, sessionStorage)
-- **Mock timers:** For functions using `setTimeout` or `setInterval`
-- **Mock network calls:** Use Cypress for E2E network testing
+**What to mock:**
+- The structured logger (`src/shared/services/utils/logger.js`) — always mocked to silence and assert.
+- The Sentry wrapper (`src/shared/services/utils/sentry.js`) — always mocked.
+- External libs that touch the network or filesystem (e.g., `idb`, `react-hot-toast`).
+- Service modules at the import boundary (e.g., `databaseService`, `attendanceDataService`).
 
-**What NOT to Mock:**
-- **Core utilities:** Pure functions (calculations, formatting, parsing)
-- **React:** Don't mock React library itself
-- **Test utilities:** Don't mock testing library functions
-- **Your code:** Don't mock the module under test
+**What NOT to mock:**
+- `localStorage` / `sessionStorage` — pre-mocked globally in `src/test/setup.js`.
+- `indexedDB` — provided by `fake-indexeddb/auto`.
+- Pure utility functions under test.
+- Helpers that are part of the same module being tested.
 
 ## Fixtures and Factories
 
-**Test Data:**
+**No formal factory pattern.** Test data is defined inline at the top of `describe` blocks:
 
-### Simple Fixtures
 ```javascript
-const testData = {
-  member: {
-    scoutid: 123,
-    firstname: 'John',
-    lastname: 'Doe',
-    date_of_birth: '2010-06-15',
+const mockMembers = [
+  {
+    member_id: 1,
+    first_name: 'Alice',
+    last_name: 'Smith',
+    date_of_birth: '2015-10-01',
+    section_id: 10,
+    sectionname: 'Wednesday Beavers',
   },
-  section: {
-    sectionid: 456,
-    section: 'Scouts',
-    sectionname: 'Scouts Monday',
-  },
-};
+  // ...
+];
 ```
 
-### Factory Functions (Realistic Approach)
-```javascript
-const createMockMember = (overrides = {}) => ({
-  scoutid: 123,
-  firstname: 'John',
-  lastname: 'Doe',
-  date_of_birth: '2010-06-15',
-  patrol: 'Patrol A',
-  section: 'Scouts',
-  ...overrides,
-});
+**Cypress fixtures:** JSON files in `cypress/fixtures/`:
+- `cypress/fixtures/members.json`
+- `cypress/fixtures/events.json`
+- `cypress/fixtures/sections.json`
+- `cypress/fixtures/attendance.json`
 
-it('should handle member with custom data', () => {
-  const member = createMockMember({ firstname: 'Jane' });
-  expect(member.firstname).toBe('Jane');
+Loaded via `cy.intercept('GET', '**/api/...', { fixture: 'name.json' })` or via the `cy.mockApiSuccess(endpoint, fixture)` custom command (`cypress/support/commands.js`).
+
+**IndexedDB fixtures:** Integration tests use real `fake-indexeddb` and clean up by id-range:
+```javascript
+afterEach(async () => {
+  const coreMembers = await db.getAll('core_members');
+  for (const member of coreMembers) {
+    if (member.scoutid >= 90000) {  // Test IDs reserved >= 90000
+      await db.delete('core_members', member.scoutid);
+    }
+  }
 });
 ```
-
-### Database Fixtures
-```javascript
-const createMockDB = () => {
-  const stores = new Map();
-  return {
-    objectStoreNames: { contains: (name) => stores.has(name) },
-    createObjectStore: (name, options) => {
-      const store = {
-        name,
-        options,
-        indexes: new Map(),
-        createIndex: vi.fn((indexName, keyPath, options) => {
-          store.indexes.set(indexName, { keyPath, options });
-        }),
-      };
-      stores.set(name, store);
-      return store;
-    },
-  };
-};
-```
-
-**Location:**
-- Fixtures in `__tests__/fixtures/` subdirectory if shared across multiple test files
-- Inline test data in test file if only used once
-- Use factory functions for complex or parameterized data
 
 ## Coverage
 
-**Requirements:**
-- No automatic coverage enforcement (not configured in Vitest)
-- Aim for high coverage of critical paths (auth, storage, calculations)
-- Focus on integration and behavior testing over line coverage
+**Requirements:** None enforced (no `coverage` block in `vite.config.js` test config; no thresholds defined).
 
-**View Coverage:**
+**View coverage:**
 ```bash
-npm run test:run -- --coverage
+# No npm script defined; run vitest directly with coverage flag
+npx vitest run --coverage
 ```
+
+The `coverage/` directory is in `.gitignore` / `.prettierignore` if generated.
 
 ## Test Types
 
 **Unit Tests:**
-- **Scope:** Individual functions and utilities
-- **Approach:** Test function in isolation with mocked dependencies
-- **Examples:** `asyncUtils.test.js`, `storageUtils.test.js`, `ageCalculations.test.js`
-- **Pattern:** Test single function behavior with various inputs and edge cases
-- **Location:** `src/**/__tests__/` directories
+- Pure utilities and services with all dependencies mocked.
+- Examples: `asyncUtils.test.js`, `scoutErrorHandler.test.js`, `termUtils.test.js`, `signInDataConstants.test.js`.
+- Heavy use of `vi.mock` to isolate.
 
-**Integration Tests:**
-- **Scope:** Multiple components/services working together
-- **Approach:** Test API → database → UI flow or complex state transitions
-- **Examples:** `getMembersIntegration.test.js`, `memberCRUDMethods.test.js`
-- **Pattern:** Test realistic user workflows combining multiple modules
-- **Location:** `src/**/__tests__/` directories with "integration" in name
+**Integration Tests (Vitest, but talk to real fake-indexeddb):**
+- `src/shared/services/storage/__tests__/saveMembersDataMerge.test.js` — exercises `databaseService.saveMembers` and `IndexedDBService.getCoreMember` against `fake-indexeddb`.
+- `src/shared/services/storage/__tests__/getMembersIntegration.test.js`.
+- `src/shared/services/storage/__tests__/indexedDBStoreCreation.test.js`.
 
-**E2E Tests:**
-- **Framework:** Cypress v14.5.0
-- **Approach:** Test full user workflows in browser environment
-- **Configuration:** `cypress.config.js`
-- **Base URL:** `http://localhost:3001`
-- **Pattern:** Navigate, interact, verify visible results
-- **Location:** `cypress/e2e/**/*.cy.js`
-- **Run command:** `npm run test:e2e` (starts dev server and runs tests)
+**Component Tests:**
+- `@testing-library/react` is a dependency, but no `*.test.jsx` component tests exist yet. Component testing is set up but not utilized.
+- Cypress component testing also configured (`cypress.config.js` `component` block) but with no specs.
+
+**E2E Tests (Cypress):**
+- `cypress/e2e/01-app-loading.cy.js` — initial load, login screen visibility, responsive viewport checks, slow-network resilience, page-load perf.
+- `cypress/e2e/02-authentication.cy.js`.
+- `cypress/e2e/03-responsive-layout.cy.js`.
+- `cypress/e2e/04-offline-functionality.cy.js.skip` (disabled).
+- `cypress/e2e/05-user-workflow.cy.js.skip` (disabled).
+
+**E2E timeouts** (`cypress.config.js`): `defaultCommandTimeout: 8000`, `requestTimeout: 8000`, `responseTimeout: 8000`, `pageLoadTimeout: 15000`.
+
+**Retries:** `runMode: 2`, `openMode: 0`.
+
+## Cypress Custom Commands
+
+Defined in `cypress/support/commands.js`:
+
+| Command | Purpose |
+|---------|---------|
+| `cy.login({ skipUI, mockAuth })` | Mock OAuth by writing `access_token` + `user_info` to sessionStorage |
+| `cy.logout()` | Click logout button and verify login screen |
+| `cy.testMobile()` | Set viewport to 375×667 (iPhone SE) |
+| `cy.testTablet()` | Set viewport to 768×1024 (iPad) |
+| `cy.testDesktop()` | Set viewport to 1280×720 |
+| `cy.shouldBeMobileLayout()` | Assert mobile layout markers visible |
+| `cy.shouldBeDesktopLayout()` | Assert desktop layout markers visible |
+| `cy.waitForApp()` | Wait for `[data-testid="app-ready"]` |
+| `cy.goOffline()` / `cy.goOnline()` | Stub `navigator.onLine` and dispatch events |
+| `cy.mockApiSuccess(endpoint, fixture)` | `cy.intercept` with fixture |
+| `cy.mockApiError(endpoint, statusCode)` | `cy.intercept` returning error |
+| `cy.mockOSMBlocked()` | Simulate 429 from OSM |
+| `cy.measurePageLoad()` | Capture page-load metrics |
+
+## Cypress E2E Setup (`cypress/support/e2e.js`)
+
+- Auto-imports `commands.js` and initializes the `api-mocks.js` interception system in a global `before` hook and again in `beforeEach` (re-arms for each test).
+- `beforeEach` resets browser state (`clearAllLocalStorage`, `clearAllSessionStorage`, `clearCookies`) and sets a default 1280×720 viewport.
+- `Cypress.on('uncaught:exception', ...)` swallows expected errors: `NetworkError`, `fetch`, React dev warnings, and `BLOCKED`/`rate limit` strings (which represent intentional OSM API blocking).
+
+## Cypress API Mocking System (`cypress/support/api-mocks.js`)
+
+- **Default:** All E2E tests block real API calls. Toggle with `Cypress.env('ENABLE_API_MOCKING')`.
+- Intercepts auth endpoints, OSM proxy endpoints, and a catch-all `**/api/**`.
+- Direct OSM domain (`onlinescoutmanager.co.uk`) is also intercepted as a safety net.
+- Any other external `https://**` request that is not localhost is blocked and a warning is logged.
+- See `cypress/README-API-MOCKING.md` for documentation.
 
 ## Common Patterns
 
-**Async Testing:**
+**Async testing with fake timers** (`asyncUtils.test.js`):
 ```javascript
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.useRealTimers(); });
+
 it('should resolve after specified milliseconds', async () => {
   const promise = sleep(1000);
-
   vi.advanceTimersByTime(1000);
-
   await expect(promise).resolves.toBeUndefined();
-});
-
-it('should handle async errors', async () => {
-  await expect(failingAsyncFunction()).rejects.toThrow('Expected error');
 });
 ```
 
-**Error Testing:**
+**Error testing** (`asyncUtils.test.js`, `scoutErrorHandler.test.js`):
 ```javascript
-it('should throw error for invalid input', () => {
+it('should throw error for negative milliseconds', () => {
   expect(() => sleep(-100)).toThrow('Invalid sleep duration: -100. Must be a positive finite number.');
 
   expect(logger.error).toHaveBeenCalledWith(
     'Invalid sleep duration',
-    {
-      providedValue: -100,
-      providedType: 'number',
-      isFinite: true,
-    },
+    { providedValue: -100, providedType: 'number', isFinite: true },
     'ERROR',
   );
 
   expect(sentryUtils.captureException).toHaveBeenCalledWith(
     expect.any(Error),
-    expect.objectContaining({
+    {
       tags: { operation: 'async_utils_sleep', validation_error: true },
-    }),
+      contexts: { input: { value: -100, type: 'number', isFinite: true } },
+    },
   );
 });
 ```
 
-**Storage Testing:**
+**Mock module dynamic re-import** (capture mocks from a `vi.mock` factory after `vi.clearAllMocks()`):
 ```javascript
-it('should return parsed JSON data when item exists', () => {
-  const testData = { theme: 'dark' };
-  localStorage.getItem.mockReturnValue(JSON.stringify(testData));
-
-  const result = safeGetItem('preferences');
-
-  expect(result).toEqual(testData);
-  expect(localStorage.getItem).toHaveBeenCalledWith('preferences');
-});
-
-it('should handle JSON parsing failure gracefully', () => {
-  localStorage.getItem.mockReturnValue('invalid json {');
-  const defaultValue = { theme: 'light' };
-
-  const result = safeGetItem('preferences', defaultValue);
-
-  expect(result).toEqual(defaultValue);
-  expect(logger.warn).toHaveBeenCalledWith(
-    'Storage retrieval failed',
-    expect.objectContaining({
-      operation: 'localStorage.getItem',
-      key: 'preferences',
-      error: expect.any(String),
-    }),
-    'ERROR',
-  );
+beforeEach(async () => {
+  vi.clearAllMocks();
+  logger = (await import('../../services/utils/logger.js')).default;
+  sentryUtils = (await import('../../services/utils/sentry.js')).sentryUtils;
 });
 ```
 
-**Mock Assertion Pattern:**
+**Cypress data-testid selection** (`cypress/e2e/01-app-loading.cy.js`):
 ```javascript
-// Verify mock was called with specific arguments
-expect(logger.error).toHaveBeenCalledWith(
-  'Operation message',
-  expect.objectContaining({
-    operation: 'specific_operation',
-    value: expect.any(String),
-  }),
-  'ERROR',
-);
+cy.get('[data-testid="login-screen"]').should('be.visible');
+cy.get('[data-testid="login-button"]').should('be.visible');
+```
+Components in `src/` should expose `data-testid` attributes for any element that E2E tests interact with.
 
-// Verify mock was called right number of times
-expect(localStorage.setItem).toHaveBeenCalledTimes(1);
-
-// Verify mock was called with any/specific arguments
-expect(sentryUtils.captureException).toHaveBeenCalledWith(
-  expect.any(Error),
-  {
-    tags: { operation: 'operation_name' },
-  },
-);
+**Slow-network resilience pattern:**
+```javascript
+cy.intercept('GET', '**/*.{js,css,png,jpg,svg}', { delay: 1000 }).as('slowAssets');
+cy.get('body', { timeout: 15000 }).should('be.visible');
 ```
 
-## Component Testing
+## Pre-commit Test Requirements
 
-**Testing Library approach:**
-```javascript
-import { render, screen, fireEvent } from '@testing-library/react';
-import ComponentName from '../ComponentName.jsx';
-
-describe('ComponentName', () => {
-  it('should render with initial props', () => {
-    render(<ComponentName title="Test" />);
-
-    expect(screen.getByText('Test')).toBeInTheDocument();
-  });
-
-  it('should handle user interactions', async () => {
-    render(<ComponentName onSubmit={vi.fn()} />);
-
-    const button = screen.getByRole('button', { name: /submit/i });
-    fireEvent.click(button);
-
-    expect(screen.getByText('Submitted')).toBeInTheDocument();
-  });
-});
-```
-
-## Test Best Practices
-
-**DO:**
-- Write tests that verify behavior, not implementation
-- Test error cases and edge conditions
-- Keep tests focused and independent
-- Use descriptive test names explaining what is being tested
-- Mock external dependencies consistently
-- Clean up state/mocks in `afterEach` hooks
-- Test async functions with `async`/`await`
-- Verify error logging includes context
-
-**DON'T:**
-- Test implementation details (private functions, internal state)
-- Make tests dependent on other tests
-- Use arbitrary delays instead of fake timers
-- Test library code (React, testing-library)
-- Create highly coupled test data
-- Test multiple concerns in one test
-- Ignore error cases
-
-## Cypress E2E Testing
-
-**Configuration:** `cypress.config.js`
-
-**Test file pattern:** `cypress/e2e/**/*.cy.js`
-
-**Base URL:** Configured to `http://localhost:3001`
-
-**Environment variables:**
-- `ENABLE_API_MOCKING: true` - Mock API calls by default (can be disabled for real API testing)
-- `CI: false` - Set to true in CI/CD pipeline
-
-**Timeouts:**
-- `defaultCommandTimeout: 8000` - 8 seconds for commands
-- `requestTimeout: 8000` - Network request timeout
-- `pageLoadTimeout: 15000` - Page load timeout
-- `taskTimeout: 10000` - Custom task timeout
-
-**Custom tasks available:**
-- `cy.task('log', message)` - Log to console
-- `cy.task('setOffline')` - Simulate offline conditions
-- `cy.task('setOnline')` - Simulate online conditions
-
-**Running tests:**
+Per `CLAUDE.md` (frontend), before committing:
 ```bash
-npm run test:e2e           # Run with dev server
-npm run test:e2e:open     # Open interactive browser
-npm run test:e2e:cloud    # Run in Cypress Cloud
-npm run cypress:run       # Run without starting server
+npm run lint            # Must pass
+npm run test:run        # Must pass
+npm run build           # Must pass
 ```
 
+`npm run test:e2e:cloud` is run in CI (`test:ci` script).
+
+---
+
+*Testing analysis: 2026-04-26*

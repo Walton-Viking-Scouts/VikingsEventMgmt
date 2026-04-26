@@ -21,7 +21,7 @@
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { config } from '../../../config/env.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { authHandler } from './simpleAuthHandler.js';
+import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { IndexedDBService } from '../../../shared/services/storage/indexedDBService.js';

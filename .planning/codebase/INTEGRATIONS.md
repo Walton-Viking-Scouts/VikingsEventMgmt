@@ -1,218 +1,160 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-15
+**Analysis Date:** 2026-04-26
 
 ## APIs & External Services
 
-**Backend REST API:**
-- Service: Vikings Event Management Backend (Node.js Express)
-- Base URL: `https://vikings-osm-backend.onrender.com` (default in `BACKEND_URL`)
-- Configuration: `VITE_API_URL` environment variable
-- Used for: User authentication, member data, events, terms, FlexiRecord structures
-- Fallback behavior: Offline-first with cached data when API unavailable
-- Health check endpoint: `GET /health` for connectivity validation
+**Backend API (proxy to Online Scout Manager / OSM):**
+- Service: `vikingeventmgmtapi.onrender.com` (default in `.env.example`); fallback constant `https://vikings-osm-backend.onrender.com` declared in `src/shared/services/api/api/base.js`
+  - SDK/Client: Native `fetch` with custom `APIQueue`, rate-limit handling, and `withRateLimitQueue` wrapper
+  - Auth: Bearer token via `Authorization: Bearer <token>` header; token stored in `sessionStorage` under `access_token`
+  - Configuration: `VITE_API_URL` env var (validated in `src/config/env.js`)
+  - Base URL constant: `BACKEND_URL` exported from `src/shared/services/api/api/base.js`
+- Endpoints called from `src/shared/services/api/api/`:
+  - `GET /health` - Backend connectivity test (`base.js:343`)
+  - `GET /oauth/login?state=<env>&frontend_url=<url>` - OAuth start (`src/features/auth/services/auth.js:424`)
+  - `GET /get-user-roles` - Section/role lookup (`auth.js:149`)
+  - `GET /get-startup-data` - User globals + bootstrap (`auth.js:290`)
+  - `GET /get-terms` - Term data (`terms.js:198`)
+  - `GET /get-members-grid` - Member grid data (`members.js:67`)
+  - `GET /get-event-attendance` - Attendance (`events.js:165`)
+  - `GET /get-event-summary` - Event summary (`events.js:254`)
+  - `GET /get-events*` (additional events endpoints) - `events.js:60, 324, 381`
+  - `GET /get-flexi-records` - FlexiRecord lists (`flexiRecords.js:65`)
+  - `GET /get-single-flexi-record` - Individual record (`flexiRecords.js:139`)
+  - `GET /get-flexi-structure` - Record schema (`flexiRecords.js:216`)
+  - `POST /update-flexi-record` (`flexiRecords.js:305`)
+  - `POST /multi-update-flexi-record` (`flexiRecords.js:394`)
+  - `POST /create-flexi-record` (`flexiRecords.js:469`)
+  - `POST /add-flexi-column` (`flexiRecords.js:541`)
 
-**OSM Integration (via Backend):**
-- Service: Open Source Mapping API integration
-- Purpose: Scout member and section structure data
-- Rate limiting: OSM enforces 429 status with `retryAfter` headers
-- Monitoring: Rate limit info in response headers `_rateLimitInfo`
-- Fallback: Backend queues requests if rate limit approached
-- Configuration: Handled server-side by backend, no client-side OSM credentials needed
+**OSM Rate-Limit Awareness:**
+- Backend returns `_rateLimitInfo` envelope; logged in `logRateLimitInfo()` at `src/shared/services/api/api/base.js:157`
+- HTTP 429 handling parses `errorData.rateLimitInfo.retryAfter` (OSM source) vs `errorData.rateLimit.retryAfter` (internal backend) - `base.js:209-249`
+- `osm_blocked` flag in `sessionStorage` when backend reports OSM blocking (`base.js:265-272`)
 
 ## Data Storage
 
-**Databases:**
-- SQLite (native)
-  - Client: `@capacitor-community/sqlite` 7.0.0
-  - Connection: `src/shared/services/storage/database.js` via Capacitor
-  - Tables: sections, events, attendance, members, terms, flexi_records
-  - Fallback: localStorage on web when SQLite unavailable
-  - Demo mode isolation: Separate tables/storage for demo data
+**Native SQLite (mobile):**
+- Library: `@capacitor-community/sqlite` ^7.0.0
+- Service: `src/shared/services/storage/database.js` (`DatabaseService` class)
+- Schema definitions: `src/shared/services/storage/schemas/sqliteSchema.js` (`SQLITE_SCHEMAS`, `SQLITE_INDEXES`)
+- Validation: Zod schemas in `src/shared/services/storage/schemas/validation.js` (`SectionSchema`, `EventSchema`, `AttendanceSchema`, `SharedEventMetadataSchema`, `TermSchema`, `FlexiListSchema`, `FlexiStructureSchema`, `FlexiDataSchema`)
+- Native iOS pod: `CapacitorCommunitySqlite` (`ios/App/Podfile`)
 
-- IndexedDB (browser-based)
-  - Client: `idb` 8.0.3
-  - Service: `src/shared/services/storage/indexedDBService.js`
-  - Used for: Member caching, cross-section member tracking
-  - Purpose: High-capacity local data store for offline functionality
-  - Testing: `fake-indexeddb` 6.2.2 for unit tests
+**IndexedDB (web/PWA):**
+- Library: `idb` ^8.0.3
+- Service: `src/shared/services/storage/indexedDBService.js`
+- Database name: `vikings-eventmgmt` (production) / `vikings-eventmgmt-demo` (demo mode)
+- Database version: 8
+- Object stores (`STORES`): `cache_data`, `sections`, `startup_data`, `terms`, `current_active_terms`, `flexi_lists`, `flexi_structure`, `flexi_data`, `events`, `attendance`, `core_members`, `member_section`, `shared_event_metadata`
+
+**Browser Storage:**
+- `sessionStorage` keys: `access_token`, `token_invalid`, `token_expired`, `token_expires_at`, `oauth_return_path`, `osm_blocked` (used in `src/features/auth/services/auth.js`)
+- `localStorage` keys (demo mode): `demo_viking_startup_data_offline`, `demo_viking_sections_offline`, plus prefix-scoped patterns (`demo_viking_events_*`, `demo_viking_attendance_*`, `demo_viking_members_*`, `demo_viking_flexi_lists_*`, `demo_viking_flexi_structure_*`, `demo_viking_flexi_data_*`, `demo_viking_shared_metadata_*`, `demo_viking_shared_attendance_*`)
 
 **File Storage:**
-- Local filesystem only - No cloud storage integration
-- Data stored in browser: localStorage, IndexedDB, SQLite (native)
-- No cloud sync or external file service integration
+- Local filesystem only (no S3/CDN integration detected)
 
-**Caching Strategy:**
-- Multi-level caching: IndexedDB → localStorage → SessionStorage
-- Graceful API call fallback: Tries API first, falls back to cached data if offline/auth fails
-- Cache busting: Explicit cache clearing via `clearFlexiRecordCaches()` in base.js
-- Demo mode: Separate cache keys with `demo_` prefix to isolate test data
+**Caching:**
+- Application-level cache via IndexedDB `cache_data` store and SQLite tables
+- No Redis/Memcached integration
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom backend-based authentication
-- Implementation: Server-side OAuth handling (credentials NOT in frontend)
-- Token storage: SessionStorage (`sessionStorage.getItem('token')`)
-- Token expiration: Checked via `isTokenExpired()` in `tokenService.js`
-- User info fallback: Retrieved from startup data, cached offline
-
-**Session Management:**
-- Token validation before API calls via `validateTokenBeforeAPICall()` in `src/shared/services/api/api/base.js`
-- Automatic token expiration detection with graceful cache fallback
-- Auth circuit breaker: Simple authentication handler prevents repeated failed requests
-- User context: Set in Sentry after successful login to track user errors
-
-**Token Service Location:**
-- `src/shared/services/auth/tokenService.js` - Token management and validation
-- `src/shared/services/auth/authHandler.js` - Auth state and circuit breaker
+- Online Scout Manager (OSM) OAuth via backend proxy
+- Implementation: `src/features/auth/services/auth.js` and `src/features/auth/services/simpleAuthHandler.js`
+- Flow: Frontend redirects to `${BACKEND_URL}/oauth/login?state=<prod|dev>&frontend_url=<origin>` (see `generateOAuthUrl()` at `auth.js:410`); backend handles OSM OAuth and returns access token
+- OAuth client ID is **not** held client-side - "OAuth client ID removed - now handled server-side for security" (`src/config/env.js:7`)
+- Token storage: `sessionStorage.access_token`
+- Return path persistence: `sessionStorage.oauth_return_path`
+- Auth context: `AuthProvider` from `src/features/auth/hooks` wrapping `<App />` in `src/main.jsx`
+- Token service: `src/shared/services/auth/tokenService.js` (`isTokenExpired`, `getToken`)
+- Auth circuit breaker: `src/shared/services/auth/authHandler.js` (`authHandler.handleAPIResponse`, `shouldMakeAPICall`, `reset`)
+- Demo mode bypass: `getToken()` returns `'demo-mode-token'` when `isDemoMode()` is true (`auth.js:72`)
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Sentry - Error monitoring and crash reporting
-  - Organization: `walton-vikings`
-  - Project: `viking-event-mgmt`
-  - SDK: `@sentry/react` 9.32.0
-  - Configuration: `src/shared/services/utils/sentry.js`
-  - DSN: `VITE_SENTRY_DSN` environment variable (optional)
-  - Initialization: `initSentry()` called in `src/main.jsx`
+- Service: Sentry (`@sentry/react` ^9.32.0)
+- Org: `walton-vikings`, Project: `viking-event-mgmt` (declared in `vite.config.js:73-74` and `.sentryclirc`)
+- Init: `src/shared/services/utils/sentry.js` (`initSentry()`); invoked in `src/main.jsx:9`
+- DSN: `VITE_SENTRY_DSN` env var (skips init if missing)
+- Releases: Tagged as `vikings-eventmgmt-mobile@<version>` (set via `SENTRY_RELEASE` env var or `package.json` version)
+- Integrations enabled: `browserTracingIntegration`, `consoleLoggingIntegration` (log/error/warn/info), `replayIntegration` (production only with `maskAllText: true`, `blockAllMedia: true`)
+- Sample rates: `tracesSampleRate` 0.1 (prod) / 1.0 (dev); `replaysSessionSampleRate` 0.1 (prod); `replaysOnErrorSampleRate` 1.0
+- Source map upload via `@sentry/vite-plugin` (`vite.config.js:72-93`) and `@sentry/cli` scripts (`sentry:sourcemaps`, `release:create`, `release:finalize`, `release:deploy`)
+- User context attached on token set (`setToken` -> `sentryUtils.setUser`); cleared on logout
 
-**Sentry Configuration:**
-- Environment detection: Automatic via hostname pattern matching (production vs. dev)
-- Release tracking: `vikings-eventmgmt-mobile@{version}`
-- Performance monitoring: `tracesSampleRate` 0.1 (prod), 1.0 (dev)
-- Session replay: 0.1 production sample rate with full media masking
-- Integrations: Browser tracing, console logging, session replay (prod only)
-- Custom error filtering: Network errors filtered out during offline mode
-- Breadcrumbs: API calls tracked with method, URL, and status code
+**Logging:**
+- Approach: Centralized logger at `src/shared/services/utils/logger.js`
+- Forwards to `Sentry.logger` (Sentry experimental logs feature) and console in dev
+- Categories defined in `LOG_CATEGORIES` (e.g., `AUTH`, `API`, `DATABASE`, `SYNC`, `ERROR`)
 
-**Logs:**
-- Console-based logging with categorized output
-- Service: `src/shared/services/utils/logger.js`
-- Categories: API, COMPONENT, AUTH, STORAGE, NETWORK
-- Sentry logging integration: Captures console logs in production with experimental flag
-
-**API Rate Limit Monitoring:**
-- Tracked in response headers via `_rateLimitInfo`
-- Warning threshold: < 20 requests remaining (logs warn)
-- Critical threshold: < 10 requests remaining (logs error)
-- Info logged: OSM remaining count, percentage used, API name
+**Performance:**
+- Sentry browser tracing for HTTP spans (`sentryUtils.startSpan` used in API services, e.g., `getUserRoles` in `src/shared/services/api/api/auth.js:109`)
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Production: Render.com (configured in workflow and hostname detection)
-- Alternative: Netlify/Vercel supported via hostname detection in config
+- Web: Render.com (`vikingeventmgmt.onrender.com`); deployed via webhook (`RENDER_DEPLOY_HOOK` GitHub secret) - see `.github/workflows/ci.yml` `deploy` job
+- iOS: Native build via Xcode + Capacitor (manual / Apple Developer cert flow)
+- Backend: Separate repo on Render (`vikings-osm-backend.onrender.com` / `vikingeventmgmtapi.onrender.com`)
 
 **CI Pipeline:**
-- GitHub Actions - Automated build, test, and deployment
-- Release workflow: Automated version bumping and release creation
-- Deployment trigger: Manual sync after PR merge to main branch
-- Status checks: Lint, unit tests, build verification required before merge
-
-**Version Management:**
-- Automatic: GitHub Actions detects PR title and bumps version
-- Version bump rules:
-  - `feat:` or `feature:` prefix → minor version
-  - `fix:` or `chore:` → patch version
-  - `BREAKING CHANGE` or `[major]` tag → major version
-- Source maps: Uploaded to Sentry before deployment via CI/CD
-- Release tags: Created automatically (e.g., `v2.11.8`)
-
-**Build Process:**
-```bash
-npm run build              # Production bundle via Vite
-npm run sentry:sourcemaps  # Inject and upload source maps to Sentry
-npm run release:create     # Create Sentry release
-npm run release:finalize   # Finalize Sentry release
-npm run release:deploy     # Record deployment in Sentry
-```
+- Service: GitHub Actions
+- Workflows: `.github/workflows/ci.yml` (jobs: `unit-tests`, `documentation`, `build`, `mobile-build`, `deploy`), `.github/workflows/release.yml`
+- Custom action: `.github/actions/determine-version` for PR-title-based semver bumping (`feat:` -> minor, `fix:` -> patch, `BREAKING CHANGE` -> major)
+- E2E: Cypress Cloud project ID `ehjysh` (`cypress.config.js:5`) - cloud uploads via `CYPRESS_RECORD_KEY` (currently disabled in `ci.yml`)
+- iOS build job runs on `macos-latest` and only on `main` (`mobile-build` job)
+- Build job creates Sentry release, uploads source maps, marks deploy in `production` environment
 
 ## Environment Configuration
 
 **Required env vars:**
-- `VITE_API_URL` - Backend API endpoint (required for API calls)
+- `VITE_API_URL` - Backend API base URL (default in dev: `https://vikingeventmgmtapi.onrender.com`)
 
-**Optional env vars:**
-- `VITE_SENTRY_DSN` - Sentry error tracking endpoint
-- `VITE_APP_VERSION` - Override version string (CI-provided)
-- `SENTRY_AUTH_TOKEN` - CI/CD token for uploading source maps
-- `VITE_DEMO_MODE` - Enable demo mode for public access
-- `HTTP_ONLY` - Force HTTP instead of HTTPS (development only)
-- `SENTRY_DEBUG` - Enable Sentry debug output in console
+**Optional env vars (client):**
+- `VITE_SENTRY_DSN` - Sentry DSN; init skipped if absent
+- `VITE_DEMO_MODE` - Force demo mode (`'true'`)
+- `VITE_USE_URL_ROUTING` - Feature flag (note: `AppRouter.jsx` indicates URL routing is now the only system)
+- `VITE_APP_VERSION` - CI-provided version override
+
+**Build/CI vars:**
+- `SENTRY_AUTH_TOKEN` - For source map upload (GitHub secret)
+- `SENTRY_DEBUG` - Enables Sentry plugin debug output
+- `SENTRY_RELEASE` - Override release name for Sentry plugin
+- `RENDER_DEPLOY_HOOK` - Webhook URL for production deploy
+- `CYPRESS_RECORD_KEY`, `CYPRESS_PROJECT_ID` - Cypress Cloud
+- `HTTP_ONLY` - Force HTTP dev server when certs missing
 
 **Secrets location:**
-- GitHub Secrets (CI/CD environment variables)
-- `.env` file (local development, not committed)
-- `.env.*.local` files (gitignored)
+- Local: `.env`, `.env.test`, `.env.sentry-build-plugin` (gitignored)
+- CI: GitHub repository secrets (referenced as `${{ secrets.* }}` in workflow)
+- iOS: No code signing secrets in repo (handled via Apple Developer account)
+- TLS dev certs: `localhost-key.pem`, `localhost.pem` (committed - dev only, see `vite.config.js`)
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None configured - This is a client-only mobile application
+- OAuth callback handled server-side; frontend reads `access_token` from URL after backend redirect (referenced in `auth.js:97-100` JSDoc example)
+- No frontend webhook receivers (SPA-only)
 
 **Outgoing:**
-- None configured - Backend handles all outbound API calls to OSM
-- Event tracking: Sentry events sent via `@sentry/react` SDK
+- Render deploy hook: `RENDER_DEPLOY_HOOK` POST trigger from GitHub Actions `deploy` job (`.github/workflows/ci.yml`)
+- Sentry CLI calls: release create/finalize, source map upload, deploy marker (via `npx @sentry/cli`)
+- GitHub Releases API: `gh release create` from `.github/workflows/ci.yml`
 
-## Network & Connectivity
+## Native Platform Plugins (iOS)
 
-**Network Status:**
-- Service: `src/shared/services/network/NetworkStatusManager.js`
-- Detection: `@capacitor/network` 7.0.1 for native platforms
-- Fallback: Browser online/offline detection for web
-- Listener: Monitors network changes and updates app state
-
-**Offline-First Architecture:**
-- All functionality works without internet connection
-- Data cached locally via SQLite/IndexedDB
-- API calls queue when offline via rate limit queue
-- Graceful fallback: Uses cache when API unavailable
-
-**Rate Limiting:**
-- Service: `src/utils/rateLimitQueue.js`
-- Strategy: Sequential request queuing with configurable delays
-- Handles: OSM API 429s and backend rate limits
-- Exponential backoff: Respects `retryAfter` headers from API
-
-## Data Synchronization
-
-**Sync Status Tracking:**
-- Service: `src/shared/services/storage/database.js`
-- Tracks: Which data has been synced vs. pending sync
-- Used for: Offline changes and eventual consistency
-
-**FlexiRecord Updates:**
-- Service: `src/shared/services/flexiRecordDataService.js`
-- Single record update: `PUT /update-flexi-record`
-- Batch update: `POST /multi-update-flexi-record`
-- New record: `POST /create-flexi-record`
-- Add column: `POST /add-flexi-column`
-
-**Member & Section Data:**
-- Endpoints: `/get-startup-data` (contains user info, sections)
-- Member list: `/get-list-of-members` per section
-- Terms: `/get-terms` for date context
-
-## External Libraries & SDKs
-
-**Error Handling SDK:**
-- @sentry/react 9.32.0 - Distributed error tracking
-
-**Animation:**
-- framer-motion 12.23.12 - Smooth UI animations
-
-**Icons:**
-- @heroicons/react 2.2.0 - Hero Icons (Tailwind-compatible)
-
-**Date Utilities:**
-- date-fns 4.1.0 - Lightweight date manipulation
-
-**Storage Utilities:**
-- uuid 11.1.0 - Generate unique identifiers
-- clsx 2.1.1 - Conditional CSS class utilities
+- `@capacitor/core` - Capacitor runtime (`src/shared/utils/platform.js`, `networkUtils.js`, `database.js`, etc.)
+- `@capacitor/ios` - iOS platform shell
+- `@capacitor/network` - Network status monitoring (`src/shared/services/network/NetworkStatusManager.js`)
+- `@capacitor-community/sqlite` - Native SQLite database
+- CocoaPods declared in `ios/App/Podfile`: `Capacitor`, `CapacitorCordova`, `CapacitorCommunitySqlite`, `CapacitorNetwork`
+- App identifier: `com.vikingscouts.vikingscoutsmanager` (`capacitor.config.json`, `ios/App/App/Info.plist`)
 
 ---
 
-*Integration audit: 2026-02-15*
+*Integration audit: 2026-04-26*
