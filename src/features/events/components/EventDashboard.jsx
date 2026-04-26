@@ -669,20 +669,19 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
   // Only show full-screen loading if there's no cached data to display
   if (isActuallyLoading && (!eventCards || eventCards.length === 0)) {
-    return <LoadingScreen message="Loading dashboard..." data-oid="g6pwk17" />;
+    return <LoadingScreen message="Loading dashboard..." />;
   }
 
   if (error) {
     return (
-      <Alert variant="error" className="m-4" data-oid="3oq.x.h">
-        <Alert.Title data-oid="d:fjt2d">Error Loading Dashboard</Alert.Title>
-        <Alert.Description data-oid="4uunsvb">{error}</Alert.Description>
-        <Alert.Actions data-oid="bd0v.w-">
+      <Alert variant="error" className="m-4">
+        <Alert.Title>Error Loading Dashboard</Alert.Title>
+        <Alert.Description>{error}</Alert.Description>
+        <Alert.Actions>
           <button
             onClick={loadInitialData}
             type="button"
             className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            data-oid="ahnj4wa"
           >
             Retry
           </button>
@@ -692,7 +691,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" data-oid="c47cc:8">
+    <div className="min-h-screen bg-gray-50">
       {/* Loading overlay when refreshing cached data */}
       {(isActuallyLoading || refreshing) && eventCards && eventCards.length > 0 && (
         <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 border border-scout-blue-light">
@@ -703,31 +702,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-        data-oid="zza2fzu"
       >
         {/* Sections Card */}
         {currentView === 'sections' && (
-          <div className="mb-8" id="sections-panel" data-testid="sections-list" data-oid="883.3lx">
+          <div className="mb-8" id="sections-panel" data-testid="sections-list">
             <SectionsList
               sections={sections}
               selectedSections={selectedSections}
               onSectionToggle={handleSectionToggleForCard}
               loadingSection={loadingSection}
               allSections={sections}
-              data-oid="dmp670d"
             />
           </div>
         )}
 
         {/* Events Card */}
         {currentView === 'events' && (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm" id="events-panel" data-oid="ve3fjt:">
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg" data-oid="gycj.jl">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm" id="events-panel">
+            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <h2
                     className="text-lg font-semibold text-gray-900 m-0"
-                    data-oid="96:-cg1"
                   >
                     Upcoming Events{' '}
                     {eventCards.length > 0 && `(${eventCards.length})`}
@@ -749,11 +745,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 )}
               </div>
             </div>
-            <div className="p-4" data-oid="tw4z.r8">
+            <div className="p-4">
               {eventCards.length > 0 ? (
                 <div
                   className="grid grid-cols-1 min-[830px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"
-                  data-oid="0lg715h"
                 >
                   {eventCards.map((card) => (
                     <EventCard
@@ -761,36 +756,32 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                       eventCard={card}
                       onViewAttendees={handleViewAttendees}
                       loading={loadingAttendees === card.id}
-                      data-oid="9uno.dz"
                     />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12" data-oid="h2.dcru">
-                  <div className="text-gray-500 mb-4" data-oid="04h4e3l">
+                <div className="text-center py-12">
+                  <div className="text-gray-500 mb-4">
                     <svg
                       className="mx-auto h-12 w-12 text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
-                      data-oid="vbk6.13"
                     >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
                         d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
-                        data-oid="n_dlzww"
                       />
                     </svg>
                   </div>
                   <h3
                     className="text-lg font-semibold text-gray-900 mb-2"
-                    data-oid="dvun05:"
                   >
                     No Upcoming Events
                   </h3>
-                  <p className="text-gray-600 mb-4" data-oid="p1iqx11">
+                  <p className="text-gray-600 mb-4">
                     {!lastSync
                       ? 'Click "Sign in to OSM" in the header to retrieve event data.'
                       : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
@@ -817,7 +808,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
             setLoadingSection(null);
           })
         }
-        data-oid="7pfgrfw"
       />
 
     </div>

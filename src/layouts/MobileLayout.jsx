@@ -28,16 +28,14 @@ function MobileLayout({
         isOfflineMode={isOfflineMode}
         authState={authState}
         lastSyncTime={lastSyncTime}
-        data-oid="t0_96sh"
       />
 
       <main
         className="flex-1 overflow-y-auto"
         data-testid="mobile-main"
         style={{ touchAction: 'pan-y' }}
-        data-oid="fo.f5v6"
       >
-        <div className="h-full" data-oid="o.r7g:m">
+        <div className="h-full">
           {children}
         </div>
       </main>

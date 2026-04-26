@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import Modal from './Modal';
 
 /**
@@ -17,6 +17,7 @@ const ConfirmModal = ({
   cancelVariant = 'secondary',
   ...props
 }) => {
+  const titleId = useId();
   // Map Button variants to Tailwind classes
   const getVariantClasses = (variant) => {
     const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -48,25 +49,24 @@ const ConfirmModal = ({
       closeOnOverlayClick={false}
       closeOnEscape={true}
       showCloseButton={false}
+      ariaLabelledBy={titleId}
       {...props}
-      data-oid="z5ogv08"
     >
-      <Modal.Header data-oid="nllwui0">
-        <Modal.Title data-oid="t4l9n15">{title}</Modal.Title>
+      <Modal.Header>
+        <Modal.Title id={titleId}>{title}</Modal.Title>
       </Modal.Header>
 
-      <Modal.Body data-oid="st9dolf">
-        <p className="text-gray-700 whitespace-pre-line" data-oid="r1mkeo8">
+      <Modal.Body>
+        <p className="text-gray-700 whitespace-pre-line">
           {message}
         </p>
       </Modal.Body>
 
-      <Modal.Footer align="right" data-oid=":03x86e">
+      <Modal.Footer align="right">
         <button
           type="button"
           className={`${getVariantClasses(cancelVariant)} mr-3`}
           onClick={handleCancel}
-          data-oid="67yua3-"
         >
           {cancelText}
         </button>
@@ -74,7 +74,6 @@ const ConfirmModal = ({
           type="button"
           className={getVariantClasses(confirmVariant)}
           onClick={handleConfirm}
-          data-oid="ta88f56"
         >
           {confirmText}
         </button>

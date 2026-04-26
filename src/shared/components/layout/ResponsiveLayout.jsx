@@ -29,7 +29,7 @@ function ResponsiveLayout({
   const LayoutComponent = isMobile ? MobileLayout : DesktopLayout;
 
   return (
-    <div data-testid="responsive-layout" className="h-full" data-oid="z6:bgu7">
+    <div data-testid="responsive-layout" className="h-full">
       <LayoutComponent
         user={user}
         onLogout={onLogout}

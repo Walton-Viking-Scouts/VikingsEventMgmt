@@ -9,9 +9,9 @@ import { AuthProvider } from './features/auth/hooks';
 initSentry();
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode data-oid="i-itztv">
+  <StrictMode>
     <AuthProvider>
-      <App data-oid="jnrms1z" />
+      <App />
     </AuthProvider>
   </StrictMode>,
 );

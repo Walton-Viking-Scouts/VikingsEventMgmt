@@ -56,7 +56,6 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson }) => {
       className="flex gap-4 w-full"
       role="region"
       aria-label="Section attendance cards in masonry layout"
-      data-oid="section-cards"
     >
       {columns.map((column, columnIndex) => (
         <div 

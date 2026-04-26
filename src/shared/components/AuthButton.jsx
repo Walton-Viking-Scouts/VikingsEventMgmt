@@ -135,7 +135,6 @@ function AuthButton({
       aria-label={config.ariaLabel}
       data-testid="auth-button"
       {...rest}
-      data-oid="14si21j"
     >
       {config.text}
     </button>

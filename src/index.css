@@ -71,6 +71,12 @@
   --color-success: #25b755;
   --color-warning: #ff912a;
   --color-error: #ed3f23;
+
+  /* Extra-light tinted backgrounds for table state highlighting */
+  --color-blue-25: #f0f8ff;
+  --color-red-25: #fef2f2;
+  --color-orange-25: #fff7ed;
+  --color-green-25: #f0fdf4;
   
   /* Font families */
   --font-sans: "Inter", system-ui, sans-serif;
@@ -330,137 +336,27 @@
   }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-/* Minimal body styles - Tailwind handles most styling */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  overflow: auto !important; /* Ensure scrolling is always enabled */
-  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+  overflow: auto !important;
+  touch-action: pan-y;
 }
 
 #root {
   min-height: 100vh;
   overflow: auto;
-  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+  touch-action: pan-y;
 }
 
-/* Offline Indicator Styles */
-.offline-indicator {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-}
-
-.offline-banner {
-  background-color: #ff6b35;
-  color: white;
-  padding: 8px 16px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.sync-status {
-  padding: 8px 16px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.sync-status.syncing {
-  background-color: #007bff;
-  color: white;
-}
-
-.sync-status.completed {
-  background-color: #28a745;
-  color: white;
-}
-
-.sync-status.error {
-  background-color: #dc3545;
-  color: white;
-}
-
-.sync-button {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 20px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  z-index: 1001;
-}
-
-.sync-button:hover {
-  background-color: #0056b3;
-}
-
-.sync-spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* 
- * Layout styles removed - now handled by Tailwind components!
- * Mobile and Desktop layouts use proper Tailwind classes.
- */
-
-/* Print styles */
 @media print {
-  .offline-indicator,
   header {
     display: none !important;
   }
-  
+
   main {
     margin: 0 !important;
     padding: 0 !important;
   }
 }
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-}
-
-/* 
- * Redundant Scout button styles removed!
- * Scout theming is now handled by Tailwind components.
- * Only keeping essential layout-specific styles.
- */

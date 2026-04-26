@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+import { notifyError } from '../../../shared/utils/notifications.js';
 
 function SectionDropZone({
   sectionData,
@@ -78,7 +80,8 @@ function SectionDropZone({
 
       await onMoverDrop(dragData, sectionData);
     } catch (error) {
-      console.error('Error handling mover drop:', error);
+      logger.error('Error handling mover drop', { error }, LOG_CATEGORIES.USER_ACTION);
+      notifyError('Could not assign member. Please try again.');
     }
   }, [onMoverDrop, canAcceptDrop, sectionData, isAtCapacity]);
 

@@ -43,7 +43,7 @@ const getUserPreferences = () => {
     const stored = localStorage.getItem(USER_PREFERENCES_KEY);
     return stored ? JSON.parse(stored) : {};
   } catch (error) {
-    console.warn('Failed to load user preferences:', error);
+    logger.warn('Failed to load user preferences', { error }, LOG_CATEGORIES.APP);
     return {};
   }
 };
@@ -61,7 +61,7 @@ const saveUserPreference = (key, value) => {
     preferences[key] = value;
     localStorage.setItem(USER_PREFERENCES_KEY, JSON.stringify(preferences));
   } catch (error) {
-    console.warn('Failed to save user preference:', error);
+    logger.warn('Failed to save user preference', { error }, LOG_CATEGORIES.APP);
   }
 };
 
