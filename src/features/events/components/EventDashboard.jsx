@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Removed API imports - UI only reads from IndexedDB
-import { getToken, generateOAuthUrl } from '../../../shared/services/auth/tokenService.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
+import { generateOAuthUrl } from '../../auth/services/auth.js';
+import { loginNative } from '../../auth/services/nativeOAuth.js';
 import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
@@ -520,11 +522,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         setConfirmModalData({
           title: 'Fetch Member Data',
           message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
-          onConfirm: () => {
+          onConfirm: async () => {
             setShowConfirmModal(false);
             // Redirect to OSM OAuth since we know the token is expired/invalid
-            const oauthUrl = generateOAuthUrl();
-            window.location.href = oauthUrl;
+            // (web: location.href; native iOS: in-app browser + deep link)
+            await loginNative(generateOAuthUrl(true));
           },
           onCancel: () => {
             setShowConfirmModal(false);
@@ -589,8 +591,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
           // No cached members - fetch immediately
           const currentToken = getToken();
           if (!currentToken) {
-            const oauthUrl = generateOAuthUrl();
-            window.location.href = oauthUrl;
+            await loginNative(generateOAuthUrl(true));
             return;
           }
 
@@ -622,8 +623,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
                 apiError.message?.includes('Token expired') ||
                 apiError.message?.includes('Unauthorized'))
             ) {
-              const oauthUrl = generateOAuthUrl();
-              window.location.href = oauthUrl;
+              await loginNative(generateOAuthUrl(true));
               return;
             }
             throw apiError; // Re-throw non-auth errors

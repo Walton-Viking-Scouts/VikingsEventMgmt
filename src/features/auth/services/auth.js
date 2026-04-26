@@ -18,6 +18,7 @@
  * @author Vikings Event Management Team
  */
 
+import { Capacitor } from '@capacitor/core';
 import { sentryUtils } from '../../../shared/services/utils/sentry.js';
 import { config } from '../../../config/env.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -420,12 +421,14 @@ export function generateOAuthUrl(storeCurrentPath = false) {
   const isDeployedServer = hostname.includes('.onrender.com') || hostname === 'vikingeventmgmt.onrender.com';
     
   // Embed frontend URL in query parameter for backend detection
-  const baseState = isDeployedServer ? 'prod' : 'dev';
+  const platform = Capacitor.getPlatform(); // 'ios' | 'android' | 'web'
+  const baseState = `${isDeployedServer ? 'prod' : 'dev'}:${platform}`;
   const authUrl = `${BACKEND_URL}/oauth/login?state=${encodeURIComponent(baseState)}&frontend_url=${encodeURIComponent(frontendUrl)}`;
-    
+
   logger.info('Generated OAuth redirect to backend', {
     hostname,
     isDeployedServer,
+    platform,
     baseState,
     frontendUrl,
     backendUrl: BACKEND_URL,
