@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import * as Sentry from '@sentry/react';
 import authService, { generateOAuthUrl, getAndClearReturnPath } from '../services/auth.js';
+import { loginNative } from '../services/nativeOAuth.js';
 import { isTokenExpired } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import databaseService from '../../../shared/services/storage/database.js';
@@ -89,6 +90,232 @@ function useAuthLogic() {
     }
   }, []);
 
+  /**
+   * Internal helper: consume an OAuth callback payload (token + metadata),
+   * persist the token, update auth state, and trigger post-auth data load.
+   *
+   * Used both by the URL-parser flow (web redirect callback) and the
+   * native deep-link flow (`oauth-callback` CustomEvent dispatched by
+   * `services/nativeOAuth.js`).
+   *
+   * @param {Object} payload
+   * @param {string} payload.accessToken - OAuth access token.
+   * @param {string} [payload.tokenType] - OAuth token type, e.g. 'Bearer'.
+   * @param {string} [payload.expiresIn] - Lifetime in seconds (string or number).
+   * @param {'url'|'native'} [payload.source='url'] - Origin of the callback.
+   *   When 'url', URL search params are scrubbed and the stored return path is restored.
+   *   When 'native', URL cleanup is skipped (no token in window.location).
+   * @returns {Promise<boolean>} True if token was stored and post-auth flow ran.
+   */
+  const consumeOAuthCallback = useCallback(async ({ accessToken, tokenType, expiresIn, source = 'url' }) => {
+    if (!accessToken) {
+      return false;
+    }
+
+    let tokenStored = false;
+    try {
+      authService.setToken(accessToken);
+      tokenStored = true;
+      broadcastAuthSync();
+      sessionStorage.removeItem('token_expired');
+      sessionStorage.removeItem('token_invalid');
+      setHasHandledExpiredToken(false);
+      localStorage.removeItem('token_expiration_choice');
+      if (tokenType) {
+        sessionStorage.setItem('token_type', tokenType);
+      }
+
+      let expirationTime;
+      if (expiresIn) {
+        expirationTime = Date.now() + (parseInt(expiresIn, 10) * 1000);
+        logger.info('Token expiration time stored from OAuth response', {
+          expiresInSeconds: expiresIn,
+          expiresAt: new Date(expirationTime).toISOString(),
+          source,
+        }, LOG_CATEGORIES.AUTH);
+      } else {
+        expirationTime = Date.now() + (TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS * 1000);
+        logger.info('Token expiration time estimated (OSM default)', {
+          expiresInSeconds: TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS,
+          expiresAt: new Date(expirationTime).toISOString(),
+          note: 'expires_in not provided by OAuth server, using configured default expiration',
+          source,
+        }, LOG_CATEGORIES.AUTH);
+      }
+
+      sessionStorage.setItem('token_expires_at', expirationTime.toString());
+
+      if (source === 'url') {
+        try {
+          const url = new URL(window.location);
+          url.searchParams.delete('access_token');
+          url.searchParams.delete('token_type');
+          url.searchParams.delete('expires_in');
+          window.history.replaceState({}, '', url);
+
+          logger.info('OAuth callback processed successfully', {
+            tokenStored: true,
+            urlCleaned: true,
+            source,
+          }, LOG_CATEGORIES.AUTH);
+
+          const returnPath = getAndClearReturnPath();
+          if (returnPath && returnPath !== '/' && returnPath !== window.location.pathname + window.location.search + window.location.hash) {
+            logger.info('Restoring user to previous page after OAuth', {
+              returnPath,
+              currentPath: window.location.pathname + window.location.search + window.location.hash,
+            }, LOG_CATEGORIES.AUTH);
+
+            setTimeout(() => {
+              window.history.replaceState({}, '', returnPath);
+              try {
+                window.dispatchEvent(new window.PopStateEvent('popstate'));
+              } catch {
+                window.dispatchEvent(new Event('popstate'));
+              }
+            }, 100);
+          }
+        } catch (urlCleanError) {
+          logger.warn('Failed to clean URL after OAuth callback, but token stored', {
+            error: urlCleanError.message,
+            tokenStored: true,
+          }, LOG_CATEGORIES.AUTH);
+
+          Sentry.captureException(urlCleanError, {
+            level: 'warning',
+            tags: {
+              section: 'auth',
+              operation: 'url_cleanup',
+              category: 'auth',
+            },
+          });
+        }
+      } else {
+        logger.info('OAuth callback processed successfully', {
+          tokenStored: true,
+          urlCleaned: false,
+          source,
+        }, LOG_CATEGORIES.AUTH);
+      }
+    } catch (tokenStorageError) {
+      logger.error('Failed to store OAuth tokens', {
+        error: tokenStorageError.message,
+        hasAccessToken: !!accessToken,
+        hasTokenType: !!tokenType,
+        source,
+      }, LOG_CATEGORIES.ERROR);
+
+      Sentry.captureException(tokenStorageError, {
+        tags: {
+          section: 'auth',
+          operation: 'token_storage',
+          category: 'auth',
+        },
+        contexts: {
+          auth: {
+            hasAccessToken: !!accessToken,
+            hasTokenType: !!tokenType,
+            storageAvailable: (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'),
+            source,
+          },
+        },
+      });
+    }
+
+    if (!tokenStored) {
+      logger.warn('OAuth token not stored - aborting post-auth flow', {
+        hadAccessToken: !!accessToken,
+        source,
+      }, LOG_CATEGORIES.AUTH);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      return false;
+    }
+
+    setIsAuthenticated(true);
+    const userInfo = await authService.getUserInfo();
+    setUser(userInfo);
+    setIsOfflineMode(false);
+    const newAuthState = await determineAuthState(true);
+    setAuthState(newAuthState);
+    setIsLoading(false);
+    logger.info('Authentication complete - UI ready to render', {
+      hasUserInfo: !!userInfo,
+      authState: newAuthState,
+      source,
+    }, LOG_CATEGORIES.AUTH);
+
+    try {
+      logger.info('Starting comprehensive data load after successful OAuth', { source }, LOG_CATEGORIES.AUTH);
+
+      const { notifyInfo } = await import('../../../shared/utils/notifications.js');
+      notifyInfo('Syncing data from OSM...');
+
+      const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
+        onEventsLoaded: async () => {
+          const eventsLoadedTime = Date.now();
+          await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: eventsLoadedTime });
+          if (import.meta.env.DEV) {
+            logger.debug('Events loaded - triggering initial render', {
+              eventsLoadedTime,
+            }, LOG_CATEGORIES.AUTH);
+          }
+          setLastSyncTime(eventsLoadedTime);
+        },
+        onAttendanceLoaded: async () => {
+          const attendanceLoadedTime = Date.now();
+          await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: attendanceLoadedTime });
+          if (import.meta.env.DEV) {
+            logger.debug('Attendance loaded - triggering render with attendance', {
+              attendanceLoadedTime,
+            }, LOG_CATEGORIES.AUTH);
+          }
+          setLastSyncTime(attendanceLoadedTime);
+        },
+      });
+
+      if (allDataResults.success) {
+        logger.info('Comprehensive data load completed', {
+          summary: allDataResults.summary,
+        }, LOG_CATEGORIES.AUTH);
+
+        const { notifySuccess } = await import('../../../shared/utils/notifications.js');
+        notifySuccess('Data synced successfully');
+      } else {
+        logger.warn('Comprehensive data load had issues', {
+          summary: allDataResults.summary,
+          hasErrors: allDataResults.hasErrors,
+        }, LOG_CATEGORIES.AUTH);
+      }
+
+      const syncTime = Date.now();
+      await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
+      if (import.meta.env.DEV) {
+        logger.debug('All data loaded - final sync time', {
+          syncTime,
+        }, LOG_CATEGORIES.AUTH);
+      }
+      setLastSyncTime(syncTime);
+
+      if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
+        const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
+        const referenceData = allDataResults?.results?.reference ?? allDataResults;
+        const userMessage = getLoadingResultMessage(referenceData);
+        if (userMessage) {
+          const { notifyWarning } = await import('../../../shared/utils/notifications.js');
+          notifyWarning(userMessage);
+        }
+      }
+    } catch (dataLoadError) {
+      logger.warn('Could not load application data after OAuth', {
+        error: dataLoadError?.message,
+        source,
+      }, LOG_CATEGORIES.AUTH);
+    }
+
+    return true;
+  }, [determineAuthState]);
+
   // Check authentication status
   const checkAuth = useCallback(async () => {
     // Prevent recursive calls during OAuth processing
@@ -106,14 +333,13 @@ function useAuthLogic() {
       let accessToken;
       let tokenType;
       let expiresIn;
-      let tokenStored = false;
-      
+
       try {
         urlParams = new URLSearchParams(window.location.search);
         accessToken = urlParams.get('access_token');
         tokenType = urlParams.get('token_type');
         expiresIn = urlParams.get('expires_in');
-        
+
         // Debug: Log all OAuth parameters we receive
         if (accessToken && import.meta.env.DEV) {
           const allParams = {};
@@ -149,7 +375,7 @@ function useAuthLogic() {
           url: safeHref,
           search: safeSearch,
         }, LOG_CATEGORIES.ERROR);
-        
+
         // Capture this specific error with enhanced context
         Sentry.captureException(urlError, {
           tags: {
@@ -166,213 +392,9 @@ function useAuthLogic() {
           },
         });
       }
-      
+
       if (accessToken) {
-        try {
-          // Store the token via service to reset auth handler and Sentry context
-          authService.setToken(accessToken);
-          tokenStored = true;
-          // Notify other tabs
-          broadcastAuthSync();
-          // Clear any expired/invalid token flags when storing a new token
-          sessionStorage.removeItem('token_expired');
-          sessionStorage.removeItem('token_invalid');
-          // Reset the handled flag when we get a new token
-          setHasHandledExpiredToken(false);
-          // Clear any stored token expiration choices
-          localStorage.removeItem('token_expiration_choice');
-          if (tokenType) {
-            sessionStorage.setItem('token_type', tokenType);
-          }
-          
-          // Store token expiration time for proactive monitoring
-          let expirationTime;
-          if (expiresIn) {
-            // Use provided expires_in parameter
-            expirationTime = Date.now() + (parseInt(expiresIn, 10) * 1000);
-            logger.info('Token expiration time stored from OAuth response', { 
-              expiresInSeconds: expiresIn,
-              expiresAt: new Date(expirationTime).toISOString(),
-            }, LOG_CATEGORIES.AUTH);
-          } else {
-            // Fallback: OSM tokens typically expire after 1 hour
-            expirationTime = Date.now() + (TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS * 1000);
-            logger.info('Token expiration time estimated (OSM default)', { 
-              expiresInSeconds: TOKEN_CONFIG.DEFAULT_EXPIRATION_SECONDS,
-              expiresAt: new Date(expirationTime).toISOString(),
-              note: 'expires_in not provided by OAuth server, using configured default expiration',
-            }, LOG_CATEGORIES.AUTH);
-          }
-          
-          sessionStorage.setItem('token_expires_at', expirationTime.toString());
-          
-          // Clean the URL without reloading - this is a critical operation that can fail
-          try {
-            const url = new URL(window.location);
-            url.searchParams.delete('access_token');
-            url.searchParams.delete('token_type');
-            url.searchParams.delete('expires_in');
-            window.history.replaceState({}, '', url);
-            
-            logger.info('OAuth callback processed successfully', { 
-              tokenStored: true,
-              urlCleaned: true,
-            }, LOG_CATEGORIES.AUTH);
-            
-            // Check if we should restore user to their previous page
-            const returnPath = getAndClearReturnPath();
-            if (returnPath && returnPath !== '/' && returnPath !== window.location.pathname + window.location.search + window.location.hash) {
-              logger.info('Restoring user to previous page after OAuth', { 
-                returnPath,
-                currentPath: window.location.pathname + window.location.search + window.location.hash, 
-              }, LOG_CATEGORIES.AUTH);
-              
-              // Use a small delay to ensure token processing is complete
-              setTimeout(() => {
-                window.history.replaceState({}, '', returnPath);
-                // Nudge Router to react to the URL change without a full reload
-                try {
-                  window.dispatchEvent(new window.PopStateEvent('popstate'));
-                } catch {
-                  window.dispatchEvent(new Event('popstate'));
-                }
-              }, 100);
-            }
-          } catch (urlCleanError) {
-            // URL cleaning failed but token is stored - continue
-            logger.warn('Failed to clean URL after OAuth callback, but token stored', { 
-              error: urlCleanError.message,
-              tokenStored: true,
-            }, LOG_CATEGORIES.AUTH);
-            
-            Sentry.captureException(urlCleanError, {
-              level: 'warning',
-              tags: {
-                section: 'auth',
-                operation: 'url_cleanup',
-                category: 'auth',
-              },
-            });
-          }
-        } catch (tokenStorageError) {
-          // Token storage failed - this is critical
-          logger.error('Failed to store OAuth tokens', { 
-            error: tokenStorageError.message,
-            hasAccessToken: !!accessToken,
-            hasTokenType: !!tokenType,
-          }, LOG_CATEGORIES.ERROR);
-          
-          Sentry.captureException(tokenStorageError, {
-            tags: {
-              section: 'auth',
-              operation: 'token_storage',
-              category: 'auth',
-            },
-            contexts: {
-              auth: {
-                hasAccessToken: !!accessToken,
-                hasTokenType: !!tokenType,
-                storageAvailable: (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'),
-              },
-            },
-          });
-        }
-
-        // Gate post-auth flow on successful token storage (security)
-        if (!tokenStored) {
-          logger.warn('OAuth token not stored - aborting post-auth flow', {
-            hadAccessToken: !!accessToken,
-          }, LOG_CATEGORIES.AUTH);
-          setIsAuthenticated(false);
-          setIsLoading(false);
-          return;
-        }
-
-        // Set authenticated state and stop loading BEFORE data fetch - allows UI to render
-        setIsAuthenticated(true);
-        const userInfo = await authService.getUserInfo();
-        setUser(userInfo);
-        setIsOfflineMode(false);
-        const newAuthState = await determineAuthState(true);
-        setAuthState(newAuthState);
-        setIsLoading(false);
-        logger.info('Authentication complete - UI ready to render', {
-          hasUserInfo: !!userInfo,
-          authState: newAuthState,
-        }, LOG_CATEGORIES.AUTH);
-
-        // Load all data after successful OAuth (non-blocking)
-        try {
-          logger.info('Starting comprehensive data load after successful OAuth', {}, LOG_CATEGORIES.AUTH);
-
-          // Show loading notification
-          const { notifyInfo } = await import('../../../shared/utils/notifications.js');
-          notifyInfo('Syncing data from OSM...');
-
-          // Use progress callbacks to trigger UI updates as data loads
-          const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
-            onEventsLoaded: async () => {
-              const eventsLoadedTime = Date.now();
-              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: eventsLoadedTime });
-              if (import.meta.env.DEV) {
-                logger.debug('Events loaded - triggering initial render', {
-                  eventsLoadedTime,
-                }, LOG_CATEGORIES.AUTH);
-              }
-              setLastSyncTime(eventsLoadedTime);
-            },
-            onAttendanceLoaded: async () => {
-              const attendanceLoadedTime = Date.now();
-              await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: attendanceLoadedTime });
-              if (import.meta.env.DEV) {
-                logger.debug('Attendance loaded - triggering render with attendance', {
-                  attendanceLoadedTime,
-                }, LOG_CATEGORIES.AUTH);
-              }
-              setLastSyncTime(attendanceLoadedTime);
-            },
-          });
-
-          if (allDataResults.success) {
-            logger.info('Comprehensive data load completed', {
-              summary: allDataResults.summary,
-            }, LOG_CATEGORIES.AUTH);
-
-            // Show success notification
-            const { notifySuccess } = await import('../../../shared/utils/notifications.js');
-            notifySuccess('Data synced successfully');
-          } else {
-            logger.warn('Comprehensive data load had issues', {
-              summary: allDataResults.summary,
-              hasErrors: allDataResults.hasErrors,
-            }, LOG_CATEGORIES.AUTH);
-          }
-
-          const syncTime = Date.now();
-          await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
-          if (import.meta.env.DEV) {
-            logger.debug('All data loaded - final sync time', {
-              syncTime,
-            }, LOG_CATEGORIES.AUTH);
-          }
-          setLastSyncTime(syncTime);
-
-          // Show user message only if critical errors exist
-          if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
-            const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
-            const referenceData = allDataResults?.results?.reference ?? allDataResults;
-            const userMessage = getLoadingResultMessage(referenceData);
-            if (userMessage) {
-              const { notifyWarning } = await import('../../../shared/utils/notifications.js');
-              notifyWarning(userMessage);
-            }
-          }
-        } catch (dataLoadError) {
-          logger.warn('Could not load application data after OAuth', {
-            error: dataLoadError?.message,
-          }, LOG_CATEGORIES.AUTH);
-        }
-
+        await consumeOAuthCallback({ accessToken, tokenType, expiresIn, source: 'url' });
         return;
       }
       // Check if blocked first
@@ -498,12 +520,12 @@ function useAuthLogic() {
       setIsLoading(false);
       isProcessingAuthRef.current = false;
     }
-  }, [determineAuthState]);
+  }, [determineAuthState, consumeOAuthCallback]);
 
   // Login function
-  const login = useCallback(() => {
+  const login = useCallback(async () => {
     const oauthUrl = generateOAuthUrl();
-    window.location.href = oauthUrl;
+    await loginNative(oauthUrl);
   }, []);
 
   // Logout function
@@ -577,6 +599,46 @@ function useAuthLogic() {
     };
   }, [checkAuth, logout]);
 
+  // Listen for native OAuth callback dispatched by services/nativeOAuth.js
+  // (iOS deep-link from in-app SFSafariViewController). The web flow stays
+  // on the URL-parser path inside checkAuth and never dispatches this event.
+  useEffect(() => {
+    let mounted = true;
+
+    const handleOAuthCallback = async (event) => {
+      if (!mounted) return;
+
+      const detail = event?.detail || {};
+      const { accessToken, tokenType, expiresIn } = detail;
+
+      if (!accessToken) {
+        logger.warn('Received oauth-callback event without accessToken', {
+          hasTokenType: !!tokenType,
+          hasExpiresIn: !!expiresIn,
+        }, LOG_CATEGORIES.AUTH);
+        return;
+      }
+
+      logger.info('Received native oauth-callback event', {
+        hasTokenType: !!tokenType,
+        hasExpiresIn: !!expiresIn,
+      }, LOG_CATEGORIES.AUTH);
+
+      await consumeOAuthCallback({
+        accessToken,
+        tokenType,
+        expiresIn,
+        source: 'native',
+      });
+    };
+
+    window.addEventListener('oauth-callback', handleOAuthCallback);
+    return () => {
+      mounted = false;
+      window.removeEventListener('oauth-callback', handleOAuthCallback);
+    };
+  }, [consumeOAuthCallback]);
+
 
   // Helper function to check cached data and show expiration dialog
   const checkAndShowExpirationDialog = useCallback(async () => {
@@ -643,16 +705,16 @@ function useAuthLogic() {
     try {
       // Generate OAuth URL with return path storage
       const oauthUrl = generateOAuthUrl(true);
-      
-      logger.info('Redirecting to OAuth for re-authentication', { 
-        storedReturnPath: true, 
+
+      logger.info('Redirecting to OAuth for re-authentication', {
+        storedReturnPath: true,
       }, LOG_CATEGORIES.AUTH);
-      
-      // Redirect to OAuth
-      window.location.href = oauthUrl;
+
+      // Redirect to OAuth (web: location.href; native iOS: in-app browser + deep link)
+      await loginNative(oauthUrl);
     } catch (error) {
-      logger.error('Error redirecting to OAuth after token expiration', { 
-        error: error.message, 
+      logger.error('Error redirecting to OAuth after token expiration', {
+        error: error.message,
       }, LOG_CATEGORIES.ERROR);
     }
   }, []);
