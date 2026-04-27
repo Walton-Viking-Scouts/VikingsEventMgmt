@@ -109,14 +109,14 @@ class DatabaseService {
    */
   _runInTransaction(fn) {
     const next = this._writeQueue.then(async () => {
-      await this.db.execute('BEGIN TRANSACTION');
+      await this.db.execute('BEGIN TRANSACTION', false);
       try {
         const result = await fn();
-        await this.db.execute('COMMIT');
+        await this.db.execute('COMMIT', false);
         return result;
       } catch (error) {
         try {
-          await this.db.execute('ROLLBACK');
+          await this.db.execute('ROLLBACK', false);
         } catch (_rollbackError) {
           // Best effort - if ROLLBACK itself fails (e.g. transaction already
           // aborted), we still want to surface the original error
@@ -431,14 +431,14 @@ class DatabaseService {
     }
 
     await this._runInTransaction(async () => {
-      await this.db.execute('DELETE FROM sections');
+      await this.db.execute('DELETE FROM sections', false);
 
       for (const section of sections) {
         const insert = `
           INSERT INTO sections (sectionid, sectionname, sectiontype)
           VALUES (?, ?, ?)
         `;
-        await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype]);
+        await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype], false);
       }
     });
 
@@ -555,7 +555,7 @@ class DatabaseService {
 
     await this._runInTransaction(async () => {
       const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
-      await this.db.run(deleteOld, [sectionId]);
+      await this.db.run(deleteOld, [sectionId], false);
 
       for (const event of events) {
         const insert = `
@@ -574,7 +574,7 @@ class DatabaseService {
           event.enddate_g,
           event.location,
           event.notes,
-        ]);
+        ], false);
       }
     });
 
@@ -716,7 +716,7 @@ class DatabaseService {
     }
 
     await this._runInTransaction(async () => {
-      await this.db.run('DELETE FROM attendance WHERE eventid = ?', [eventId]);
+      await this.db.run('DELETE FROM attendance WHERE eventid = ?', [eventId], false);
 
       for (const record of validRecords) {
         const insert = `
@@ -731,7 +731,7 @@ class DatabaseService {
           record.patrol,
           record.notes,
           record.isSharedSection ? 1 : 0,
-        ]);
+        ], false);
       }
     });
 
@@ -821,7 +821,7 @@ class DatabaseService {
     }
 
     await this._runInTransaction(async () => {
-      await this.db.run('DELETE FROM attendance WHERE eventid = ? AND isSharedSection = 1', [eventId]);
+      await this.db.run('DELETE FROM attendance WHERE eventid = ? AND isSharedSection = 1', [eventId], false);
 
       for (const record of validRecords) {
         const insert = `
@@ -836,7 +836,7 @@ class DatabaseService {
           record.patrol,
           record.notes,
           1,
-        ]);
+        ], false);
       }
     });
 
@@ -949,7 +949,7 @@ class DatabaseService {
       INSERT OR REPLACE INTO sync_status (table_name, last_sync, needs_sync)
       VALUES (?, CURRENT_TIMESTAMP, 0)
     `;
-    await this.db.run(update, [tableName]);
+    await this.db.run(update, [tableName], false);
   }
 
   /**
@@ -1201,7 +1201,7 @@ class DatabaseService {
         member.sectionid,
         member.sectionname,
         member.section,
-        JSON.stringify(member.sections || []),
+        JSON.stringify(member.sections || [], false),
         member.patrol,
         member.patrol_id,
         member.person_type,
@@ -1514,7 +1514,7 @@ class DatabaseService {
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const query = `UPDATE ${safeTableName} SET conflict_resolution_needed = ? WHERE id = ?`;
-    await this.db.run(query, [hasConflict ? 1 : 0, recordId]);
+    await this.db.run(query, [hasConflict ? 1 : 0, recordId], false);
   }
 
   /**
@@ -1581,7 +1581,7 @@ class DatabaseService {
       isLocallyModified ? 1 : 0,
       conflictResolutionNeeded ? 1 : 0,
       recordId,
-    ]);
+    ], false);
   }
 
   /**
@@ -1596,7 +1596,7 @@ class DatabaseService {
     }
 
     const query = 'DELETE FROM attendance WHERE eventid = ?';
-    await this.db.run(query, [eventId]);
+    await this.db.run(query, [eventId], false);
   }
 
   /**
@@ -1671,7 +1671,7 @@ class DatabaseService {
       }
 
       await this._runInTransaction(async () => {
-        await this.db.run('DELETE FROM terms WHERE sectionid = ?', [sectionId]);
+        await this.db.run('DELETE FROM terms WHERE sectionid = ?', [sectionId], false);
 
         for (const term of validTerms) {
           const insert = `
@@ -1684,7 +1684,7 @@ class DatabaseService {
             term.name,
             term.startdate,
             term.enddate,
-          ]);
+          ], false);
         }
       });
 
