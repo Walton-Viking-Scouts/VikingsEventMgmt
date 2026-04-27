@@ -84,6 +84,49 @@ class DatabaseService {
     this.isInitialized = false;
     /** @type {boolean} Whether running on native platform (iOS/Android) */
     this.isNative = Capacitor.isNativePlatform();
+    /** @type {Promise<void>} Serializes SQLite write transactions to prevent
+     * "cannot start a transaction within a transaction" errors when callers
+     * (e.g. Promise.allSettled fan-outs in eventDataLoader) trigger concurrent
+     * saves. SQLite's single connection cannot have nested transactions and
+     * the Capacitor plugin doesn't queue writes itself. */
+    this._writeQueue = Promise.resolve();
+  }
+
+  /**
+   * Serialize a SQLite write inside a single BEGIN/COMMIT transaction.
+   *
+   * Ensures only one transaction is in flight at a time. On any thrown
+   * error, attempts ROLLBACK and re-throws. The queue is preserved across
+   * errors so callers can retry without permanently breaking the chain.
+   *
+   * No-op queue: on web (IndexedDB), callers should NOT route through this
+   * helper - it only wraps SQLite-specific BEGIN/COMMIT.
+   *
+   * @template T
+   * @param {() => Promise<T>} fn - Async function that performs the SQL writes
+   *   between BEGIN and COMMIT. Should NOT call BEGIN/COMMIT itself.
+   * @returns {Promise<T>}
+   */
+  _runInTransaction(fn) {
+    const next = this._writeQueue.then(async () => {
+      await this.db.execute('BEGIN TRANSACTION');
+      try {
+        const result = await fn();
+        await this.db.execute('COMMIT');
+        return result;
+      } catch (error) {
+        try {
+          await this.db.execute('ROLLBACK');
+        } catch (_rollbackError) {
+          // Best effort - if ROLLBACK itself fails (e.g. transaction already
+          // aborted), we still want to surface the original error
+        }
+        throw error;
+      }
+    });
+    // Preserve the queue across errors so the next caller doesn't block
+    this._writeQueue = next.catch(() => {});
+    return next;
   }
 
   /**
@@ -387,8 +430,7 @@ class DatabaseService {
       return;
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       await this.db.execute('DELETE FROM sections');
 
       for (const section of sections) {
@@ -398,12 +440,7 @@ class DatabaseService {
         `;
         await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
 
     await this.updateSyncStatus('sections');
   }
@@ -516,8 +553,7 @@ class DatabaseService {
       return;
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
       await this.db.run(deleteOld, [sectionId]);
 
@@ -540,12 +576,7 @@ class DatabaseService {
           event.notes,
         ]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
 
     await this.updateSyncStatus('events');
   }
@@ -684,8 +715,7 @@ class DatabaseService {
       return;
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       await this.db.run('DELETE FROM attendance WHERE eventid = ?', [eventId]);
 
       for (const record of validRecords) {
@@ -703,12 +733,7 @@ class DatabaseService {
           record.isSharedSection ? 1 : 0,
         ]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
 
     await this.updateSyncStatus('attendance');
   }
@@ -795,8 +820,7 @@ class DatabaseService {
       return;
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       await this.db.run('DELETE FROM attendance WHERE eventid = ? AND isSharedSection = 1', [eventId]);
 
       for (const record of validRecords) {
@@ -814,12 +838,7 @@ class DatabaseService {
           1,
         ]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
 
     await this.updateSyncStatus('attendance');
   }
@@ -1651,8 +1670,7 @@ class DatabaseService {
         return;
       }
 
-      await this.db.execute('BEGIN TRANSACTION');
-      try {
+      await this._runInTransaction(async () => {
         await this.db.run('DELETE FROM terms WHERE sectionid = ?', [sectionId]);
 
         for (const term of validTerms) {
@@ -1668,12 +1686,7 @@ class DatabaseService {
             term.enddate,
           ]);
         }
-
-        await this.db.execute('COMMIT');
-      } catch (error) {
-        await this.db.execute('ROLLBACK');
-        throw error;
-      }
+      });
 
       await this.updateSyncStatus('terms');
     } catch (error) {
@@ -1859,20 +1872,14 @@ class DatabaseService {
       return;
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       await this.db.run('DELETE FROM flexi_lists WHERE sectionid = ?', [Number(sectionId)]);
 
       for (const item of valid) {
         const insert = 'INSERT OR REPLACE INTO flexi_lists (sectionid, extraid, name) VALUES (?, ?, ?)';
         await this.db.run(insert, [Number(item.sectionid), String(item.extraid), item.name]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
   }
 
   /**
@@ -2041,8 +2048,7 @@ class DatabaseService {
       }, LOG_CATEGORIES.DATABASE);
     }
 
-    await this.db.execute('BEGIN TRANSACTION');
-    try {
+    await this._runInTransaction(async () => {
       await this.db.run('DELETE FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?', [String(recordId), Number(sectionId), String(termId)]);
 
       for (const row of valid) {
@@ -2058,12 +2064,7 @@ class DatabaseService {
           JSON.stringify(rest),
         ]);
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
   }
 
   /**
