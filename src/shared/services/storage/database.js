@@ -22,7 +22,8 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
 import { Capacitor } from '@capacitor/core';
 import IndexedDBService from './indexedDBService.js';
-import { SQLITE_SCHEMAS, SQLITE_INDEXES } from './schemas/sqliteSchema.js';
+import { runMigrations } from './migrationRunner.js';
+import { MIGRATIONS } from './migrations/index.js';
 import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema, TermSchema, FlexiListSchema, FlexiStructureSchema, FlexiDataSchema, safeParseArray } from './schemas/validation.js';
 import { CurrentActiveTermsService } from './currentActiveTermsService.js';
 import { sentryUtils } from '../utils/sentry.js';
@@ -180,7 +181,7 @@ class DatabaseService {
       }
       
       await this.db.open();
-      await this.createTables();
+      await runMigrations(this.db, MIGRATIONS);
       this.isInitialized = true;
       logger.info('Database initialized successfully', {}, LOG_CATEGORIES.DATABASE);
     } catch (error) {
@@ -202,189 +203,6 @@ class DatabaseService {
       });
       this.isInitialized = true;
       this.isNative = false;
-    }
-  }
-
-  /**
-   * Creates database schema with all required tables
-   * 
-   * Establishes the complete database structure including sections, events,
-   * attendance, members, and sync tracking tables. Uses proper foreign key
-   * relationships and indexes for optimal performance. Only executed on
-   * native platforms with SQLite support.
-   * 
-   * Tables created:
-   * - sections: Scout sections (Beavers, Cubs, Scouts, etc.)
-   * - events: Section events with date ranges and locations
-   * - attendance: Event attendance records for individual scouts
-   * - members: Comprehensive scout member information
-   * - sync_status: Data synchronization tracking
-   * - event_dashboard: Aggregated event summary data
-   * - sync_metadata: Additional synchronization metadata
-   * 
-   * @async
-   * @private
-   * @returns {Promise<void>} Resolves when all tables are created
-   * @throws {Error} If table creation fails
-   * 
-   * @example
-   * // Called automatically during initialize()
-   * await this.createTables();
-   */
-  async createTables() {
-    const createSectionsTable = `
-      CREATE TABLE IF NOT EXISTS sections (
-        sectionid INTEGER PRIMARY KEY,
-        sectionname TEXT NOT NULL,
-        sectiontype TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-
-    const createEventsTable = `
-      CREATE TABLE IF NOT EXISTS events (
-        eventid TEXT PRIMARY KEY,
-        sectionid INTEGER,
-        termid TEXT,
-        name TEXT NOT NULL,
-        date TEXT,
-        startdate TEXT,
-        startdate_g TEXT,
-        enddate TEXT,
-        enddate_g TEXT,
-        location TEXT,
-        notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (sectionid) REFERENCES sections (sectionid)
-      );
-    `;
-
-    const createAttendanceTable = `
-      CREATE TABLE IF NOT EXISTS attendance (
-        eventid TEXT NOT NULL,
-        scoutid INTEGER NOT NULL,
-        sectionid INTEGER,
-        attending TEXT,
-        patrol TEXT,
-        notes TEXT,
-        isSharedSection INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (eventid, scoutid),
-        FOREIGN KEY (eventid) REFERENCES events (eventid)
-      );
-    `;
-
-    const createMembersTable = `
-      CREATE TABLE IF NOT EXISTS members (
-        scoutid INTEGER PRIMARY KEY,
-        -- Basic info
-        firstname TEXT,
-        lastname TEXT,
-        date_of_birth TEXT,
-        age TEXT,
-        age_years INTEGER,
-        age_months INTEGER,
-        
-        -- Section info
-        sectionid INTEGER,
-        sectionname TEXT,
-        section TEXT,
-        sections TEXT, -- JSON array of all sections this member belongs to
-        patrol TEXT,
-        patrol_id INTEGER,
-        person_type TEXT, -- Young People, Young Leaders, Leaders
-        
-        -- Membership dates
-        started TEXT,
-        joined TEXT,
-        end_date TEXT,
-        active BOOLEAN,
-        
-        -- Photo info
-        photo_guid TEXT,
-        has_photo BOOLEAN,
-        pic BOOLEAN,
-        
-        -- Role info
-        patrol_role_level INTEGER,
-        patrol_role_level_label TEXT,
-        
-        -- Contact info (basic)
-        email TEXT,
-        
-        -- Complex data stored as JSON
-        contact_groups TEXT, -- JSON blob of all contact groups
-        custom_data TEXT,    -- JSON blob of raw custom_data from OSM
-        flattened_fields TEXT, -- JSON blob of all flattened custom fields
-        
-        -- Metadata
-        read_only TEXT, -- JSON array
-        filter_string TEXT,
-        
-        -- Versioning and sync tracking
-        version INTEGER DEFAULT 1,
-        local_version INTEGER DEFAULT 1,
-        last_sync_version INTEGER DEFAULT 0,
-        is_locally_modified BOOLEAN DEFAULT 0,
-        last_synced_at DATETIME,
-        conflict_resolution_needed BOOLEAN DEFAULT 0,
-
-        -- Timestamps
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-
-    const createSyncStatusTable = `
-      CREATE TABLE IF NOT EXISTS sync_status (
-        table_name TEXT PRIMARY KEY,
-        last_sync DATETIME,
-        needs_sync INTEGER DEFAULT 0
-      );
-    `;
-
-    const createEventDashboardTable = `
-      CREATE TABLE IF NOT EXISTS event_dashboard (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id TEXT NOT NULL,
-        event_name TEXT NOT NULL,
-        section_id INTEGER NOT NULL,
-        section_name TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT,
-        attendance_summary TEXT,
-        last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(event_id, section_id)
-      );
-    `;
-
-    const createSyncMetadataTable = `
-      CREATE TABLE IF NOT EXISTS sync_metadata (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-
-    await this.db.execute(createSectionsTable);
-    await this.db.execute(createEventsTable);
-    await this.db.execute(createAttendanceTable);
-    await this.db.execute(createMembersTable);
-    await this.db.execute(createSyncStatusTable);
-    await this.db.execute(createEventDashboardTable);
-    await this.db.execute(createSyncMetadataTable);
-
-    await this.db.execute(SQLITE_SCHEMAS.terms);
-    await this.db.execute(SQLITE_SCHEMAS.flexi_lists);
-    await this.db.execute(SQLITE_SCHEMAS.flexi_structure);
-    await this.db.execute(SQLITE_SCHEMAS.flexi_data);
-    await this.db.execute(SQLITE_SCHEMAS.shared_event_metadata);
-
-    for (const indexSql of SQLITE_INDEXES) {
-      await this.db.execute(indexSql);
     }
   }
 
@@ -435,7 +253,7 @@ class DatabaseService {
 
       for (const section of sections) {
         const insert = `
-          INSERT INTO sections (sectionid, sectionname, sectiontype)
+          INSERT OR REPLACE INTO sections (sectionid, sectionname, sectiontype)
           VALUES (?, ?, ?)
         `;
         await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype], false);
@@ -692,10 +510,15 @@ class DatabaseService {
 
     const { data: validRecords, errors } = safeParseArray(AttendanceSchema, attendanceData);
     if (errors.length > 0) {
-      logger.warn('Attendance validation errors during save', {
+      const firstIssue = errors[0]?.issues?.[0];
+      const issuePath = (firstIssue?.path || []).join('.');
+      const sampleRecord = errors[0] ? attendanceData?.[errors[0].index] : null;
+      logger.warn(`Attendance validation: ${errors.length}/${attendanceData?.length} rejected — first issue "${firstIssue?.message}" at [${issuePath}] received=${JSON.stringify(firstIssue?.received ?? sampleRecord?.[firstIssue?.path?.[0]])}`, {
         errorCount: errors.length,
         totalCount: attendanceData?.length,
-        errors: errors.slice(0, 5),
+        firstIssue,
+        sampleRecord,
+        errors: errors.slice(0, 3),
       }, LOG_CATEGORIES.DATABASE);
     }
 
@@ -720,7 +543,7 @@ class DatabaseService {
 
       for (const record of validRecords) {
         const insert = `
-          INSERT INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
+          INSERT OR REPLACE INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         await this.db.run(insert, [
@@ -780,10 +603,15 @@ class DatabaseService {
 
     const { data: validRecords, errors } = safeParseArray(AttendanceSchema, markedData);
     if (errors.length > 0) {
-      logger.warn('Shared attendance validation errors during save', {
+      const firstIssue = errors[0]?.issues?.[0];
+      const issuePath = (firstIssue?.path || []).join('.');
+      const sampleRecord = errors[0] ? markedData?.[errors[0].index] : null;
+      logger.warn(`Shared attendance validation: ${errors.length}/${markedData?.length} rejected — first issue "${firstIssue?.message}" at [${issuePath}] received=${JSON.stringify(firstIssue?.received ?? sampleRecord?.[firstIssue?.path?.[0]])}`, {
         errorCount: errors.length,
         totalCount: attendanceData?.length,
-        errors: errors.slice(0, 5),
+        firstIssue,
+        sampleRecord,
+        errors: errors.slice(0, 3),
       }, LOG_CATEGORIES.DATABASE);
     }
 
@@ -825,7 +653,7 @@ class DatabaseService {
 
       for (const record of validRecords) {
         const insert = `
-          INSERT INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
+          INSERT OR REPLACE INTO attendance (eventid, scoutid, sectionid, attending, patrol, notes, isSharedSection)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         await this.db.run(insert, [
@@ -1163,65 +991,67 @@ class DatabaseService {
       return;
     }
 
-    for (const member of members) {
-      const knownFields = new Set([
-        'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months',
-        'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
-        'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
-        'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
-        'read_only', 'filter_string', '_filterString',
-      ]);
+    await this._runInTransaction(async () => {
+      for (const member of members) {
+        const knownFields = new Set([
+          'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months',
+          'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
+          'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
+          'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
+          'read_only', 'filter_string', '_filterString',
+        ]);
 
-      const flattenedFields = {};
-      Object.keys(member).forEach(key => {
-        if (!knownFields.has(key)) {
-          flattenedFields[key] = member[key];
-        }
-      });
+        const flattenedFields = {};
+        Object.keys(member).forEach(key => {
+          if (!knownFields.has(key)) {
+            flattenedFields[key] = member[key];
+          }
+        });
 
-      const insert = `
-        REPLACE INTO members (
-          scoutid, firstname, lastname, date_of_birth, age, age_years, age_months,
-          sectionid, sectionname, section, sections, patrol, patrol_id, person_type,
-          started, joined, end_date, active, photo_guid, has_photo, pic,
-          patrol_role_level, patrol_role_level_label, email,
-          contact_groups, custom_data, flattened_fields, read_only, filter_string
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
+        const insert = `
+          REPLACE INTO members (
+            scoutid, firstname, lastname, date_of_birth, age, age_years, age_months,
+            sectionid, sectionname, section, sections, patrol, patrol_id, person_type,
+            started, joined, end_date, active, photo_guid, has_photo, pic,
+            patrol_role_level, patrol_role_level_label, email,
+            contact_groups, custom_data, flattened_fields, read_only, filter_string
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
-      await this.db.run(insert, [
-        member.scoutid || member.member_id,
-        member.firstname,
-        member.lastname,
-        member.date_of_birth,
-        member.age,
-        member.age_years,
-        member.age_months,
-        member.sectionid,
-        member.sectionname,
-        member.section,
-        JSON.stringify(member.sections || [], false),
-        member.patrol,
-        member.patrol_id,
-        member.person_type,
-        member.started,
-        member.joined,
-        member.end_date,
-        member.active,
-        member.photo_guid,
-        member.has_photo,
-        member.pic,
-        member.patrol_role_level,
-        member.patrol_role_level_label,
-        member.email,
-        JSON.stringify(member.contact_groups || {}),
-        JSON.stringify(member.custom_data || {}),
-        JSON.stringify(flattenedFields),
-        JSON.stringify(member.read_only || []),
-        member._filterString || member.filter_string,
-      ]);
-    }
+        await this.db.run(insert, [
+          member.scoutid || member.member_id,
+          member.firstname,
+          member.lastname,
+          member.date_of_birth,
+          member.age,
+          member.age_years,
+          member.age_months,
+          member.sectionid,
+          member.sectionname,
+          member.section,
+          JSON.stringify(member.sections || [], false),
+          member.patrol,
+          member.patrol_id,
+          member.person_type,
+          member.started,
+          member.joined,
+          member.end_date,
+          member.active,
+          member.photo_guid,
+          member.has_photo,
+          member.pic,
+          member.patrol_role_level,
+          member.patrol_role_level_label,
+          member.email,
+          JSON.stringify(member.contact_groups || {}),
+          JSON.stringify(member.custom_data || {}),
+          JSON.stringify(flattenedFields),
+          JSON.stringify(member.read_only || []),
+          member._filterString || member.filter_string,
+        ], false);
+      }
+    });
 
     await this.updateSyncStatus('members');
   }
@@ -1873,11 +1703,11 @@ class DatabaseService {
     }
 
     await this._runInTransaction(async () => {
-      await this.db.run('DELETE FROM flexi_lists WHERE sectionid = ?', [Number(sectionId)]);
+      await this.db.run('DELETE FROM flexi_lists WHERE sectionid = ?', [Number(sectionId)], false);
 
       for (const item of valid) {
         const insert = 'INSERT OR REPLACE INTO flexi_lists (sectionid, extraid, name) VALUES (?, ?, ?)';
-        await this.db.run(insert, [Number(item.sectionid), String(item.extraid), item.name]);
+        await this.db.run(insert, [Number(item.sectionid), String(item.extraid), item.name], false);
       }
     });
   }
@@ -2049,7 +1879,7 @@ class DatabaseService {
     }
 
     await this._runInTransaction(async () => {
-      await this.db.run('DELETE FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?', [String(recordId), Number(sectionId), String(termId)]);
+      await this.db.run('DELETE FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?', [String(recordId), Number(sectionId), String(termId)], false);
 
       for (const row of valid) {
         const { scoutid, firstname, lastname, ...rest } = row;
@@ -2062,7 +1892,7 @@ class DatabaseService {
           firstname || null,
           lastname || null,
           JSON.stringify(rest),
-        ]);
+        ], false);
       }
     });
   }

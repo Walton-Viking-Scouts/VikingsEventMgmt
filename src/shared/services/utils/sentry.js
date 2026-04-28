@@ -5,7 +5,7 @@ import { config } from '../../../config/env.js';
 
 // Environment configuration - Use robust detection from config
 const environment = config.actualEnvironment;
-const release = packageJson.version;
+const release = import.meta.env.VITE_APP_VERSION || packageJson.version;
 const sentryDsn = config.sentryDsn;
 
 // Initialize Sentry

@@ -1,5 +1,8 @@
 {
   "appId": "com.vikingscouts.vikingscoutsmanager",
   "appName": "Vikings Event Mgmt",
-  "webDir": "dist"
+  "webDir": "dist",
+  "ios": {
+    "webContentsDebuggingEnabled": true
+  }
 }

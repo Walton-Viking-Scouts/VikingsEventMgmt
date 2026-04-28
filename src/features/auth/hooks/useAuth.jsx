@@ -117,8 +117,8 @@ function useAuthLogic() {
       authService.setToken(accessToken);
       tokenStored = true;
       broadcastAuthSync();
-      sessionStorage.removeItem('token_expired');
-      sessionStorage.removeItem('token_invalid');
+      localStorage.removeItem('token_expired');
+      localStorage.removeItem('token_invalid');
       setHasHandledExpiredToken(false);
       localStorage.removeItem('token_expiration_choice');
       if (tokenType) {
@@ -143,7 +143,7 @@ function useAuthLogic() {
         }, LOG_CATEGORIES.AUTH);
       }
 
-      sessionStorage.setItem('token_expires_at', expirationTime.toString());
+      localStorage.setItem('token_expires_at', expirationTime.toString());
 
       if (source === 'url') {
         try {
@@ -411,7 +411,7 @@ function useAuthLogic() {
 
       // Check if token exists (including expired tokens stored in sessionStorage)
       const hasValidToken = authService.isAuthenticated();
-      const hasStoredToken = !!sessionStorage.getItem('access_token'); // Check for any stored token
+      const hasStoredToken = !!localStorage.getItem('access_token'); // Check for any stored token
       const tokenExpired = isTokenExpired();
       
 
@@ -642,7 +642,7 @@ function useAuthLogic() {
 
   // Helper function to check cached data and show expiration dialog
   const checkAndShowExpirationDialog = useCallback(async () => {
-    const hasStoredToken = !!sessionStorage.getItem('access_token');
+    const hasStoredToken = !!localStorage.getItem('access_token');
     const tokenExpired = isTokenExpired();
     const hasStoredChoice = localStorage.getItem('token_expiration_choice');
     
@@ -680,7 +680,7 @@ function useAuthLogic() {
 
   // Periodic token expiration monitoring
   useEffect(() => {
-    if (!sessionStorage.getItem('access_token')) {
+    if (!localStorage.getItem('access_token')) {
       return; // No token to monitor
     }
 
@@ -729,7 +729,7 @@ function useAuthLogic() {
     
     try {
       // Update auth state to reflect token expiration and offline mode
-      const hadToken = !!sessionStorage.getItem('access_token');
+      const hadToken = !!localStorage.getItem('access_token');
       const newAuthState = await determineAuthState(hadToken);
       setAuthState(newAuthState);
       setIsOfflineMode(true);

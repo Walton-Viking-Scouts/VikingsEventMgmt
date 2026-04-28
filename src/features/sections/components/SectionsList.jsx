@@ -349,7 +349,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                 .slice()
                 .sort((a, b) => {
                   const getSectionOrder = (sectionType) => {
-                    const type = sectionType.toLowerCase();
+                    const type = (sectionType ?? '').toLowerCase();
                     if (type.includes('earlyyears')) return 1;
                     if (type.includes('beavers')) return 2;
                     if (type.includes('cubs')) return 3;
@@ -359,7 +359,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                     return 7;
                   };
                   const getDayOrder = (sectionName) => {
-                    const name = sectionName.toLowerCase();
+                    const name = (sectionName ?? '').toLowerCase();
                     if (name.includes('monday')) return 1;
                     if (name.includes('tuesday')) return 2;
                     if (name.includes('wednesday')) return 3;
@@ -369,8 +369,8 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
                     if (name.includes('sunday')) return 7;
                     return 8;
                   };
-                  const ao = getSectionOrder(a.section);
-                  const bo = getSectionOrder(b.section);
+                  const ao = getSectionOrder(a.sectiontype);
+                  const bo = getSectionOrder(b.sectiontype);
                   return ao !== bo ? ao - bo : getDayOrder(a.sectionname) - getDayOrder(b.sectionname);
                 })
                 .map((section) => {

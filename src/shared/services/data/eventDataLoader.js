@@ -2,6 +2,7 @@ import { getEventAttendance, getSharedEventAttendance, createMemberSectionRecord
 import { getToken } from '../auth/tokenService.js';
 import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { sentryUtils } from '../utils/sentry.js';
 import { getScoutFriendlyMessage } from '../../utils/scoutErrorHandler.js';
 
 class EventDataLoader {
@@ -117,11 +118,19 @@ class EventDataLoader {
             eventName: event.name,
             error: result.reason?.message || 'Unknown error',
           });
-          logger.warn('Failed to sync attendance for event', {
+          const reasonMsg = result.reason?.message || String(result.reason);
+          logger.warn(`Failed to sync attendance for event "${event.name}" (id=${event.eventid}): ${reasonMsg}`, {
             eventName: event.name,
             eventId: event.eventid,
             error: result.reason?.message,
+            stack: result.reason?.stack,
           }, LOG_CATEGORIES.DATA_SERVICE);
+          if (result.reason instanceof Error) {
+            sentryUtils.captureException(result.reason, {
+              tags: { operation: 'sync_event_attendance' },
+              contexts: { event: { id: String(event.eventid), name: event.name, sectionid: event.sectionid } },
+            });
+          }
         }
       });
 

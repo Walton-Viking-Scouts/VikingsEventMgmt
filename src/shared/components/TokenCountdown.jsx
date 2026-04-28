@@ -13,7 +13,7 @@ function TokenCountdown({ authState, className = '', compact = false }) {
     }
 
     const updateCountdown = () => {
-      const expiresAt = sessionStorage.getItem('token_expires_at');
+      const expiresAt = localStorage.getItem('token_expires_at');
       if (!expiresAt) {
         setTimeRemaining(null);
         setDisplayText('');
