@@ -80,18 +80,15 @@ flowchart TB
 flowchart TB
   API["OSM API → events.js getEvents()<br/>response.items per section"]
   API --> Save["databaseService.saveEvents(sectionId, events)"]
-  Save --> Branch{"isNative<br/>&& this.db?"}
+  Save --> Enrich["Enrich: ensure every event has sectionid<br/>(mirrors saveTerms pattern)"]
+  Enrich --> Validate["safeParseArray(EventSchema)<br/>✓ runs on BOTH paths"]
+  Validate --> Branch{"isNative<br/>&& this.db?"}
 
-  Branch -->|"web"| WebVal["safeParseArray(EventSchema)<br/>⚠️ runs on web ONLY"]
-  WebVal --> IDBOp["IndexedDBService.bulkReplaceEventsForSection<br/>cursor delete by sectionid + put each event"]
+  Branch -->|"web"| IDBOp["IndexedDBService.bulkReplaceEventsForSection<br/>cursor delete by sectionid + put each event"]
   IDBOp --> IDBStore["⚙️ IndexedDB store: events<br/>keyPath: eventid, indexed by sectionid<br/>persists full event object incl. extras"]
 
-  Branch -->|"iOS"| SQLNoVal["⚠️ NO validation on this path"]
-  SQLNoVal --> SQL["_runInTransaction:<br/>1. DELETE FROM events WHERE sectionid=?<br/>2. INSERT INTO events (11 cols)"]
+  Branch -->|"iOS"| SQL["_runInTransaction:<br/>1. DELETE FROM events WHERE sectionid=?<br/>2. INSERT OR REPLACE INTO events (11 cols)"]
   SQL --> SQLTable["⚙️ SQLite table: events<br/>PK: eventid, FK→sections.sectionid<br/>cols: eventid, sectionid, termid, name, date,<br/>startdate(_g), enddate(_g), location, notes"]
-
-  WebVal -.->|"alignment gap"| GAP1["⚠️ saveEvents validates only on web.<br/>iOS gets raw API shape into SQLite.<br/>Plain INSERT (no OR REPLACE) — UNIQUE risk."]
-  SQLNoVal -.-> GAP1
 ```
 
 ---
@@ -133,28 +130,30 @@ flowchart TB
 
 ---
 
-## 5. Members — biggest asymmetry
+## 5. Members — dual-store on both backends
 
-The two backends store members in structurally different ways. IndexedDB normalises into a dual-store (one row per scout in `core_members`, plus one row per (scout, section) in `member_section`). SQLite collapses everything onto a single `members` row keyed by scoutid, with the multi-section information JSON-encoded in the `sections` column. Both `getMembers()` paths reassemble the same shape on read.
+Both backends now use the same normalised dual-store schema. `saveMembers` splits each member identically on both paths — core identity into one store/table, per-section role data into another — and `getMembers` reassembles the identical output shape on both sides. This resolved the production bug where `member.sections` was empty on iOS, breaking detailed attendance views.
 
 ```mermaid
 flowchart TB
   API["OSM API → members.js<br/>response includes core info + section membership(s)<br/>+ contact_groups + custom_data + sectionMemberships[]"]
   API --> Save["databaseService.saveMembers(sectionIds, members)"]
-  Save --> Branch{"isNative<br/>&& this.db?"}
+  Save --> Split["Split each member into:<br/>• coreMember (identity, JSON blobs)<br/>• one sectionMember per role/section<br/>(same split on both paths)"]
+  Split --> Branch{"isNative<br/>&& this.db?"}
 
-  Branch -->|"web"| Split["Split each member into:<br/>• coreMember (identity, JSON blobs)<br/>• one sectionMember per role/section"]
-  Split --> IDBCore["IndexedDBService.bulkUpsertCoreMembers"]
-  Split --> IDBSec["IndexedDBService.bulkUpsertMemberSections"]
-  IDBCore --> CoreStore["⚙️ IndexedDB: core_members<br/>keyPath: scoutid<br/>identity + JSON blobs<br/>(contact_groups, custom_data, flattened_fields)"]
-  IDBSec --> SecStore["⚙️ IndexedDB: member_section<br/>keyPath: [scoutid, sectionid]<br/>per-section role: sectionname,<br/>person_type, patrol, dates"]
+  Branch -->|"web"| IDBCore["IndexedDBService.bulkUpsertCoreMembers"]
+  Branch -->|"web"| IDBSec["IndexedDBService.bulkUpsertMemberSections"]
+  IDBCore --> CoreStore["⚙️ IndexedDB: core_members<br/>keyPath: scoutid<br/>identity + JSON blobs<br/>(contact_groups, custom_data, flattened_fields, read_only)"]
+  IDBSec --> SecStore["⚙️ IndexedDB: member_section<br/>keyPath: [scoutid, sectionid]<br/>per-section role: sectionname, section,<br/>person_type, patrol, dates, active"]
 
-  Branch -->|"iOS"| Loop["For each member: REPLACE INTO members<br/>(wrapped in _runInTransaction)"]
-  Loop --> SQLTable["⚙️ SQLite: members (single table)<br/>PK: scoutid (one row per scout, NOT per (scout, section))<br/>JSON-encoded: sections, contact_groups,<br/>custom_data, flattened_fields, read_only<br/>section info collapsed into top-level columns"]
+  Branch -->|"iOS"| SQLTx["_runInTransaction:<br/>1. DELETE stale member_section rows for resynced sections<br/>2. INSERT OR REPLACE INTO core_members<br/>3. INSERT OR REPLACE INTO member_section"]
+  SQLTx --> SQLCore["⚙️ SQLite: core_members<br/>PK: scoutid<br/>identity + JSON blobs<br/>(contact_groups, custom_data, flattened_fields, read_only)"]
+  SQLTx --> SQLSec["⚙️ SQLite: member_section<br/>PK: (scoutid, sectionid)<br/>per-section role: sectionname, section,<br/>person_type, patrol, dates, active"]
 
-  CoreStore -.->|"alignment gap (by design)"| GAP["⚠️ IndexedDB normalises to dual-store<br/>(scout can have N sections cleanly).<br/>SQLite collapses to one row per scout<br/>+ JSON-encoded `sections` array.<br/>Read paths in getMembers() reassemble<br/>shape on both sides."]
-  SecStore -.-> GAP
-  SQLTable -.-> GAP
+  CoreStore -.->|"read path"| ReadNote["Both backends produce identical output shape<br/>via the same reassembly logic in getMembers().<br/>Migration 003 (destructive DROP + recreate) created<br/>the two new tables — no real iOS users yet."]
+  SecStore -.-> ReadNote
+  SQLCore -.-> ReadNote
+  SQLSec -.-> ReadNote
 ```
 
 ---
@@ -168,10 +167,11 @@ flowchart TB
   subgraph Terms[" "]
     TA[OSM API: terms]
     TA --> TSave[saveTerms]
-    TSave --> TBranch{native?}
-    TBranch -->|web| TVal[validate + bulkReplaceTermsForSection]
-    TBranch -->|iOS| TSQL[no validation; DELETE + INSERT in transaction]
-    TVal --> TIDB[("IndexedDB: terms<br/>keyPath: termid")]
+    TSave --> TVal[validate at top]
+    TVal --> TBranch{native?}
+    TBranch -->|web| TIDBOP[bulkReplaceTermsForSection]
+    TBranch -->|iOS| TSQL["DELETE + INSERT OR REPLACE in transaction"]
+    TIDBOP --> TIDB[("IndexedDB: terms<br/>keyPath: termid")]
     TSQL --> TSQLite[("SQLite: terms<br/>PK: termid")]
   end
 
@@ -192,7 +192,7 @@ flowchart TB
     FDSave --> FDVal[validate at top]
     FDVal --> FDBranch{native?}
     FDBranch -->|web| FDIDB[bulkReplace via index cursor]
-    FDBranch -->|iOS| FDSQL[DELETE + INSERT in transaction]
+    FDBranch -->|iOS| FDSQL["DELETE + INSERT OR REPLACE INTO flexi_data in transaction"]
     FDIDB --> FDStore[("IndexedDB: flexi_data")]
     FDSQL --> FDSQLite[("SQLite: flexi_data<br/>PK: extraid+sectionid+termid+scoutid")]
   end
@@ -205,20 +205,20 @@ flowchart TB
 | Entity | Validation | Upsert semantics | Field shape | Status |
 |---|---|---|---|---|
 | sections | ✅ both paths | ✅ both upsert | ⚠️ web keeps `section`, SQLite drops it | UI fixed by reading `sectiontype` |
-| events | ⚠️ web only | ⚠️ SQLite uses plain `INSERT` (no OR REPLACE) | ✅ same fields | **Two gaps still** |
+| events | ✅ both paths | ✅ both upsert (INSERT OR REPLACE) | ✅ same fields | OK |
 | attendance | ✅ both paths | ✅ both upsert (after recent fix) | ✅ aligned (since migration 002) | OK |
 | shared attendance | ✅ both paths | ✅ both upsert (after recent fix) | ✅ aligned | OK |
-| members | ❌ neither path validates | ✅ both upsert | ⚠️ structurally different (dual-store vs single table + JSON) | **By design** — read paths reassemble |
-| terms | ⚠️ web only | ⚠️ SQLite uses plain `INSERT` | ✅ same fields | Same gap as events |
+| members | ❌ neither path validates | ✅ both upsert | ✅ NOW structurally aligned via dual-store (migration 003) | OK |
+| terms | ✅ both paths | ✅ both upsert (INSERT OR REPLACE) | ✅ same fields | OK |
 | flexi_lists | ✅ both paths | ✅ both upsert | ✅ aligned | OK |
-| flexi_data | ✅ both paths | ⚠️ SQLite uses plain `INSERT` | ✅ aligned | Upsert gap |
+| flexi_data | ✅ both paths | ✅ both upsert (INSERT OR REPLACE INTO flexi_data) | ✅ aligned | OK |
 | flexi_structure | ✅ both paths | ✅ INSERT OR REPLACE single row | ✅ aligned | OK |
 
 ### Concrete follow-ups
 
-1. **Switch to `INSERT OR REPLACE`** in `saveEvents`, `saveTerms`, `saveFlexiData` SQLite paths. Same UNIQUE-constraint trap as the attendance/sections bug.
-2. **Lift validation above the `isNative` branch** in `saveEvents` and `saveTerms` (so iOS gets validated too — matches the pattern `saveAttendance` already uses).
-3. **Strengthen the schema-parity test** (Layer 2) to flag plain `INSERT INTO` (vs `INSERT OR REPLACE INTO`) on tables that are bulk-rewritten via DELETE+INSERT — would catch (1) at static-analysis time.
+1. **Strengthen the schema-parity test** (Layer 2) to flag plain `INSERT INTO` (vs `INSERT OR REPLACE INTO`) on tables that are bulk-rewritten via DELETE+INSERT — would catch upsert gaps at static-analysis time before they reach production.
+
+All saved entities now produce identical output shapes between backends. The dual-store members refactor (migration 003) closes the last structural asymmetry.
 
 ---
 

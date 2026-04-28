@@ -9,8 +9,10 @@
 
 import migration001 from './001-initial-schema.js';
 import migration002 from './002-add-attendance-columns.js';
+import migration003 from './003-members-dual-store.js';
 
 export const MIGRATIONS = [
   migration001,
   migration002,
+  migration003,
 ];

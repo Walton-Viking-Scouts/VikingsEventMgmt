@@ -70,13 +70,14 @@ describe('migrationRunner', () => {
           .map(t => t.name),
       );
       for (const required of [
-        'sections', 'events', 'attendance', 'members', 'sync_status',
+        'sections', 'events', 'attendance', 'core_members', 'member_section', 'sync_status',
         'event_dashboard', 'sync_metadata', 'terms', 'flexi_lists',
         'flexi_structure', 'flexi_data', 'shared_event_metadata',
         'schema_migrations',
       ]) {
         expect(tables.has(required)).toBe(true);
       }
+      expect(tables.has('members')).toBe(false);
     });
 
     it('attendance table includes sectionid + isSharedSection on a fresh DB', async () => {
