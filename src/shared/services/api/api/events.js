@@ -14,6 +14,7 @@ import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
 import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
+import { sentryUtils } from '../../utils/sentry.js';
 
 /**
  * Retrieves events for a specific section and term
@@ -419,7 +420,13 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
 
       logger.debug('Saved shared attendance to normalized store', { eventId, sectionId }, LOG_CATEGORIES.API);
     } catch (cacheError) {
-      logger.warn('Failed to save shared attendance to normalized store', { error: cacheError }, LOG_CATEGORIES.API);
+      logger.warn(`Failed to save shared attendance to normalized store (eventId=${eventId}): ${cacheError?.message || cacheError}`, { error: cacheError?.message, stack: cacheError?.stack }, LOG_CATEGORIES.API);
+      if (cacheError instanceof Error) {
+        sentryUtils.captureException(cacheError, {
+          tags: { operation: 'save_shared_attendance' },
+          contexts: { event: { id: String(eventId), sectionId: String(sectionId) } },
+        });
+      }
     }
 
     return data;

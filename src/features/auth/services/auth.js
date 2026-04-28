@@ -60,7 +60,7 @@ import { IndexedDBService } from '../../../shared/services/storage/indexedDBServ
  * // Token expiration check
  * const checkAuth = () => {
  *   const token = getToken();
- *   if (!token && sessionStorage.getItem('token_expired') === 'true') {
+ *   if (!token && localStorage.getItem('token_expired') === 'true') {
  *     notifyWarning('Session expired. Please log in again.');
  *     handleTokenExpiration();
  *   }
@@ -75,12 +75,12 @@ export function getToken() {
   }
   
   // Don't return a token if it's been marked as expired
-  const tokenExpired = sessionStorage.getItem('token_expired') === 'true';
+  const tokenExpired = localStorage.getItem('token_expired') === 'true';
   if (tokenExpired) {
     return null;
   }
   
-  return sessionStorage.getItem('access_token');
+  return localStorage.getItem('access_token');
 }
 
 /**
@@ -125,7 +125,7 @@ export function getToken() {
  * @since 2.3.7
  */
 export function setToken(token) {
-  sessionStorage.setItem('access_token', token);
+  localStorage.setItem('access_token', token);
   
   // Reset auth error state when new token is set
   authHandler.reset();
@@ -182,10 +182,10 @@ export function setToken(token) {
  * @since 2.3.7
  */
 export function clearToken() {
-  sessionStorage.removeItem('access_token');
-  sessionStorage.removeItem('token_invalid');
-  sessionStorage.removeItem('token_expired');
-  sessionStorage.removeItem('token_expires_at');
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('token_invalid');
+  localStorage.removeItem('token_expired');
+  localStorage.removeItem('token_expires_at');
   
   // Reset auth handler state when token is cleared
   authHandler.reset();
@@ -263,7 +263,7 @@ export function isAuthenticated() {
   }
   
   // Check if we've previously determined this token is invalid
-  const tokenInvalid = sessionStorage.getItem('token_invalid');
+  const tokenInvalid = localStorage.getItem('token_invalid');
   if (tokenInvalid === 'true') {
     // Token was marked as invalid, but don't clear it immediately
     // Let the auth flow decide when to clear it
@@ -287,7 +287,7 @@ export function isAuthenticated() {
  * // API response validation
  * const handleApiResponse = (response) => {
  *   if (!isTokenValid(response)) {
- *     sessionStorage.setItem('token_invalid', 'true');
+ *     localStorage.setItem('token_invalid', 'true');
  *     notifyError('Session expired. Please log in again.');
  *     handleTokenExpiration();
  *     return;
@@ -330,7 +330,7 @@ export function handleTokenExpiration() {
   // DON'T clear offline cached data when token expires
   // The offline data should remain available for offline access
   // Only clear session-specific data
-  sessionStorage.removeItem('token_invalid');
+  localStorage.removeItem('token_invalid');
     
   // Instead of reloading, we'll let React handle the state change
   // The useAuth hook will detect the token removal and update accordingly
@@ -510,7 +510,7 @@ export async function fetchUserInfoFromAPI() {
   try {
     // Direct sessionStorage access intentional - this function fetches user info 
     // regardless of token expiration status (for API calls vs general auth checks)
-    const token = sessionStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
     if (!token) {
       throw new Error('No authentication token available');
     }
@@ -606,8 +606,8 @@ export async function validateToken() {
     // Real validation happens when actual API calls are made
     
     // Clear any invalid token flag since we're assuming the token is good
-    sessionStorage.removeItem('token_invalid');
-    sessionStorage.removeItem('token_expired');
+    localStorage.removeItem('token_invalid');
+    localStorage.removeItem('token_expired');
     
     return true;
         
@@ -672,9 +672,9 @@ export async function handleApiAuthError(error) {
     
     if (hasCachedData) {
       logger.info('API auth failed but cached data available - enabling offline mode', {}, LOG_CATEGORIES.AUTH);
-      sessionStorage.setItem('token_expired', 'true');
+      localStorage.setItem('token_expired', 'true');
       // Prevent stale/negative countdown while offline
-      sessionStorage.removeItem('token_expires_at');
+      localStorage.removeItem('token_expires_at');
       return { offline: true, shouldReload: true };
     } else {
       logger.info('API auth failed with no cached data - full logout required', {}, LOG_CATEGORIES.AUTH);
@@ -688,7 +688,7 @@ export async function handleApiAuthError(error) {
 
 // Guard function to check if write operations are allowed
 export function checkWritePermission() {
-  if (sessionStorage.getItem('token_expired') === 'true') {
+  if (localStorage.getItem('token_expired') === 'true') {
     throw new Error('Write operations are not allowed while in offline mode with expired token');
   }
 }

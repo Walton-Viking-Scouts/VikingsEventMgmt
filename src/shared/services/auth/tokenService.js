@@ -12,16 +12,16 @@ export function getToken() {
     return 'demo-mode-token';
   }
   
-  const tokenExpired = sessionStorage.getItem('token_expired') === 'true';
+  const tokenExpired = localStorage.getItem('token_expired') === 'true';
   if (tokenExpired) {
     return null;
   }
   
-  return sessionStorage.getItem('access_token');
+  return localStorage.getItem('access_token');
 }
 
 export function setToken(token) {
-  sessionStorage.setItem('access_token', token);
+  localStorage.setItem('access_token', token);
   
   // Reset auth error state when new token is set
   authHandler.reset();
@@ -41,10 +41,10 @@ export function setToken(token) {
 }
 
 export function clearToken() {
-  sessionStorage.removeItem('access_token');
-  sessionStorage.removeItem('token_invalid');
-  sessionStorage.removeItem('token_expired');
-  sessionStorage.removeItem('token_expires_at');
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('token_invalid');
+  localStorage.removeItem('token_expired');
+  localStorage.removeItem('token_expires_at');
   
   // Reset auth handler state when token is cleared
   authHandler.reset();
@@ -61,10 +61,10 @@ export function clearToken() {
 }
 
 export function isTokenExpired() {
-  const expiresAt = sessionStorage.getItem('token_expires_at');
+  const expiresAt = localStorage.getItem('token_expires_at');
   if (!expiresAt) {
     // No expiration time stored - fall back to existing token_expired flag
-    return sessionStorage.getItem('token_expired') === 'true';
+    return localStorage.getItem('token_expired') === 'true';
   }
   
   const expirationTime = parseInt(expiresAt, 10);
@@ -73,11 +73,11 @@ export function isTokenExpired() {
   if (!Number.isFinite(expirationTime)) {
     logger.warn('Corrupt token expiration time detected in API validation', {
       corruptValue: expiresAt,
-      tokenExpiredFlag: sessionStorage.getItem('token_expired'),
+      tokenExpiredFlag: localStorage.getItem('token_expired'),
     }, LOG_CATEGORIES.AUTH);
     
     // Treat corrupt expiration as expired for safety and consistency
-    sessionStorage.setItem('token_expired', 'true');
+    localStorage.setItem('token_expired', 'true');
     return true;
   }
   
@@ -85,24 +85,24 @@ export function isTokenExpired() {
   const isExpired = now >= expirationTime;
   
   // If expired, set the token_expired flag for consistency with existing code
-  if (isExpired && sessionStorage.getItem('token_expired') !== 'true') {
+  if (isExpired && localStorage.getItem('token_expired') !== 'true') {
     logger.info('Token expiration detected during API validation', {
       now,
       expirationTime,
       expired: true,
     }, LOG_CATEGORIES.AUTH);
-    sessionStorage.setItem('token_expired', 'true');
+    localStorage.setItem('token_expired', 'true');
   }
   
   return isExpired;
 }
 
 export function markTokenAsExpired() {
-  sessionStorage.setItem('token_expired', 'true');
+  localStorage.setItem('token_expired', 'true');
 }
 
 export function markTokenAsValid() {
-  sessionStorage.removeItem('token_expired');
+  localStorage.removeItem('token_expired');
 }
 
 export function generateOAuthUrl(storeCurrentPath = false) {
@@ -131,7 +131,7 @@ export function generateOAuthUrl(storeCurrentPath = false) {
 }
 
 export function checkWritePermission() {
-  if (sessionStorage.getItem('token_expired') === 'true') {
+  if (localStorage.getItem('token_expired') === 'true') {
     throw new Error('Write operations are not allowed while in offline mode with expired token');
   }
 }
@@ -155,7 +155,7 @@ export async function validateToken() {
     logger.info('Token found - assuming valid until API calls prove otherwise', {}, LOG_CATEGORIES.AUTH);
     
     // Clear any invalid token flag since we're assuming the token is good
-    sessionStorage.removeItem('token_invalid');
+    localStorage.removeItem('token_invalid');
     return true;
   } catch (error) {
     logger.error('Token validation failed', { 
