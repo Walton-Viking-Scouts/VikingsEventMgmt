@@ -3,6 +3,7 @@ import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
+import { dedupAttendanceForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 import databaseService from '../../../shared/services/storage/database.js';
 
 /**
@@ -48,38 +49,7 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
           eventIds: Array.from(eventIds),
         }, LOG_CATEGORIES.COMPONENT);
 
-        const regularAttendance = relevantAttendance.filter(r => !r.isSharedSection);
-        const finalAttendance = [...regularAttendance];
-
-        const regularSectionIds = new Set(regularAttendance.map(r => String(r.sectionid)));
-
-        for (const event of events) {
-          try {
-            const eventAttendance = await databaseService.getAttendance(event.eventid);
-            const sharedRecords = (eventAttendance || []).filter(r => r.isSharedSection === true);
-
-            if (sharedRecords.length > 0) {
-              const inaccessibleSectionRecords = sharedRecords
-                .filter(attendee => !regularSectionIds.has(String(attendee.sectionid)))
-                .map(attendee => ({
-                  ...attendee,
-                  eventid: event.eventid,
-                  sectionid: Number(attendee.sectionid),
-                  scoutid: Number(attendee.scoutid),
-                  firstname: attendee.firstname || attendee.first_name,
-                  lastname: attendee.lastname || attendee.last_name,
-                  _isSharedSection: true,
-                }));
-
-              finalAttendance.push(...inaccessibleSectionRecords);
-            }
-          } catch (sharedError) {
-            logger.debug('No shared attendance found for event', {
-              eventId: event.eventid,
-              error: sharedError.message,
-            }, LOG_CATEGORIES.COMPONENT);
-          }
-        }
+        const finalAttendance = dedupAttendanceForEventGroup(events, relevantAttendance);
 
         const uniqueSectionIds = [...new Set(finalAttendance.map(r => Number(r.sectionid)))];
         const allMembers = await databaseService.getMembers(uniqueSectionIds);

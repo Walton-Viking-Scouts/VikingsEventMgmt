@@ -10,6 +10,9 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 export async function loadAllAttendanceFromDatabase() {
   try {
     const sections = await databaseService.getSections();
+    const sectionNameById = new Map(
+      (sections || []).map(s => [Number(s.sectionid), s.sectionname]),
+    );
     const allEvents = [];
 
     for (const section of sections) {
@@ -26,7 +29,10 @@ export async function loadAllAttendanceFromDatabase() {
           ...record,
           eventname: event.name ?? null,
           eventdate: event.startdate ?? null,
-          sectionname: event.sectionname ?? null,
+          sectionname:
+            sectionNameById.get(Number(record.sectionid)) ??
+            event.sectionname ??
+            null,
         }));
       } catch {
         return [];
