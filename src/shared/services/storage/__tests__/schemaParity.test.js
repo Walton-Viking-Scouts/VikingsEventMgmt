@@ -35,7 +35,20 @@ const SOURCES = [
   ...migrationFiles,
 ];
 
-const combinedSource = SOURCES.map(p => readFileSync(p, 'utf-8')).join('\n\n');
+/**
+ * Strip JS comments before SQL pattern matching. Without this the parser
+ * picks up things like `// DELETE FROM events ...` inside JSDoc blocks
+ * and tries to validate them as real SQL. Block comments are already
+ * stripped by stripSqlComments below, but `//` line comments aren't valid
+ * SQL syntax so they need their own handling.
+ */
+function stripJsLineComments(src) {
+  return src.replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+const combinedSource = SOURCES
+  .map(p => stripJsLineComments(readFileSync(p, 'utf-8')))
+  .join('\n\n');
 
 function splitTopLevelCommas(s) {
   const parts = [];

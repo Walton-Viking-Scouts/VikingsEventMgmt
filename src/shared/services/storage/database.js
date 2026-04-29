@@ -131,6 +131,49 @@ class DatabaseService {
   }
 
   /**
+   * Logs SQLite state for diagnosing the FK / stale-events bug class.
+   *
+   * One-shot startup probe captured to Sentry breadcrumbs — confirms the
+   * PRAGMA foreign_keys setting actually stuck on the real device, the
+   * actual on-disk events table DDL, the migration versions applied, and
+   * any rows whose name still hints at the duplicate-event symptom. Cheap
+   * to run, only on native, swallowed on failure so it can never break
+   * initialize().
+   *
+   * @private
+   * @async
+   * @returns {Promise<void>}
+   */
+  async _logStartupDiagnostics() {
+    if (!this.isNative || !this.db) return;
+    try {
+      const fk = await this.db.query('PRAGMA foreign_keys;');
+      const ddl = await this.db.query(
+        'SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=\'events\';',
+      );
+      const migrations = await this.db.query(
+        'SELECT version FROM schema_migrations ORDER BY version;',
+      );
+      const fridayRows = await this.db.query(
+        'SELECT eventid, sectionid, name, startdate FROM events WHERE LOWER(name) LIKE \'%friday arriv%\';',
+      );
+      const eventCount = await this.db.query('SELECT COUNT(*) AS c FROM events;');
+
+      logger.info('SQLITE_STARTUP_DIAG', {
+        fk_enforced: fk.values?.[0]?.foreign_keys,
+        events_ddl: ddl.values?.[0]?.sql,
+        migrations: (migrations.values || []).map(r => r.version),
+        events_total: eventCount.values?.[0]?.c,
+        friday_rows: fridayRows.values || [],
+      }, LOG_CATEGORIES.DATABASE);
+    } catch (error) {
+      logger.warn('SQLITE_STARTUP_DIAG failed', {
+        error: error?.message,
+      }, LOG_CATEGORIES.DATABASE);
+    }
+  }
+
+  /**
    * Initializes the database service and creates necessary tables
    * 
    * Detects platform capabilities and establishes appropriate storage mechanism.
@@ -181,8 +224,16 @@ class DatabaseService {
       }
       
       await this.db.open();
+      // Disable FK enforcement to match how the bulkReplace patterns
+      // (DELETE then INSERT) operate. Capacitor SQLite plugin defaults vary
+      // by version/build; on real devices we observed FKs being ON, which
+      // blocked saveEvents' DELETE FROM events WHERE sectionid=? whenever
+      // attendance rows still referenced those events — causing event
+      // renames to silently fail to persist on iOS.
+      await this.db.execute('PRAGMA foreign_keys = OFF;', false);
       await runMigrations(this.db, MIGRATIONS);
       this.isInitialized = true;
+      await this._logStartupDiagnostics();
       logger.info('Database initialized successfully', {}, LOG_CATEGORIES.DATABASE);
     } catch (error) {
       logger.error('DatabaseService initialize failed', {
@@ -358,15 +409,21 @@ class DatabaseService {
   async saveEvents(sectionId, events) {
     await this.initialize();
 
+    const enrichedEvents = (Array.isArray(events) ? events : []).map(e => ({
+      ...e,
+      sectionid: e?.sectionid ?? sectionId,
+    }));
+
+    const { data: validEvents, errors } = safeParseArray(EventSchema, enrichedEvents);
+    if (errors.length > 0) {
+      logger.warn('Event validation errors during save', {
+        errorCount: errors.length,
+        totalCount: enrichedEvents.length,
+        errors: errors.slice(0, 5),
+      }, LOG_CATEGORIES.DATABASE);
+    }
+
     if (!this.isNative || !this.db) {
-      const { data: validEvents, errors } = safeParseArray(EventSchema, events);
-      if (errors.length > 0) {
-        logger.warn('Event validation errors during save', {
-          errorCount: errors.length,
-          totalCount: events?.length,
-          errors: errors.slice(0, 5),
-        }, LOG_CATEGORIES.DATABASE);
-      }
       await IndexedDBService.bulkReplaceEventsForSection(sectionId, validEvents);
       return;
     }
@@ -375,9 +432,9 @@ class DatabaseService {
       const deleteOld = 'DELETE FROM events WHERE sectionid = ?';
       await this.db.run(deleteOld, [sectionId], false);
 
-      for (const event of events) {
+      for (const event of validEvents) {
         const insert = `
-          INSERT INTO events (eventid, sectionid, termid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
+          INSERT OR REPLACE INTO events (eventid, sectionid, termid, name, date, startdate, startdate_g, enddate, enddate_g, location, notes)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await this.db.run(insert, [
@@ -895,7 +952,7 @@ class DatabaseService {
           age_months: member.age_months,
           pic: member.pic,
           read_only: member.read_only,
-          filter_string: member.filter_string,
+          filter_string: member._filterString || member.filter_string,
         };
 
         if (!coreMemberMap.has(scoutid)) {
@@ -991,69 +1048,175 @@ class DatabaseService {
       return;
     }
 
-    await this._runInTransaction(async () => {
-      for (const member of members) {
-        const knownFields = new Set([
-          'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months',
-          'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
-          'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
-          'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
-          'read_only', 'filter_string', '_filterString',
-        ]);
+    const knownFields = new Set([
+      'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months', 'yrs',
+      'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
+      'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
+      'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
+      'read_only', 'filter_string', '_filterString', 'sectionMemberships',
+    ]);
 
-        const flattenedFields = {};
-        Object.keys(member).forEach(key => {
-          if (!knownFields.has(key)) {
-            flattenedFields[key] = member[key];
+    const coreMemberMap = new Map();
+    const sectionMembersToInsert = [];
+
+    for (const member of members) {
+      if (!member.scoutid && !member.member_id) {
+        continue;
+      }
+
+      const scoutid = member.scoutid || member.member_id;
+
+      const flattenedFields = {};
+      Object.keys(member).forEach(key => {
+        if (!knownFields.has(key)) {
+          flattenedFields[key] = member[key];
+        }
+      });
+
+      const coreData = {
+        scoutid,
+        firstname: member.firstname,
+        lastname: member.lastname,
+        date_of_birth: member.date_of_birth,
+        photo_guid: member.photo_guid,
+        has_photo: member.has_photo,
+        contact_groups: member.contact_groups || {},
+        custom_data: member.custom_data || {},
+        flattened_fields: flattenedFields,
+        age: member.age,
+        yrs: member.yrs,
+        email: member.email,
+        age_years: member.age_years,
+        age_months: member.age_months,
+        pic: member.pic,
+        read_only: member.read_only,
+        filter_string: member._filterString || member.filter_string,
+      };
+
+      if (!coreMemberMap.has(scoutid)) {
+        coreMemberMap.set(scoutid, coreData);
+      } else {
+        const existing = coreMemberMap.get(scoutid);
+        Object.keys(coreData).forEach(key => {
+          if (key === 'contact_groups' || key === 'custom_data' || key === 'flattened_fields') {
+            existing[key] = { ...existing[key], ...coreData[key] };
+          } else if (coreData[key] !== undefined) {
+            existing[key] = coreData[key];
           }
         });
+      }
 
-        const insert = `
-          REPLACE INTO members (
-            scoutid, firstname, lastname, date_of_birth, age, age_years, age_months,
-            sectionid, sectionname, section, sections, patrol, patrol_id, person_type,
-            started, joined, end_date, active, photo_guid, has_photo, pic,
-            patrol_role_level, patrol_role_level_label, email,
-            contact_groups, custom_data, flattened_fields, read_only, filter_string
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
+      if (member.sectionMemberships && Array.isArray(member.sectionMemberships)) {
+        member.sectionMemberships.forEach(sectionMembership => {
+          sectionMembersToInsert.push({
+            scoutid,
+            sectionid: Number(sectionMembership.sectionid),
+            person_type: sectionMembership.person_type,
+            patrol: sectionMembership.patrol,
+            patrol_id: sectionMembership.patrol_id,
+            started: sectionMembership.started,
+            joined: sectionMembership.joined,
+            end_date: sectionMembership.end_date,
+            active: sectionMembership.active,
+            patrol_role_level: sectionMembership.patrol_role_level,
+            patrol_role_level_label: sectionMembership.patrol_role_level_label,
+            sectionname: sectionMembership.sectionname,
+            section: sectionMembership.section,
+          });
+        });
+      } else if (member.sectionid) {
+        sectionMembersToInsert.push({
+          scoutid,
+          sectionid: Number(member.sectionid),
+          person_type: member.person_type,
+          patrol: member.patrol,
+          patrol_id: member.patrol_id,
+          started: member.started,
+          joined: member.joined,
+          end_date: member.end_date,
+          active: member.active,
+          patrol_role_level: member.patrol_role_level,
+          patrol_role_level_label: member.patrol_role_level_label,
+          sectionname: member.sectionname,
+          section: member.section,
+        });
+      }
+    }
 
-        await this.db.run(insert, [
-          member.scoutid || member.member_id,
-          member.firstname,
-          member.lastname,
-          member.date_of_birth,
-          member.age,
-          member.age_years,
-          member.age_months,
-          member.sectionid,
-          member.sectionname,
-          member.section,
-          JSON.stringify(member.sections || [], false),
-          member.patrol,
-          member.patrol_id,
-          member.person_type,
-          member.started,
-          member.joined,
-          member.end_date,
-          member.active,
-          member.photo_guid,
-          member.has_photo,
-          member.pic,
-          member.patrol_role_level,
-          member.patrol_role_level_label,
-          member.email,
-          JSON.stringify(member.contact_groups || {}),
-          JSON.stringify(member.custom_data || {}),
-          JSON.stringify(flattenedFields),
-          JSON.stringify(member.read_only || []),
-          member._filterString || member.filter_string,
+    const updatedAt = Date.now();
+
+    await this._runInTransaction(async () => {
+      if (Array.isArray(sectionIds) && sectionIds.length > 0) {
+        const placeholders = sectionIds.map(() => '?').join(',');
+        await this.db.run(
+          `DELETE FROM member_section WHERE sectionid IN (${placeholders})`,
+          sectionIds.map(id => Number(id)),
+          false,
+        );
+      }
+
+      const coreInsert = `
+        INSERT OR REPLACE INTO core_members (
+          scoutid, firstname, lastname, date_of_birth, age, age_years, age_months, yrs,
+          photo_guid, has_photo, pic, email,
+          contact_groups, custom_data, flattened_fields, read_only, filter_string, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      for (const core of coreMemberMap.values()) {
+        await this.db.run(coreInsert, [
+          core.scoutid,
+          core.firstname,
+          core.lastname,
+          core.date_of_birth,
+          core.age,
+          core.age_years,
+          core.age_months,
+          core.yrs,
+          core.photo_guid,
+          typeof core.has_photo === 'boolean' ? (core.has_photo ? 1 : 0) : null,
+          typeof core.pic === 'boolean' ? (core.pic ? 1 : 0) : null,
+          core.email,
+          JSON.stringify(core.contact_groups || {}),
+          JSON.stringify(core.custom_data || {}),
+          JSON.stringify(core.flattened_fields || {}),
+          JSON.stringify(core.read_only || []),
+          core.filter_string,
+          updatedAt,
+        ], false);
+      }
+
+      const sectionInsert = `
+        INSERT OR REPLACE INTO member_section (
+          scoutid, sectionid, sectionname, section, person_type, patrol, patrol_id,
+          started, joined, end_date, active,
+          patrol_role_level, patrol_role_level_label, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      for (const sm of sectionMembersToInsert) {
+        await this.db.run(sectionInsert, [
+          sm.scoutid,
+          sm.sectionid,
+          sm.sectionname,
+          sm.section,
+          sm.person_type,
+          sm.patrol,
+          sm.patrol_id,
+          sm.started,
+          sm.joined,
+          sm.end_date,
+          typeof sm.active === 'boolean' ? (sm.active ? 1 : 0) : null,
+          sm.patrol_role_level,
+          sm.patrol_role_level_label,
+          updatedAt,
         ], false);
       }
     });
 
-    await this.updateSyncStatus('members');
+    await this.updateSyncStatus('core_members');
   }
 
   /**
@@ -1153,34 +1316,34 @@ class DatabaseService {
           const member = {
             scoutid: core.scoutid,
             member_id: core.scoutid,
-            firstname: core.firstname,
-            lastname: core.lastname,
-            date_of_birth: core.date_of_birth,
-            dateofbirth: core.date_of_birth,
-            age: core.age,
+            firstname: core.firstname ?? null,
+            lastname: core.lastname ?? null,
+            date_of_birth: core.date_of_birth ?? null,
+            dateofbirth: core.date_of_birth ?? null,
+            age: core.age ?? null,
             age_years: core.age_years || null,
             age_months: core.age_months || null,
-            yrs: core.yrs,
-            photo_guid: core.photo_guid,
-            has_photo: core.has_photo,
-            pic: core.pic || null,
-            email: core.email,
+            yrs: core.yrs ?? null,
+            photo_guid: core.photo_guid ?? null,
+            has_photo: core.has_photo ?? null,
+            pic: core.pic ?? null,
+            email: core.email ?? null,
             contact_groups: core.contact_groups || {},
             custom_data: core.custom_data || {},
             read_only: core.read_only || [],
 
-            sectionid: sectionMember.sectionid,
-            sectionname: sectionMember.sectionname,
-            section: sectionMember.section,
-            person_type: sectionMember.person_type,
-            patrol: sectionMember.patrol,
-            patrol_id: sectionMember.patrol_id,
-            started: sectionMember.started,
-            joined: sectionMember.joined,
-            end_date: sectionMember.end_date,
-            active: sectionMember.active,
-            patrol_role_level: sectionMember.patrol_role_level,
-            patrol_role_level_label: sectionMember.patrol_role_level_label,
+            sectionid: sectionMember.sectionid ?? null,
+            sectionname: sectionMember.sectionname ?? null,
+            section: sectionMember.section ?? null,
+            person_type: sectionMember.person_type ?? null,
+            patrol: sectionMember.patrol ?? null,
+            patrol_id: sectionMember.patrol_id ?? null,
+            started: sectionMember.started ?? null,
+            joined: sectionMember.joined ?? null,
+            end_date: sectionMember.end_date ?? null,
+            active: sectionMember.active ?? null,
+            patrol_role_level: sectionMember.patrol_role_level ?? null,
+            patrol_role_level_label: sectionMember.patrol_role_level_label ?? null,
 
             sections: allSections.map(s => ({
               section_id: s.sectionid,
@@ -1216,44 +1379,136 @@ class DatabaseService {
       }
     }
     
-    const placeholders = sectionIds.map(() => '?').join(',');
-    const query = `SELECT * FROM members WHERE sectionid IN (${placeholders}) ORDER BY lastname, firstname`;
-    const result = await this.db.query(query, sectionIds);
-    
-    // Reconstruct full member objects from database
-    return (result.values || []).map(dbMember => {
-      // Parse JSON fields back to objects/arrays
-      const member = {
-        ...dbMember,
-        sections: dbMember.sections ? JSON.parse(dbMember.sections) : [],
-        contact_groups: dbMember.contact_groups ? JSON.parse(dbMember.contact_groups) : {},
-        custom_data: dbMember.custom_data ? JSON.parse(dbMember.custom_data) : {},
-        read_only: dbMember.read_only ? JSON.parse(dbMember.read_only) : [],
-      };
-      
-      // Restore flattened fields to the member object
-      if (dbMember.flattened_fields) {
+    try {
+      const numericSectionIds = sectionIds.map(id => Number(id));
+      const placeholders = numericSectionIds.map(() => '?').join(',');
+
+      const sectionRowsResult = await this.db.query(
+        `SELECT * FROM member_section WHERE sectionid IN (${placeholders})`,
+        numericSectionIds,
+      );
+      const sectionRows = sectionRowsResult.values || [];
+
+      if (sectionRows.length === 0) {
+        return [];
+      }
+
+      const uniqueScoutIds = [...new Set(sectionRows.map(r => r.scoutid))];
+      const corePlaceholders = uniqueScoutIds.map(() => '?').join(',');
+      const coreRowsResult = await this.db.query(
+        `SELECT * FROM core_members WHERE scoutid IN (${corePlaceholders})`,
+        uniqueScoutIds,
+      );
+      const coreRows = coreRowsResult.values || [];
+
+      const parseJson = (value, fallback) => {
+        if (value === null || value === undefined || value === '') return fallback;
+        if (typeof value === 'object') return value;
         try {
-          const flattenedFields = JSON.parse(dbMember.flattened_fields);
-          Object.assign(member, flattenedFields);
-        } catch (error) {
-          logger.warn('Failed to parse flattened_fields for member', {
-            scoutid: dbMember.scoutid,
-            error: error.message,
-          }, LOG_CATEGORIES.DATABASE);
+          return JSON.parse(value);
+        } catch {
+          return fallback;
         }
+      };
+
+      const coreMemberMap = new Map(coreRows.map(r => [r.scoutid, r]));
+
+      const sectionsByScoutId = new Map();
+      for (const sectionRow of sectionRows) {
+        if (!sectionsByScoutId.has(sectionRow.scoutid)) {
+          sectionsByScoutId.set(sectionRow.scoutid, []);
+        }
+        sectionsByScoutId.get(sectionRow.scoutid).push(sectionRow);
       }
-      
-      // Ensure backward compatibility field mappings
-      if (!member.member_id && member.scoutid) {
-        member.member_id = member.scoutid;
+
+      const members = [];
+      const processedScoutIds = new Set();
+
+      for (const sectionRow of sectionRows) {
+        if (processedScoutIds.has(sectionRow.scoutid)) {
+          continue;
+        }
+        processedScoutIds.add(sectionRow.scoutid);
+
+        const coreRow = coreMemberMap.get(sectionRow.scoutid);
+        if (!coreRow) {
+          logger.warn('Orphaned member_section record - missing core_members data', {
+            scoutid: sectionRow.scoutid,
+            sectionid: sectionRow.sectionid,
+          }, LOG_CATEGORIES.DATABASE);
+          continue;
+        }
+
+        const allSections = sectionsByScoutId.get(sectionRow.scoutid) || [];
+
+        const contactGroups = parseJson(coreRow.contact_groups, {});
+        const customData = parseJson(coreRow.custom_data, {});
+        const readOnly = parseJson(coreRow.read_only, []);
+        const flattenedFields = parseJson(coreRow.flattened_fields, {});
+
+        const member = {
+          scoutid: coreRow.scoutid,
+          member_id: coreRow.scoutid,
+          firstname: coreRow.firstname,
+          lastname: coreRow.lastname,
+          date_of_birth: coreRow.date_of_birth,
+          dateofbirth: coreRow.date_of_birth,
+          age: coreRow.age,
+          age_years: coreRow.age_years || null,
+          age_months: coreRow.age_months || null,
+          yrs: coreRow.yrs,
+          photo_guid: coreRow.photo_guid,
+          has_photo: coreRow.has_photo === 1 ? true : (coreRow.has_photo === 0 ? false : null),
+          pic: coreRow.pic === 1 ? true : (coreRow.pic === 0 ? false : null),
+          email: coreRow.email,
+          contact_groups: contactGroups,
+          custom_data: customData,
+          read_only: readOnly,
+
+          sectionid: sectionRow.sectionid,
+          sectionname: sectionRow.sectionname,
+          section: sectionRow.section,
+          person_type: sectionRow.person_type,
+          patrol: sectionRow.patrol,
+          patrol_id: sectionRow.patrol_id,
+          started: sectionRow.started,
+          joined: sectionRow.joined,
+          end_date: sectionRow.end_date,
+          active: sectionRow.active === 1 ? true : (sectionRow.active === 0 ? false : null),
+          patrol_role_level: sectionRow.patrol_role_level,
+          patrol_role_level_label: sectionRow.patrol_role_level_label,
+
+          sections: allSections.map(s => ({
+            section_id: s.sectionid,
+            sectionid: s.sectionid,
+            sectionname: s.sectionname,
+            section: s.section,
+            person_type: s.person_type,
+            patrol: s.patrol,
+            active: s.active === 1,
+          })),
+
+          ...(typeof flattenedFields === 'object' && !Array.isArray(flattenedFields)
+            ? flattenedFields
+            : {}),
+        };
+
+        members.push(member);
       }
-      if (!member.dateofbirth && member.date_of_birth) {
-        member.dateofbirth = member.date_of_birth;
-      }
-      
-      return member;
-    });
+
+      members.sort((a, b) => {
+        const lastNameCmp = (a.lastname || '').localeCompare(b.lastname || '');
+        return lastNameCmp !== 0 ? lastNameCmp : (a.firstname || '').localeCompare(b.firstname || '');
+      });
+
+      return members;
+    } catch (error) {
+      logger.warn('Failed to fetch members from SQLite dual-store', {
+        error: error.message,
+        sectionIds,
+      }, LOG_CATEGORIES.DATABASE);
+      return [];
+    }
   }
 
   /**
@@ -1302,7 +1557,7 @@ class DatabaseService {
     }
 
     // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const allowedTables = ['attendance', 'events', 'sections'];
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const query = `SELECT * FROM ${safeTableName} WHERE conflict_resolution_needed = 1`;
@@ -1321,7 +1576,7 @@ class DatabaseService {
     }
 
     // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const allowedTables = ['attendance', 'events', 'sections'];
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const query = `SELECT * FROM ${safeTableName} WHERE is_locally_modified = 1 AND local_version > last_sync_version`;
@@ -1340,7 +1595,7 @@ class DatabaseService {
     }
 
     // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const allowedTables = ['attendance', 'events', 'sections'];
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const query = `UPDATE ${safeTableName} SET conflict_resolution_needed = ? WHERE id = ?`;
@@ -1358,7 +1613,7 @@ class DatabaseService {
     }
 
     // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const allowedTables = ['attendance', 'events', 'sections'];
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const query = `
@@ -1381,7 +1636,7 @@ class DatabaseService {
     }
 
     // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'members', 'events', 'sections'];
+    const allowedTables = ['attendance', 'events', 'sections'];
     const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
 
     const {
@@ -1505,7 +1760,7 @@ class DatabaseService {
 
         for (const term of validTerms) {
           const insert = `
-            INSERT INTO terms (termid, sectionid, name, startdate, enddate)
+            INSERT OR REPLACE INTO terms (termid, sectionid, name, startdate, enddate)
             VALUES (?, ?, ?, ?, ?)
           `;
           await this.db.run(insert, [

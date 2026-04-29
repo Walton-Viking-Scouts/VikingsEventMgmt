@@ -366,9 +366,11 @@ describe('getMembers() Integration Tests', () => {
       const members = await databaseService.getMembers([101]);
       const member = members[0];
 
-      expect(member.photo_guid).toBeUndefined();
-      expect(member.email).toBeUndefined();
-      expect(member.patrol).toBeUndefined();
+      // After cross-backend parity alignment, missing scalar fields default to
+      // null (not undefined) so SQLite and IndexedDB outputs match.
+      expect(member.photo_guid).toBeNull();
+      expect(member.email).toBeNull();
+      expect(member.patrol).toBeNull();
       expect(member.contact_groups).toEqual({});
       expect(member.custom_data).toEqual({});
       expect(member.read_only).toEqual([]);
