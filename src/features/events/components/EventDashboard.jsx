@@ -23,6 +23,7 @@ import {
 } from '../../../shared/utils/eventDashboardHelpers.js';
 import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
+import { dedupAttendanceMapForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 
 function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const { lastSyncTime } = useAuth(); // Get shared lastSyncTime from auth context
@@ -465,10 +466,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     // Convert groups to cards with attendance data
     const cards = [];
     for (const [eventName, events] of eventGroups) {
-      // Enrich events with attendance data without mutating originals
+      const dedupedByEventId = dedupAttendanceMapForEventGroup(events, attendanceMap);
       const eventsWithAttendance = events.map((event) => ({
         ...event,
-        attendanceData: attendanceMap.get(event.eventid) || [],
+        attendanceData: dedupedByEventId.get(String(event.eventid)) || [],
       }));
 
       const card = buildEventCard(eventName, eventsWithAttendance);
