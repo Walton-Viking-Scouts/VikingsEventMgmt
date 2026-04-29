@@ -181,6 +181,13 @@ class DatabaseService {
       }
       
       await this.db.open();
+      // Disable FK enforcement to match how the bulkReplace patterns
+      // (DELETE then INSERT) operate. Capacitor SQLite plugin defaults vary
+      // by version/build; on real devices we observed FKs being ON, which
+      // blocked saveEvents' DELETE FROM events WHERE sectionid=? whenever
+      // attendance rows still referenced those events — causing event
+      // renames to silently fail to persist on iOS.
+      await this.db.execute('PRAGMA foreign_keys = OFF;', false);
       await runMigrations(this.db, MIGRATIONS);
       this.isInitialized = true;
       logger.info('Database initialized successfully', {}, LOG_CATEGORIES.DATABASE);

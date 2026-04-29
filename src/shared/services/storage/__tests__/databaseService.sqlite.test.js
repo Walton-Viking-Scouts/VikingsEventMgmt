@@ -78,6 +78,56 @@ describe('DatabaseService — SQLite (iOS code path)', () => {
     }
   });
 
+  describe('Foreign key enforcement (production bug 2026-04-29)', () => {
+    /**
+     * Production Capacitor SQLite plugin enforces FKs on real devices,
+     * which blocked saveEvents from re-inserting after attendance rows
+     * referenced them. The existing bulkReplace patterns assume FKs are
+     * NOT enforced. initialize() explicitly disables them to match.
+     */
+    it('initialize() disables FK enforcement even when device defaults to ON', async () => {
+      // Simulate a device where FKs are on by default at connection open.
+      activeDb.pragma('foreign_keys = ON');
+      expect(activeDb.pragma('foreign_keys', { simple: true })).toBe(1);
+
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      // After initialize(), FK enforcement must be OFF.
+      expect(activeDb.pragma('foreign_keys', { simple: true })).toBe(0);
+    });
+
+    it('saveEvents survives re-save after attendance references those events (FK=ON device)', async () => {
+      activeDb.pragma('foreign_keys = ON');
+
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      await databaseService.saveSections([
+        { sectionid: 5, sectionname: 'Beavers Mon', sectiontype: 'beavers' },
+      ]);
+      await databaseService.saveEvents(5, [
+        { eventid: '100', name: 'Old Camp Name', sectionid: 5, startdate: '2026-05-01', termid: 't1' },
+      ]);
+      await databaseService.saveAttendance('100', [
+        { scoutid: 1, eventid: '100', sectionid: 5, attending: 'Yes' },
+      ]);
+
+      // Re-saving events for section 5 must succeed despite attendance.eventid
+      // referencing the existing event row. Without the PRAGMA off in init,
+      // the DELETE FROM events WHERE sectionid=? would throw FK constraint.
+      await expect(
+        databaseService.saveEvents(5, [
+          { eventid: '100', name: 'Renamed Camp', sectionid: 5, startdate: '2026-05-01', termid: 't1' },
+        ]),
+      ).resolves.toBeUndefined();
+
+      const events = await databaseService.getEvents(5);
+      expect(events.length).toBe(1);
+      expect(events[0].name).toBe('Renamed Camp');
+    });
+  });
+
   describe('Fresh install schema', () => {
     it('creates all expected tables', async () => {
       const databaseService = await loadFreshDatabaseService();
