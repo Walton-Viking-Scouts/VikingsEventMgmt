@@ -317,7 +317,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     }
   };
 
-  // Manual refresh handler - simple direct calls
+  // Manual refresh handler — full data refresh, same sequence as post-login
+  // load. Refreshes reference data (terms, roles, members), events,
+  // attendance, and flexi records. The previous implementation skipped
+  // reference + flexi which left member_section / flexi_data stale on iOS
+  // after migration 003.
   const handleManualRefresh = async () => {
     if (refreshing) return;
 
@@ -325,42 +329,28 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       setRefreshing(true);
       setError(null);
 
-      // Show loading notification
       notifyInfo('Syncing data from OSM...');
-
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 
-      // Get authentication token
       const token = getToken();
       if (!token) {
         throw new Error('No authentication token available');
       }
 
-      // Get current sections
+      const dataLoadingService = (await import('../../../shared/services/data/dataLoadingService.js')).default;
+      const result = await dataLoadingService.loadAllDataAfterAuth(token);
+
       const sectionsData = await databaseService.getSections();
-
-      // Step 1: Load events (includes shared event metadata setup)
-      const { loadEventsForSections } = await import('../../../shared/services/data/eventsService.js');
-      await loadEventsForSections(sectionsData, token);
-
-      // Step 2: Sync all attendance (includes shared attendance)
-      const eventDataLoader = (await import('../../../shared/services/data/eventDataLoader.js')).default;
-      const attendanceResult = await eventDataLoader.syncAllEventAttendance(true);
-
-      // Step 3: Reload sections and rebuild event cards
       setSections(sectionsData);
       const cards = await buildEventCards(sectionsData);
       setEventCards(cards);
-
-      // Step 4: Update last sync time
       setLastSync(new Date());
 
-      // Step 5: Show success notification
-      let message = 'Event data refreshed successfully';
-      if (attendanceResult?.details) {
-        message = `Refreshed ${attendanceResult.details.syncedEvents}/${attendanceResult.details.totalEvents} events`;
+      let message = 'Data refreshed successfully';
+      const summary = result?.results?.attendance?.details;
+      if (summary) {
+        message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
       }
-
       notifySuccess(message);
 
     } catch (error) {
