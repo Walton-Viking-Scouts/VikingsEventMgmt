@@ -11,7 +11,7 @@ vi.mock('../../services/storage/database.js', () => ({
 
 vi.mock('../../services/utils/logger.js', () => ({
   default: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-  LOG_CATEGORIES: { DATA_SERVICE: 'data_service' },
+  LOG_CATEGORIES: { DATA_SERVICE: 'data-service', DATABASE: 'database', STORAGE: 'storage', APP: 'app' },
 }));
 
 import databaseService from '../../services/storage/database.js';
@@ -210,5 +210,130 @@ describe('loadAllAttendanceFromDatabase — per-event failure handling', () => {
     const [, ctx] = logger.debug.mock.calls[0];
     expect(ctx.failedEventCount).toBe(0);
     expect(ctx.recordCount).toBe(1);
+  });
+
+  it('captures the first failures in event-iteration order in sampleFailures', async () => {
+    // Locks in that sampleFailures preserves Promise.allSettled's input order
+    // — operators get the FIRST failed events for debugging, not random ones.
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({
+        eventid: `E${i}`, name: `Event ${i}`, startdate: '01/01/2026', sectionname: 'Monday Squirrels',
+      })),
+    );
+    // Only E2 and E4 fail; E0/E1/E3 succeed.
+    databaseService.getAttendance.mockImplementation(async (eventid) => {
+      if (eventid === 'E2' || eventid === 'E4') throw new Error(`fail ${eventid}`);
+      return [{ eventid, scoutid: 1, sectionid: MONDAY, attending: 'Yes' }];
+    });
+
+    await loadAllAttendanceFromDatabase();
+    const ctx = logger.warn.mock.calls[0][1];
+    expect(ctx.sampleFailures.map(f => f.eventid)).toEqual(['E2', 'E4']);
+    expect(ctx.sampleFailures.map(f => f.error)).toEqual(['fail E2', 'fail E4']);
+  });
+});
+
+describe('loadAllAttendanceFromDatabase — top-level failure handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns [] and logs error when getSections rejects', async () => {
+    databaseService.getSections.mockRejectedValue(new Error('IDB closed'));
+
+    const result = await loadAllAttendanceFromDatabase();
+
+    expect(result).toEqual([]);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.warn).not.toHaveBeenCalled();
+    const [message, context] = logger.error.mock.calls[0];
+    expect(message).toMatch(/Failed to load sections\/events/);
+    expect(context.error).toBe('IDB closed');
+  });
+
+  it('returns [] and logs error when getEvents rejects mid-iteration', async () => {
+    // Two sections; getEvents resolves for the first then rejects for the second.
+    // Outer catch must fire — otherwise we'd silently produce a half-loaded
+    // attendance set, which is the opposite of this PR's intent.
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+      { sectionid: THURSDAY, sectionname: 'Thursday Squirrels' },
+    ]);
+    databaseService.getEvents.mockImplementation(async (sid) => {
+      if (sid === MONDAY) return [{ eventid: 'E1', name: 'A', startdate: '01/01/2026', sectionname: 'Monday Squirrels' }];
+      throw new Error('Section events fetch failed');
+    });
+
+    const result = await loadAllAttendanceFromDatabase();
+
+    expect(result).toEqual([]);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][1].error).toBe('Section events fetch failed');
+  });
+});
+
+describe('loadAllAttendanceFromDatabase — rejection-reason formatting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function setupSingleEventThatRejectsWith(rejection) {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'A', startdate: '01/01/2026', sectionname: 'Monday Squirrels' },
+    ]);
+    // Throwing a non-Error from an async function causes the promise to reject
+    // with that exact value (string, null, plain object, etc.).
+    databaseService.getAttendance.mockImplementation(async () => {
+      throw rejection;
+    });
+  }
+
+  it('uses .message for Error rejections', async () => {
+    setupSingleEventThatRejectsWith(new Error('IndexedDB transaction aborted'));
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error)
+      .toBe('IndexedDB transaction aborted');
+  });
+
+  it('uses the string itself for string rejections', async () => {
+    setupSingleEventThatRejectsWith('legacy string rejection');
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error)
+      .toBe('legacy string rejection');
+  });
+
+  it('produces an informative log when reason is undefined', async () => {
+    setupSingleEventThatRejectsWith(undefined);
+    await loadAllAttendanceFromDatabase();
+    // String(undefined) would log just "undefined" which is uninformative.
+    // Operators should see this came from a rejection with no value attached.
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error)
+      .toBe('rejected with undefined');
+  });
+
+  it('produces an informative log when reason is null', async () => {
+    setupSingleEventThatRejectsWith(null);
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error)
+      .toBe('rejected with null');
+  });
+
+  it('falls back to String() for plain-object rejections', async () => {
+    setupSingleEventThatRejectsWith({ code: 'EBOOM' });
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error)
+      .toBe('[object Object]');
+  });
+
+  it('uses .message when a plain object exposes one (DOMException-shaped rejection)', async () => {
+    setupSingleEventThatRejectsWith({ message: 'AbortError', name: 'DOMException' });
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn.mock.calls[0][1].sampleFailures[0].error).toBe('AbortError');
   });
 });

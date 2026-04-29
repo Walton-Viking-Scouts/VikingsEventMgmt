@@ -90,6 +90,9 @@ export const LOG_CATEGORIES = {
   COMPONENT: 'component',
   HOOK: 'hook',
   ERROR: 'error',
+  DATA_SERVICE: 'data-service',
+  DATABASE: 'database',
+  STORAGE: 'storage',
 };
 
 // Create structured log entry

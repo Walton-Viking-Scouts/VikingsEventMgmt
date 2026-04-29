@@ -1,6 +1,16 @@
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 
+function formatRejectionReason(reason) {
+  if (reason instanceof Error || (reason && typeof reason.message === 'string')) {
+    return reason.message;
+  }
+  if (reason === null || reason === undefined) {
+    return `rejected with ${reason}`;
+  }
+  return String(reason);
+}
+
 /**
  * Loads all attendance from the normalized IndexedDB store with read-time enrichment.
  * Raw attendance records contain only core fields (scoutid, eventid, sectionid, attending, patrol, notes).
@@ -63,7 +73,7 @@ export async function loadAllAttendanceFromDatabase() {
         sampleFailures: rejected.slice(0, 3).map(({ result, event }) => ({
           eventid: event?.eventid,
           eventname: event?.name,
-          error: result.reason?.message ?? String(result.reason),
+          error: formatRejectionReason(result.reason),
         })),
       }, LOG_CATEGORIES.DATA_SERVICE);
     }
@@ -80,8 +90,9 @@ export async function loadAllAttendanceFromDatabase() {
 
     return allAttendance;
   } catch (error) {
-    logger.error('Failed to load attendance from IndexedDB', {
+    logger.error('Failed to load sections/events for attendance enrichment', {
       error: error.message,
+      errorName: error.name,
     }, LOG_CATEGORIES.DATA_SERVICE);
     return [];
   }
