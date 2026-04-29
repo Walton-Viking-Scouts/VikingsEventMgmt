@@ -131,6 +131,49 @@ class DatabaseService {
   }
 
   /**
+   * Logs SQLite state for diagnosing the FK / stale-events bug class.
+   *
+   * One-shot startup probe captured to Sentry breadcrumbs — confirms the
+   * PRAGMA foreign_keys setting actually stuck on the real device, the
+   * actual on-disk events table DDL, the migration versions applied, and
+   * any rows whose name still hints at the duplicate-event symptom. Cheap
+   * to run, only on native, swallowed on failure so it can never break
+   * initialize().
+   *
+   * @private
+   * @async
+   * @returns {Promise<void>}
+   */
+  async _logStartupDiagnostics() {
+    if (!this.isNative || !this.db) return;
+    try {
+      const fk = await this.db.query('PRAGMA foreign_keys;');
+      const ddl = await this.db.query(
+        'SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=\'events\';',
+      );
+      const migrations = await this.db.query(
+        'SELECT version FROM schema_migrations ORDER BY version;',
+      );
+      const fridayRows = await this.db.query(
+        'SELECT eventid, sectionid, name, startdate FROM events WHERE LOWER(name) LIKE \'%friday arriv%\';',
+      );
+      const eventCount = await this.db.query('SELECT COUNT(*) AS c FROM events;');
+
+      logger.info('SQLITE_STARTUP_DIAG', {
+        fk_enforced: fk.values?.[0]?.foreign_keys,
+        events_ddl: ddl.values?.[0]?.sql,
+        migrations: (migrations.values || []).map(r => r.version),
+        events_total: eventCount.values?.[0]?.c,
+        friday_rows: fridayRows.values || [],
+      }, LOG_CATEGORIES.DATABASE);
+    } catch (error) {
+      logger.warn('SQLITE_STARTUP_DIAG failed', {
+        error: error?.message,
+      }, LOG_CATEGORIES.DATABASE);
+    }
+  }
+
+  /**
    * Initializes the database service and creates necessary tables
    * 
    * Detects platform capabilities and establishes appropriate storage mechanism.
@@ -190,6 +233,7 @@ class DatabaseService {
       await this.db.execute('PRAGMA foreign_keys = OFF;', false);
       await runMigrations(this.db, MIGRATIONS);
       this.isInitialized = true;
+      await this._logStartupDiagnostics();
       logger.info('Database initialized successfully', {}, LOG_CATEGORIES.DATABASE);
     } catch (error) {
       logger.error('DatabaseService initialize failed', {
