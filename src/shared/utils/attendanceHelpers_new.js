@@ -4,7 +4,18 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 /**
  * Loads all attendance from the normalized IndexedDB store with read-time enrichment.
  * Raw attendance records contain only core fields (scoutid, eventid, sectionid, attending, patrol, notes).
- * Enrichment fields (eventname, eventdate, sectionname) are joined at read time from the events store.
+ *
+ * Enrichment fields are joined at read time:
+ *   - eventname, eventdate from the events store (keyed by record.eventid)
+ *   - sectionname from the sections store (keyed by record.sectionid), with
+ *     event.sectionname as a fallback when the record's sectionid isn't in the
+ *     sections cache.
+ *
+ * The sections-store join matters for shared events: a record's sectionid can
+ * belong to a different section than the event's owner (cross-section invitee
+ * via OSM event sharing). Joining sectionname from event.sectionname instead
+ * would mis-label those rows under the event-owner's section name.
+ *
  * @returns {Promise<Array<Object>>} Enriched attendance records
  */
 export async function loadAllAttendanceFromDatabase() {

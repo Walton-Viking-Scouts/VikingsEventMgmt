@@ -12,7 +12,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { dedupAttendanceForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
+import { dedupAttendanceMapForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 import { useAuth } from '../../auth/hooks/useAuth.jsx';
 
 function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
@@ -119,15 +119,7 @@ function EventsOverview({ onNavigateToAttendance: _onNavigateToAttendance }) {
     // Convert groups to cards with attendance data
     const cards = [];
     for (const [eventName, events] of eventGroups) {
-      const allGroupRecords = events.flatMap((event) => attendanceMap.get(event.eventid) || []);
-      const dedupedRecords = dedupAttendanceForEventGroup(events, allGroupRecords);
-      const dedupedByEventId = new Map();
-      for (const record of dedupedRecords) {
-        const list = dedupedByEventId.get(String(record.eventid)) || [];
-        list.push(record);
-        dedupedByEventId.set(String(record.eventid), list);
-      }
-
+      const dedupedByEventId = dedupAttendanceMapForEventGroup(events, attendanceMap);
       const eventsWithAttendance = events.map((event) => ({
         ...event,
         attendanceData: dedupedByEventId.get(String(event.eventid)) || [],
