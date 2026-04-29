@@ -15,6 +15,7 @@ vi.mock('../../services/utils/logger.js', () => ({
 }));
 
 import databaseService from '../../services/storage/database.js';
+import logger from '../../services/utils/logger.js';
 import { loadAllAttendanceFromDatabase } from '../attendanceHelpers_new.js';
 
 const MONDAY = 63813;
@@ -104,5 +105,110 @@ describe('loadAllAttendanceFromDatabase — sectionname enrichment', () => {
 
     const result = await loadAllAttendanceFromDatabase();
     expect(result[0].sectionname).toBe('Monday Squirrels');
+  });
+});
+
+describe('loadAllAttendanceFromDatabase — per-event failure handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('logs a warn with eventid + error when a single event fails to load', async () => {
+    // Two events; one rejects, one resolves. The rejecter must be logged
+    // with enough context (eventid, eventname, error message) for an operator
+    // to investigate. The resolver's records still surface.
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'Good Event',    startdate: '01/01/2026', sectionname: 'Monday Squirrels' },
+      { eventid: 'E2', name: 'Broken Event',  startdate: '02/01/2026', sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getAttendance.mockImplementation(async (eventid) => {
+      if (eventid === 'E2') throw new Error('IndexedDB transaction aborted');
+      return [{ eventid, scoutid: 100, sectionid: MONDAY, attending: 'Yes' }];
+    });
+
+    const result = await loadAllAttendanceFromDatabase();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].eventid).toBe('E1');
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    const [message, context] = logger.warn.mock.calls[0];
+    expect(message).toMatch(/Failed to load attendance/);
+    expect(context.failedCount).toBe(1);
+    expect(context.totalEvents).toBe(2);
+    expect(context.sampleFailures[0]).toMatchObject({
+      eventid: 'E2',
+      eventname: 'Broken Event',
+      error: 'IndexedDB transaction aborted',
+    });
+  });
+
+  it('does not log a warn when all events load successfully', async () => {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'A', startdate: '01/01/2026', sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getAttendance.mockResolvedValue([
+      { eventid: 'E1', scoutid: 1, sectionid: MONDAY, attending: 'Yes' },
+    ]);
+
+    await loadAllAttendanceFromDatabase();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns [] gracefully when every event fails (no top-level throw)', async () => {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'A', startdate: '01/01/2026', sectionname: 'Monday Squirrels' },
+      { eventid: 'E2', name: 'B', startdate: '02/01/2026', sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getAttendance.mockRejectedValue(new Error('DB unavailable'));
+
+    const result = await loadAllAttendanceFromDatabase();
+    expect(result).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn.mock.calls[0][1].failedCount).toBe(2);
+  });
+
+  it('caps the sampleFailures log payload at 3 entries even when more events fail', async () => {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({
+        eventid: `E${i}`, name: `Event ${i}`, startdate: '01/01/2026', sectionname: 'Monday Squirrels',
+      })),
+    );
+    databaseService.getAttendance.mockRejectedValue(new Error('boom'));
+
+    await loadAllAttendanceFromDatabase();
+
+    const context = logger.warn.mock.calls[0][1];
+    expect(context.failedCount).toBe(5);
+    expect(context.sampleFailures).toHaveLength(3);
+  });
+
+  it('logs failedEventCount in the debug summary even on the happy path', async () => {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: MONDAY, sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'A', startdate: '01/01/2026', sectionname: 'Monday Squirrels' },
+    ]);
+    databaseService.getAttendance.mockResolvedValue([
+      { eventid: 'E1', scoutid: 1, sectionid: MONDAY, attending: 'Yes' },
+    ]);
+
+    await loadAllAttendanceFromDatabase();
+    expect(logger.debug).toHaveBeenCalled();
+    const [, ctx] = logger.debug.mock.calls[0];
+    expect(ctx.failedEventCount).toBe(0);
+    expect(ctx.recordCount).toBe(1);
   });
 });

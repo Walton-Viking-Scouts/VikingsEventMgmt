@@ -16,6 +16,11 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
  * via OSM event sharing). Joining sectionname from event.sectionname instead
  * would mis-label those rows under the event-owner's section name.
  *
+ * Per-event load failures (e.g. transient DB errors) are tolerated: the failed
+ * event's records are skipped and a warn is logged with the failed eventids
+ * and sample error messages, but successful events still surface. A top-level
+ * failure (e.g. getSections rejecting) returns [] and is logged as an error.
+ *
  * @returns {Promise<Array<Object>>} Enriched attendance records
  */
 export async function loadAllAttendanceFromDatabase() {
@@ -32,25 +37,37 @@ export async function loadAllAttendanceFromDatabase() {
     }
 
     const attendancePromises = allEvents.map(async (event) => {
-      try {
-        const records = await databaseService.getAttendance(event.eventid);
-        if (!records || records.length === 0) return [];
+      const records = await databaseService.getAttendance(event.eventid);
+      if (!records || records.length === 0) return [];
 
-        return records.map(record => ({
-          ...record,
-          eventname: event.name ?? null,
-          eventdate: event.startdate ?? null,
-          sectionname:
-            sectionNameById.get(Number(record.sectionid)) ??
-            event.sectionname ??
-            null,
-        }));
-      } catch {
-        return [];
-      }
+      return records.map(record => ({
+        ...record,
+        eventname: event.name ?? null,
+        eventdate: event.startdate ?? null,
+        sectionname:
+          sectionNameById.get(Number(record.sectionid)) ??
+          event.sectionname ??
+          null,
+      }));
     });
 
     const results = await Promise.allSettled(attendancePromises);
+    const rejected = results
+      .map((r, i) => ({ result: r, event: allEvents[i] }))
+      .filter(({ result }) => result.status === 'rejected');
+
+    if (rejected.length > 0) {
+      logger.warn('Failed to load attendance for some events', {
+        failedCount: rejected.length,
+        totalEvents: allEvents.length,
+        sampleFailures: rejected.slice(0, 3).map(({ result, event }) => ({
+          eventid: event?.eventid,
+          eventname: event?.name,
+          error: result.reason?.message ?? String(result.reason),
+        })),
+      }, LOG_CATEGORIES.DATA_SERVICE);
+    }
+
     const allAttendance = results
       .filter(r => r.status === 'fulfilled')
       .flatMap(r => r.value);
@@ -58,6 +75,7 @@ export async function loadAllAttendanceFromDatabase() {
     logger.debug('Loaded attendance from normalized store with enrichment', {
       eventCount: allEvents.length,
       recordCount: allAttendance.length,
+      failedEventCount: rejected.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
 
     return allAttendance;
