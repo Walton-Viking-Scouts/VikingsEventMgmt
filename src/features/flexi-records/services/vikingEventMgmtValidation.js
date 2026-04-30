@@ -67,6 +67,7 @@ export async function validateVikingEventMgmtFlexiRecord(sectionId, termId, toke
     isValid: false,
     hasFlexiRecord: false,
     hasRequiredFields: false,
+    networkError: false,
     missingFields: [],
     availableFields: [],
     errors: [],
@@ -123,6 +124,7 @@ export async function validateVikingEventMgmtFlexiRecord(sectionId, termId, toke
       error: error.message,
     }, LOG_CATEGORIES.ERROR);
 
+    validation.networkError = true;
     validation.errors.push(`Validation failed: ${error.message}`);
     return validation;
   }

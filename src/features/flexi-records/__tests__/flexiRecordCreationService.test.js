@@ -155,4 +155,19 @@ describe('createOrCompleteFlexiRecord', () => {
     expect(result.errors[0].field).toBe('_meta');
     expect(getFlexiRecordsList).not.toHaveBeenCalled();
   });
+
+  it('bails with a meta error if structure fetch fails on an existing record (avoids re-adding existing columns)', async () => {
+    getFlexiRecordsList.mockResolvedValueOnce({
+      items: [{ name: template.name, extraid: 4242 }],
+    });
+    getFlexiRecordStructure.mockRejectedValueOnce(new Error('OSM unavailable'));
+
+    const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].field).toBe('_meta');
+    expect(result.errors[0].error).toContain('OSM unavailable');
+    expect(addFlexiColumn).not.toHaveBeenCalled();
+  });
 });

@@ -92,4 +92,25 @@ describe('useMissingFlexiRecords', () => {
     expect(gap.missingRecords[0].missingFields).toEqual(['CampGroup', 'SignedInBy']);
     expect(gap.missingRecords[0].template.name).toBe('Viking Event Mgmt');
   });
+
+  it('skips sections where the validator hit a network error rather than reporting them as absent', async () => {
+    validateVikingSectionMoversFlexiRecord.mockResolvedValue({
+      isValid: false,
+      hasFlexiRecord: false,
+      networkError: true,
+      missingFields: [],
+    });
+    validateVikingEventMgmtFlexiRecord.mockResolvedValue({
+      isValid: true,
+      hasFlexiRecord: true,
+      missingFields: [],
+    });
+
+    const { result } = renderHook(() =>
+      useMissingFlexiRecords([{ sectionid: 7, sectionname: 'Beavers' }]),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.missing).toEqual([]);
+  });
 });

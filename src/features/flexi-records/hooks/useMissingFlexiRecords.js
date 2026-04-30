@@ -58,11 +58,16 @@ function isOperationalSection(section) {
 /**
  * Convert a validator result into a MissingRecord (or null if nothing missing).
  *
+ * Network errors are treated as "unknown — don't surface": we'd rather hide the
+ * banner for a section we couldn't check than wrongly tell the user their record
+ * is missing when really OSM was just unreachable.
+ *
  * @param {Object} validation - Result from one of the validators
  * @param {import('../services/flexiRecordTemplates.js').FlexiRecordTemplate} template
  * @returns {MissingRecord|null}
  */
 function toMissingRecord(validation, template) {
+  if (validation.networkError) return null;
   if (validation.isValid) return null;
 
   if (!validation.hasFlexiRecord) {

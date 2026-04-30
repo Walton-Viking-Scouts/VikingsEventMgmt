@@ -55,6 +55,7 @@ export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, 
     isValid: false,
     hasFlexiRecord: false,
     hasRequiredFields: false,
+    networkError: false,
     missingFields: [],
     availableFields: [],
     errors: [],
@@ -191,6 +192,7 @@ export async function validateVikingSectionMoversFlexiRecord(sectionId, termId, 
       stack: error.stack,
     }, LOG_CATEGORIES.ERROR);
 
+    validation.networkError = true;
     validation.errors.push(`Validation failed: ${error.message}`);
     validation.guidance.push(
       'Check your internet connection and try again',

@@ -98,7 +98,7 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
     });
   };
 
-  const runCreation = async (keysToRun) => {
+  const runCreation = async (keysToRun, snapshot) => {
     const token = getToken();
     if (!token) {
       notifyError('Cannot create FlexiRecords without a valid OSM session.');
@@ -110,12 +110,14 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
     let failCount = 0;
 
     for (const key of keysToRun) {
+      const cell = snapshot[key];
+      if (!cell) continue;
+
       setCells(prev => ({
         ...prev,
         [key]: { ...prev[key], status: 'inProgress', error: null },
       }));
 
-      const cell = cells[key];
       const result = await createOrCompleteFlexiRecord({
         section: { sectionid: cell.sectionid, sectionname: cell.sectionname },
         template: cell.template,
@@ -125,17 +127,25 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
 
       if (result.success) {
         okCount += 1;
-        setCells(prev => ({
-          ...prev,
-          [key]: { ...prev[key], status: 'success', addedFields: result.addedFields, error: null },
-        }));
+        setCells(prev => {
+          const previousAdded = prev[key]?.addedFields || [];
+          const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
+          return {
+            ...prev,
+            [key]: { ...prev[key], status: 'success', addedFields: merged, error: null },
+          };
+        });
       } else {
         failCount += 1;
         const detail = result.errors.map(e => `${e.field}: ${e.error}`).join('; ') || 'Unknown error';
-        setCells(prev => ({
-          ...prev,
-          [key]: { ...prev[key], status: 'failed', error: detail, addedFields: result.addedFields },
-        }));
+        setCells(prev => {
+          const previousAdded = prev[key]?.addedFields || [];
+          const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
+          return {
+            ...prev,
+            [key]: { ...prev[key], status: 'failed', error: detail, addedFields: merged },
+          };
+        });
       }
     }
 
@@ -155,7 +165,7 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
       .filter(([, c]) => c.selected && c.status === 'pending')
       .map(([k]) => k);
     if (keys.length === 0) return;
-    runCreation(keys);
+    runCreation(keys, { ...cells });
   };
 
   const handleRetryFailed = () => {
@@ -163,14 +173,17 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
       .filter(([, c]) => c.status === 'failed')
       .map(([k]) => k);
     if (failedKeys.length === 0) return;
+
+    const retrySnapshot = {};
     setCells(prev => {
       const next = { ...prev };
       for (const k of failedKeys) {
         next[k] = { ...next[k], status: 'pending', error: null };
+        retrySnapshot[k] = next[k];
       }
       return next;
     });
-    runCreation(failedKeys);
+    runCreation(failedKeys, retrySnapshot);
   };
 
   return (

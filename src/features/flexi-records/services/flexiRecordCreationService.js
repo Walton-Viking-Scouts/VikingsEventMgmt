@@ -138,11 +138,16 @@ export async function createOrCompleteFlexiRecord({ section, template, termId, t
     try {
       existingFieldNames = await getExistingFieldNames(existingRecord.extraid, sectionId, termId, token);
     } catch (error) {
-      logger.warn('Failed to fetch existing structure before adding columns; will attempt to add all template fields', {
+      logger.error('Failed to fetch existing structure before adding columns', {
         sectionId,
         flexirecordid: existingRecord.extraid,
         error: error.message,
       }, LOG_CATEGORIES.API);
+      result.errors.push({
+        field: '_meta',
+        error: `Could not read existing record structure: ${error.message}. Try again — without it we'd risk re-adding columns that already exist.`,
+      });
+      return result;
     }
   } else {
     try {
