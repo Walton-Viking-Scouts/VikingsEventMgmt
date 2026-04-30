@@ -94,4 +94,52 @@ describe('AttendanceDataService', () => {
       'Your session has expired. Please log in again to continue.',
     );
   });
+
+  it('preserves record.sectionid in refreshAttendanceData', async () => {
+    const { getToken } = await import('../../auth/tokenService.js');
+    const { getEventAttendance } = await import('../../api/api/events.js');
+
+    getToken.mockReturnValue('test-token');
+    getEventAttendance.mockResolvedValue([
+      { scoutid: 1, sectionid: 10 },
+      { scoutid: 2, sectionid: 99 },
+    ]);
+
+    databaseService.getSections = vi.fn().mockResolvedValue([
+      { sectionid: 10, sectionname: 'Beavers' },
+    ]);
+    databaseService.getEvents = vi.fn().mockResolvedValue([
+      { sectionid: 10, eventid: 'event1', termid: 'term1', name: 'Pirate Camp', startdate: '2026-06-01', sectionname: 'Beavers' },
+    ]);
+    databaseService.saveAttendance = vi.fn().mockResolvedValue();
+
+    await attendanceDataService.refreshAttendanceData();
+
+    const savedRecords = databaseService.saveAttendance.mock.calls[0][1];
+    expect(savedRecords[0].sectionid).toBe(10);
+    expect(savedRecords[1].sectionid).toBe(99);
+  });
+
+  it('uses ?? not ||: record.sectionid of 0 is preserved, not coerced to event.sectionid', async () => {
+    const { getToken } = await import('../../auth/tokenService.js');
+    const { getEventAttendance } = await import('../../api/api/events.js');
+
+    getToken.mockReturnValue('test-token');
+    getEventAttendance.mockResolvedValue([
+      { scoutid: 1, sectionid: 0 },
+    ]);
+
+    databaseService.getSections = vi.fn().mockResolvedValue([
+      { sectionid: 10, sectionname: 'Beavers' },
+    ]);
+    databaseService.getEvents = vi.fn().mockResolvedValue([
+      { sectionid: 10, eventid: 'event1', termid: 'term1', name: 'Pirate Camp', startdate: '2026-06-01', sectionname: 'Beavers' },
+    ]);
+    databaseService.saveAttendance = vi.fn().mockResolvedValue();
+
+    await attendanceDataService.refreshAttendanceData();
+
+    const savedRecords = databaseService.saveAttendance.mock.calls[0][1];
+    expect(savedRecords[0].sectionid).toBe(0);
+  });
 });

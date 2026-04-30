@@ -112,7 +112,7 @@ class AttendanceDataService {
           const coreRecords = attendanceRecords.map(record => ({
             ...record,
             eventid: event.eventid,
-            sectionid: event.sectionid,
+            sectionid: Number(record.sectionid ?? event.sectionid),
           }));
 
           if (coreRecords.length > 0) {
