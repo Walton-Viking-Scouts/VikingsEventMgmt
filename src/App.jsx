@@ -7,7 +7,9 @@ function App() {
   return (
     <>
       <AppRouter />
-      <Toaster />
+      <Toaster
+        containerStyle={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }}
+      />
     </>
   );
 }
