@@ -94,4 +94,44 @@ describe('EventDataLoader', () => {
       ]);
     });
   });
+
+  describe('syncEventAttendance', () => {
+    it('preserves record.sectionid when present', async () => {
+      vi.mocked(api.getEventAttendance).mockResolvedValue([
+        { scoutid: 1, sectionid: 99, attending: 'Yes' },
+      ]);
+      vi.mocked(databaseService.saveAttendance).mockResolvedValue();
+
+      await eventDataLoader.syncEventAttendance({ eventid: 'E1', sectionid: 10, termid: 'T1' }, 'token');
+
+      const savedRecords = vi.mocked(databaseService.saveAttendance).mock.calls[0][1];
+      expect(savedRecords[0].sectionid).toBe(99);
+    });
+
+    it('falls back to event.sectionid when record.sectionid absent', async () => {
+      vi.mocked(api.getEventAttendance).mockResolvedValue([
+        { scoutid: 1, attending: 'Yes' },
+      ]);
+      vi.mocked(databaseService.saveAttendance).mockResolvedValue();
+
+      await eventDataLoader.syncEventAttendance({ eventid: 'E1', sectionid: 10, termid: 'T1' }, 'token');
+
+      const savedRecords = vi.mocked(databaseService.saveAttendance).mock.calls[0][1];
+      expect(savedRecords[0].sectionid).toBe(10);
+    });
+
+    it('cross-section attendee preserves their section (Pirate Camp scenario)', async () => {
+      vi.mocked(api.getEventAttendance).mockResolvedValue([
+        { scoutid: 1, sectionid: 10, attending: 'Yes' },
+        { scoutid: 2, sectionid: 99, attending: 'No' },
+      ]);
+      vi.mocked(databaseService.saveAttendance).mockResolvedValue();
+
+      await eventDataLoader.syncEventAttendance({ eventid: 'E1', sectionid: 10, termid: 'T1' }, 'token');
+
+      const savedRecords = vi.mocked(databaseService.saveAttendance).mock.calls[0][1];
+      expect(savedRecords[0].sectionid).toBe(10);
+      expect(savedRecords[1].sectionid).toBe(99);
+    });
+  });
 });

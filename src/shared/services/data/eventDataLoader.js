@@ -182,7 +182,7 @@ class EventDataLoader {
       const coreRecords = attendanceRecords.map(record => ({
         scoutid: record.scoutid,
         eventid: String(event.eventid),
-        sectionid: Number(event.sectionid),
+        sectionid: Number(record.sectionid || event.sectionid),
         attending: record.attending,
         patrol: record.patrol ?? null,
         notes: record.notes ?? null,

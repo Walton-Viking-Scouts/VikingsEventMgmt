@@ -50,7 +50,7 @@ describe('dedupAttendanceForEventGroup', () => {
       expect(result[0].eventid).toBe('1727583');
     });
 
-    it('keeps both records when a scout has different sectionids across events (eventDataLoader.js:185 data shape)', () => {
+    it('keeps both records when a scout has different sectionids across events (defense-in-depth after #197 fix)', () => {
       // Real-world data: scoutid 2216198 in IndexedDB has sectionid=Monday in
       // Monday's event (shared sync corrected it) and sectionid=Thursday in
       // Thursday's event (regular sync forced event.sectionid). Both records
