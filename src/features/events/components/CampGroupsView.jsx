@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Alert } from '../../../shared/components/ui';
 import CampGroupCard from './CampGroupCard.jsx';
 import { MemberDetailModal } from '../../../shared/components/ui';
 import GroupNamesEditModal from './GroupNamesEditModal.jsx';
@@ -9,6 +8,7 @@ import { assignMemberToCampGroup, batchAssignMembers, extractFlexiRecordContext,
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
+import { MissingFlexiRecordsBanner } from '../../flexi-records';
 
 /**
  * Organizes member attendance data by camp groups with optimistic updates
@@ -162,6 +162,20 @@ function CampGroupsView({
     organizeByCampGroups(attendees, pendingMoves, recentlyCompletedMoves),
   [attendees, pendingMoves, recentlyCompletedMoves],
   );
+
+  // Unique sections involved in the events shown here — drives the missing-FlexiRecord banner.
+  const eventSections = useMemo(() => {
+    const seen = new Map();
+    for (const event of events || []) {
+      const sectionid = event.sectionid;
+      if (sectionid === null || sectionid === undefined || seen.has(sectionid)) continue;
+      seen.set(sectionid, {
+        sectionid,
+        sectionname: event.sectionname || event.section_name || `Section ${sectionid}`,
+      });
+    }
+    return Array.from(seen.values());
+  }, [events]);
 
   // Handle member click - simple version like RegisterTab
   const handleMemberClick = (member) => {
@@ -725,13 +739,7 @@ function CampGroupsView({
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <Alert variant="warning" className="mb-4">
-            <Alert.Title>No Viking Event Management Data</Alert.Title>
-            <Alert.Description>
-              No &quot;Viking Event Mgmt&quot; flexirecord found for the sections involved in these events. 
-              All members will be shown in the &quot;Unassigned&quot; group.
-            </Alert.Description>
-          </Alert>
+          <MissingFlexiRecordsBanner sections={eventSections} />
         )}
       </div>
 
