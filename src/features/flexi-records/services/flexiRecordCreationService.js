@@ -179,14 +179,20 @@ export async function createOrCompleteFlexiRecord({ section, template, termId, t
     try {
       const added = await addFlexiColumn(sectionId, result.flexirecordid, fieldName, token);
       if (added && typeof added === 'object' && added.error) {
+        logger.warn('addFlexiColumn returned error response', {
+          sectionId,
+          flexirecordid: result.flexirecordid,
+          fieldName,
+          osmError: added.error,
+          responseSnippet: JSON.stringify(added).slice(0, 300),
+        }, LOG_CATEGORIES.API);
         result.errors.push({ field: fieldName, error: String(added.error) });
         continue;
       }
-      logger.debug('addFlexiColumn raw response', {
+      logger.debug('addFlexiColumn success', {
         sectionId,
         flexirecordid: result.flexirecordid,
         fieldName,
-        responseKeys: added && typeof added === 'object' ? Object.keys(added) : [],
       }, LOG_CATEGORIES.API);
       result.addedFields.push(fieldName);
     } catch (error) {
