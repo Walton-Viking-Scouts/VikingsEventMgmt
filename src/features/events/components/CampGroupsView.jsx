@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import CampGroupCard from './CampGroupCard.jsx';
-import { MemberDetailModal } from '../../../shared/components/ui';
+import { Alert, MemberDetailModal } from '../../../shared/components/ui';
 import GroupNamesEditModal from './GroupNamesEditModal.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { isMobileLayout } from '../../../shared/utils/platform.js';
@@ -176,6 +176,17 @@ function CampGroupsView({
     }
     return Array.from(seen.values());
   }, [events]);
+
+  // The banner's hook silently filters out adults / waiting-list sections, so for
+  // adults-only events it would render nothing — leaving the user staring at an
+  // empty "Unassigned" grid. Detect that case at the parent and show an explanation.
+  const hasOperationalEventSection = useMemo(
+    () => eventSections.some(s => {
+      const name = (s.sectionname || '').toLowerCase();
+      return !(name.includes('adults') || name.includes('waiting'));
+    }),
+    [eventSections],
+  );
 
   // Handle member click - simple version like RegisterTab
   const handleMemberClick = (member) => {
@@ -739,7 +750,16 @@ function CampGroupsView({
         </div>
 
         {!summary.vikingEventDataAvailable && (
-          <MissingFlexiRecordsBanner sections={eventSections} />
+          hasOperationalEventSection ? (
+            <MissingFlexiRecordsBanner sections={eventSections} />
+          ) : (
+            <Alert variant="info" className="mb-4">
+              <Alert.Title>No Young People in this view</Alert.Title>
+              <Alert.Description>
+                Camp groups apply to Young People only. The selected event(s) involve only adult or waiting-list sections.
+              </Alert.Description>
+            </Alert>
+          )
         )}
       </div>
 
