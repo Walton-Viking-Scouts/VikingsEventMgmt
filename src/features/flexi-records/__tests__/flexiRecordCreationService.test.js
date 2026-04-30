@@ -30,8 +30,8 @@ beforeEach(() => {
 describe('createOrCompleteFlexiRecord', () => {
   it('creates the FlexiRecord and adds every template field when none exist', async () => {
     getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
-    createFlexiRecord.mockResolvedValueOnce({ success: true, flexirecordid: 9001, name: template.name });
-    addFlexiColumn.mockResolvedValue({ success: true, columnid: 'f_1' });
+    createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 9001, name: template.name });
+    addFlexiColumn.mockResolvedValue({ columnid: 'f_1', name: 'Some Field' });
     getFlexiRecordsList.mockResolvedValue({ items: [] });
     getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
 
@@ -45,6 +45,44 @@ describe('createOrCompleteFlexiRecord', () => {
     expect(addFlexiColumn).toHaveBeenCalledTimes(template.fields.length);
   });
 
+  it('accepts createFlexiRecord responses that use extraid instead of flexirecordid', async () => {
+    getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
+    createFlexiRecord.mockResolvedValueOnce({ extraid: 5555 });
+    addFlexiColumn.mockResolvedValue({});
+    getFlexiRecordsList.mockResolvedValue({ items: [] });
+    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+
+    const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
+
+    expect(result.success).toBe(true);
+    expect(result.flexirecordid).toBe(5555);
+  });
+
+  it('treats addFlexiColumn responses with an error key as a per-field failure', async () => {
+    getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
+    createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 1 });
+    addFlexiColumn.mockResolvedValue({ error: 'Permission denied' });
+    getFlexiRecordsList.mockResolvedValue({ items: [] });
+    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+
+    const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBe(template.fields.length);
+    expect(result.errors[0].error).toBe('Permission denied');
+  });
+
+  it('bails with a meta error when createFlexiRecord returns no id', async () => {
+    getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
+    createFlexiRecord.mockResolvedValueOnce({ error: 'Permission denied' });
+
+    const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].field).toBe('_meta');
+    expect(addFlexiColumn).not.toHaveBeenCalled();
+  });
+
   it('skips creation and only adds the missing fields when the record already exists', async () => {
     getFlexiRecordsList.mockResolvedValueOnce({
       items: [{ name: template.name, extraid: 7777 }],
@@ -55,7 +93,7 @@ describe('createOrCompleteFlexiRecord', () => {
         f_2: { name: 'AssignedTerm' },
       },
     });
-    addFlexiColumn.mockResolvedValue({ success: true });
+    addFlexiColumn.mockResolvedValue({});
     getFlexiRecordsList.mockResolvedValue({ items: [{ name: template.name, extraid: 7777 }] });
     getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
 
@@ -94,11 +132,11 @@ describe('createOrCompleteFlexiRecord', () => {
 
   it('records per-field errors when addFlexiColumn fails midway and returns partial success', async () => {
     getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
-    createFlexiRecord.mockResolvedValueOnce({ success: true, flexirecordid: 1 });
+    createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 1 });
     addFlexiColumn
-      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('rate limited'))
-      .mockResolvedValue({ success: true });
+      .mockResolvedValue({});
     getFlexiRecordsList.mockResolvedValue({ items: [] });
     getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
 

@@ -34,6 +34,26 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  */
 
 /**
+ * Extract a FlexiRecord id from an OSM response.
+ *
+ * The backend forwards OSM's raw JSON response; OSM's `?action=addRecordSet` shape
+ * is undocumented and varies (some endpoints return `flexirecordid`, some `extraid`,
+ * some `id`). Try each known key. Returns null if no id can be found.
+ *
+ * @private
+ * @param {*} response - Whatever createFlexiRecord returned
+ * @returns {string|number|null}
+ */
+function extractRecordId(response) {
+  if (!response || typeof response !== 'object') return null;
+  return response.flexirecordid
+    ?? response.extraid
+    ?? response.id
+    ?? response.recordid
+    ?? null;
+}
+
+/**
  * Read the section's flexi list and find the record matching template.name.
  * Uses cached data when possible.
  *
@@ -41,7 +61,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  * @param {string|number} sectionId
  * @param {string} recordName
  * @param {string} token
- * @returns {Promise<{extraid: string|number}|null>}
+ * @returns {Promise<Object|null>} The full OSM record entry (includes name, extraid, etc.) or null
  */
 async function findExistingRecord(sectionId, recordName, token) {
   const flexiList = await getFlexiRecordsList(sectionId, token, false);
@@ -127,12 +147,20 @@ export async function createOrCompleteFlexiRecord({ section, template, termId, t
   } else {
     try {
       const created = await createFlexiRecord(sectionId, template.name, token, template.createOptions);
-      if (!created || !created.success || !created.flexirecordid) {
-        const detail = created?.error || 'createFlexiRecord did not return a flexirecordid';
+      logger.info('createFlexiRecord raw response', {
+        sectionId,
+        template: template.name,
+        responseKeys: created && typeof created === 'object' ? Object.keys(created) : [],
+        responseType: typeof created,
+        responseSnippet: created !== null && created !== undefined ? JSON.stringify(created).slice(0, 300) : 'null',
+      }, LOG_CATEGORIES.API);
+      const newId = extractRecordId(created);
+      if (newId === null || newId === undefined) {
+        const detail = created?.error || `createFlexiRecord did not return a record id (got ${JSON.stringify(created)?.slice(0, 200)})`;
         result.errors.push({ field: '_meta', error: detail });
         return result;
       }
-      result.flexirecordid = created.flexirecordid;
+      result.flexirecordid = newId;
       result.createdRecord = true;
     } catch (error) {
       logger.error('Failed to create FlexiRecord', {
@@ -150,11 +178,16 @@ export async function createOrCompleteFlexiRecord({ section, template, termId, t
   for (const fieldName of fieldsToAdd) {
     try {
       const added = await addFlexiColumn(sectionId, result.flexirecordid, fieldName, token);
-      if (!added || !added.success) {
-        const detail = added?.error || 'addFlexiColumn did not return success';
-        result.errors.push({ field: fieldName, error: detail });
+      if (added && typeof added === 'object' && added.error) {
+        result.errors.push({ field: fieldName, error: String(added.error) });
         continue;
       }
+      logger.debug('addFlexiColumn raw response', {
+        sectionId,
+        flexirecordid: result.flexirecordid,
+        fieldName,
+        responseKeys: added && typeof added === 'object' ? Object.keys(added) : [],
+      }, LOG_CATEGORIES.API);
       result.addedFields.push(fieldName);
     } catch (error) {
       logger.error('Failed to add FlexiRecord column', {
