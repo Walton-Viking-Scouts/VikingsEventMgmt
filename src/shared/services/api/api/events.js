@@ -402,7 +402,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         const coreSharedRecords = attendance.map(record => ({
           scoutid: record.scoutid,
           eventid: String(eventId),
-          sectionid: Number(record.sectionid || sectionId),
+          sectionid: Number(record.sectionid ?? sectionId),
           attending: record.attending,
           patrol: record.patrol ?? null,
           notes: record.notes ?? null,

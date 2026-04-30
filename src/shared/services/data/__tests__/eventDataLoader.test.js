@@ -133,5 +133,17 @@ describe('EventDataLoader', () => {
       expect(savedRecords[0].sectionid).toBe(10);
       expect(savedRecords[1].sectionid).toBe(99);
     });
+
+    it('uses ?? not ||: record.sectionid of 0 is preserved, not coerced to event.sectionid', async () => {
+      vi.mocked(api.getEventAttendance).mockResolvedValue([
+        { scoutid: 1, sectionid: 0, attending: 'Yes' },
+      ]);
+      vi.mocked(databaseService.saveAttendance).mockResolvedValue();
+
+      await eventDataLoader.syncEventAttendance({ eventid: 'E1', sectionid: 10, termid: 'T1' }, 'token');
+
+      const savedRecords = vi.mocked(databaseService.saveAttendance).mock.calls[0][1];
+      expect(savedRecords[0].sectionid).toBe(0);
+    });
   });
 });
