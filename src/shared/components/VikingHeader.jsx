@@ -22,7 +22,8 @@ function VikingHeader({
 
   return (
     <header
-      className="bg-white shadow-sm border-b border-gray-200 px-6 py-4"
+      className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 sticky top-0 z-40"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
     >
       <div
         className="flex justify-between items-center max-w-7xl mx-auto"
