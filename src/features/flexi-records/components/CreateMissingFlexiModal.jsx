@@ -120,50 +120,68 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
     let okCount = 0;
     let failCount = 0;
 
-    for (const key of keysToRun) {
-      const cell = snapshot[key];
-      if (!cell) {
-        logger.warn('runCreation: missing cell in snapshot — skipping', { key }, LOG_CATEGORIES.COMPONENT);
-        continue;
-      }
+    try {
+      for (const key of keysToRun) {
+        const cell = snapshot[key];
+        if (!cell) {
+          logger.warn('runCreation: missing cell in snapshot — skipping', { key }, LOG_CATEGORIES.COMPONENT);
+          continue;
+        }
 
-      setCells(prev => ({
-        ...prev,
-        [key]: { ...prev[key], status: 'inProgress', error: null },
-      }));
+        setCells(prev => ({
+          ...prev,
+          [key]: { ...prev[key], status: 'inProgress', error: null },
+        }));
 
-      const result = await createOrCompleteFlexiRecord({
-        section: { sectionid: cell.sectionid, sectionname: cell.sectionname },
-        template: cell.template,
-        termId: cell.termId,
-        token,
-      });
+        try {
+          const result = await createOrCompleteFlexiRecord({
+            section: { sectionid: cell.sectionid, sectionname: cell.sectionname },
+            template: cell.template,
+            termId: cell.termId,
+            token,
+          });
 
-      if (result.success) {
-        okCount += 1;
-        setCells(prev => {
-          const previousAdded = prev[key]?.addedFields || [];
-          const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
-          return {
+          if (result.success) {
+            okCount += 1;
+            setCells(prev => {
+              const previousAdded = prev[key]?.addedFields || [];
+              const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
+              return {
+                ...prev,
+                [key]: { ...prev[key], status: 'success', addedFields: merged, error: null },
+              };
+            });
+          } else {
+            failCount += 1;
+            const detail = result.errors.map(e => `${e.field}: ${e.error}`).join('; ') || 'Unknown error';
+            setCells(prev => {
+              const previousAdded = prev[key]?.addedFields || [];
+              const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
+              return {
+                ...prev,
+                [key]: { ...prev[key], status: 'failed', error: detail, addedFields: merged },
+              };
+            });
+          }
+        } catch (error) {
+          logger.error('runCreation: unexpected exception during create', {
+            key,
+            error: error.message,
+          }, LOG_CATEGORIES.COMPONENT);
+          failCount += 1;
+          setCells(prev => ({
             ...prev,
-            [key]: { ...prev[key], status: 'success', addedFields: merged, error: null },
-          };
-        });
-      } else {
-        failCount += 1;
-        const detail = result.errors.map(e => `${e.field}: ${e.error}`).join('; ') || 'Unknown error';
-        setCells(prev => {
-          const previousAdded = prev[key]?.addedFields || [];
-          const merged = Array.from(new Set([...previousAdded, ...result.addedFields]));
-          return {
-            ...prev,
-            [key]: { ...prev[key], status: 'failed', error: detail, addedFields: merged },
-          };
-        });
+            [key]: {
+              ...prev[key],
+              status: 'failed',
+              error: error.message || 'Unexpected error',
+            },
+          }));
+        }
       }
+    } finally {
+      setRunning(false);
     }
-
-    setRunning(false);
 
     if (okCount && !failCount) {
       notifySuccess(`Created ${okCount} FlexiRecord${okCount === 1 ? '' : 's'} successfully.`);
@@ -183,20 +201,15 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
   };
 
   const handleRetryFailed = () => {
-    const failedKeys = Object.entries(cells)
-      .filter(([, c]) => c.status === 'failed')
-      .map(([k]) => k);
-    if (failedKeys.length === 0) return;
+    const failedEntries = Object.entries(cells).filter(([, c]) => c.status === 'failed');
+    if (failedEntries.length === 0) return;
 
-    const retrySnapshot = {};
-    setCells(prev => {
-      const next = { ...prev };
-      for (const k of failedKeys) {
-        next[k] = { ...next[k], status: 'pending', error: null };
-        retrySnapshot[k] = next[k];
-      }
-      return next;
-    });
+    const failedKeys = failedEntries.map(([k]) => k);
+    const retrySnapshot = Object.fromEntries(
+      failedEntries.map(([k, c]) => [k, { ...c, status: 'pending', error: null }]),
+    );
+
+    setCells(prev => ({ ...prev, ...retrySnapshot }));
     runCreation(failedKeys, retrySnapshot);
   };
 

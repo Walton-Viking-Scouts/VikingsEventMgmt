@@ -94,8 +94,8 @@ export async function validateVikingEventMgmtFlexiRecord(sectionId, termId, toke
 
     validation.availableFields = Object.keys(fieldMapping).map(fieldId => ({
       fieldId,
-      fieldName: fieldMapping[fieldId].name,
-      fieldType: fieldMapping[fieldId].type,
+      fieldName: fieldMapping[fieldId]?.name,
+      fieldType: fieldMapping[fieldId]?.type,
     }));
 
     const presentFieldNames = new Set(

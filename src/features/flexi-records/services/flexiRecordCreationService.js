@@ -88,7 +88,10 @@ function detectFailureMessage(response) {
 
 /**
  * Read the section's flexi list and find the record matching template.name.
- * Uses cached data when possible.
+ *
+ * Force-refreshes the list because this lookup precedes a non-idempotent
+ * createFlexiRecord call — a stale cached read could miss a record created
+ * in another tab/session and cause us to duplicate it.
  *
  * @private
  * @param {string|number} sectionId
@@ -97,7 +100,7 @@ function detectFailureMessage(response) {
  * @returns {Promise<Object|null>} The full OSM record entry (includes name, extraid, etc.) or null
  */
 async function findExistingRecord(sectionId, recordName, token) {
-  const flexiList = await getFlexiRecordsList(sectionId, token, false);
+  const flexiList = await getFlexiRecordsList(sectionId, token, true);
   const items = flexiList?.items || [];
   return items.find(record => record.name === recordName) || null;
 }

@@ -153,13 +153,24 @@ export default function useMissingFlexiRecords(sections) {
         }
         if (!termId) continue;
 
-        const validations = await Promise.all(
-          VALIDATORS.map(({ validate }) => validate(sectionId, termId, token, forceRefresh)),
+        const settled = await Promise.allSettled(
+          VALIDATORS.map(async ({ template, validate }) => ({
+            template,
+            validation: await validate(sectionId, termId, token, forceRefresh),
+          })),
         );
 
-        const missingRecords = validations
-          .map((v, i) => toMissingRecord(v, VALIDATORS[i].template))
-          .filter(Boolean);
+        const missingRecords = settled.flatMap(result => {
+          if (result.status !== 'fulfilled') {
+            logger.warn('useMissingFlexiRecords: validator failed for a section, continuing with rest', {
+              sectionId,
+              error: result.reason?.message ?? String(result.reason),
+            }, LOG_CATEGORIES.APP);
+            return [];
+          }
+          const missing = toMissingRecord(result.value.validation, result.value.template);
+          return missing ? [missing] : [];
+        });
 
         if (missingRecords.length > 0) {
           gaps.push({
