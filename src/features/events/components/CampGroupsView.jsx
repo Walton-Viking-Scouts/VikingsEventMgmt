@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Alert } from '../../../shared/components/ui';
 import CampGroupCard from './CampGroupCard.jsx';
-import { MemberDetailModal } from '../../../shared/components/ui';
+import { Alert, MemberDetailModal } from '../../../shared/components/ui';
 import GroupNamesEditModal from './GroupNamesEditModal.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { isMobileLayout } from '../../../shared/utils/platform.js';
@@ -9,6 +8,7 @@ import { assignMemberToCampGroup, batchAssignMembers, extractFlexiRecordContext,
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
+import { MissingFlexiRecordsBanner, isOperationalSection } from '../../flexi-records';
 
 /**
  * Organizes member attendance data by camp groups with optimistic updates
@@ -161,6 +161,32 @@ function CampGroupsView({
   const { groups, summary } = useMemo(() =>
     organizeByCampGroups(attendees, pendingMoves, recentlyCompletedMoves),
   [attendees, pendingMoves, recentlyCompletedMoves],
+  );
+
+  // Unique sections involved in the events shown here — drives the missing-FlexiRecord banner.
+  // Sections without a real sectionname are skipped so they don't get classified as
+  // synthetic "Section <id>" placeholders that would defeat the adults-only check.
+  const eventSections = useMemo(() => {
+    const seen = new Map();
+    for (const event of events || []) {
+      const sectionid = event.sectionid;
+      if (sectionid === null || sectionid === undefined || seen.has(sectionid)) continue;
+      const sectionname = event.sectionname || event.section_name;
+      if (!sectionname) continue;
+      seen.set(sectionid, { sectionid, sectionname });
+    }
+    return Array.from(seen.values());
+  }, [events]);
+
+  // The banner's hook silently filters out adults / waiting-list sections, so for
+  // adults-only events it would render nothing — leaving the user staring at an
+  // empty "Unassigned" grid. Detect that case at the parent and show an explanation.
+  // Uses the same isOperationalSection helper the hook uses to keep classification
+  // logic consistent between parent (decides which UI to show) and hook (decides
+  // which sections to validate).
+  const hasOperationalEventSection = useMemo(
+    () => eventSections.some(isOperationalSection),
+    [eventSections],
   );
 
   // Handle member click - simple version like RegisterTab
@@ -724,14 +750,17 @@ function CampGroupsView({
           )}
         </div>
 
-        {!summary.vikingEventDataAvailable && (
-          <Alert variant="warning" className="mb-4">
-            <Alert.Title>No Viking Event Management Data</Alert.Title>
-            <Alert.Description>
-              No &quot;Viking Event Mgmt&quot; flexirecord found for the sections involved in these events. 
-              All members will be shown in the &quot;Unassigned&quot; group.
-            </Alert.Description>
-          </Alert>
+        {!summary.vikingEventDataAvailable && eventSections.length > 0 && (
+          hasOperationalEventSection ? (
+            <MissingFlexiRecordsBanner sections={eventSections} />
+          ) : (
+            <Alert variant="info" className="mb-4">
+              <Alert.Title>No Young People in this view</Alert.Title>
+              <Alert.Description>
+                Camp groups apply to Young People only. The selected event(s) involve only adult or waiting-list sections.
+              </Alert.Description>
+            </Alert>
+          )
         )}
       </div>
 

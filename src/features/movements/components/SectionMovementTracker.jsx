@@ -12,7 +12,7 @@
  * @author Vikings Event Management Team
  */
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Alert } from '../../../shared/components/ui';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
@@ -22,8 +22,7 @@ import TermMovementCard from './TermMovementCard.jsx';
 import MovementSummaryTable from './MovementSummaryTable.jsx';
 import { getFutureTerms } from '../../../shared/utils/sectionMovements/termCalculations.js';
 import { groupSectionsByType } from '../../../shared/utils/sectionMovements/sectionGrouping.js';
-import { notifyError } from '../../../shared/utils/notifications.js';
-import databaseService from '../../../shared/services/storage/database.js';
+import { MissingFlexiRecordsBanner } from '../../flexi-records';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
@@ -111,11 +110,8 @@ function SectionMovementTracker({ onBack }) {
   const [_allAssignments, _setAllAssignments] = useState(new Map());
   
   // Main data hook - provides members, sections, and FlexiRecord state
-  const { members, sections, loading, error, refetch, flexiRecordState } = useSectionMovements();
-  
-  // Tracks whether FlexiRecord validation has been performed (once per session)
-  const hasCheckedFlexiRecords = useRef(false);
-  
+  const { members, sections, loading, error, refetch } = useSectionMovements();
+
   // Calculate future terms based on user selection
   const futureTerms = getFutureTerms(numberOfTerms);
 
@@ -124,97 +120,6 @@ function SectionMovementTracker({ onBack }) {
     saveUserPreference('numberOfTerms', numberOfTerms);
   }, [numberOfTerms]);
 
-  /**
-   * Checks for missing 'Viking Section Movers' FlexiRecords across sections
-   *
-   * Validates that each section (excluding adults/waitinglist) has the required
-   * 'Viking Section Movers' FlexiRecord with proper fields. Shows user notification
-   * if any sections are missing this FlexiRecord.
-   *
-   * Required FlexiRecord fields: AssignedSection, AssignedTerm
-   * Optional FlexiRecord fields: AssignmentDate, AssignedBy
-   *
-   * @function checkForMissingFlexiRecords
-   * @param {Array} sectionsData - Array of section objects to validate
-   * @param {string|number} sectionsData[].sectionid - Section ID
-   * @param {string} sectionsData[].sectionname - Section display name
-   */
-  const checkForMissingFlexiRecords = useCallback(async (sectionsData) => {
-    if (!sectionsData || sectionsData.length === 0) return;
-
-    const missingSections = [];
-
-    for (const section of sectionsData) {
-      const sectionId = section.sectionid;
-      const sectionName = section.sectionname || section.name || 'Unknown Section';
-
-      // Filter out adults and waitinglist sections
-      const normalizedName = sectionName.toLowerCase();
-      if (normalizedName.includes('adults') ||
-          normalizedName.includes('waiting') ||
-          normalizedName.includes('waitinglist')) {
-        continue; // Skip these sections
-      }
-
-      // Check if this section is already loaded (has FlexiRecord data)
-      if (flexiRecordState.loadedSections && flexiRecordState.loadedSections.has(sectionId)) {
-        continue; // Section has FlexiRecord loaded, treat as present
-      }
-
-      try {
-        const flexiLists = await databaseService.getFlexiLists(sectionId);
-        const listsArray = Array.isArray(flexiLists) ? flexiLists : (flexiLists?.items || []);
-
-        if (listsArray.length === 0) {
-          missingSections.push(sectionName);
-          continue;
-        }
-
-        const hasVikingSectionMovers = listsArray.some(record =>
-          record.name === 'Viking Section Movers',
-        );
-
-        if (!hasVikingSectionMovers) {
-          missingSections.push(sectionName);
-        }
-      } catch (error) {
-        logger.warn('Failed to check FlexiRecord list for section', {
-          sectionId,
-          sectionName,
-          error: error.message,
-        }, LOG_CATEGORIES.COMPONENT);
-        missingSections.push(sectionName);
-      }
-    }
-
-    // Show notification if there are missing FlexiRecords
-    if (missingSections.length > 0) {
-      const sectionList = missingSections.join(', ');
-      const requiredFields = ['AssignedSection', 'AssignedTerm'];
-      const optionalFields = ['AssignmentDate', 'AssignedBy'];
-
-      const message = `Missing "Viking Section Movers" FlexiRecord for: ${sectionList}. ` +
-        `Contact your administrator to create this FlexiRecord with required fields: ${requiredFields.join(', ')} ` +
-        `and optional fields: ${optionalFields.join(', ')}.`;
-      notifyError(message);
-    }
-  }, [flexiRecordState.loadedSections]);
-
-  // Check for missing FlexiRecords when sections load and FlexiRecord discovery completes (only once per session)
-  useEffect(() => {
-    if (sections && sections.length > 0 && !hasCheckedFlexiRecords.current && flexiRecordState.loading === false) {
-      checkForMissingFlexiRecords(sections);
-      hasCheckedFlexiRecords.current = true;
-    }
-  }, [sections, checkForMissingFlexiRecords, flexiRecordState.loading]);
-
-  // Reset the check flag when component unmounts
-  useEffect(() => {
-    return () => {
-      hasCheckedFlexiRecords.current = false;
-    };
-  }, []);
-  
   /**
    * Complex memoized calculation of section movements across multiple terms
    * 
@@ -454,6 +359,7 @@ function SectionMovementTracker({ onBack }) {
       </div>
 
       <div className="p-4">
+        <MissingFlexiRecordsBanner sections={sections} />
         {termCalculations.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-4">
