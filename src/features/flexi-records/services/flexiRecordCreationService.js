@@ -38,7 +38,8 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
  *
  * The backend forwards OSM's raw JSON response; OSM's `?action=addRecordSet` shape
  * is undocumented and varies (some endpoints return `flexirecordid`, some `extraid`,
- * some `id`). Try each known key. Returns null if no id can be found.
+ * some `id`). Keys are tried in declared order — first non-nullish wins.
+ * Returns null if no id can be found.
  *
  * @private
  * @param {*} response - Whatever createFlexiRecord returned
@@ -51,6 +52,38 @@ function extractRecordId(response) {
     ?? response.id
     ?? response.recordid
     ?? null;
+}
+
+/**
+ * Detect known OSM failure response shapes for addColumn / similar write endpoints.
+ *
+ * The backend forwards OSM's raw JSON. OSM's success shape is undocumented (and
+ * the JSDoc example `{ success: true }` was fictional), so we can't require a
+ * positive flag without risking false negatives. Instead we list the failure
+ * shapes seen in this codebase and treat anything else as success.
+ *
+ * Returns a string error message when the response looks like a failure, or null
+ * when it looks fine (or shape is unknown — keep current call path).
+ *
+ * @private
+ * @param {*} response
+ * @returns {string|null} Error message if the response signals failure, else null
+ */
+function detectFailureMessage(response) {
+  if (response === null || response === undefined) {
+    return 'Empty response from OSM';
+  }
+  if (typeof response !== 'object') {
+    return `Unexpected non-object response: ${String(response).slice(0, 200)}`;
+  }
+  if (response.error) return String(response.error);
+  if (response.success === false) return String(response.message || response.error_description || 'OSM returned success: false');
+  if (response.ok === false) return String(response.message || 'OSM returned ok: false');
+  if (response.result === 0) return String(response.message || 'OSM returned result: 0');
+  if (response.status === 'fail' || response.status === 'error') {
+    return String(response.message || response.error_description || `OSM returned status: ${response.status}`);
+  }
+  return null;
 }
 
 /**
@@ -183,15 +216,16 @@ export async function createOrCompleteFlexiRecord({ section, template, termId, t
   for (const fieldName of fieldsToAdd) {
     try {
       const added = await addFlexiColumn(sectionId, result.flexirecordid, fieldName, token);
-      if (added && typeof added === 'object' && added.error) {
-        logger.warn('addFlexiColumn returned error response', {
+      const failureMessage = detectFailureMessage(added);
+      if (failureMessage) {
+        logger.warn('addFlexiColumn returned failure response', {
           sectionId,
           flexirecordid: result.flexirecordid,
           fieldName,
-          osmError: added.error,
+          osmError: failureMessage,
           responseSnippet: JSON.stringify(added).slice(0, 300),
         }, LOG_CATEGORIES.API);
-        result.errors.push({ field: fieldName, error: String(added.error) });
+        result.errors.push({ field: fieldName, error: failureMessage });
         continue;
       }
       logger.debug('addFlexiColumn success', {

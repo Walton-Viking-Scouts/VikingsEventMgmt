@@ -8,7 +8,7 @@ import { assignMemberToCampGroup, batchAssignMembers, extractFlexiRecordContext,
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
-import { MissingFlexiRecordsBanner } from '../../flexi-records';
+import { MissingFlexiRecordsBanner, isOperationalSection } from '../../flexi-records';
 
 /**
  * Organizes member attendance data by camp groups with optimistic updates
@@ -164,15 +164,16 @@ function CampGroupsView({
   );
 
   // Unique sections involved in the events shown here — drives the missing-FlexiRecord banner.
+  // Sections without a real sectionname are skipped so they don't get classified as
+  // synthetic "Section <id>" placeholders that would defeat the adults-only check.
   const eventSections = useMemo(() => {
     const seen = new Map();
     for (const event of events || []) {
       const sectionid = event.sectionid;
       if (sectionid === null || sectionid === undefined || seen.has(sectionid)) continue;
-      seen.set(sectionid, {
-        sectionid,
-        sectionname: event.sectionname || event.section_name || `Section ${sectionid}`,
-      });
+      const sectionname = event.sectionname || event.section_name;
+      if (!sectionname) continue;
+      seen.set(sectionid, { sectionid, sectionname });
     }
     return Array.from(seen.values());
   }, [events]);
@@ -180,11 +181,11 @@ function CampGroupsView({
   // The banner's hook silently filters out adults / waiting-list sections, so for
   // adults-only events it would render nothing — leaving the user staring at an
   // empty "Unassigned" grid. Detect that case at the parent and show an explanation.
+  // Uses the same isOperationalSection helper the hook uses to keep classification
+  // logic consistent between parent (decides which UI to show) and hook (decides
+  // which sections to validate).
   const hasOperationalEventSection = useMemo(
-    () => eventSections.some(s => {
-      const name = (s.sectionname || '').toLowerCase();
-      return !(name.includes('adults') || name.includes('waiting'));
-    }),
+    () => eventSections.some(isOperationalSection),
     [eventSections],
   );
 
@@ -749,7 +750,7 @@ function CampGroupsView({
           )}
         </div>
 
-        {!summary.vikingEventDataAvailable && (
+        {!summary.vikingEventDataAvailable && eventSections.length > 0 && (
           hasOperationalEventSection ? (
             <MissingFlexiRecordsBanner sections={eventSections} />
           ) : (

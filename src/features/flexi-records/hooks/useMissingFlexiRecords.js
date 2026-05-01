@@ -46,10 +46,19 @@ const VALIDATORS = [
 ];
 
 /**
- * Filter out section types that don't need either FlexiRecord.
- * Mirrors the existing filter in SectionMovementTracker.checkForMissingFlexiRecords.
+ * True when a section is one that uses the Movers / Event Mgmt FlexiRecords.
+ *
+ * Adults and waiting-list sections never use either record. An empty/missing
+ * section name is treated as non-operational so callers don't get a false
+ * positive on synthetic placeholders.
+ *
+ * Exported so call-sites that decide whether to render the banner UI use the
+ * exact same logic the hook uses internally — keeping parent and hook in sync.
+ *
+ * @param {{ sectionname?: string, name?: string }} section
+ * @returns {boolean}
  */
-function isOperationalSection(section) {
+export function isOperationalSection(section) {
   const name = (section?.sectionname || section?.name || '').toLowerCase();
   if (!name) return false;
   return !(name.includes('adults') || name.includes('waiting') || name.includes('waitinglist'));
@@ -93,6 +102,10 @@ function toMissingRecord(validation, template) {
 /**
  * Hook: discover which sections are missing required FlexiRecords.
  *
+ * The returned `refresh` always force-refreshes the underlying validators so the
+ * banner reflects current OSM state after a successful create — independent of
+ * whether the creation service's best-effort cache prime succeeded.
+ *
  * @param {Array} sections - Section objects (from databaseService.getSections)
  * @returns {{ loading: boolean, missing: SectionGap[], refresh: () => Promise<void> }}
  */
@@ -108,7 +121,7 @@ export default function useMissingFlexiRecords(sections) {
 
   const stableSections = useMemo(() => sections || [], [sectionKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const detect = useCallback(async () => {
+  const detect = useCallback(async (forceRefresh = false) => {
     if (!stableSections || stableSections.length === 0) {
       setMissing([]);
       return;
@@ -141,7 +154,7 @@ export default function useMissingFlexiRecords(sections) {
         if (!termId) continue;
 
         const validations = await Promise.all(
-          VALIDATORS.map(({ validate }) => validate(sectionId, termId, token, false)),
+          VALIDATORS.map(({ validate }) => validate(sectionId, termId, token, forceRefresh)),
         );
 
         const missingRecords = validations
@@ -167,10 +180,12 @@ export default function useMissingFlexiRecords(sections) {
   }, [stableSections]);
 
   useEffect(() => {
-    detect();
+    detect(false);
   }, [detect]);
 
-  return { loading, missing, refresh: detect };
+  const refresh = useCallback(() => detect(true), [detect]);
+
+  return { loading, missing, refresh };
 }
 
 export { TEMPLATES_BY_NAME };

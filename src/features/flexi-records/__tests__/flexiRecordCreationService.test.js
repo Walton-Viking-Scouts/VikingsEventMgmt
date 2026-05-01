@@ -147,6 +147,7 @@ describe('createOrCompleteFlexiRecord', () => {
     expect(result.errors[0]).toMatchObject({ field: template.fields[1], error: 'rate limited' });
     expect(result.addedFields).toContain(template.fields[0]);
     expect(result.addedFields).not.toContain(template.fields[1]);
+    expect(result.flexirecordid).toBe(1);
   });
 
   it('returns a meta error when the token is missing', async () => {

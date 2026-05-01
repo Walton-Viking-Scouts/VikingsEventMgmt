@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useState } from 'react';
 import Modal from '../../../shared/components/ui/Modal';
 import { notifySuccess, notifyError } from '../../../shared/utils/notifications.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { createOrCompleteFlexiRecord } from '../services/flexiRecordCreationService.js';
 
 const BUTTON_BASE = 'inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -98,6 +99,16 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
     });
   };
 
+  /**
+   * Iterate over selected cells and call createOrCompleteFlexiRecord for each.
+   *
+   * The snapshot is captured at call-time by the caller (handleSubmit /
+   * handleRetryFailed) — passing it explicitly avoids the stale-closure
+   * problem that would otherwise read pre-update values during the loop.
+   *
+   * @param {string[]} keysToRun - Cell keys to process this run
+   * @param {Object<string, Object>} snapshot - Frozen view of `cells` for this run
+   */
   const runCreation = async (keysToRun, snapshot) => {
     const token = getToken();
     if (!token) {
@@ -111,7 +122,10 @@ export default function CreateMissingFlexiModal({ isOpen, onClose, missing }) {
 
     for (const key of keysToRun) {
       const cell = snapshot[key];
-      if (!cell) continue;
+      if (!cell) {
+        logger.warn('runCreation: missing cell in snapshot — skipping', { key }, LOG_CATEGORIES.COMPONENT);
+        continue;
+      }
 
       setCells(prev => ({
         ...prev,

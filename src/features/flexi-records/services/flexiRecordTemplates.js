@@ -2,9 +2,9 @@
  * Required FlexiRecord templates for the Viking Event Mgmt app.
  *
  * Each template defines the OSM FlexiRecord name and the custom fields the app
- * needs to be present on it. Field names must match exactly what the existing
- * validators check for (vikingSectionMoversValidation.js, signInDataService.js)
- * so a record created from these templates passes validation immediately.
+ * needs to be present on it. Field names must match exactly what the validators
+ * check for (vikingSectionMoversValidation.js, vikingEventMgmtValidation.js) so
+ * a record created from these templates passes validation immediately.
  *
  * createOptions controls the OSM auto-fields (DOB, Age, Patrol). We disable them
  * so the FlexiRecord starts with only our custom columns.
