@@ -561,9 +561,13 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         throw new Error(result.message);
       }
 
-      logger.info('Attendance data synced successfully', {}, LOG_CATEGORIES.COMPONENT);
+      logger.info('Attendance data synced', { partial: !!result.partial }, LOG_CATEGORIES.COMPONENT);
 
-      notifySuccess('Attendance data synced successfully');
+      if (result.partial) {
+        notifyWarning(result.message);
+      } else {
+        notifySuccess('Attendance data synced successfully');
+      }
 
       if (loadVikingEventData) {
         try {
