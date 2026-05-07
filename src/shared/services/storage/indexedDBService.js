@@ -1811,12 +1811,14 @@ export class IndexedDBService {
   static async saveFlexiRecordData(extraId, sectionId, termId, data) {
     try {
       const db = await getDB();
+      const now = Date.now();
       const record = {
         ...data,
         extraid: String(extraId),
         sectionid: Number(sectionId),
         termid: String(termId),
-        updated_at: Date.now(),
+        updated_at: now,
+        _cacheTimestamp: data?._cacheTimestamp ?? now,
       };
       await db.put(STORES.FLEXI_DATA, record);
       return record;

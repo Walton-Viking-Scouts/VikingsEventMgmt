@@ -197,7 +197,6 @@ function DraggableMember({
         {member.firstname} {member.lastname}
       </div>
 
-      {/* Status icons (medical / photo consent / dietary / non-swimmer) */}
       <div className="flex items-center gap-1 mt-0.5 min-h-[1rem]">
         <MemberStatusIcons member={member} size="sm" />
       </div>

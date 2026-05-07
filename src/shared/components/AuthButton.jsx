@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * AuthButton - Context-aware authentication button for header
+ * AuthButton - Context-aware authentication button for header.
  *
  * Displays different button text and behavior based on authentication state:
  * - No data: "Sign in to OSM"
@@ -9,10 +9,15 @@ import React from 'react';
  * - Token expired: "Sign in to refresh"
  * - Syncing: "Syncing..." (disabled)
  *
+ * Returns null when `authState === 'authenticated'` and not actively syncing —
+ * each authenticated page surfaces its own contextual refresh control, so a
+ * generic header button would be redundant.
+ *
  * @param {Object} props - Component props
  * @param {string} props.authState - Current authentication state
  * @param {Function} props.onLogin - Login handler function
- * @param {Function} props.onRefresh - Refresh handler function
+ * @param {Function} props.onRefresh - Refresh handler function (unused while
+ *   the authenticated branch returns null; kept on the props contract).
  * @param {boolean} props.isLoading - Whether sync is in progress
  * @param {boolean} props.isOfflineMode - Whether the app is in offline mode
  * @param {string} props.className - Additional CSS classes
@@ -28,10 +33,6 @@ function AuthButton({
   size,
   ...rest
 }) {
-  // When authenticated and not actively syncing, hide the button entirely.
-  // Every authenticated page provides its own contextual refresh control;
-  // a duplicate generic "Refresh" in the header was visually noisy and
-  // mislabeled (it only refreshed reference data).
   if (!isLoading && authState === 'authenticated') {
     return null;
   }
