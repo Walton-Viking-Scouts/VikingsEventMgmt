@@ -110,11 +110,7 @@ function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompl
     member.vikingEventData?.CampGroup !== undefined,
   );
 
-  // True when at least one young person has flexi data — used to surface the
-  // move-mode toggle even when other sections are missing their flexi records.
-  // Without this, a single missing-flexi section hides the toggle for sections
-  // that ARE configured.
-  const someVikingEventData = youngPeople.some(member => member.vikingEventData !== null && member.vikingEventData !== undefined);
+  const someVikingEventData = youngPeople.some(member => member.vikingEventData?.CampGroup !== undefined);
 
   return {
     groups: sortedGroups,
@@ -161,21 +157,24 @@ function CampGroupsView({
   const [pendingMoves, setPendingMoves] = useState(new Map());
   const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map());
 
-  // Move mode is OFF by default. On mobile, drag/drop is too easy to trigger
-  // accidentally — gating it behind an explicit toggle prevents misclicks.
   const [moveMode, setMoveMode] = useState(false);
 
   const isMobile = isMobileLayout();
 
-  // Merge full member records into attendees so the per-tile MemberStatusIcons
-  // cluster has access to flattened contact-group fields (essential_information__*,
-  // consents__*, etc). The attendance records that flow in via `attendees` only
-  // carry attendance + vikingEventData; without this merge, groupContactInfo
-  // returns an empty object and no icons render.
+  /**
+   * Merge full member records into attendees so the per-tile
+   * `MemberStatusIcons` cluster has access to flattened contact-group fields
+   * (`essential_information__*`, `consents__*`, etc). Attendance records on
+   * their own only carry attendance + `vikingEventData`; without this merge,
+   * `groupContactInfo` returns an empty object and no icons render.
+   */
   const enrichedAttendees = useMemo(() => {
     if (!attendees || attendees.length === 0) return attendees;
     if (!members || members.length === 0) return attendees;
-    const memberById = new Map(members.map(m => [String(m.scoutid), m]));
+    const memberById = new Map(
+      members.filter(m => m?.scoutid !== undefined && m?.scoutid !== null)
+        .map(m => [String(m.scoutid), m]),
+    );
     return attendees.map(record => {
       const full = memberById.get(String(record.scoutid));
       return full ? { ...full, ...record } : record;
@@ -375,9 +374,7 @@ function CampGroupsView({
       const flexiRecordContext = extractFlexiRecordContext(sectionVikingEventData, sectionId, termId, realSectionType);
 
       if (!flexiRecordContext) {
-        const errorMsg = 'Camp groups not available for this section. Please ensure the "Viking Event Mgmt" FlexiRecord exists in OSM with a "CampGroup" field (no space).';
-        notifyError(errorMsg);
-        throw new Error(errorMsg);
+        throw new Error('Camp groups not available for this section. Please ensure the "Viking Event Mgmt" FlexiRecord exists in OSM with a "CampGroup" field (no space).');
       }
 
       const memberName = member.name || `${member.firstname} ${member.lastname}`;
@@ -759,7 +756,6 @@ function CampGroupsView({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Move Mode Toggle */}
             {summary.totalGroups > 0 && summary.someVikingEventDataAvailable && (
               <button
                 onClick={() => setMoveMode((prev) => !prev)}
@@ -789,7 +785,6 @@ function CampGroupsView({
               </button>
             )}
 
-            {/* Edit Names Button */}
             {summary.totalGroups > 0 && (
               <button
                 onClick={handleEditGroupNames}

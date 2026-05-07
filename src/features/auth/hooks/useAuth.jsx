@@ -8,6 +8,8 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import databaseService from '../../../shared/services/storage/database.js';
 import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
+import { notifyLoading, notifySuccess, notifyWarning, dismissToast } from '../../../shared/utils/notifications.js';
+import { getLoadingResultMessage } from '../../../shared/services/referenceData/referenceDataService.js';
 
 // Create Auth Context
 const AuthContext = createContext(null);
@@ -249,7 +251,6 @@ function useAuthLogic() {
     try {
       logger.info('Starting comprehensive data load after successful OAuth', { source }, LOG_CATEGORIES.AUTH);
 
-      const { notifyLoading } = await import('../../../shared/utils/notifications.js');
       syncingToastId = notifyLoading('Syncing data from OSM...');
 
       const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
@@ -276,7 +277,6 @@ function useAuthLogic() {
       });
 
       if (syncingToastId) {
-        const { dismissToast } = await import('../../../shared/utils/notifications.js');
         dismissToast(syncingToastId);
         syncingToastId = null;
       }
@@ -286,7 +286,6 @@ function useAuthLogic() {
           summary: allDataResults.summary,
         }, LOG_CATEGORIES.AUTH);
 
-        const { notifySuccess } = await import('../../../shared/utils/notifications.js');
         notifySuccess('Data synced successfully');
       } else {
         logger.warn('Comprehensive data load had issues', {
@@ -305,17 +304,14 @@ function useAuthLogic() {
       setLastSyncTime(syncTime);
 
       if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
-        const { getLoadingResultMessage } = await import('../../../shared/services/referenceData/referenceDataService.js');
         const referenceData = allDataResults?.results?.reference ?? allDataResults;
         const userMessage = getLoadingResultMessage(referenceData);
         if (userMessage) {
-          const { notifyWarning } = await import('../../../shared/utils/notifications.js');
           notifyWarning(userMessage);
         }
       }
     } catch (dataLoadError) {
       if (syncingToastId) {
-        const { dismissToast } = await import('../../../shared/utils/notifications.js');
         dismissToast(syncingToastId);
         syncingToastId = null;
       }

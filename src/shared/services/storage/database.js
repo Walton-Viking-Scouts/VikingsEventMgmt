@@ -67,6 +67,29 @@ import logger, { LOG_CATEGORIES } from '../utils/logger.js';
  * await databaseService.saveEvents(1, events);
  * const sectionEvents = await databaseService.getEvents(1);
  */
+
+/**
+ * Parses a SQLite `updated_at` value to milliseconds since epoch, treating
+ * bare `'YYYY-MM-DD HH:MM:SS'` strings (as produced by `CURRENT_TIMESTAMP`)
+ * as UTC. Without the explicit `Z`, JavaScript's `Date.parse` interprets the
+ * string as local time, producing a multi-hour drift vs IndexedDB's
+ * `Date.now()` writes.
+ *
+ * @param {*} ts - Raw value from a SQLite row
+ * @returns {number|null} Epoch milliseconds, or null if the value is missing
+ *   or unparseable.
+ */
+function parseSqliteTimestamp(ts) {
+  if (ts === undefined || ts === null) return null;
+  if (typeof ts === 'number') return ts;
+  if (typeof ts !== 'string') return null;
+  const isoCandidate = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(ts)
+    ? `${ts.replace(' ', 'T')}Z`
+    : ts;
+  const parsed = Date.parse(isoCandidate);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 class DatabaseService {
   /**
    * Creates a new DatabaseService instance
@@ -2066,12 +2089,22 @@ class DatabaseService {
    * Retrieves flexi data for a record, section, and term from normalized storage.
    *
    * Returns an identical consumer-facing shape on both backends:
-   * `{ items, extraid, sectionid, termid, updated_at }` or null when no rows
-   * exist. On the SQLite path, per-scout rows are reconstructed into `items[]`
-   * by merging the parsed JSON `data` column with the explicit columns
-   * (scoutid/firstname/lastname). The IndexedDB path also preserves any
-   * wrapper fields the original API response carried (e.g. `identifier`),
-   * which the SQLite path does not store; consumers must not rely on those.
+   * `{ items, extraid, sectionid, termid, updated_at, _cacheTimestamp }` or
+   * null when no rows exist. On the SQLite path, per-scout rows are
+   * reconstructed into `items[]` by merging the parsed JSON `data` column
+   * with the explicit columns (scoutid/firstname/lastname).
+   *
+   * `_cacheTimestamp` is the millisecond epoch the row was written and is
+   * required for cross-backend parity with the cache-TTL check in
+   * `flexiRecordService.checkCacheTTL`. The IndexedDB path persists it
+   * verbatim from the saved record; the SQLite path derives it from the
+   * row's `updated_at` column (parsed as UTC — SQLite's
+   * `DEFAULT CURRENT_TIMESTAMP` produces a no-TZ string that JS would
+   * otherwise interpret as local time).
+   *
+   * The IndexedDB path also preserves arbitrary wrapper fields the original
+   * API response carried (e.g. `identifier`); the SQLite path does not
+   * store those — consumers must not rely on them.
    *
    * @async
    * @param {string} recordId - Flexi record identifier
@@ -2100,8 +2133,14 @@ class DatabaseService {
         if (row.data) {
           try {
             parsed = JSON.parse(row.data);
-          } catch (_parseError) {
-            parsed = {};
+          } catch (parseError) {
+            logger.warn('Failed to parse flexi_data.data JSON', {
+              extraid: row.extraid,
+              sectionid: row.sectionid,
+              termid: row.termid,
+              scoutid: row.scoutid,
+              error: parseError.message,
+            }, LOG_CATEGORIES.DATABASE);
           }
         }
         return {
@@ -2112,12 +2151,7 @@ class DatabaseService {
         };
       });
 
-      let updatedAt = Date.now();
-      const ts = rows[0]?.updated_at;
-      if (ts !== undefined && ts !== null) {
-        const parsedTs = typeof ts === 'number' ? ts : Date.parse(ts);
-        if (!Number.isNaN(parsedTs)) updatedAt = parsedTs;
-      }
+      const updatedAt = parseSqliteTimestamp(rows[0]?.updated_at) ?? Date.now();
 
       return {
         items,
@@ -2125,6 +2159,7 @@ class DatabaseService {
         sectionid: Number(sectionId),
         termid: String(termId),
         updated_at: updatedAt,
+        _cacheTimestamp: updatedAt,
       };
     } catch (error) {
       logger.error('Failed to get flexi data', {

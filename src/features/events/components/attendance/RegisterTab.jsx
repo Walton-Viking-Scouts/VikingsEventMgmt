@@ -4,10 +4,12 @@ import { isFieldCleared } from '../../../../shared/constants/signInDataConstants
 import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
 import MemberStatusIcons from '../../../../shared/components/ui/MemberStatusIcons.jsx';
 
-// Sentinel values that push empty entries to the end regardless of direction.
-// Camp Group is sorted as a string (numeric strings still compare correctly),
-// signed-in time is sorted by timestamp.
+/** Sort sentinel that places empty Camp Group values after every real
+ *  string (U+FFFF non-character compares greater than any BMP code point). */
 const CAMP_GROUP_EMPTY = '￿';
+
+/** Sort sentinel that places not-yet-signed-in members after every real
+ *  timestamp regardless of direction. */
 const SIGNED_IN_EMPTY = Number.MAX_SAFE_INTEGER;
 
 const sortData = (data, key, direction) => {

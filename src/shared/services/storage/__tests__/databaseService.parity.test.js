@@ -277,11 +277,17 @@ describe('DatabaseService — Cross-backend parity for flexi data', () => {
     return ds.getFlexiData(recordId, sectionId, termId);
   }
 
-  // Strip backend-specific bookkeeping fields that are not part of the
-  // consumer-facing parity contract. SQLite reconstructs `updated_at` from
-  // CURRENT_TIMESTAMP; IndexedDB uses Date.now(); neither is asserted equal.
-  // IndexedDB also preserves arbitrary wrapper fields from the API response
-  // (e.g. `identifier`, `_cacheTimestamp`); SQLite stores per-row only.
+  /**
+   * Strip backend-specific bookkeeping fields that are not part of the
+   * consumer-facing parity contract. SQLite reconstructs `updated_at` from
+   * `CURRENT_TIMESTAMP`; IndexedDB uses `Date.now()`; neither is asserted
+   * equal. IndexedDB also preserves arbitrary wrapper fields from the API
+   * response (e.g. `identifier`); SQLite stores per-row only and recovers
+   * `_cacheTimestamp` from the row timestamp on read (asserted separately).
+   *
+   * @param {Object|null} out - Raw output from `getFlexiData`.
+   * @returns {Object|null} Output with bookkeeping fields removed.
+   */
   function normalizeFlexiForComparison(out) {
     if (!out) return out;
     const { updated_at: _u, _cacheTimestamp: _c, identifier: _i, ...rest } = out;
@@ -361,5 +367,40 @@ describe('DatabaseService — Cross-backend parity for flexi data', () => {
 
     expect(sqliteOut.items[0].f_1).toBe('3');
     expect(idbOut.items[0].f_1).toBe('3');
+  });
+
+  it('both backends populate `_cacheTimestamp` (cache-TTL parity)', async () => {
+    const fixture = {
+      _cacheTimestamp: 1714000000000,
+      items: [{ scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: '1' }],
+    };
+
+    const dsSqlite = await loadService('native');
+    await dsSqlite.initialize();
+    await dsSqlite.saveFlexiData('extra1', 5, 't1', fixture);
+    const sqliteOut = await dsSqlite.getFlexiData('extra1', 5, 't1');
+
+    if (activeDb) { activeDb.close(); activeDb = null; }
+
+    const dsWeb = await loadService('web');
+    await dsWeb.initialize();
+    await dsWeb.saveFlexiData('extra1', 5, 't1', fixture);
+    const idbOut = await dsWeb.getFlexiData('extra1', 5, 't1');
+
+    expect(typeof sqliteOut._cacheTimestamp).toBe('number');
+    expect(typeof idbOut._cacheTimestamp).toBe('number');
+    expect(Number.isFinite(sqliteOut._cacheTimestamp)).toBe(true);
+    expect(Number.isFinite(idbOut._cacheTimestamp)).toBe(true);
+  });
+
+  it('both backends expose the same top-level key set (whitelist parity)', async () => {
+    const sqliteOut = await runFlexiRoundTrip('native', 'extra1', 5, 't1', FLEXI_FIXTURE);
+    const idbOut = await runFlexiRoundTrip('web', 'extra1', 5, 't1', FLEXI_FIXTURE);
+
+    const required = ['items', 'extraid', 'sectionid', 'termid', 'updated_at', '_cacheTimestamp'];
+    for (const key of required) {
+      expect(sqliteOut).toHaveProperty(key);
+      expect(idbOut).toHaveProperty(key);
+    }
   });
 });
