@@ -551,17 +551,23 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     try {
       setRefreshingAttendance(true);
 
-      logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
+      logger.info('Manual attendance refresh initiated from EventAttendance', {
+        eventCount: events?.length || 0,
+      }, LOG_CATEGORIES.COMPONENT);
 
-      const result = await eventDataLoader.syncAllEventAttendance(true);
+      const result = await eventDataLoader.syncEventsAttendance(events || []);
 
       if (!result.success) {
         throw new Error(result.message);
       }
 
-      logger.info('Attendance data synced successfully', {}, LOG_CATEGORIES.COMPONENT);
+      logger.info('Attendance data synced', { partial: !!result.partial }, LOG_CATEGORIES.COMPONENT);
 
-      notifySuccess('Attendance data synced successfully');
+      if (result.partial) {
+        notifyWarning(result.message);
+      } else {
+        notifySuccess('Attendance data synced successfully');
+      }
 
       if (loadVikingEventData) {
         try {
