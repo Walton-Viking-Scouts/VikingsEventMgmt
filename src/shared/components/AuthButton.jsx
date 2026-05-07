@@ -21,13 +21,21 @@ import React from 'react';
 function AuthButton({
   authState,
   onLogin,
-  onRefresh,
+  onRefresh: _onRefresh,
   isLoading = false,
   isOfflineMode = false,
   className = '',
   size,
   ...rest
 }) {
+  // When authenticated and not actively syncing, hide the button entirely.
+  // Every authenticated page provides its own contextual refresh control;
+  // a duplicate generic "Refresh" in the header was visually noisy and
+  // mislabeled (it only refreshed reference data).
+  if (!isLoading && authState === 'authenticated') {
+    return null;
+  }
+
   const getButtonConfig = () => {
     if (isLoading) {
       return {
@@ -74,15 +82,6 @@ function AuthButton({
         disabled: false,
         variant: 'scout-purple',
         ariaLabel: 'Session expired - sign in again to refresh data',
-      };
-
-    case 'authenticated':
-      return {
-        text: 'Refresh',
-        onClick: onRefresh || onLogin,
-        disabled: false,
-        variant: 'outline',
-        ariaLabel: 'Refresh data from OSM',
       };
 
     case 'syncing':

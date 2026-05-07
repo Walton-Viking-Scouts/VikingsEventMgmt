@@ -167,6 +167,20 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson, onMemberClick }) => 
                                 </span>,
                               );
                             }
+
+                            const swimmer = essentialInfo.swimmer;
+                            const isNonSwimmer = swimmer === 'No' || swimmer === 'no' || swimmer === null || swimmer === undefined || swimmer === '';
+                            if (isNonSwimmer) {
+                              icons.push(
+                                <span
+                                  key="swimmer"
+                                  className="text-base"
+                                  title={swimmer === 'No' || swimmer === 'no' ? 'Non-swimmer' : 'Swimmer status unknown'}
+                                >
+                                  🛟
+                                </span>,
+                              );
+                            }
                           }
 
                           return icons.length > 0 ? icons : null;

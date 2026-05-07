@@ -6,7 +6,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import { isMobileLayout } from '../../../shared/utils/platform.js';
 import { assignMemberToCampGroup, batchAssignMembers, extractFlexiRecordContext, bulkUpdateCampGroups } from '../services/campGroupAllocationService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
+import { dismissToast, notifyError, notifyInfo, notifyLoading, notifySuccess } from '../../../shared/utils/notifications.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { MissingFlexiRecordsBanner, isOperationalSection } from '../../flexi-records';
 
@@ -217,6 +217,7 @@ function CampGroupsView({
 
   const handleMemberMove = async (moveData) => {
     const moveId = `${moveData.member.scoutid}_${Date.now()}`;
+    let movingToastId = null;
     try {
       const token = getToken();
       if (!token) {
@@ -354,14 +355,17 @@ function CampGroupsView({
       }
 
       const memberName = member.name || `${member.firstname} ${member.lastname}`;
-      
-      // Show loading notification
-      notifyInfo(`Moving ${memberName} to ${moveData.toGroupName}...`);
+
+      movingToastId = notifyLoading(`Moving ${memberName} to ${moveData.toGroupName}...`);
 
       // Call the API service
       const result = await assignMemberToCampGroup(moveData, flexiRecordContext, token);
 
       if (result.success) {
+        if (movingToastId) {
+          dismissToast(movingToastId);
+          movingToastId = null;
+        }
         notifySuccess(`${memberName} successfully moved to ${moveData.toGroupName}`);
         
         // Move from pending to recently completed
@@ -410,6 +414,10 @@ function CampGroupsView({
         return newMap;
       });
 
+      if (movingToastId) {
+        dismissToast(movingToastId);
+        movingToastId = null;
+      }
       notifyError(`Failed to move member: ${error.message}`, error);
     }
   };

@@ -1,12 +1,13 @@
 import React from 'react';
 import { cn } from '../../../../shared/utils/cn';
+import RefreshButton from '../../../../shared/components/ui/RefreshButton.jsx';
 
-function AttendanceHeader({ 
-  events, 
-  onBack, 
-  onRefresh, 
+function AttendanceHeader({
+  events,
+  onBack,
+  onRefresh,
   canRefresh = true,
-  refreshLoading = false, 
+  refreshLoading = false,
 }) {
   if (!events || events.length === 0) {
     return null;
@@ -29,14 +30,11 @@ function AttendanceHeader({
 
       <div className="flex space-x-2">
         {canRefresh && (
-          <button
-            onClick={onRefresh}
-            disabled={refreshLoading}
-            className="inline-flex items-center justify-center rounded-md font-medium px-3 py-1.5 text-sm border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            type="button"
-          >
-            {refreshLoading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <RefreshButton
+            onRefresh={onRefresh}
+            loading={refreshLoading}
+            size="small"
+          />
         )}
         <button
           onClick={onBack}

@@ -366,6 +366,61 @@ describe('DatabaseService — SQLite (iOS code path)', () => {
       const data = JSON.parse(stored[0].data);
       expect(data.f_1).toBe('duplicate-value');
     });
+
+    it('getFlexiData returns {items: [...]} wrapper shape matching IndexedDB', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      await databaseService.saveFlexiData('extra1', 5, 't1', {
+        identifier: 'scoutid',
+        items: [
+          { scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: 'Group A' },
+          { scoutid: '1002', firstname: 'Bob', lastname: 'Brown', f_1: 'Group B' },
+        ],
+      });
+
+      const result = await databaseService.getFlexiData('extra1', 5, 't1');
+
+      expect(result).not.toBeNull();
+      expect(Array.isArray(result.items)).toBe(true);
+      expect(result.items.length).toBe(2);
+      expect(result.extraid).toBe('extra1');
+      expect(result.sectionid).toBe(5);
+      expect(result.termid).toBe('t1');
+
+      const alice = result.items.find(i => i.scoutid === '1001');
+      expect(alice).toMatchObject({
+        scoutid: '1001',
+        firstname: 'Alice',
+        lastname: 'Smith',
+        f_1: 'Group A',
+      });
+    });
+
+    it('getFlexiData returns null when no rows exist for the given keys', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      const result = await databaseService.getFlexiData('nonexistent', 999, 'no-term');
+      expect(result).toBeNull();
+    });
+
+    it('getFlexiData reflects updated CampGroup value after re-save (move regression)', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      await databaseService.saveFlexiData('extra1', 5, 't1', {
+        items: [{ scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: '1' }],
+      });
+
+      await databaseService.saveFlexiData('extra1', 5, 't1', {
+        items: [{ scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: '3' }],
+      });
+
+      const result = await databaseService.getFlexiData('extra1', 5, 't1');
+      expect(result.items.length).toBe(1);
+      expect(result.items[0].f_1).toBe('3');
+    });
   });
 
   describe('Schema validation on iOS path', () => {

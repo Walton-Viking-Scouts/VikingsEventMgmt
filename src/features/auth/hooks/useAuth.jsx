@@ -245,11 +245,12 @@ function useAuthLogic() {
       source,
     }, LOG_CATEGORIES.AUTH);
 
+    let syncingToastId = null;
     try {
       logger.info('Starting comprehensive data load after successful OAuth', { source }, LOG_CATEGORIES.AUTH);
 
-      const { notifyInfo } = await import('../../../shared/utils/notifications.js');
-      notifyInfo('Syncing data from OSM...');
+      const { notifyLoading } = await import('../../../shared/utils/notifications.js');
+      syncingToastId = notifyLoading('Syncing data from OSM...');
 
       const allDataResults = await dataLoadingService.loadAllDataAfterAuth(accessToken, {
         onEventsLoaded: async () => {
@@ -273,6 +274,12 @@ function useAuthLogic() {
           setLastSyncTime(attendanceLoadedTime);
         },
       });
+
+      if (syncingToastId) {
+        const { dismissToast } = await import('../../../shared/utils/notifications.js');
+        dismissToast(syncingToastId);
+        syncingToastId = null;
+      }
 
       if (allDataResults.success) {
         logger.info('Comprehensive data load completed', {
@@ -307,6 +314,11 @@ function useAuthLogic() {
         }
       }
     } catch (dataLoadError) {
+      if (syncingToastId) {
+        const { dismissToast } = await import('../../../shared/utils/notifications.js');
+        dismissToast(syncingToastId);
+        syncingToastId = null;
+      }
       logger.warn('Could not load application data after OAuth', {
         error: dataLoadError?.message,
         source,

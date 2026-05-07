@@ -6,6 +6,12 @@ import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 import { categorizeMedicalData, MEDICAL_DATA_STATES } from '../../../../shared/utils/medicalDataUtils.js';
 
+// Sentinel values that push empty entries to the end regardless of direction.
+// Camp Group is sorted as a string (numeric strings still compare correctly),
+// signed-in time is sorted by timestamp.
+const CAMP_GROUP_EMPTY = '￿';
+const SIGNED_IN_EMPTY = Number.MAX_SAFE_INTEGER;
+
 const sortData = (data, key, direction) => {
   return [...data].sort((a, b) => {
     let aValue, bValue;
@@ -19,6 +25,22 @@ const sortData = (data, key, direction) => {
       aValue = a.yes + a.no + a.invited + a.notInvited;
       bValue = b.yes + b.no + b.invited + b.notInvited;
       break;
+    case 'campGroup': {
+      const av = a.vikingEventData?.CampGroup;
+      const bv = b.vikingEventData?.CampGroup;
+      aValue = av === undefined || av === null || av === '' ? CAMP_GROUP_EMPTY : String(av).toLowerCase();
+      bValue = bv === undefined || bv === null || bv === '' ? CAMP_GROUP_EMPTY : String(bv).toLowerCase();
+      break;
+    }
+    case 'signedIn': {
+      const aTs = a.vikingEventData?.SignedInWhen;
+      const bTs = b.vikingEventData?.SignedInWhen;
+      const aParsed = aTs ? Date.parse(aTs) : NaN;
+      const bParsed = bTs ? Date.parse(bTs) : NaN;
+      aValue = Number.isFinite(aParsed) ? aParsed : SIGNED_IN_EMPTY;
+      bValue = Number.isFinite(bParsed) ? bParsed : SIGNED_IN_EMPTY;
+      break;
+    }
     default:
       aValue = '';
       bValue = '';
@@ -164,11 +186,21 @@ function RegisterTab({
                 Status {getSortIcon('attendance', sortConfig.key, sortConfig.direction)}
                 </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Camp Group
+              <th
+                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('campGroup')}
+              >
+                <div className="flex items-center">
+                  Camp Group {getSortIcon('campGroup', sortConfig.key, sortConfig.direction)}
+                </div>
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Signed In
+              <th
+                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('signedIn')}
+              >
+                <div className="flex items-center">
+                  Signed In {getSortIcon('signedIn', sortConfig.key, sortConfig.direction)}
+                </div>
               </th>
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Signed Out
@@ -240,6 +272,20 @@ function RegisterTab({
                           icons.push(
                             <span key="dietary" className="text-sm" title="Has dietary requirements">
                               🍽️
+                            </span>,
+                          );
+                        }
+
+                        const swimmer = essentialInfo.swimmer;
+                        const isNonSwimmer = swimmer === 'No' || swimmer === 'no' || swimmer === null || swimmer === undefined || swimmer === '';
+                        if (isNonSwimmer) {
+                          icons.push(
+                            <span
+                              key="swimmer"
+                              className="text-sm"
+                              title={swimmer === 'No' || swimmer === 'no' ? 'Non-swimmer' : 'Swimmer status unknown'}
+                            >
+                              🛟
                             </span>,
                           );
                         }
