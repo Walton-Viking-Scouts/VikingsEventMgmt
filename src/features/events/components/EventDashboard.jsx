@@ -21,7 +21,7 @@ import {
   filterEventsByDateRange,
   expandSharedEvents,
 } from '../../../shared/utils/eventDashboardHelpers.js';
-import { notifyError, notifySuccess, notifyInfo } from '../../../shared/utils/notifications.js';
+import { notifyError, notifySuccess, notifyLoading, dismissToast } from '../../../shared/utils/notifications.js';
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 import { dedupAttendanceMapForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 
@@ -326,11 +326,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   const handleManualRefresh = async () => {
     if (refreshing) return;
 
+    let syncingToastId = null;
     try {
       setRefreshing(true);
       setError(null);
 
-      notifyInfo('Syncing data from OSM...');
+      syncingToastId = notifyLoading('Syncing data from OSM...');
       logger.info('Manual refresh initiated from EventDashboard', {}, LOG_CATEGORIES.COMPONENT);
 
       const token = getToken();
@@ -352,6 +353,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       if (summary) {
         message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
       }
+      if (syncingToastId) {
+        dismissToast(syncingToastId);
+        syncingToastId = null;
+      }
       notifySuccess(message);
 
     } catch (error) {
@@ -359,6 +364,10 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
 
+      if (syncingToastId) {
+        dismissToast(syncingToastId);
+        syncingToastId = null;
+      }
       notifyError(`Refresh failed: ${error.message}`);
       setError(`Refresh failed: ${error.message}`);
     } finally {
