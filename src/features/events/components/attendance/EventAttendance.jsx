@@ -551,9 +551,11 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     try {
       setRefreshingAttendance(true);
 
-      logger.info('Manual attendance refresh initiated from EventAttendance', {}, LOG_CATEGORIES.COMPONENT);
+      logger.info('Manual attendance refresh initiated from EventAttendance', {
+        eventCount: events?.length || 0,
+      }, LOG_CATEGORIES.COMPONENT);
 
-      const result = await eventDataLoader.syncAllEventAttendance(true);
+      const result = await eventDataLoader.syncEventsAttendance(events || []);
 
       if (!result.success) {
         throw new Error(result.message);

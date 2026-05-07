@@ -23,6 +23,103 @@ class EventDataLoader {
     return await this.refreshAllEventAttendance();
   }
 
+  /**
+   * Syncs attendance for a specific set of events only — used by the in-event
+   * refresh button to avoid the full multi-section sync (which can hit OSM
+   * rate limits and is slow). Per-event attendance + shared-attendance
+   * lookups run concurrently for the supplied events.
+   *
+   * @param {Array<Object>} events - Events to refresh. Each must have
+   *   `sectionid`, `eventid`, and `termid`. Other events in the cache are
+   *   left untouched.
+   * @returns {Promise<{success: boolean, message: string, details?: Object}>}
+   */
+  async syncEventsAttendance(events) {
+    if (!Array.isArray(events) || events.length === 0) {
+      return { success: false, message: 'No events provided to sync.' };
+    }
+
+    try {
+      const token = getToken();
+      if (!token) {
+        const scoutMessage = 'Your session has expired. Please log in again to sync events.';
+        logger.warn('No auth token available for scoped event sync', {}, LOG_CATEGORIES.DATA_SERVICE);
+        return { success: false, message: scoutMessage };
+      }
+
+      const validEvents = events.filter(event =>
+        event && event.sectionid && event.eventid && event.termid,
+      );
+
+      if (validEvents.length === 0) {
+        logger.warn('No valid events in scoped sync set (missing required fields)', {
+          inputCount: events.length,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+        return { success: false, message: 'No valid events to sync.' };
+      }
+
+      logger.info('Starting scoped attendance sync', {
+        eventCount: validEvents.length,
+        eventIds: validEvents.map(e => e.eventid),
+      }, LOG_CATEGORIES.DATA_SERVICE);
+
+      const syncPromises = validEvents.map(event => this.syncEventAttendanceSafe(event, token));
+      const results = await Promise.allSettled(syncPromises);
+
+      await this.syncSharedAttendance(validEvents, token);
+
+      const syncResults = {
+        totalEvents: events.length,
+        validEvents: validEvents.length,
+        displayableEvents: validEvents.length,
+        skippedEvents: events.length - validEvents.length,
+        syncedEvents: 0,
+        failedEvents: 0,
+        errors: [],
+      };
+
+      results.forEach((result, index) => {
+        const event = validEvents[index];
+        if (result.status === 'fulfilled') {
+          syncResults.syncedEvents++;
+        } else {
+          syncResults.failedEvents++;
+          syncResults.errors.push({
+            eventId: event.eventid,
+            eventName: event.name,
+            error: result.reason?.message || 'Unknown error',
+          });
+          const reasonMsg = result.reason?.message || String(result.reason);
+          logger.warn(`Failed to sync attendance for event "${event.name}" (id=${event.eventid}): ${reasonMsg}`, {
+            eventName: event.name,
+            eventId: event.eventid,
+            error: result.reason?.message,
+          }, LOG_CATEGORIES.DATA_SERVICE);
+          if (result.reason instanceof Error) {
+            sentryUtils.captureException(result.reason, {
+              tags: { operation: 'sync_event_attendance_scoped' },
+              contexts: { event: { id: String(event.eventid), name: event.name, sectionid: event.sectionid } },
+            });
+          }
+        }
+      });
+
+      logger.info('Scoped attendance sync completed', { ...syncResults }, LOG_CATEGORIES.DATA_SERVICE);
+
+      return {
+        success: syncResults.failedEvents === 0,
+        message: `Synced ${syncResults.syncedEvents}/${syncResults.validEvents} events`,
+        details: syncResults,
+      };
+    } catch (error) {
+      const scoutMessage = getScoutFriendlyMessage(error, 'sync event attendance');
+      logger.error('Scoped attendance sync failed', {
+        error: error.message,
+      }, LOG_CATEGORIES.DATA_SERVICE);
+      return { success: false, message: scoutMessage };
+    }
+  }
+
   async refreshAllEventAttendance() {
     if (this.isLoading) {
       logger.debug('Event attendance sync already in progress', {}, LOG_CATEGORIES.DATA_SERVICE);
