@@ -28,6 +28,14 @@ function AuthButton({
   size,
   ...rest
 }) {
+  // When authenticated and not actively syncing, hide the button entirely.
+  // Every authenticated page provides its own contextual refresh control;
+  // a duplicate generic "Refresh" in the header was visually noisy and
+  // mislabeled (it only refreshed reference data).
+  if (!isLoading && authState === 'authenticated') {
+    return null;
+  }
+
   const getButtonConfig = () => {
     if (isLoading) {
       return {

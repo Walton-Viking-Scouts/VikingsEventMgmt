@@ -2063,13 +2063,21 @@ class DatabaseService {
   }
 
   /**
-   * Retrieves flexi data for a record, section, and term from normalized storage
+   * Retrieves flexi data for a record, section, and term from normalized storage.
+   *
+   * Returns an identical consumer-facing shape on both backends:
+   * `{ items, extraid, sectionid, termid, updated_at }` or null when no rows
+   * exist. On the SQLite path, per-scout rows are reconstructed into `items[]`
+   * by merging the parsed JSON `data` column with the explicit columns
+   * (scoutid/firstname/lastname). The IndexedDB path also preserves any
+   * wrapper fields the original API response carried (e.g. `identifier`),
+   * which the SQLite path does not store; consumers must not rely on those.
    *
    * @async
    * @param {string} recordId - Flexi record identifier
    * @param {number} sectionId - Section identifier
    * @param {string} termId - Term identifier
-   * @returns {Promise<Object|Array|null>} Flexi data (object on web, array on native, null on error)
+   * @returns {Promise<Object|null>} Flexi data with `items[]` rows, or null on no rows / error
    */
   async getFlexiData(recordId, sectionId, termId) {
     await this.initialize();
@@ -2081,17 +2089,50 @@ class DatabaseService {
 
       const query = 'SELECT * FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?';
       const result = await this.db.query(query, [String(recordId), Number(sectionId), String(termId)]);
-      return result.values || [];
+      const rows = result.values || [];
+
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const items = rows.map(row => {
+        let parsed = {};
+        if (row.data) {
+          try {
+            parsed = JSON.parse(row.data);
+          } catch (_parseError) {
+            parsed = {};
+          }
+        }
+        return {
+          ...parsed,
+          scoutid: row.scoutid,
+          firstname: row.firstname,
+          lastname: row.lastname,
+        };
+      });
+
+      let updatedAt = Date.now();
+      const ts = rows[0]?.updated_at;
+      if (ts !== undefined && ts !== null) {
+        const parsedTs = typeof ts === 'number' ? ts : Date.parse(ts);
+        if (!Number.isNaN(parsedTs)) updatedAt = parsedTs;
+      }
+
+      return {
+        items,
+        extraid: String(recordId),
+        sectionid: Number(sectionId),
+        termid: String(termId),
+        updated_at: updatedAt,
+      };
     } catch (error) {
       logger.error('Failed to get flexi data', {
         recordId, sectionId, termId,
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
       sentryUtils.captureException(error, { context: 'DatabaseService.getFlexiData', recordId, sectionId, termId });
-      if (!this.isNative || !this.db) {
-        return null;
-      }
-      return [];
+      return null;
     }
   }
 

@@ -260,3 +260,106 @@ describe('DatabaseService — Cross-backend parity (IndexedDB ≡ SQLite)', () =
     expect(sqliteOut[0].pic).toBe(false);
   });
 });
+
+describe('DatabaseService — Cross-backend parity for flexi data', () => {
+  afterEach(() => {
+    if (activeDb) {
+      activeDb.close();
+      activeDb = null;
+    }
+    currentMode = 'native';
+  });
+
+  async function runFlexiRoundTrip(mode, recordId, sectionId, termId, data) {
+    const ds = await loadService(mode);
+    await ds.initialize();
+    await ds.saveFlexiData(recordId, sectionId, termId, data);
+    return ds.getFlexiData(recordId, sectionId, termId);
+  }
+
+  // Strip backend-specific bookkeeping fields that are not part of the
+  // consumer-facing parity contract. SQLite reconstructs `updated_at` from
+  // CURRENT_TIMESTAMP; IndexedDB uses Date.now(); neither is asserted equal.
+  // IndexedDB also preserves arbitrary wrapper fields from the API response
+  // (e.g. `identifier`, `_cacheTimestamp`); SQLite stores per-row only.
+  function normalizeFlexiForComparison(out) {
+    if (!out) return out;
+    const { updated_at: _u, _cacheTimestamp: _c, identifier: _i, ...rest } = out;
+    return rest;
+  }
+
+  const FLEXI_FIXTURE = {
+    identifier: 'scoutid',
+    items: [
+      { scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: 'Group A', f_2: 'extra' },
+      { scoutid: '1002', firstname: 'Bob', lastname: 'Brown', f_1: 'Group B', f_2: 'extra' },
+    ],
+  };
+
+  it('flexi data items[] round-trip identically on both backends', async () => {
+    const sqliteOut = await runFlexiRoundTrip('native', 'extra1', 5, 't1', FLEXI_FIXTURE);
+    const idbOut = await runFlexiRoundTrip('web', 'extra1', 5, 't1', FLEXI_FIXTURE);
+
+    expect(sqliteOut).not.toBeNull();
+    expect(idbOut).not.toBeNull();
+
+    const norm = (out) => {
+      const n = normalizeFlexiForComparison(out);
+      n.items = [...n.items].sort((a, b) => String(a.scoutid).localeCompare(String(b.scoutid)));
+      return n;
+    };
+
+    expect(norm(sqliteOut)).toEqual(norm(idbOut));
+  });
+
+  it('items[] is the consumer contract — both backends expose `.items` array', async () => {
+    const sqliteOut = await runFlexiRoundTrip('native', 'extra1', 5, 't1', FLEXI_FIXTURE);
+    const idbOut = await runFlexiRoundTrip('web', 'extra1', 5, 't1', FLEXI_FIXTURE);
+
+    expect(Array.isArray(sqliteOut.items)).toBe(true);
+    expect(Array.isArray(idbOut.items)).toBe(true);
+    expect(sqliteOut.items.length).toBe(2);
+    expect(idbOut.items.length).toBe(2);
+  });
+
+  it('returns null on both backends when no rows exist for the keys', async () => {
+    const dsSqlite = await loadService('native');
+    await dsSqlite.initialize();
+    const sqliteOut = await dsSqlite.getFlexiData('nope', 999, 'nope');
+
+    if (activeDb) { activeDb.close(); activeDb = null; }
+
+    const dsWeb = await loadService('web');
+    await dsWeb.initialize();
+    const idbOut = await dsWeb.getFlexiData('nope', 999, 'nope');
+
+    expect(sqliteOut).toBeNull();
+    expect(idbOut).toBeNull();
+  });
+
+  it('replacing rows for the same (extraid, sectionid, termid) updates items on both backends', async () => {
+    const initial = {
+      items: [{ scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: '1' }],
+    };
+    const updated = {
+      items: [{ scoutid: '1001', firstname: 'Alice', lastname: 'Smith', f_1: '3' }],
+    };
+
+    const dsSqlite = await loadService('native');
+    await dsSqlite.initialize();
+    await dsSqlite.saveFlexiData('extra1', 5, 't1', initial);
+    await dsSqlite.saveFlexiData('extra1', 5, 't1', updated);
+    const sqliteOut = await dsSqlite.getFlexiData('extra1', 5, 't1');
+
+    if (activeDb) { activeDb.close(); activeDb = null; }
+
+    const dsWeb = await loadService('web');
+    await dsWeb.initialize();
+    await dsWeb.saveFlexiData('extra1', 5, 't1', initial);
+    await dsWeb.saveFlexiData('extra1', 5, 't1', updated);
+    const idbOut = await dsWeb.getFlexiData('extra1', 5, 't1');
+
+    expect(sqliteOut.items[0].f_1).toBe('3');
+    expect(idbOut.items[0].f_1).toBe('3');
+  });
+});
