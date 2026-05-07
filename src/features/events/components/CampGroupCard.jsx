@@ -210,20 +210,27 @@ function CampGroupCard({
       <div className={cn('p-4 pt-0')}>
         {youngPeople.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
-            {youngPeople.map((youngPerson) => (
-              <DraggableMember
-                key={youngPerson.scoutid}
-                member={youngPerson}
-                group={group}
-                onMemberClick={handleMemberClick}
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
-                isDragging={
-                  String(draggingMemberId) === String(youngPerson.scoutid)
-                }
-                disabled={dragDisabled}
-              />
-            ))}
+            {youngPeople.map((youngPerson) => {
+              // Per-member disable: even when move mode is on, scouts whose
+              // section is missing its Viking Event Mgmt flexi record can't be
+              // moved (no flexirecordid/columnid to target on the API).
+              const memberHasFlexi = youngPerson.vikingEventData !== null && youngPerson.vikingEventData !== undefined;
+              const memberDisabled = dragDisabled || !memberHasFlexi;
+              return (
+                <DraggableMember
+                  key={youngPerson.scoutid}
+                  member={youngPerson}
+                  group={group}
+                  onMemberClick={handleMemberClick}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  isDragging={
+                    String(draggingMemberId) === String(youngPerson.scoutid)
+                  }
+                  disabled={memberDisabled}
+                />
+              );
+            })}
           </div>
         ) : (
           <div

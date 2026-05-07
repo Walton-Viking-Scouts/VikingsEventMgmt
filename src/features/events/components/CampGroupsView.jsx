@@ -110,6 +110,12 @@ function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompl
     member.vikingEventData?.CampGroup !== undefined,
   );
 
+  // True when at least one young person has flexi data — used to surface the
+  // move-mode toggle even when other sections are missing their flexi records.
+  // Without this, a single missing-flexi section hides the toggle for sections
+  // that ARE configured.
+  const someVikingEventData = youngPeople.some(member => member.vikingEventData !== null && member.vikingEventData !== undefined);
+
   return {
     groups: sortedGroups,
     summary: {
@@ -117,6 +123,7 @@ function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompl
       totalMembers,
       hasUnassigned: !!sortedGroups['Group Unassigned'],
       vikingEventDataAvailable: hasVikingEventData,
+      someVikingEventDataAvailable: someVikingEventData,
     },
   };
 }
@@ -137,7 +144,7 @@ function organizeByCampGroups(attendees, pendingMoves = new Map(), recentlyCompl
 function CampGroupsView({
   attendees = [],
   events = [],
-  members: _members = [],
+  members = [],
   vikingEventData,
   onMemberClick,
   onDataRefresh,
@@ -154,13 +161,32 @@ function CampGroupsView({
   const [pendingMoves, setPendingMoves] = useState(new Map());
   const [recentlyCompletedMoves, setRecentlyCompletedMoves] = useState(new Map());
 
+  // Move mode is OFF by default. On mobile, drag/drop is too easy to trigger
+  // accidentally — gating it behind an explicit toggle prevents misclicks.
+  const [moveMode, setMoveMode] = useState(false);
+
   const isMobile = isMobileLayout();
+
+  // Merge full member records into attendees so the per-tile MemberStatusIcons
+  // cluster has access to flattened contact-group fields (essential_information__*,
+  // consents__*, etc). The attendance records that flow in via `attendees` only
+  // carry attendance + vikingEventData; without this merge, groupContactInfo
+  // returns an empty object and no icons render.
+  const enrichedAttendees = useMemo(() => {
+    if (!attendees || attendees.length === 0) return attendees;
+    if (!members || members.length === 0) return attendees;
+    const memberById = new Map(members.map(m => [String(m.scoutid), m]));
+    return attendees.map(record => {
+      const full = memberById.get(String(record.scoutid));
+      return full ? { ...full, ...record } : record;
+    });
+  }, [attendees, members]);
 
   // Simple data organization like RegisterTab - just group the pre-processed attendees
   // Include optimistic updates for immediate UI feedback
   const { groups, summary } = useMemo(() =>
-    organizeByCampGroups(attendees, pendingMoves, recentlyCompletedMoves),
-  [attendees, pendingMoves, recentlyCompletedMoves],
+    organizeByCampGroups(enrichedAttendees, pendingMoves, recentlyCompletedMoves),
+  [enrichedAttendees, pendingMoves, recentlyCompletedMoves],
   );
 
   // Unique sections involved in the events shown here — drives the missing-FlexiRecord banner.
@@ -732,31 +758,77 @@ function CampGroupsView({
             </span>
           </div>
           
-          {/* Edit Names Button */}
-          {summary.totalGroups > 0 && (
-            <button
-              onClick={handleEditGroupNames}
-              disabled={groupNamesLoading}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue disabled:opacity-50 disabled:cursor-not-allowed"
-              type="button"
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            {/* Move Mode Toggle */}
+            {summary.totalGroups > 0 && summary.someVikingEventDataAvailable && (
+              <button
+                onClick={() => setMoveMode((prev) => !prev)}
+                aria-pressed={moveMode}
+                className={`inline-flex items-center px-3 py-2 shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue transition-colors ${
+                  moveMode
+                    ? 'bg-scout-blue text-white border border-scout-blue hover:bg-scout-blue-dark'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+                type="button"
+                title={moveMode ? 'Disable moving members between groups' : 'Enable moving members between groups'}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-              Edit Names
-            </button>
-          )}
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                  />
+                </svg>
+                {moveMode ? 'Move mode ON' : 'Enable move'}
+              </button>
+            )}
+
+            {/* Edit Names Button */}
+            {summary.totalGroups > 0 && (
+              <button
+                onClick={handleEditGroupNames}
+                disabled={groupNamesLoading}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                Edit Names
+              </button>
+            )}
+          </div>
         </div>
+
+        {moveMode && (
+          <div
+            className="mb-4 px-3 py-2 rounded-md bg-scout-blue/10 border border-scout-blue/30 text-sm text-scout-blue-dark flex items-center gap-2"
+            role="status"
+          >
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              <strong>Move mode is on.</strong> Drag members between groups. Tap <em>Move mode ON</em> again to lock.
+            </span>
+          </div>
+        )}
 
         {!summary.vikingEventDataAvailable && eventSections.length > 0 && (
           hasOperationalEventSection ? (
@@ -783,8 +855,7 @@ function CampGroupsView({
             onMemberMove={handleMemberMove}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
-            // Enable drag and drop functionality
-            dragDisabled={false}
+            dragDisabled={!moveMode}
             className="h-fit"
           />
         ))}

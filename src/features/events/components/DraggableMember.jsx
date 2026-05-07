@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { isFieldCleared } from '../../../shared/constants/signInDataConstants.js';
+import MemberStatusIcons from '../../../shared/components/ui/MemberStatusIcons.jsx';
 
 function DraggableMember({ 
   member, 
@@ -195,7 +196,12 @@ function DraggableMember({
       }`}>
         {member.firstname} {member.lastname}
       </div>
-      
+
+      {/* Status icons (medical / photo consent / dietary / non-swimmer) */}
+      <div className="flex items-center gap-1 mt-0.5 min-h-[1rem]">
+        <MemberStatusIcons member={member} size="sm" />
+      </div>
+
       {/* Additional member info if available */}
       {member.patrol && (
         <div className="text-xs text-gray-500 mt-1">{member.patrol}</div>

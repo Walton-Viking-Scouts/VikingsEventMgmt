@@ -1,7 +1,5 @@
 import React, { useMemo } from 'react';
-import { CameraIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { groupContactInfo } from '../../utils/contactGroups.js';
-import { categorizeMedicalData, MEDICAL_DATA_STATES } from '../../utils/medicalDataUtils.js';
+import MemberStatusIcons from './MemberStatusIcons.jsx';
 
 const RESPONSIVE_BREAKPOINTS = {
   LARGE: 1024,
@@ -118,73 +116,7 @@ const SectionCardsFlexMasonry = ({ sections, isYoungPerson, onMemberClick }) => 
                         >
                           {member.firstname} {member.lastname}
                         </button>
-                        {(() => {
-                          const contactGroups = groupContactInfo(member);
-                          const consentGroup = contactGroups.consents || contactGroups.permissions;
-                          const essentialInfo = contactGroups.essential_information;
-
-                          const icons = [];
-
-                          if (consentGroup) {
-                            const photographsConsent = consentGroup.photographs || consentGroup.Photographs;
-                            if (photographsConsent === 'No' || photographsConsent === 'no') {
-                              icons.push(
-                                <span key="camera" className="relative inline-block" title="No photography consent">
-                                  <CameraIcon className="w-5 h-5 text-red-600" />
-                                  <svg className="absolute inset-0 w-5 h-5" viewBox="0 0 24 24">
-                                    <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2" className="text-red-600" />
-                                  </svg>
-                                </span>,
-                              );
-                            }
-                          }
-
-                          if (essentialInfo) {
-                            const allergiesState = categorizeMedicalData(essentialInfo.allergies, 'allergies');
-                            const medicalState = categorizeMedicalData(essentialInfo.medical_details, 'medical_details');
-                            const dietaryState = categorizeMedicalData(essentialInfo.dietary_requirements, 'dietary_requirements');
-
-                            const hasMedicalOrAllergies =
-                              allergiesState === MEDICAL_DATA_STATES.HAS_DATA ||
-                              medicalState === MEDICAL_DATA_STATES.HAS_DATA;
-
-                            const hasDietaryRequirements = dietaryState === MEDICAL_DATA_STATES.HAS_DATA;
-
-                            if (hasMedicalOrAllergies) {
-                              icons.push(
-                                <ExclamationTriangleIcon
-                                  key="medical"
-                                  className="w-5 h-5 text-yellow-600"
-                                  title="Has medical details or allergies"
-                                />,
-                              );
-                            }
-
-                            if (hasDietaryRequirements) {
-                              icons.push(
-                                <span key="dietary" className="text-base" title="Has dietary requirements">
-                                  🍽️
-                                </span>,
-                              );
-                            }
-
-                            const swimmer = essentialInfo.swimmer;
-                            const isNonSwimmer = swimmer === 'No' || swimmer === 'no' || swimmer === null || swimmer === undefined || swimmer === '';
-                            if (isNonSwimmer) {
-                              icons.push(
-                                <span
-                                  key="swimmer"
-                                  className="text-base"
-                                  title={swimmer === 'No' || swimmer === 'no' ? 'Non-swimmer' : 'Swimmer status unknown'}
-                                >
-                                  🛟
-                                </span>,
-                              );
-                            }
-                          }
-
-                          return icons.length > 0 ? icons : null;
-                        })()}
+                        <MemberStatusIcons member={member} size="base" />
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
