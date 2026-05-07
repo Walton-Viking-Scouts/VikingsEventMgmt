@@ -21,7 +21,7 @@ import React from 'react';
 function AuthButton({
   authState,
   onLogin,
-  onRefresh,
+  onRefresh: _onRefresh,
   isLoading = false,
   isOfflineMode = false,
   className = '',
@@ -82,15 +82,6 @@ function AuthButton({
         disabled: false,
         variant: 'scout-purple',
         ariaLabel: 'Session expired - sign in again to refresh data',
-      };
-
-    case 'authenticated':
-      return {
-        text: 'Refresh',
-        onClick: onRefresh || onLogin,
-        disabled: false,
-        variant: 'outline',
-        ariaLabel: 'Refresh data from OSM',
       };
 
     case 'syncing':

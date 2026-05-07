@@ -2087,7 +2087,7 @@ class DatabaseService {
         return await IndexedDBService.getFlexiRecordData(recordId, sectionId, termId);
       }
 
-      const query = 'SELECT * FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ?';
+      const query = 'SELECT * FROM flexi_data WHERE extraid = ? AND sectionid = ? AND termid = ? ORDER BY scoutid';
       const result = await this.db.query(query, [String(recordId), Number(sectionId), String(termId)]);
       const rows = result.values || [];
 
