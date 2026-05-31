@@ -54,7 +54,7 @@ function addToBucket(bucket, roleType, count) {
 }
 
 /**
- * @param {Array<{sectionid: any, sectionname?: string}>} events
+ * @param {Array<Object>} events - Each may have sectionid + sectionname.
  * @returns {Map<any, string>}
  */
 function buildSectionIdToName(events) {
@@ -69,8 +69,8 @@ function buildSectionIdToName(events) {
 
 /**
  * Sum each section's stats into the running totals object (mutates `totals`).
- * @param {object} totals
- * @param {object} section
+ * @param {Object} totals
+ * @param {Object} section
  */
 function accumulateTotals(totals, section) {
   for (const status of ['yes', 'no', 'invited', 'notInvited', 'total']) {
@@ -88,8 +88,9 @@ function accumulateTotals(totals, section) {
  * a known group always appears before the catch-all bucket. Sections inside a
  * group are sorted by name.
  *
- * @param {Array<{name: string, groupname: string|null, [status: string]: object}>} sections
- * @returns {Array}
+ * @param {Array<Object>} sections - Each has name, groupname, and one role
+ *   bucket per attendance status (yes/no/invited/notInvited/total).
+ * @returns {Array<Object>}
  */
 function buildGroupsArray(sections) {
   const groupMap = new Map();
@@ -125,8 +126,8 @@ function buildGroupsArray(sections) {
  *
  * @param {Array<Object>} enrichedAttendees - One entry per (scoutid, sectionid)
  *   with pre-aggregated yes/no/invited/notInvited counts and a `person_type`.
- * @param {Array<{sectionid: any, sectionname?: string}>} events
- * @returns {{ sections: Array, totals: object|null, groups?: Array }}
+ * @param {Array<Object>} events - Each may have sectionid + sectionname.
+ * @returns {Object} { sections, totals, groups? } — see module docstring.
  */
 export function buildOverviewStats(enrichedAttendees, events) {
   if (!enrichedAttendees || enrichedAttendees.length === 0) {

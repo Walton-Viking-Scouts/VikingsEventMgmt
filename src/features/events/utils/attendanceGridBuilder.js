@@ -61,7 +61,7 @@ function stripSyntheticPrefix(scoutid) {
 
 /**
  * @param {{attending: string|null|undefined}} person
- * @returns {keyof ReturnType<typeof EMPTY_COUNTS>}
+ * @returns {'attending'|'notAttending'|'invited'|'notInvited'}
  */
 function bucketFor(person) {
   switch (person.attending) {
@@ -77,8 +77,8 @@ function bucketFor(person) {
  * deduplicated on `${realScoutId}-${attendingStatus}` so a scout who appears
  * in two events (their own + a shared copy) is only counted once per status.
  *
- * @param {Array<{attendanceData?: Array<Object>}>} events
- * @returns {ReturnType<typeof EMPTY_COUNTS>}
+ * @param {Array<Object>} events - Each may have an `attendanceData` array.
+ * @returns {{attending: number, notAttending: number, invited: number, notInvited: number}}
  */
 function computeDedupedTotals(events) {
   const seen = new Map();
@@ -115,7 +115,7 @@ function tally(bucket, person) {
  * @param {Array<Object>} events
  * @param {boolean} hasSharedData - When true, accessible-section records take
  *   priority over shared/synthetic ones (we trust the real data).
- * @returns {Map<string, {groupname: string|null, sectionname: string, counts: object}>}
+ * @returns {Map<string, Object>} Composite-key → { groupname, sectionname, counts }
  */
 function buildSectionMap(events, hasSharedData) {
   const map = new Map();
@@ -170,8 +170,8 @@ function buildSectionMap(events, hasSharedData) {
 
 /**
  * Distinct, non-null group names present in the map (case-sensitive).
- * @param {Map<string, {groupname: string|null}>} sectionMap
- * @returns {string[]}
+ * @param {Map<string, Object>} sectionMap - Entries have a `groupname` field.
+ * @returns {Array<string>}
  */
 function distinctGroupNames(sectionMap) {
   const groups = new Set();
@@ -185,9 +185,9 @@ function distinctGroupNames(sectionMap) {
  * Convert the section map into the FLAT shape (keyed by section name).
  * Used when the event has only one group (or no group info at all).
  *
- * @param {Map<string, {groupname: string|null, sectionname: string, counts: object}>} sectionMap
- * @param {object} totals
- * @returns {object}
+ * @param {Map<string, Object>} sectionMap - Entries have groupname/sectionname/counts.
+ * @param {Object} totals - Deduplicated grand totals.
+ * @returns {Object}
  */
 function toFlatShape(sectionMap, totals) {
   const flat = {};
@@ -212,9 +212,9 @@ function toFlatShape(sectionMap, totals) {
  *
  * Groups are ordered alphabetically, with "Unknown group" pinned to the end.
  *
- * @param {Map<string, {groupname: string|null, sectionname: string, counts: object}>} sectionMap
- * @param {object} totals
- * @returns {object}
+ * @param {Map<string, Object>} sectionMap - Entries have groupname/sectionname/counts.
+ * @param {Object} totals - Deduplicated grand totals.
+ * @returns {Object}
  */
 function toGroupedShape(sectionMap, totals) {
   const UNKNOWN_GROUP = 'Unknown group';

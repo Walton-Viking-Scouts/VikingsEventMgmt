@@ -68,10 +68,10 @@ export function getNumericAge(age) {
  * @param {Array<Object>} filteredData - Attendance records (already filtered by
  *   tab filters). Each record needs sectionid + scoutid; sectionname/groupname
  *   are optional but used for display.
- * @param {Array<{sectionid: any, sectionname?: string}>} events
+ * @param {Array<Object>} events - Each may have sectionid + sectionname.
  * @param {Map<string, Object>} coreMembersById - Member detail by scoutid (for
  *   firstname/lastname/age/consents enrichment).
- * @returns {object} See module-level docstring for shape.
+ * @returns {Object} See module-level docstring for shape.
  */
 export function buildAttendanceTabSections(filteredData, events, coreMembersById) {
   const sectionIdToName = new Map();
