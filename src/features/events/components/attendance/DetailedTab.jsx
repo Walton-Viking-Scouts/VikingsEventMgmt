@@ -253,7 +253,7 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
           const attendanceStatus = getMemberAttendanceStatus(attendee);
           const vikingEventData = getMemberVikingEventData(attendee);
 
-          const sectionName = attendee.sectionname || 'Unknown';
+          const sectionName = attendee.sectionDisplayName || attendee.sectionname || 'Unknown';
 
           const baseData = [
             csv(member.firstname),
@@ -482,7 +482,7 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
                   </td>
                   
                   <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                    {attendee.sectionname || 'Unknown'}
+                    {attendee.sectionDisplayName || attendee.sectionname || 'Unknown'}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                     {memberData.patrol}
