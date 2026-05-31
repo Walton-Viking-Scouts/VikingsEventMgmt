@@ -28,6 +28,7 @@ import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema
 import { CurrentActiveTermsService } from './currentActiveTermsService.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { deriveBestPersonType } from '../../utils/personTypeDerivation.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -1008,7 +1009,11 @@ class DatabaseService {
             const sectionData = {
               scoutid,
               sectionid: sectionMembership.sectionid,
-              person_type: sectionMembership.person_type,
+              person_type: deriveBestPersonType({
+                sectiontype: sectionMembership.section,
+                attendee: sectionMembership,
+                existing: null,
+              }),
               patrol: sectionMembership.patrol,
               patrol_id: sectionMembership.patrol_id,
               started: sectionMembership.started,
@@ -1026,7 +1031,11 @@ class DatabaseService {
           const sectionData = {
             scoutid,
             sectionid: member.sectionid,
-            person_type: member.person_type,
+            person_type: deriveBestPersonType({
+              sectiontype: member.section,
+              attendee: member,
+              existing: null,
+            }),
             patrol: member.patrol,
             patrol_id: member.patrol_id,
             started: member.started,
@@ -1142,7 +1151,11 @@ class DatabaseService {
           sectionMembersToInsert.push({
             scoutid,
             sectionid: Number(sectionMembership.sectionid),
-            person_type: sectionMembership.person_type,
+            person_type: deriveBestPersonType({
+              sectiontype: sectionMembership.section,
+              attendee: sectionMembership,
+              existing: null,
+            }),
             patrol: sectionMembership.patrol,
             patrol_id: sectionMembership.patrol_id,
             started: sectionMembership.started,
@@ -1159,7 +1172,11 @@ class DatabaseService {
         sectionMembersToInsert.push({
           scoutid,
           sectionid: Number(member.sectionid),
-          person_type: member.person_type,
+          person_type: deriveBestPersonType({
+            sectiontype: member.section,
+            attendee: member,
+            existing: null,
+          }),
           patrol: member.patrol,
           patrol_id: member.patrol_id,
           started: member.started,
