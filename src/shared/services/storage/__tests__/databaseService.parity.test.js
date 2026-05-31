@@ -259,6 +259,64 @@ describe('DatabaseService — Cross-backend parity (IndexedDB ≡ SQLite)', () =
     expect(sqliteOut).toEqual(idbOut);
     expect(sqliteOut[0].pic).toBe(false);
   });
+
+  it('Adults-section member is classified as Leaders even if API says Young People (#206 regression guard)', async () => {
+    // This is the exact bug #206 vector: OSM returned an Adults Leader with
+    // patrol_id=5 (positive sub-patrol number) and person_type='Young People'
+    // (OSM API quirk). Pre-#206 saveMembers trusted the API value verbatim
+    // and stored 'Young People'. Post-#206 saveMembers consults
+    // deriveBestPersonType which uses section='adults' as the authoritative
+    // override and stores 'Leaders'. This test asserts that override at the
+    // saveMembers boundary so a refactor that swapped the `section` field
+    // name or arg order would fail loudly.
+    const adultsLeader = {
+      scoutid: 9001,
+      firstname: 'Bryan',
+      lastname: 'Stone',
+      sectionid: 42,
+      sectionname: 'Adults',
+      section: 'adults',
+      person_type: 'Young People',
+      patrol: 'Helpers',
+      patrol_id: 5,
+      age: '',
+      active: true,
+    };
+
+    const sqliteOut = (await runRoundTrip('native', [42], [adultsLeader])).map(normalizeForComparison);
+    const idbOut = (await runRoundTrip('web', [42], [adultsLeader])).map(normalizeForComparison);
+
+    expect(sqliteOut).toEqual(idbOut);
+    expect(sqliteOut[0].person_type).toBe('Leaders');
+    expect(sqliteOut[0].sections[0].person_type).toBe('Leaders');
+  });
+
+  it('Adults-section member from sectionMemberships path also classified as Leaders', async () => {
+    // Same guard for the other branch (sectionMemberships array present
+    // instead of single-section fallback).
+    const adultsLeaderViaMemberships = {
+      scoutid: 9002,
+      firstname: 'Cameron',
+      lastname: 'Hunter',
+      sectionMemberships: [
+        {
+          sectionid: 42,
+          sectionname: 'Adults',
+          section: 'adults',
+          person_type: 'Young People',
+          patrol: 'Helpers',
+          patrol_id: 5,
+          active: true,
+        },
+      ],
+    };
+
+    const sqliteOut = (await runRoundTrip('native', [42], [adultsLeaderViaMemberships])).map(normalizeForComparison);
+    const idbOut = (await runRoundTrip('web', [42], [adultsLeaderViaMemberships])).map(normalizeForComparison);
+
+    expect(sqliteOut).toEqual(idbOut);
+    expect(sqliteOut[0].sections[0].person_type).toBe('Leaders');
+  });
 });
 
 describe('DatabaseService — Cross-backend parity for flexi data', () => {

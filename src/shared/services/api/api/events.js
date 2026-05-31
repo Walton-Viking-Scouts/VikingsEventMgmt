@@ -16,6 +16,7 @@ import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { sentryUtils } from '../../utils/sentry.js';
 import { buildSharedSectionsList } from '../../../utils/sharedEventAttendance.js';
+import { deriveBestPersonType } from '../../../utils/personTypeDerivation.js';
 
 /**
  * Retrieves events for a specific section and term
@@ -549,50 +550,88 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
     });
 
     const attendanceByScoutId = new Map(attendance.map(a => [Number(a.scoutid), a]));
+
+    // Core_member records carry display fields (firstname, lastname, age,
+    // dob) used by EventCard, AttendanceGrid, and the View Attendees pages.
+    // For external-group attendees, the shared-attendance API is the only
+    // source of these — local members syncs only cover the user's own
+    // sections — so persist them here.
+    const buildCoreFieldsFromAttendee = (a) => ({
+      firstname: a?.firstname || '',
+      lastname: a?.lastname || '',
+      patrol: a?.patrol || '',
+      age: a?.age ?? null,
+      yrs: a?.yrs ?? null,
+      date_of_birth: a?.dob ?? a?.date_of_birth ?? null,
+      active: true,
+    });
+
     const missingCoreMembers = uniqueScoutIds
       .filter(scoutid => !existingCoreMemberIds.has(scoutid))
-      .map(scoutid => {
-        const attendanceRecord = attendanceByScoutId.get(scoutid);
-        return {
-          scoutid,
-          firstname: attendanceRecord?.firstname || '',
-          lastname: attendanceRecord?.lastname || '',
-          patrol: attendanceRecord?.patrol || '',
-          active: true,
-        };
-      });
+      .map(scoutid => ({
+        scoutid,
+        ...buildCoreFieldsFromAttendee(attendanceByScoutId.get(scoutid)),
+      }));
 
-    if (missingCoreMembers.length > 0) {
-      console.log('✅ Creating core_members for missing scouts', {
-        count: missingCoreMembers.length,
-        scoutIds: missingCoreMembers.map(m => m.scoutid),
+    // Backfill existing core_members whose age/dob is currently missing —
+    // these were created on earlier syncs before age was persisted.
+    const existingNeedingBackfill = existingCoreMembers
+      .map(m => {
+        const a = attendanceByScoutId.get(Number(m.scoutid));
+        if (!a) return null;
+        const updates = {};
+        if (!m.age && a.age) updates.age = a.age;
+        if (!m.yrs && a.yrs) updates.yrs = a.yrs;
+        if (!m.date_of_birth && (a.dob || a.date_of_birth)) {
+          updates.date_of_birth = a.dob ?? a.date_of_birth;
+        }
+        if (!m.firstname && a.firstname) updates.firstname = a.firstname;
+        if (!m.lastname && a.lastname) updates.lastname = a.lastname;
+        if (Object.keys(updates).length === 0) return null;
+        return { scoutid: m.scoutid, ...updates };
+      })
+      .filter(Boolean);
+
+    const coreMembersToUpsert = [...missingCoreMembers, ...existingNeedingBackfill];
+
+    if (coreMembersToUpsert.length > 0) {
+      console.log('✅ Upserting core_members (new + backfill)', {
+        new: missingCoreMembers.length,
+        backfilled: existingNeedingBackfill.length,
+        scoutIds: coreMembersToUpsert.map(m => m.scoutid),
       });
-      await IndexedDBService.bulkUpsertCoreMembers(missingCoreMembers);
-      logger.debug('Created minimal core_member records for shared attendees', {
-        count: missingCoreMembers.length,
-        scoutIds: missingCoreMembers.map(m => m.scoutid),
+      await IndexedDBService.bulkUpsertCoreMembers(coreMembersToUpsert);
+      logger.debug('Upserted core_member records for shared attendees', {
+        new: missingCoreMembers.length,
+        backfilled: existingNeedingBackfill.length,
       }, LOG_CATEGORIES.DATABASE);
     } else {
-      console.log('✅ All scouts already exist in core_members');
+      console.log('✅ All shared attendees already exist in core_members with complete data');
     }
 
-    // Step 3: Get ALL member_section records for these scouts to infer person_type
-    const allMemberSections = await IndexedDBService.getAllMemberSectionsForScouts(uniqueScoutIds);
-    const memberSectionsByScoutId = new Map();
-    allMemberSections.forEach(section => {
-      if (!memberSectionsByScoutId.has(section.scoutid)) {
-        memberSectionsByScoutId.set(section.scoutid, []);
-      }
-      memberSectionsByScoutId.get(section.scoutid).push(section);
+    // sectiontype lookup table for person_type derivation. An attendee in an
+    // `'adults'` section is authoritatively a Leader, even if per-attendee
+    // signals don't agree — losing this lookup downgrades the resolver to
+    // patrol_id/age signals only.
+    const ownSections = await databaseService.getSections().catch((err) => {
+      logger.error('Failed to load sections during shared-attendee person_type derivation', {
+        error: err,
+        impact: 'Adults-section authoritative override disabled for this sync; falling back to per-attendee patrol_id/age signals.',
+      }, LOG_CATEGORIES.DATABASE);
+      return [];
     });
+    const sectionTypeBySectionId = new Map(
+      (ownSections || []).map(s => [Number(s.sectionid), s.sectiontype || null]),
+    );
 
     // Step 4: Process each section group separately
     let totalNewRecords = 0;
     for (const [attendeeSectionId, sectionAttendees] of attendeesBySection.entries()) {
       const sectionName = sectionAttendees[0]?.sectionname || sectionAttendees[0]?.section_name || sectionAttendees[0]?.section || null;
+      const sectiontype = sectionTypeBySectionId.get(Number(attendeeSectionId)) || null;
       const scoutIdsForSection = sectionAttendees.map(a => Number(a.scoutid));
 
-      console.log(`🔵 Processing section ${attendeeSectionId} (${sectionName})`, {
+      console.log(`🔵 Processing section ${attendeeSectionId} (${sectionName}, type=${sectiontype})`, {
         attendeeCount: scoutIdsForSection.length,
       });
 
@@ -604,45 +643,14 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
         scoutIds: Array.from(existingSectionMap.keys()),
       });
 
-      // Helper: Map patrol_id to person_type (OSM convention)
-      const mapPatrolIdToPersonType = (patrolId) => {
-        if (!patrolId) return null;
-        const id = Number(patrolId);
-        if (id === -2) return 'Leaders';
-        if (id === -3) return 'Young Leaders';
-        return 'Young People';
-      };
-
-      // Helper: Derive person_type from age
-      const derivePersonTypeFromAge = (age) => {
-        if (!age) return null;
-        if (age === '25+') return 'Leaders';
-        const match = String(age).match(/^(\d+)/);
-        if (match) {
-          const years = parseInt(match[1], 10);
-          if (years >= 18) return 'Leaders';
-          return 'Young People';
-        }
-        return null;
-      };
-
-      // Create records for new scouts + update existing records with null sectionname OR incorrect person_type
+      // Create records for new scouts + update existing records with null sectionname
+      // or with a person_type that fresh signals disagree with.
       const memberSectionsToUpsert = scoutIdsForSection
         .map(scoutid => {
           const existing = existingSectionMap.get(scoutid);
           const attendee = sectionAttendees.find(a => Number(a.scoutid) === scoutid);
 
-          // Determine person_type with fallback chain:
-          // 1. Existing member_section record
-          // 2. Other section memberships
-          // 3. attendee.person_type
-          // 4. patrol_id mapping
-          // 5. Age-based derivation
-          const personType = existing?.person_type
-            || attendee?.person_type
-            || mapPatrolIdToPersonType(attendee?.patrol_id || attendee?.patrolid)
-            || derivePersonTypeFromAge(attendee?.age || attendee?.yrs)
-            || 'Young People'; // Final fallback
+          const personType = deriveBestPersonType({ sectiontype, attendee, existing });
 
           // Skip if record exists AND has both sectionname AND correct person_type
           if (existing && existing.sectionname && existing.person_type === personType) {
@@ -690,7 +698,19 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
     });
     logger.error('Failed to create member_section records for shared attendees', {
       ownerSectionId: sectionId,
-      error: error.message,
+      error,
+      attendanceCount: attendance?.length,
     }, LOG_CATEGORIES.ERROR);
+    if (error instanceof Error) {
+      sentryUtils.captureException(error, {
+        tags: { operation: 'create_member_section_records_for_shared_attendees' },
+        contexts: {
+          sharedAttendance: {
+            ownerSectionId: sectionId,
+            attendanceCount: attendance?.length,
+          },
+        },
+      });
+    }
   }
 }

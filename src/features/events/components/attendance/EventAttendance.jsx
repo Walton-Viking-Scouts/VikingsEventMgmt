@@ -15,6 +15,7 @@ import eventDataLoader from '../../../../shared/services/data/eventDataLoader.js
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { buildOverviewStats } from '../../utils/overviewStatsBuilder.js';
 import { buildAttendanceTabSections, isYoungPerson } from '../../utils/attendanceTabBuilder.js';
+import { isSectionAllowed } from '../../utils/sectionFilterPredicate.js';
 import { checkAttendanceMatch } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
@@ -86,6 +87,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   const [clearingSignInData, setClearingSignInData] = useState(false);
   const [refreshingAttendance, setRefreshingAttendance] = useState(false);
 
+  // Invariant: sectionFilters[sectionid] is strictly `true` (show) or `false`
+  // (hide). Missing keys (`undefined`) are treated as "show" — both by the
+  // augmenting effect below and by the filter predicates throughout this
+  // component. Do not write `null` or other falsy values.
   const [sectionFilters, setSectionFilters] = useState(() => {
     // Load saved section filters from localStorage
     try {
@@ -121,6 +126,29 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       // Ignore localStorage errors
     }
   }, [sectionFilters]);
+
+  // Initial sectionFilters only know about the user's own event sections.
+  // For shared events with external participating sections (e.g. 4th Walton
+  // sharing their attendees with the District Beaver Water Day owner), those
+  // sectionids only appear once attendanceData loads. Without this, external
+  // sections are silently filtered out of the Detailed / Register tabs even
+  // though their attendance rows exist in IndexedDB and their cards show in
+  // the section-filter UI.
+  useEffect(() => {
+    if (!attendanceData?.length) return;
+    setSectionFilters((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const record of attendanceData) {
+        const sid = record.sectionid;
+        if (sid !== null && sid !== undefined && next[sid] === undefined) {
+          next[sid] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [attendanceData]);
 
   const uniqueSections = useMemo(() => {
     // Get section IDs from both events AND attendance data to include shared sections
@@ -238,7 +266,22 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       }
     });
 
-    return Array.from(memberMap.values());
+    const members = Array.from(memberMap.values());
+
+    // When the event spans multiple Scout groups, several sections can share
+    // a display name (e.g. each group's "Beavers" section). Prefix the
+    // section name with the group so single-row labels like "1st Hersham —
+    // Beavers" stay unambiguous in the Detailed and Register tabs.
+    const distinctGroups = new Set(
+      members.map(m => m.groupname).filter(Boolean),
+    );
+    const needsGroupPrefix = distinctGroups.size >= 2;
+    return members.map(m => ({
+      ...m,
+      sectionDisplayName: needsGroupPrefix && m.groupname
+        ? `${m.groupname} — ${m.sectionname}`
+        : m.sectionname,
+    }));
   }, [attendanceData, coreMembersById, memberSectionByKey]);
 
   const checkMemberAttendanceMatch = (member, filters) => {
@@ -254,7 +297,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
   const registeredFilteredAttendees = useMemo(() =>
     enrichedAttendees.filter(member => {
-      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid];
+      const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
       const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
       return sectionMatch && statusMatch;
     }),
@@ -263,7 +306,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
   const campGroupsFilteredAttendees = useMemo(() =>
     enrichedAttendees.filter(member => {
-      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid];
+      const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
       const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
       return sectionMatch && statusMatch;
     }),
@@ -582,7 +625,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
               {(() => {
                 const filteredData = attendanceData.filter((record) => {
                   const statusMatch = checkAttendanceMatch(record.attending, attendanceFilters);
-                  const sectionMatch = !record.sectionid || sectionFilters[record.sectionid] === true;
+                  const sectionMatch = !record.sectionid || isSectionAllowed(record.sectionid, sectionFilters);
                   return statusMatch && sectionMatch;
                 });
 
