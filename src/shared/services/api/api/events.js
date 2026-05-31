@@ -15,6 +15,7 @@ import databaseService from '../../storage/database.js';
 import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { sentryUtils } from '../../utils/sentry.js';
+import { buildSharedSectionsList } from '../../../utils/sharedEventAttendance.js';
 
 /**
  * Retrieves events for a specific section and term
@@ -414,7 +415,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
           eventid: String(eventId),
           isSharedEvent: true,
           ownerSectionId: Number(sectionId),
-          sections: [...new Set(attendance.map(r => Number(r.sectionid || sectionId)))].map(sid => ({ sectionid: sid })),
+          sections: buildSharedSectionsList(attendance, sectionId),
         });
       }
 

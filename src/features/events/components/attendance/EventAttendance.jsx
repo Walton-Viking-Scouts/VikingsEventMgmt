@@ -187,6 +187,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
           sectionid: record.sectionid,
           sectionname: memberSection?.sectionname || record.sectionname || '',
+          groupname: record.groupname || null,
 
           yes: 0,
           no: 0,
@@ -209,6 +210,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       const memberEntry = memberMap.get(key);
       memberEntry.events.push(record);
+
+      if (!memberEntry.groupname && record.groupname) {
+        memberEntry.groupname = record.groupname;
+      }
 
       if (record.vikingEventData) {
         memberEntry.vikingEventData = record.vikingEventData;
@@ -282,6 +287,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
         const sectionName = sectionIdToName.get(member.sectionid) || member.sectionname || 'Unknown Section';
         sectionMap.set(member.sectionid, {
           name: sectionName,
+          groupname: member.groupname || null,
           yes: { yp: 0, yl: 0, l: 0, total: 0 },
           no: { yp: 0, yl: 0, l: 0, total: 0 },
           invited: { yp: 0, yl: 0, l: 0, total: 0 },
@@ -292,6 +298,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
       const section = sectionMap.get(member.sectionid);
       if (!section) return;
+
+      if (!section.groupname && member.groupname) {
+        section.groupname = member.groupname;
+      }
 
       const personType = member.person_type;
       if (!personType) return;
@@ -361,7 +371,46 @@ function EventAttendance({ events, members: membersProp, onBack }) {
       totals.total.total += section.total.total;
     });
 
-    return { sections, totals };
+    const distinctGroups = new Set(
+      sections.map(s => s.groupname).filter(Boolean),
+    );
+    if (distinctGroups.size < 2) {
+      return { sections, totals };
+    }
+
+    const UNKNOWN_GROUP = 'Unknown group';
+    const groupMap = new Map();
+    sections.forEach(section => {
+      const groupLabel = section.groupname || UNKNOWN_GROUP;
+      if (!groupMap.has(groupLabel)) {
+        groupMap.set(groupLabel, {
+          groupname: groupLabel,
+          sections: [],
+          subtotal: {
+            yes: { yp: 0, yl: 0, l: 0, total: 0 },
+            no: { yp: 0, yl: 0, l: 0, total: 0 },
+            invited: { yp: 0, yl: 0, l: 0, total: 0 },
+            notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
+            total: { yp: 0, yl: 0, l: 0, total: 0 },
+          },
+        });
+      }
+      const group = groupMap.get(groupLabel);
+      group.sections.push(section);
+      ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(status => {
+        ['yp', 'yl', 'l', 'total'].forEach(role => {
+          group.subtotal[status][role] += section[status][role];
+        });
+      });
+    });
+    const groups = Array.from(groupMap.values()).sort((a, b) => {
+      if (a.groupname === UNKNOWN_GROUP) return 1;
+      if (b.groupname === UNKNOWN_GROUP) return -1;
+      return a.groupname.localeCompare(b.groupname);
+    });
+    groups.forEach(g => g.sections.sort((a, b) => a.name.localeCompare(b.name)));
+
+    return { sections, totals, groups };
   }, [enrichedAttendees, events]);
 
   const handleMemberClick = (member) => {

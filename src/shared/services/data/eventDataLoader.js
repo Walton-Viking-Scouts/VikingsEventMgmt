@@ -4,6 +4,7 @@ import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { sentryUtils } from '../utils/sentry.js';
 import { getScoutFriendlyMessage } from '../../utils/scoutErrorHandler.js';
+import { buildSharedSectionsList } from '../../utils/sharedEventAttendance.js';
 
 class EventDataLoader {
   constructor() {
@@ -524,7 +525,7 @@ class EventDataLoader {
             eventid: String(event.eventid),
             isSharedEvent: true,
             ownerSectionId: Number(event.sectionid),
-            sections: [...new Set(attendance.map(r => Number(r.sectionid || event.sectionid)))].map(sid => ({ sectionid: sid })),
+            sections: buildSharedSectionsList(attendance, event.sectionid),
           });
 
           await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);
