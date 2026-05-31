@@ -1,4 +1,42 @@
 /**
+ * Build the `sections` array stored on `shared_event_metadata` from a list of
+ * raw shared attendance records.
+ *
+ * One entry per distinct `sectionid` participating in the event, carrying the
+ * `sectionname` and `groupname` reported by OSM for that section. We need both
+ * because the user is typically not a member of every participating section —
+ * so the section/group names cannot be looked up from local section caches and
+ * must be persisted from the API response.
+ *
+ * Records missing `sectionid` are skipped (we have no key to dedup on); records
+ * with the same `sectionid` are merged, with the FIRST non-empty `sectionname`
+ * and `groupname` winning so a row with names beats a later row that's missing
+ * them.
+ *
+ * @param {Array<Object>} attendance - Shared attendance records from the API
+ *   response. Each record may carry sectionid, sectionname, groupname.
+ * @param {number|string} [fallbackSectionId] - Owner section id to use when a
+ *   record has no sectionid — preserves the previous behaviour where
+ *   `r.sectionid || sectionId` was used.
+ * @returns {Array<{sectionid: number, sectionname: string|null, groupname: string|null}>}
+ */
+export function buildSharedSectionsList(attendance, fallbackSectionId = null) {
+  const bySectionId = new Map();
+  for (const record of Array.isArray(attendance) ? attendance : []) {
+    const rawSid = record?.sectionid ?? fallbackSectionId;
+    if (rawSid === null || rawSid === undefined || rawSid === '') continue;
+    const sectionid = Number(rawSid);
+    if (!Number.isFinite(sectionid)) continue;
+
+    const existing = bySectionId.get(sectionid);
+    const sectionname = existing?.sectionname || record?.sectionname || null;
+    const groupname = existing?.groupname || record?.groupname || null;
+    bySectionId.set(sectionid, { sectionid, sectionname, groupname });
+  }
+  return Array.from(bySectionId.values());
+}
+
+/**
  * Dedup attendance records across a group of events that represent the same logical
  * occasion (e.g. one shared OSM event surfaced as a separate per-section event row).
  *

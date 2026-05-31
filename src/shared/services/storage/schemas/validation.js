@@ -73,6 +73,7 @@ export const SharedEventMetadataSchema = z.object({
   sections: z.array(z.object({
     sectionid: z.union([z.string(), z.number()]).transform(Number),
     sectionname: z.string().nullable().optional(),
+    groupname: z.string().nullable().optional(),
   }).passthrough()).optional().default([]),
 });
 

@@ -763,10 +763,18 @@ class DatabaseService {
 
     const result = SharedEventMetadataSchema.safeParse(metadata);
     if (!result.success) {
+      const issuesSummary = result.error.issues
+        .map(i => `${i.path.join('.') || '<root>'}: ${i.message}`)
+        .join('; ');
       logger.warn('SharedEventMetadata validation failed', {
         issues: result.error.issues,
+        eventid: metadata?.eventid,
       }, LOG_CATEGORIES.DATABASE);
-      throw new Error('SharedEventMetadata validation failed');
+      const validationError = new Error(`SharedEventMetadata validation failed (${issuesSummary})`);
+      validationError.name = 'SharedEventMetadataValidationError';
+      validationError.issues = result.error.issues;
+      validationError.eventid = metadata?.eventid;
+      throw validationError;
     }
     const validMetadata = result.data;
 

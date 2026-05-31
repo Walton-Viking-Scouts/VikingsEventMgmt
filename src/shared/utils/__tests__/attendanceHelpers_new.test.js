@@ -6,6 +6,7 @@ vi.mock('../../services/storage/database.js', () => ({
     getEvents: vi.fn(),
     getAttendance: vi.fn(),
     getEventById: vi.fn(),
+    getSharedEventMetadata: vi.fn().mockResolvedValue(null),
   },
 }));
 
@@ -105,6 +106,99 @@ describe('loadAllAttendanceFromDatabase — sectionname enrichment', () => {
 
     const result = await loadAllAttendanceFromDatabase();
     expect(result[0].sectionname).toBe('Monday Squirrels');
+  });
+});
+
+describe('loadAllAttendanceFromDatabase — groupname enrichment', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('attributes own-section records to the user\'s group inferred from a shared event, even when the own section is not itself in any shared metadata', async () => {
+    // The District Beaver Water Day scenario: user owns Thursday Beavers (which
+    // IS in the shared metadata with groupname '1st Walton') and Adults (which
+    // is NOT in any shared metadata). Without inference, Adults rows would
+    // have groupname=null and bucket under 'Unknown group' in the grouped
+    // layout. With inference, they get '1st Walton' from Thursday Beavers.
+    const ADULTS = 11000;
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: THURSDAY, sectionname: 'Thursday Beavers' },
+      { sectionid: ADULTS, sectionname: 'Adults' },
+    ]);
+    databaseService.getEvents.mockImplementation(async (sid) => {
+      if (sid === THURSDAY) return [{ eventid: 'WATER_DAY', name: 'District Beaver Water Day', startdate: '07/06/2026', sectionname: 'Thursday Beavers' }];
+      if (sid === ADULTS) return [{ eventid: 'WATER_DAY', name: 'District Beaver Water Day', startdate: '07/06/2026', sectionname: 'Adults' }];
+      return [];
+    });
+    databaseService.getAttendance.mockResolvedValue([
+      { eventid: 'WATER_DAY', scoutid: 1, sectionid: THURSDAY, attending: 'Yes' },
+      { eventid: 'WATER_DAY', scoutid: 2, sectionid: ADULTS,   attending: '' },
+    ]);
+    databaseService.getSharedEventMetadata.mockImplementation(async (eventid) => {
+      if (eventid === 'WATER_DAY') {
+        return {
+          eventid: 'WATER_DAY',
+          sections: [
+            { sectionid: THURSDAY, sectionname: 'Thursday Beavers', groupname: '1st Walton (Viking) Sea Scouts' },
+            { sectionid: 200, sectionname: 'Beavers', groupname: 'Oatlands' },
+          ],
+        };
+      }
+      return null;
+    });
+
+    const result = await loadAllAttendanceFromDatabase();
+
+    const thursdayRecord = result.find(r => r.scoutid === 1);
+    const adultsRecord = result.find(r => r.scoutid === 2);
+    expect(thursdayRecord.groupname).toBe('1st Walton (Viking) Sea Scouts');
+    expect(adultsRecord.groupname).toBe('1st Walton (Viking) Sea Scouts');
+  });
+
+  it('keeps groupname null for external sections that have no shared-metadata entry anywhere', async () => {
+    // Defensive: the user-group fallback should NOT leak onto records for
+    // sections the user doesn't own. Only own sections inherit the user's group.
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: THURSDAY, sectionname: 'Thursday Beavers' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'WATER_DAY', name: 'District Beaver Water Day', startdate: '07/06/2026', sectionname: 'Thursday Beavers' },
+    ]);
+    databaseService.getAttendance.mockResolvedValue([
+      { eventid: 'WATER_DAY', scoutid: 1, sectionid: THURSDAY, attending: 'Yes' },
+      { eventid: 'WATER_DAY', scoutid: 99, sectionid: 999, attending: 'Yes', isSharedSection: true },
+    ]);
+    databaseService.getSharedEventMetadata.mockResolvedValue({
+      eventid: 'WATER_DAY',
+      sections: [
+        { sectionid: THURSDAY, sectionname: 'Thursday Beavers', groupname: '1st Walton' },
+      ],
+    });
+
+    const result = await loadAllAttendanceFromDatabase();
+    const external = result.find(r => r.scoutid === 99);
+    expect(external.groupname).toBeNull();
+  });
+
+  it('uses per-event shared metadata when available (does not need the global fallback)', async () => {
+    databaseService.getSections.mockResolvedValue([
+      { sectionid: THURSDAY, sectionname: 'Thursday Beavers' },
+    ]);
+    databaseService.getEvents.mockResolvedValue([
+      { eventid: 'E1', name: 'Event', startdate: '01/01/2026', sectionname: 'Thursday Beavers' },
+    ]);
+    databaseService.getAttendance.mockResolvedValue([
+      { eventid: 'E1', scoutid: 1, sectionid: THURSDAY, attending: 'Yes' },
+    ]);
+    databaseService.getSharedEventMetadata.mockResolvedValue({
+      eventid: 'E1',
+      sections: [
+        { sectionid: THURSDAY, sectionname: 'Thursday Beavers', groupname: '1st Walton' },
+      ],
+    });
+
+    const result = await loadAllAttendanceFromDatabase();
+    expect(result[0].groupname).toBe('1st Walton');
   });
 });
 

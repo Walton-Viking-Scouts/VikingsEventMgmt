@@ -1,5 +1,73 @@
 import React from 'react';
 
+/**
+ * @file OverviewTab — per-section attendance breakdown by YP/YL/L on the
+ *   event detail page.
+ *
+ * Renders one of two body variants based on the shape of `attendees`:
+ *   - GROUPED (`attendees.groups` present): renders one group block per
+ *     participating Scout group, with the group name as a header row, the
+ *     group's sections indented, and a subtotal row per group, followed by a
+ *     single grand-total row. Used when a shared event spans multiple groups.
+ *   - FLAT (default): the existing per-section table plus grand total. Used
+ *     for events that only involve one group.
+ *
+ * See `EventAttendance.overviewStats` for the data construction.
+ */
+
+function StatusCell({ counts, color }) {
+  return (
+    <td className={`px-2 py-3 whitespace-nowrap text-center ${color} font-semibold`}>
+      <div className="flex justify-center">
+        <span className="w-8 text-center">{counts.yp}</span>
+        <span className="w-8 text-center">{counts.yl}</span>
+        <span className="w-8 text-center">{counts.l}</span>
+        <span className="w-12 text-center">{counts.total}</span>
+      </div>
+    </td>
+  );
+}
+
+function SectionRow({ section, labelClass = '', rowClass = 'hover:bg-gray-50' }) {
+  return (
+    <tr className={rowClass}>
+      <td className={`px-3 py-3 whitespace-nowrap table-header-text text-gray-900 ${labelClass}`}>
+        {section.name}
+      </td>
+      <StatusCell counts={section.yes} color="text-green-700" />
+      <StatusCell counts={section.no} color="text-red-700" />
+      <StatusCell counts={section.invited} color="text-scout-blue" />
+      <StatusCell counts={section.notInvited} color="text-gray-600" />
+      <StatusCell counts={section.total} color="text-gray-900" />
+    </tr>
+  );
+}
+
+function TotalsRow({ label, totals, rowClass }) {
+  return (
+    <tr className={rowClass}>
+      <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
+        {label}
+      </td>
+      <StatusCell counts={totals.yes} color="text-green-700" />
+      <StatusCell counts={totals.no} color="text-red-700" />
+      <StatusCell counts={totals.invited} color="text-scout-blue" />
+      <StatusCell counts={totals.notInvited} color="text-gray-600" />
+      <StatusCell counts={totals.total} color="text-gray-900" />
+    </tr>
+  );
+}
+
+function GroupHeaderRow({ label }) {
+  return (
+    <tr className="bg-gray-100 border-t border-gray-300">
+      <td colSpan={6} className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-700">
+        {label}
+      </td>
+    </tr>
+  );
+}
+
 function OverviewTab({
   attendees,
   members,
@@ -101,99 +169,46 @@ function OverviewTab({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {attendees.sections.map((section, index) => (
-            <tr key={index} className="hover:bg-gray-50">
-              <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
-                {section.name}
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-green-700 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{section.yes.yp}</span>
-                  <span className="w-8 text-center">{section.yes.yl}</span>
-                  <span className="w-8 text-center">{section.yes.l}</span>
-                  <span className="w-12 text-center">{section.yes.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-red-700 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{section.no.yp}</span>
-                  <span className="w-8 text-center">{section.no.yl}</span>
-                  <span className="w-8 text-center">{section.no.l}</span>
-                  <span className="w-12 text-center">{section.no.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{section.invited.yp}</span>
-                  <span className="w-8 text-center">{section.invited.yl}</span>
-                  <span className="w-8 text-center">{section.invited.l}</span>
-                  <span className="w-12 text-center">{section.invited.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{section.notInvited.yp}</span>
-                  <span className="w-8 text-center">{section.notInvited.yl}</span>
-                  <span className="w-8 text-center">{section.notInvited.l}</span>
-                  <span className="w-12 text-center">{section.notInvited.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{section.total.yp}</span>
-                  <span className="w-8 text-center">{section.total.yl}</span>
-                  <span className="w-8 text-center">{section.total.l}</span>
-                  <span className="w-12 text-center">{section.total.total}</span>
-                </div>
-              </td>
-            </tr>
-          ))}
-          {attendees.totals && (
-            <tr className="bg-gray-100 font-semibold">
-              <td className="px-3 py-3 whitespace-nowrap table-header-text text-gray-900">
-                Total
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-green-700 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{attendees.totals.yes.yp}</span>
-                  <span className="w-8 text-center">{attendees.totals.yes.yl}</span>
-                  <span className="w-8 text-center">{attendees.totals.yes.l}</span>
-                  <span className="w-12 text-center">{attendees.totals.yes.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-red-700 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{attendees.totals.no.yp}</span>
-                  <span className="w-8 text-center">{attendees.totals.no.yl}</span>
-                  <span className="w-8 text-center">{attendees.totals.no.l}</span>
-                  <span className="w-12 text-center">{attendees.totals.no.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-scout-blue font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{attendees.totals.invited.yp}</span>
-                  <span className="w-8 text-center">{attendees.totals.invited.yl}</span>
-                  <span className="w-8 text-center">{attendees.totals.invited.l}</span>
-                  <span className="w-12 text-center">{attendees.totals.invited.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-gray-600 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{attendees.totals.notInvited.yp}</span>
-                  <span className="w-8 text-center">{attendees.totals.notInvited.yl}</span>
-                  <span className="w-8 text-center">{attendees.totals.notInvited.l}</span>
-                  <span className="w-12 text-center">{attendees.totals.notInvited.total}</span>
-                </div>
-              </td>
-              <td className="px-2 py-3 whitespace-nowrap text-center text-gray-900 font-semibold">
-                <div className="flex justify-center">
-                  <span className="w-8 text-center">{attendees.totals.total.yp}</span>
-                  <span className="w-8 text-center">{attendees.totals.total.yl}</span>
-                  <span className="w-8 text-center">{attendees.totals.total.l}</span>
-                  <span className="w-12 text-center">{attendees.totals.total.total}</span>
-                </div>
-              </td>
-            </tr>
+          {attendees.groups ? (
+            <>
+              {attendees.groups.map((group) => (
+                <React.Fragment key={group.groupname}>
+                  <GroupHeaderRow label={group.groupname} />
+                  {group.sections.map((section, idx) => (
+                    <SectionRow
+                      key={`${group.groupname}::${section.name}::${idx}`}
+                      section={section}
+                      labelClass="pl-6"
+                    />
+                  ))}
+                  <TotalsRow
+                    label="Subtotal"
+                    totals={group.subtotal}
+                    rowClass="bg-gray-50 italic text-gray-700"
+                  />
+                </React.Fragment>
+              ))}
+              {attendees.totals && (
+                <TotalsRow
+                  label="Grand total"
+                  totals={attendees.totals}
+                  rowClass="bg-gray-100 font-semibold"
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {attendees.sections.map((section, index) => (
+                <SectionRow key={index} section={section} />
+              ))}
+              {attendees.totals && (
+                <TotalsRow
+                  label="Total"
+                  totals={attendees.totals}
+                  rowClass="bg-gray-100 font-semibold"
+                />
+              )}
+            </>
           )}
         </tbody>
       </table>

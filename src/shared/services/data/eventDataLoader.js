@@ -4,6 +4,7 @@ import databaseService from '../storage/database.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
 import { sentryUtils } from '../utils/sentry.js';
 import { getScoutFriendlyMessage } from '../../utils/scoutErrorHandler.js';
+import { buildSharedSectionsList } from '../../utils/sharedEventAttendance.js';
 
 class EventDataLoader {
   constructor() {
@@ -520,11 +521,20 @@ class EventDataLoader {
           }));
           await databaseService.saveSharedAttendance(event.eventid, coreSharedRecords);
 
+          const sharedSections = buildSharedSectionsList(attendance, event.sectionid);
+          if (attendance.length > 0 && sharedSections.length === 0) {
+            logger.warn('Shared attendance returned records but yielded no valid section metadata', {
+              eventId: event.eventid,
+              sectionId: event.sectionid,
+              attendanceCount: attendance.length,
+              sampleSectionIds: attendance.slice(0, 3).map(r => r?.sectionid),
+            }, LOG_CATEGORIES.DATA_SERVICE);
+          }
           await databaseService.saveSharedEventMetadata({
             eventid: String(event.eventid),
             isSharedEvent: true,
             ownerSectionId: Number(event.sectionid),
-            sections: [...new Set(attendance.map(r => Number(r.sectionid || event.sectionid)))].map(sid => ({ sectionid: sid })),
+            sections: sharedSections,
           });
 
           await createMemberSectionRecordsForSharedAttendees(event.sectionid, attendance);

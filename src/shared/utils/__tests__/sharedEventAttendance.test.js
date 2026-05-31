@@ -1,8 +1,95 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildSharedSectionsList,
   dedupAttendanceForEventGroup,
   dedupAttendanceMapForEventGroup,
 } from '../sharedEventAttendance.js';
+
+describe('buildSharedSectionsList', () => {
+  it('returns an empty list for empty input', () => {
+    expect(buildSharedSectionsList([])).toEqual([]);
+    expect(buildSharedSectionsList(null)).toEqual([]);
+    expect(buildSharedSectionsList(undefined)).toEqual([]);
+  });
+
+  it('extracts sectionid + sectionname + groupname from records, deduped by sectionid', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: 100, sectionname: 'Thursday Beavers', groupname: '1st Walton on Thames' },
+      { sectionid: 100, sectionname: 'Thursday Beavers', groupname: '1st Walton on Thames' },
+      { sectionid: 200, sectionname: 'Beavers', groupname: 'Oatlands' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: 'Thursday Beavers', groupname: '1st Walton on Thames' },
+      { sectionid: 200, sectionname: 'Beavers', groupname: 'Oatlands' },
+    ]);
+  });
+
+  it('uses fallback sectionId when a record has no sectionid', () => {
+    const result = buildSharedSectionsList(
+      [{ scoutid: 1, sectionname: 'Beavers', groupname: '1st Walton', attending: 'Yes' }],
+      42,
+    );
+    expect(result).toEqual([
+      { sectionid: 42, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+  });
+
+  it('skips records with no sectionid and no fallback', () => {
+    const result = buildSharedSectionsList(
+      [{ scoutid: 1, sectionname: 'Beavers' }],
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('skips records with non-numeric sectionid (e.g. "external_scouts_001")', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: 'external_scouts_001', sectionname: 'External', groupname: '2nd Elmbridge' },
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+  });
+
+  it('coerces string sectionid to number', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: '100', sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+  });
+
+  it('preserves the first non-empty name/group when merging duplicate sectionids', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+      { sectionid: 100, sectionname: '', groupname: null },
+      { sectionid: 100, sectionname: 'Other Name', groupname: 'Other Group' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+  });
+
+  it('falls back to later record name/group when first record lacks them', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: 100, sectionname: null, groupname: null },
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: 'Beavers', groupname: '1st Walton' },
+    ]);
+  });
+
+  it('stores null name/group when missing throughout', () => {
+    const result = buildSharedSectionsList([
+      { sectionid: 100, scoutid: 1, attending: 'Yes' },
+    ]);
+    expect(result).toEqual([
+      { sectionid: 100, sectionname: null, groupname: null },
+    ]);
+  });
+});
 
 const MONDAY = 63813;
 const THURSDAY = 75317;

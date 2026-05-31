@@ -15,6 +15,7 @@ import databaseService from '../../storage/database.js';
 import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 import { sentryUtils } from '../../utils/sentry.js';
+import { buildSharedSectionsList } from '../../../utils/sharedEventAttendance.js';
 
 /**
  * Retrieves events for a specific section and term
@@ -410,11 +411,20 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         }));
         await databaseService.saveSharedAttendance(eventId, coreSharedRecords);
 
+        const sharedSections = buildSharedSectionsList(attendance, sectionId);
+        if (attendance.length > 0 && sharedSections.length === 0) {
+          logger.warn('Shared attendance returned records but yielded no valid section metadata', {
+            eventId,
+            sectionId,
+            attendanceCount: attendance.length,
+            sampleSectionIds: attendance.slice(0, 3).map(r => r?.sectionid),
+          }, LOG_CATEGORIES.API);
+        }
         await databaseService.saveSharedEventMetadata({
           eventid: String(eventId),
           isSharedEvent: true,
           ownerSectionId: Number(sectionId),
-          sections: [...new Set(attendance.map(r => Number(r.sectionid || sectionId)))].map(sid => ({ sectionid: sid })),
+          sections: sharedSections,
         });
       }
 
