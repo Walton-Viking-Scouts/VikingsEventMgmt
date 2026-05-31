@@ -768,6 +768,8 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                   }
                 });
 
+                // Key sectionGroups by composite (groupname::sectionid) so two
+                // groups' Beavers sections don't collapse into one card.
                 const sectionGroups = {};
                 let totalYoungPeople = 0;
                 let totalAdults = 0;
@@ -775,6 +777,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                 filteredData.forEach((record) => {
                   const memberData = coreMembersById.get(String(record.scoutid));
                   const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || memberData?.sectionname || 'Unknown Section';
+                  const groupName = record.groupname || memberData?.groupname || null;
                   const age = memberData?.age || record.age || 'N/A';
 
                   // Create enriched member object with all member data including consents
@@ -782,6 +785,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                     ...memberData,
                     ...record,
                     sectionname: sectionName,
+                    groupname: groupName,
                     age: age,
                     firstname: record.firstname || memberData?.firstname,
                     lastname: record.lastname || memberData?.lastname,
@@ -795,10 +799,12 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                     totalAdults++;
                   }
 
-                  if (!sectionGroups[sectionName]) {
-                    sectionGroups[sectionName] = {
+                  const sectionKey = `${groupName ?? ''}::${record.sectionid}`;
+                  if (!sectionGroups[sectionKey]) {
+                    sectionGroups[sectionKey] = {
                       sectionid: member.sectionid,
                       sectionname: sectionName,
+                      groupname: groupName,
                       members: [],
                       youngPeopleCount: 0,
                       adultsCount: 0,
@@ -806,12 +812,12 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                   }
 
                   if (isYP) {
-                    sectionGroups[sectionName].youngPeopleCount++;
+                    sectionGroups[sectionKey].youngPeopleCount++;
                   } else {
-                    sectionGroups[sectionName].adultsCount++;
+                    sectionGroups[sectionKey].adultsCount++;
                   }
 
-                  sectionGroups[sectionName].members.push(member);
+                  sectionGroups[sectionKey].members.push(member);
                 });
 
                 Object.values(sectionGroups).forEach((section) => {
@@ -825,12 +831,42 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                 const sections = Object.values(sectionGroups);
                 const totalMembers = totalYoungPeople + totalAdults;
 
+                // Decide whether to render a flat list (single-group event)
+                // or one masonry block per Scout group with a header.
+                const distinctGroupNames = new Set(
+                  sections.map(s => s.groupname).filter(Boolean),
+                );
+                const useGrouped = distinctGroupNames.size >= 2;
+
+                const UNKNOWN_GROUP = 'Unknown group';
+                const sectionsByGroup = useGrouped
+                  ? (() => {
+                    const byGroup = new Map();
+                    sections.forEach(section => {
+                      const label = section.groupname || UNKNOWN_GROUP;
+                      if (!byGroup.has(label)) byGroup.set(label, []);
+                      byGroup.get(label).push(section);
+                    });
+                    const ordered = Array.from(byGroup.entries()).sort(([a], [b]) => {
+                      if (a === UNKNOWN_GROUP) return 1;
+                      if (b === UNKNOWN_GROUP) return -1;
+                      return a.localeCompare(b);
+                    });
+                    ordered.forEach(([, sectionsInGroup]) =>
+                      sectionsInGroup.sort((a, b) => a.sectionname.localeCompare(b.sectionname)),
+                    );
+                    return ordered;
+                  })()
+                  : null;
+
                 return (
                   <>
                     <div className="p-4 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          All Sections ({sections.length})
+                          {useGrouped
+                            ? `${distinctGroupNames.size} Groups, ${sections.length} Sections`
+                            : `All Sections (${sections.length})`}
                         </h3>
                         <div className="flex gap-2 text-sm text-gray-600">
                           <span>{totalMembers} total</span>
@@ -843,11 +879,41 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                     </div>
 
                     <div className="max-h-[600px] overflow-y-auto">
-                      <SectionCardsFlexMasonry
-                        sections={sections}
-                        isYoungPerson={isYoungPerson}
-                        onMemberClick={handleMemberClick}
-                      />
+                      {useGrouped ? (
+                        <div className="flex flex-col gap-6 p-4">
+                          {sectionsByGroup.map(([groupname, sectionsInGroup]) => {
+                            const groupYP = sectionsInGroup.reduce((sum, s) => sum + s.youngPeopleCount, 0);
+                            const groupAdults = sectionsInGroup.reduce((sum, s) => sum + s.adultsCount, 0);
+                            return (
+                              <div key={groupname}>
+                                <div className="flex items-center justify-between mb-2 pb-1 border-b border-gray-300">
+                                  <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-700">
+                                    {groupname}
+                                  </h4>
+                                  <div className="flex gap-2 text-xs text-gray-500">
+                                    <span>{groupYP + groupAdults} total</span>
+                                    <span>•</span>
+                                    <span>{groupYP} YP</span>
+                                    <span>•</span>
+                                    <span>{groupAdults} adults</span>
+                                  </div>
+                                </div>
+                                <SectionCardsFlexMasonry
+                                  sections={sectionsInGroup}
+                                  isYoungPerson={isYoungPerson}
+                                  onMemberClick={handleMemberClick}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <SectionCardsFlexMasonry
+                          sections={sections}
+                          isYoungPerson={isYoungPerson}
+                          onMemberClick={handleMemberClick}
+                        />
+                      )}
                     </div>
                   </>
                 );
