@@ -81,6 +81,26 @@ export async function getMembersGrid(sectionId, termId, token) {
     
     // Transform the grid data into a more usable format
     if (data && data.data && data.data.members) {
+      // Look up this section's sectiontype shortname (e.g. 'adults',
+      // 'beavers'). Stamping it onto each transformed member lets the
+      // downstream saveMembers → deriveBestPersonType resolver apply the
+      // authoritative section-type override (e.g. 'adults' ⇒ Leaders) even
+      // when the per-attendee patrol_id / person_type fields from the OSM
+      // grid API are misleading or missing. Without this stamp the
+      // resolver only sees patrol_id and age signals, which means a
+      // genuine Leader with a positive sub-patrol id and no age can be
+      // silently downgraded to 'Young People'.
+      const sectionRow = await databaseService.getSections()
+        .then(rows => (rows || []).find(s => Number(s.sectionid) === Number(sectionId)))
+        .catch((err) => {
+          logger.warn('Could not look up sectiontype for getMembersGrid; section-type override disabled for this sync', {
+            sectionId,
+            error: err?.message,
+          }, LOG_CATEGORIES.API);
+          return null;
+        });
+      const sectiontype = sectionRow?.sectiontype || sectionRow?.section || null;
+
       const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : [])
         .map(member => {
           const scoutId = Number(member.member_id ?? member.scoutid);
@@ -111,6 +131,7 @@ export async function getMembersGrid(sectionId, termId, token) {
             yrs: member.yrs || member.age || '',
             // Section info
             sectionid: sectionIdNum,
+            section: sectiontype,
             patrol: member.patrol,
             patrol_id: patrolId,
             person_type,

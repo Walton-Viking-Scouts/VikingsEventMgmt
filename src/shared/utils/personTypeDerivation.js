@@ -10,11 +10,14 @@
  *      Leaders' patrol, by convention.
  *   3. Age — anyone "25+" or with a numeric year >= 18 is a Leader.
  *
- * The "self-perpetuating YP fallback" bug (#206) is what this helper exists to
- * avoid: when no signal was available on first sync, the old code defaulted
- * to 'Young People' and then trusted that stored value forever, even after
- * better signals arrived later. `deriveBestPersonType` is the resolver that
- * trusts fresh signals over the cached default.
+ * This helper exists to avoid a class of bug where a default 'Young People'
+ * value gets cached and then re-trusted as if it were a real signal: on
+ * first sync we have no age/patrol/section info, so we default to 'Young
+ * People'; on later syncs we look at the stored value and see 'Young
+ * People', so we keep it — even when age data has since arrived saying
+ * otherwise. `deriveBestPersonType` distrusts the YP default specifically
+ * (other explicitly-stored values like 'Leaders' are still honoured). See
+ * #206 for the original incident report.
  */
 
 /**
@@ -30,7 +33,10 @@ export function mapSectionTypeToPersonType(sectiontype) {
 
 /**
  * @param {number|string|null|undefined} patrolId
- * @returns {'Leaders'|'Young Leaders'|'Young People'|null}
+ * @returns {'Leaders'|'Young Leaders'|'Young People'|null} `null` when the
+ *   input is missing or not a finite number, OR when it is `0` (OSM doesn't
+ *   use 0 as a valid patrol id, so we treat it as "no signal" rather than
+ *   guessing 'Young People' from a positive-id default).
  */
 export function mapPatrolIdToPersonType(patrolId) {
   if (patrolId === null || patrolId === undefined || patrolId === '') return null;
@@ -44,7 +50,8 @@ export function mapPatrolIdToPersonType(patrolId) {
 
 /**
  * @param {string|null|undefined} age - OSM "yrs / months", or "25+", or plain int
- * @returns {'Leaders'|'Young People'|null}
+ * @returns {'Leaders'|'Young People'|null} `null` when the input is missing,
+ *   empty, or doesn't start with a digit (e.g. 'N/A', 'unknown').
  */
 export function derivePersonTypeFromAge(age) {
   if (age === null || age === undefined || age === '') return null;
@@ -62,18 +69,28 @@ export function derivePersonTypeFromAge(age) {
 /**
  * Combine all signals to pick the best person_type.
  *
- * Resolution order (first non-null wins):
+ * Resolution order (matches the function body, top-down):
  *   1. Section type — `'adults'` ⇒ 'Leaders' (authoritative).
- *   2. Fresh derivations from patrol_id + age on the current attendee row.
- *   3. Existing stored person_type (only trusted when not the YP default,
- *      since the YP fallback is what we're trying to avoid perpetuating).
- *   4. attendee.person_type (rarely populated by the events API).
- *   5. Final fallback: 'Young People'.
+ *   2. Existing stored person_type — but only when it is NOT the literal
+ *      string 'Young People'. The reasoning: a stored 'Leaders' or 'Young
+ *      Leaders' was set explicitly (either by an OSM API field or by a
+ *      previous patrol_id/age derivation) and is more reliable than fresh
+ *      signals; but a stored 'Young People' is indistinguishable from the
+ *      final fallback default, so we mistrust it and look at fresh signals.
+ *   3. Fresh patrol_id mapping — `-2` ⇒ 'Leaders', `-3` ⇒ 'Young Leaders'
+ *      take precedence; a positive patrol_id (which maps to 'Young People')
+ *      is held in reserve so it doesn't outrank age-derived 'Leaders'.
+ *   4. Fresh age-based derivation — `'25+'` or `>= 18` ⇒ 'Leaders'.
+ *   5. Held-back patrol_id 'Young People' (positive patrol id).
+ *   6. Held-back age 'Young People' (`< 18`).
+ *   7. attendee.person_type (rarely populated by the events API).
+ *   8. Last-resort fallback: 'Young People'.
  *
- * Step 3 is the subtle one: we DO trust an existing value of 'Leaders' or
- * 'Young Leaders' (someone explicitly set those), but we do NOT trust an
- * existing 'Young People' value if fresh signals disagree — because 'Young
- * People' is also the silent default and we can't tell which.
+ * The "trust existing non-YP value, distrust existing 'Young People'" rule
+ * in step 2 is what fixes #206: the old inline code at all four writer call
+ * sites trusted any existing value, so once a member was wrongly classified
+ * 'Young People' (typically on first sync when no age was present), no later
+ * fresh signal could ever overwrite it.
  *
  * @param {Object} args
  * @param {string|null|undefined} args.sectiontype - From sections cache

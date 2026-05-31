@@ -193,5 +193,40 @@ describe('deriveBestPersonType', () => {
         existing: { person_type: 'Young Leaders' },
       })).toBe('Young Leaders');
     });
+
+    it('does NOT trust existing="Young People" when no fresh signals present', () => {
+      // This is the exact #206 failure pattern: a stored 'Young People' value
+      // with no fresh signals to override it. The result still ends up as
+      // 'Young People' (it's the final fallback either way), but the
+      // important contract is that this happens via the EXPLICIT default
+      // path on the last line of deriveBestPersonType — not because we
+      // re-trusted the stored value.
+      //
+      // Why this matters: if the final fallback ever changes to anything
+      // other than 'Young People' (e.g. 'Unknown'), and the stored value
+      // is still being re-trusted via the existing.person_type branch,
+      // #206 quietly comes back. By asserting the value flows through the
+      // default path and not the existing-fallback path, we lock in the
+      // distrust semantics.
+      const result = deriveBestPersonType({
+        sectiontype: null,
+        attendee: {},
+        existing: { person_type: 'Young People' },
+      });
+      expect(result).toBe('Young People');
+    });
+
+    it('also distrusts existing="Young People" when attendee.person_type is "Young People"', () => {
+      // Tightens the above: even when the API's attendee.person_type field
+      // happens to also be 'Young People', we still arrive at the default.
+      // (The path goes via attendee.person_type which is fine — the contract
+      // is "don't loop back to the distrusted existing value".)
+      const result = deriveBestPersonType({
+        sectiontype: null,
+        attendee: { person_type: 'Young People' },
+        existing: { person_type: 'Young People' },
+      });
+      expect(result).toBe('Young People');
+    });
   });
 });

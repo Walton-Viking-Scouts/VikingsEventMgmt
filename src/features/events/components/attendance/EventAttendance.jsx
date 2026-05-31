@@ -15,6 +15,7 @@ import eventDataLoader from '../../../../shared/services/data/eventDataLoader.js
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { buildOverviewStats } from '../../utils/overviewStatsBuilder.js';
 import { buildAttendanceTabSections, isYoungPerson } from '../../utils/attendanceTabBuilder.js';
+import { isSectionAllowed } from '../../utils/sectionFilterPredicate.js';
 import { checkAttendanceMatch } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
@@ -86,6 +87,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   const [clearingSignInData, setClearingSignInData] = useState(false);
   const [refreshingAttendance, setRefreshingAttendance] = useState(false);
 
+  // Invariant: sectionFilters[sectionid] is strictly `true` (show) or `false`
+  // (hide). Missing keys (`undefined`) are treated as "show" — both by the
+  // augmenting effect below and by the filter predicates throughout this
+  // component. Do not write `null` or other falsy values.
   const [sectionFilters, setSectionFilters] = useState(() => {
     // Load saved section filters from localStorage
     try {
@@ -292,7 +297,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
   const registeredFilteredAttendees = useMemo(() =>
     enrichedAttendees.filter(member => {
-      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid] !== false;
+      const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
       const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
       return sectionMatch && statusMatch;
     }),
@@ -301,7 +306,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
   const campGroupsFilteredAttendees = useMemo(() =>
     enrichedAttendees.filter(member => {
-      const sectionMatch = !sectionFilters || sectionFilters[member.sectionid] !== false;
+      const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
       const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
       return sectionMatch && statusMatch;
     }),
@@ -620,7 +625,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
               {(() => {
                 const filteredData = attendanceData.filter((record) => {
                   const statusMatch = checkAttendanceMatch(record.attending, attendanceFilters);
-                  const sectionMatch = !record.sectionid || sectionFilters[record.sectionid] !== false;
+                  const sectionMatch = !record.sectionid || isSectionAllowed(record.sectionid, sectionFilters);
                   return statusMatch && sectionMatch;
                 });
 

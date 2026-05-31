@@ -609,11 +609,14 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
       console.log('✅ All shared attendees already exist in core_members with complete data');
     }
 
-    // Step 3: Pre-fetch sections cache for sectiontype lookups during
-    // person_type derivation (sectiontype='adults' ⇒ Leaders, authoritative).
+    // sectiontype lookup table for person_type derivation. An attendee in an
+    // `'adults'` section is authoritatively a Leader, even if per-attendee
+    // signals don't agree — losing this lookup downgrades the resolver to
+    // patrol_id/age signals only.
     const ownSections = await databaseService.getSections().catch((err) => {
-      logger.warn('Failed to load sections for person_type derivation; falling back to per-attendee signals only', {
-        error: err?.message,
+      logger.error('Failed to load sections during shared-attendee person_type derivation', {
+        error: err,
+        impact: 'Adults-section authoritative override disabled for this sync; falling back to per-attendee patrol_id/age signals.',
       }, LOG_CATEGORIES.DATABASE);
       return [];
     });
@@ -695,7 +698,19 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
     });
     logger.error('Failed to create member_section records for shared attendees', {
       ownerSectionId: sectionId,
-      error: error.message,
+      error,
+      attendanceCount: attendance?.length,
     }, LOG_CATEGORIES.ERROR);
+    if (error instanceof Error) {
+      sentryUtils.captureException(error, {
+        tags: { operation: 'create_member_section_records_for_shared_attendees' },
+        contexts: {
+          sharedAttendance: {
+            ownerSectionId: sectionId,
+            attendanceCount: attendance?.length,
+          },
+        },
+      });
+    }
   }
 }
