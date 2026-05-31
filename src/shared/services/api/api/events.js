@@ -411,11 +411,20 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         }));
         await databaseService.saveSharedAttendance(eventId, coreSharedRecords);
 
+        const sharedSections = buildSharedSectionsList(attendance, sectionId);
+        if (attendance.length > 0 && sharedSections.length === 0) {
+          logger.warn('Shared attendance returned records but yielded no valid section metadata', {
+            eventId,
+            sectionId,
+            attendanceCount: attendance.length,
+            sampleSectionIds: attendance.slice(0, 3).map(r => r?.sectionid),
+          }, LOG_CATEGORIES.API);
+        }
         await databaseService.saveSharedEventMetadata({
           eventid: String(eventId),
           isSharedEvent: true,
           ownerSectionId: Number(sectionId),
-          sections: buildSharedSectionsList(attendance, sectionId),
+          sections: sharedSections,
         });
       }
 

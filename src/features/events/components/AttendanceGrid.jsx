@@ -76,22 +76,7 @@ function Headers() {
   );
 }
 
-function sumCounts(data, status) {
-  if (data._totals) return data._totals[status] || 0;
-  return Object.entries(data).reduce((total, [key, typeData]) => {
-    if (key === '_totals' || key === '_grouped' || key === 'groups') return total;
-    return total + (typeData[status] || 0);
-  }, 0);
-}
-
 function FlatBody({ data }) {
-  const totals = {
-    attending: sumCounts(data, 'attending'),
-    notAttending: sumCounts(data, 'notAttending'),
-    invited: sumCounts(data, 'invited'),
-    notInvited: sumCounts(data, 'notInvited'),
-  };
-
   const sectionEntries = Object.entries(data).filter(
     ([key]) => key !== '_totals' && key !== '_grouped' && key !== 'groups',
   );
@@ -101,7 +86,7 @@ function FlatBody({ data }) {
       {sectionEntries.map(([name, counts]) => (
         <CountsRow key={name} label={name} counts={counts} />
       ))}
-      <TotalsRow label="Total" counts={totals} />
+      <TotalsRow label="Total" counts={data._totals} />
     </tbody>
   );
 }

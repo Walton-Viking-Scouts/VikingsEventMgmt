@@ -1,5 +1,6 @@
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
+import { sentryUtils } from '../services/utils/sentry.js';
 
 function formatRejectionReason(reason) {
   if (reason instanceof Error || (reason && typeof reason.message === 'string')) {
@@ -60,6 +61,22 @@ export async function loadAllAttendanceFromDatabase() {
     const globalSectionGroupMap = buildGlobalSectionGroupMap(perEventSharedInfo);
     const ownGroupName = inferOwnGroupName(sectionNameById, globalSectionGroupMap);
 
+    // Observability: if any shared metadata exists but we still couldn't infer
+    // the user's own group, log a breadcrumb. Most likely cause is a backend
+    // regression dropping `groupname` from the shared-attendance payload — in
+    // which case every shared event will silently render under "Unknown group".
+    if (!ownGroupName && globalSectionGroupMap.size === 0 && perEventSharedInfo.size > 0) {
+      const eventsWithMetadata = Array.from(perEventSharedInfo.entries())
+        .filter(([, info]) => info.size > 0)
+        .length;
+      if (eventsWithMetadata > 0) {
+        logger.warn('Shared metadata present but no groupname on any section — rendering will use "Unknown group"', {
+          eventsWithMetadata,
+          ownSectionCount: sectionNameById.size,
+        }, LOG_CATEGORIES.DATA_SERVICE);
+      }
+    }
+
     const attendancePromises = allEvents.map(async (event) => {
       const records = await databaseService.getAttendance(event.eventid);
       if (!records || records.length === 0) return [];
@@ -118,12 +135,29 @@ export async function loadAllAttendanceFromDatabase() {
  * @returns {Promise<Array<Object>>} Enriched attendance records for the event
  */
 export async function loadAttendanceForEvent(eventid) {
+  let records;
   try {
-    const records = await databaseService.getAttendance(eventid);
-    if (!records || records.length === 0) return [];
+    records = await databaseService.getAttendance(eventid);
+  } catch (error) {
+    logger.error('Failed to load attendance for event from normalized store', {
+      eventid,
+      error: error.message,
+      errorName: error.name,
+    }, LOG_CATEGORIES.DATA_SERVICE);
+    if (error instanceof Error) {
+      sentryUtils.captureException(error, {
+        tags: { operation: 'load_attendance_for_event' },
+        contexts: { event: { eventid: String(eventid) } },
+      });
+    }
+    return [];
+  }
 
+  if (!records || records.length === 0) return [];
+
+  try {
     const event = await databaseService.getEventById(eventid);
-    const sections = await databaseService.getSections().catch(() => []);
+    const sections = await databaseService.getSections();
     const sectionNameById = new Map(
       (sections || []).map(s => [Number(s.sectionid), s.sectionname]),
     );
@@ -141,10 +175,18 @@ export async function loadAttendanceForEvent(eventid) {
       ownGroupName,
     }));
   } catch (error) {
-    logger.debug('No attendance found for event', {
+    logger.error('Failed to enrich attendance records for event', {
       eventid,
+      recordCount: records.length,
       error: error.message,
+      errorName: error.name,
     }, LOG_CATEGORIES.DATA_SERVICE);
+    if (error instanceof Error) {
+      sentryUtils.captureException(error, {
+        tags: { operation: 'enrich_attendance_for_event' },
+        contexts: { event: { eventid: String(eventid) } },
+      });
+    }
     return [];
   }
 }
@@ -159,24 +201,34 @@ export async function loadAttendanceForEvent(eventid) {
  */
 async function loadSharedSectionInfoForEvent(eventid) {
   const map = new Map();
+  let metadata;
   try {
-    const metadata = await databaseService.getSharedEventMetadata(String(eventid));
-    const rawSections = Array.isArray(metadata?.sections)
-      ? metadata.sections
-      : [];
-    for (const section of rawSections) {
-      const sid = Number(section?.sectionid);
-      if (!Number.isFinite(sid)) continue;
-      map.set(sid, {
-        sectionname: section?.sectionname ?? null,
-        groupname: section?.groupname ?? null,
-      });
-    }
+    metadata = await databaseService.getSharedEventMetadata(String(eventid));
   } catch (lookupError) {
-    logger.debug('No shared metadata for event; enrichment skipped', {
+    logger.error('Shared metadata lookup threw — enrichment skipped for event', {
       eventid,
       error: lookupError?.message,
+      errorName: lookupError?.name,
     }, LOG_CATEGORIES.DATA_SERVICE);
+    if (lookupError instanceof Error) {
+      sentryUtils.captureException(lookupError, {
+        tags: { operation: 'load_shared_section_info' },
+        contexts: { event: { eventid: String(eventid) } },
+      });
+    }
+    return map;
+  }
+
+  const rawSections = Array.isArray(metadata?.sections)
+    ? metadata.sections
+    : [];
+  for (const section of rawSections) {
+    const sid = Number(section?.sectionid);
+    if (!Number.isFinite(sid)) continue;
+    map.set(sid, {
+      sectionname: section?.sectionname ?? null,
+      groupname: section?.groupname ?? null,
+    });
   }
   return map;
 }
@@ -211,7 +263,10 @@ function buildGlobalSectionGroupMap(perEventSharedInfo) {
  *
  * Returns the most-common groupname among the user's own sections, so it
  * still produces a sensible answer for the (rare) case of a leader who
- * volunteers across multiple groups.
+ * volunteers across multiple groups. On a tie, the strict `>` comparison
+ * keeps the first non-null groupname encountered in iteration order — i.e.
+ * whichever section `getSections()` returned first wins. Deterministic
+ * per-load but arbitrary across loads if section ordering changes.
  *
  * @param {Map<number, string>} sectionNameById - User's own sectionids
  * @param {Map<number, string>} globalSectionGroupMap - sectionid → groupname
@@ -262,8 +317,10 @@ function inferOwnGroupName(sectionNameById, globalSectionGroupMap) {
  * @param {Map<number, string>} context.sectionNameById - Own-section name lookup
  * @param {Map<number, {sectionname: string|null, groupname: string|null}>} context.sharedSectionInfo
  *   Per-section shared metadata for this event.
- * @param {Map<number, string>} [context.globalSectionGroupMap] - Cross-event sectionid → groupname
- * @param {string|null} [context.ownGroupName] - Inferred user's group name (fallback for own sections)
+ * @param {Map<number, string>} context.globalSectionGroupMap - Cross-event
+ *   sectionid → groupname union from all of the user's events' shared metadata.
+ * @param {string|null} context.ownGroupName - User's own group name inferred
+ *   from any of their sections that does appear in shared metadata.
  * @returns {Object} Enriched record
  */
 function enrichAttendanceRecord(record, { event, sectionNameById, sharedSectionInfo, globalSectionGroupMap, ownGroupName }) {

@@ -13,6 +13,8 @@ import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
 import eventDataLoader from '../../../../shared/services/data/eventDataLoader.js';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
+import { buildOverviewStats } from '../../utils/overviewStatsBuilder.js';
+import { buildAttendanceTabSections, isYoungPerson } from '../../utils/attendanceTabBuilder.js';
 import { checkAttendanceMatch } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
@@ -268,150 +270,10 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   [enrichedAttendees, sectionFilters, attendanceFilters],
   );
 
-  const overviewStats = useMemo(() => {
-    if (!enrichedAttendees || enrichedAttendees.length === 0) {
-      return { sections: [], totals: null };
-    }
-
-    const sectionMap = new Map();
-    const sectionIdToName = new Map();
-
-    events.forEach((event) => {
-      if (event.sectionid && event.sectionname) {
-        sectionIdToName.set(event.sectionid, event.sectionname);
-      }
-    });
-
-    enrichedAttendees.forEach((member) => {
-      if (!sectionMap.has(member.sectionid)) {
-        const sectionName = sectionIdToName.get(member.sectionid) || member.sectionname || 'Unknown Section';
-        sectionMap.set(member.sectionid, {
-          name: sectionName,
-          groupname: member.groupname || null,
-          yes: { yp: 0, yl: 0, l: 0, total: 0 },
-          no: { yp: 0, yl: 0, l: 0, total: 0 },
-          invited: { yp: 0, yl: 0, l: 0, total: 0 },
-          notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
-          total: { yp: 0, yl: 0, l: 0, total: 0 },
-        });
-      }
-
-      const section = sectionMap.get(member.sectionid);
-      if (!section) return;
-
-      if (!section.groupname && member.groupname) {
-        section.groupname = member.groupname;
-      }
-
-      const personType = member.person_type;
-      if (!personType) return;
-
-      let roleType;
-      if (personType === 'Young People') {
-        roleType = 'yp';
-      } else if (personType === 'Young Leaders') {
-        roleType = 'yl';
-      } else if (personType === 'Leaders') {
-        roleType = 'l';
-      }
-
-      if (!roleType) return;
-
-      section.yes[roleType] += member.yes || 0;
-      section.yes.total += member.yes || 0;
-
-      section.no[roleType] += member.no || 0;
-      section.no.total += member.no || 0;
-
-      section.invited[roleType] += member.invited || 0;
-      section.invited.total += member.invited || 0;
-
-      section.notInvited[roleType] += member.notInvited || 0;
-      section.notInvited.total += member.notInvited || 0;
-
-      const memberTotal = (member.yes || 0) + (member.no || 0) + (member.invited || 0) + (member.notInvited || 0);
-      section.total[roleType] += memberTotal;
-      section.total.total += memberTotal;
-    });
-
-    const sections = Array.from(sectionMap.values());
-
-    const totals = {
-      yes: { yp: 0, yl: 0, l: 0, total: 0 },
-      no: { yp: 0, yl: 0, l: 0, total: 0 },
-      invited: { yp: 0, yl: 0, l: 0, total: 0 },
-      notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
-      total: { yp: 0, yl: 0, l: 0, total: 0 },
-    };
-
-    sections.forEach(section => {
-      totals.yes.yp += section.yes.yp;
-      totals.yes.yl += section.yes.yl;
-      totals.yes.l += section.yes.l;
-      totals.yes.total += section.yes.total;
-
-      totals.no.yp += section.no.yp;
-      totals.no.yl += section.no.yl;
-      totals.no.l += section.no.l;
-      totals.no.total += section.no.total;
-
-      totals.invited.yp += section.invited.yp;
-      totals.invited.yl += section.invited.yl;
-      totals.invited.l += section.invited.l;
-      totals.invited.total += section.invited.total;
-
-      totals.notInvited.yp += section.notInvited.yp;
-      totals.notInvited.yl += section.notInvited.yl;
-      totals.notInvited.l += section.notInvited.l;
-      totals.notInvited.total += section.notInvited.total;
-
-      totals.total.yp += section.total.yp;
-      totals.total.yl += section.total.yl;
-      totals.total.l += section.total.l;
-      totals.total.total += section.total.total;
-    });
-
-    const distinctGroups = new Set(
-      sections.map(s => s.groupname).filter(Boolean),
-    );
-    if (distinctGroups.size < 2) {
-      return { sections, totals };
-    }
-
-    const UNKNOWN_GROUP = 'Unknown group';
-    const groupMap = new Map();
-    sections.forEach(section => {
-      const groupLabel = section.groupname || UNKNOWN_GROUP;
-      if (!groupMap.has(groupLabel)) {
-        groupMap.set(groupLabel, {
-          groupname: groupLabel,
-          sections: [],
-          subtotal: {
-            yes: { yp: 0, yl: 0, l: 0, total: 0 },
-            no: { yp: 0, yl: 0, l: 0, total: 0 },
-            invited: { yp: 0, yl: 0, l: 0, total: 0 },
-            notInvited: { yp: 0, yl: 0, l: 0, total: 0 },
-            total: { yp: 0, yl: 0, l: 0, total: 0 },
-          },
-        });
-      }
-      const group = groupMap.get(groupLabel);
-      group.sections.push(section);
-      ['yes', 'no', 'invited', 'notInvited', 'total'].forEach(status => {
-        ['yp', 'yl', 'l', 'total'].forEach(role => {
-          group.subtotal[status][role] += section[status][role];
-        });
-      });
-    });
-    const groups = Array.from(groupMap.values()).sort((a, b) => {
-      if (a.groupname === UNKNOWN_GROUP) return 1;
-      if (b.groupname === UNKNOWN_GROUP) return -1;
-      return a.groupname.localeCompare(b.groupname);
-    });
-    groups.forEach(g => g.sections.sort((a, b) => a.name.localeCompare(b.name)));
-
-    return { sections, totals, groups };
-  }, [enrichedAttendees, events]);
+  const overviewStats = useMemo(
+    () => buildOverviewStats(enrichedAttendees, events),
+    [enrichedAttendees, events],
+  );
 
   const handleMemberClick = (member) => {
     const fullMemberData = members.find((m) => m.scoutid === member.scoutid);
@@ -724,140 +586,15 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                   return statusMatch && sectionMatch;
                 });
 
-                const isYoungPerson = (age) => {
-                  if (!age) return true;
-
-                  if (age === '25+') return false;
-
-                  const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
-                  if (match) {
-                    const years = parseInt(match[1], 10);
-                    return years < 18;
-                  }
-
-                  const singleMatch = age.match(/^(\d+)/);
-                  if (singleMatch) {
-                    const years = parseInt(singleMatch[1], 10);
-                    return years < 18;
-                  }
-
-                  return true;
-                };
-
-                const getNumericAge = (age) => {
-                  if (!age) return 0;
-                  if (age === '25+') return 999;
-
-                  const match = age.match(/^(\d+)\s*\/\s*(\d+)$/);
-                  if (match) {
-                    const years = parseInt(match[1], 10);
-                    const months = parseInt(match[2], 10);
-                    return years * 12 + months;
-                  }
-
-                  const singleMatch = age.match(/^(\d+)/);
-                  return singleMatch
-                    ? parseInt(singleMatch[1], 10) * 12
-                    : 0;
-                };
-
-                const sectionIdToName = new Map();
-                events.forEach((event) => {
-                  if (event.sectionid && event.sectionname) {
-                    sectionIdToName.set(event.sectionid, event.sectionname);
-                  }
-                });
-
-                // Key sectionGroups by composite (groupname::sectionid) so two
-                // groups' Beavers sections don't collapse into one card.
-                const sectionGroups = {};
-                let totalYoungPeople = 0;
-                let totalAdults = 0;
-
-                filteredData.forEach((record) => {
-                  const memberData = coreMembersById.get(String(record.scoutid));
-                  const sectionName = sectionIdToName.get(record.sectionid) || record.sectionname || memberData?.sectionname || 'Unknown Section';
-                  const groupName = record.groupname || memberData?.groupname || null;
-                  const age = memberData?.age || record.age || 'N/A';
-
-                  // Create enriched member object with all member data including consents
-                  const member = {
-                    ...memberData,
-                    ...record,
-                    sectionname: sectionName,
-                    groupname: groupName,
-                    age: age,
-                    firstname: record.firstname || memberData?.firstname,
-                    lastname: record.lastname || memberData?.lastname,
-                  };
-
-                  const isYP = isYoungPerson(age);
-
-                  if (isYP) {
-                    totalYoungPeople++;
-                  } else {
-                    totalAdults++;
-                  }
-
-                  const sectionKey = `${groupName ?? ''}::${record.sectionid}`;
-                  if (!sectionGroups[sectionKey]) {
-                    sectionGroups[sectionKey] = {
-                      sectionid: member.sectionid,
-                      sectionname: sectionName,
-                      groupname: groupName,
-                      members: [],
-                      youngPeopleCount: 0,
-                      adultsCount: 0,
-                    };
-                  }
-
-                  if (isYP) {
-                    sectionGroups[sectionKey].youngPeopleCount++;
-                  } else {
-                    sectionGroups[sectionKey].adultsCount++;
-                  }
-
-                  sectionGroups[sectionKey].members.push(member);
-                });
-
-                Object.values(sectionGroups).forEach((section) => {
-                  section.members.sort((a, b) => {
-                    const ageA = getNumericAge(a.age);
-                    const ageB = getNumericAge(b.age);
-                    return ageA - ageB;
-                  });
-                });
-
-                const sections = Object.values(sectionGroups);
-                const totalMembers = totalYoungPeople + totalAdults;
-
-                // Decide whether to render a flat list (single-group event)
-                // or one masonry block per Scout group with a header.
-                const distinctGroupNames = new Set(
-                  sections.map(s => s.groupname).filter(Boolean),
-                );
-                const useGrouped = distinctGroupNames.size >= 2;
-
-                const UNKNOWN_GROUP = 'Unknown group';
-                const sectionsByGroup = useGrouped
-                  ? (() => {
-                    const byGroup = new Map();
-                    sections.forEach(section => {
-                      const label = section.groupname || UNKNOWN_GROUP;
-                      if (!byGroup.has(label)) byGroup.set(label, []);
-                      byGroup.get(label).push(section);
-                    });
-                    const ordered = Array.from(byGroup.entries()).sort(([a], [b]) => {
-                      if (a === UNKNOWN_GROUP) return 1;
-                      if (b === UNKNOWN_GROUP) return -1;
-                      return a.localeCompare(b);
-                    });
-                    ordered.forEach(([, sectionsInGroup]) =>
-                      sectionsInGroup.sort((a, b) => a.sectionname.localeCompare(b.sectionname)),
-                    );
-                    return ordered;
-                  })()
-                  : null;
+                const {
+                  sections,
+                  totalYoungPeople,
+                  totalAdults,
+                  totalMembers,
+                  distinctGroupCount,
+                  sectionsByGroup,
+                  useGrouped,
+                } = buildAttendanceTabSections(filteredData, events, coreMembersById);
 
                 return (
                   <>
@@ -865,7 +602,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {useGrouped
-                            ? `${distinctGroupNames.size} Groups, ${sections.length} Sections`
+                            ? `${distinctGroupCount} Groups, ${sections.length} Sections`
                             : `All Sections (${sections.length})`}
                         </h3>
                         <div className="flex gap-2 text-sm text-gray-600">

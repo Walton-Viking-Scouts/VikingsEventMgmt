@@ -291,6 +291,37 @@ describe('EventDataLoader', () => {
       expect(result.sharedEvents).toBe(1);
     });
 
+    it('persists sectionname and groupname onto shared_event_metadata.sections[]', async () => {
+      // Regression guard for #205: prior code mapped attendance to
+      // `[...new Set(r => r.sectionid)].map(sid => ({ sectionid: sid }))`
+      // which silently dropped the section/group names. Without those names
+      // the dashboard buckets every cross-group attendee under the user's own
+      // section, and the grouped-by-Scout-group UI cannot work at all.
+      vi.mocked(databaseService.getSharedEventMetadata).mockResolvedValue({ isSharedEvent: true });
+      vi.mocked(api.getSharedEventAttendance).mockResolvedValue({
+        items: [
+          { scoutid: '1', sectionid: 100, sectionname: 'Thursday Beavers', groupname: '1st Walton (Viking) Sea Scouts', attending: 'Yes' },
+          { scoutid: '2', sectionid: 200, sectionname: 'Beavers', groupname: 'Oatlands Scout Group', attending: 'Yes' },
+          { scoutid: '3', sectionid: 300, sectionname: 'Beavers', groupname: '1st Hersham', attending: 'Yes' },
+        ],
+      });
+
+      await eventDataLoader.syncSharedAttendance(
+        [{ eventid: 'E1', sectionid: 100, termid: 'T1', name: 'District Beaver Water Day' }],
+        'token',
+      );
+
+      expect(databaseService.saveSharedEventMetadata).toHaveBeenCalledTimes(1);
+      const persisted = vi.mocked(databaseService.saveSharedEventMetadata).mock.calls[0][0];
+      expect(persisted.eventid).toBe('E1');
+      expect(persisted.isSharedEvent).toBe(true);
+      expect(persisted.sections).toEqual(expect.arrayContaining([
+        { sectionid: 100, sectionname: 'Thursday Beavers', groupname: '1st Walton (Viking) Sea Scouts' },
+        { sectionid: 200, sectionname: 'Beavers', groupname: 'Oatlands Scout Group' },
+        { sectionid: 300, sectionname: 'Beavers', groupname: '1st Hersham' },
+      ]));
+    });
+
     it('aggregates per-event failures into errors[] without aborting the loop', async () => {
       vi.mocked(databaseService.getSharedEventMetadata).mockResolvedValue({ isSharedEvent: true });
       vi.mocked(api.getSharedEventAttendance).mockImplementation((eventId) => {
