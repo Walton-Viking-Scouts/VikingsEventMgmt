@@ -31,8 +31,6 @@ export {
 export {
   getEvents,
   getEventAttendance,
-  getEventSummary,
-  getEventSharingStatus,
   getSharedEventAttendance,
 } from './events.js';
 

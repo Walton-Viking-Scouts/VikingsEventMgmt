@@ -58,15 +58,11 @@ describe('DataLoadingService', () => {
       const status = dataLoadingService.getLoadingStatus();
 
       expect(status).toHaveProperty('isLoadingAll');
-      expect(status).toHaveProperty('isRefreshing');
       expect(status).toHaveProperty('hasLoadAllPromise');
-      expect(status).toHaveProperty('hasRefreshPromise');
 
       // Verify initial state
       expect(status.isLoadingAll).toBe(false);
-      expect(status.isRefreshing).toBe(false);
       expect(status.hasLoadAllPromise).toBe(false);
-      expect(status.hasRefreshPromise).toBe(false);
     });
   });
 
@@ -115,37 +111,6 @@ describe('DataLoadingService', () => {
     });
   });
 
-  describe('refreshEventData', () => {
-    it('should handle missing token gracefully', async () => {
-      const result = await dataLoadingService.refreshEventData();
-
-      expect(result.success).toBe(false);
-      expect(result.hasErrors).toBe(true);
-      expect(result.errors).toContain('No authentication token available');
-    });
-
-    it('should handle null token gracefully', async () => {
-      const result = await dataLoadingService.refreshEventData(null);
-
-      expect(result.success).toBe(false);
-      expect(result.hasErrors).toBe(true);
-      expect(result.errors).toContain('No authentication token available');
-    });
-
-    it('should return consistent result structure', async () => {
-      const result = await dataLoadingService.refreshEventData('test-token');
-
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('hasErrors');
-      expect(result).toHaveProperty('results');
-
-      if (result.hasErrors) {
-        expect(result).toHaveProperty('errors');
-        expect(Array.isArray(result.errors)).toBe(true);
-      }
-    });
-  });
-
   describe('state management', () => {
     it('should track loading state during operations', async () => {
       // Start a load operation (this will fail due to missing mocks, but that's OK)
@@ -165,24 +130,6 @@ describe('DataLoadingService', () => {
       expect(statusAfterLoad.hasLoadAllPromise).toBe(false);
     });
 
-    it('should track refresh state during operations', async () => {
-      // Start a refresh operation
-      const refreshPromise = dataLoadingService.refreshEventData('test-token');
-
-      // Check that refresh state is tracked
-      const statusDuringRefresh = dataLoadingService.getLoadingStatus();
-      expect(statusDuringRefresh.isRefreshing).toBe(true);
-      expect(statusDuringRefresh.hasRefreshPromise).toBe(true);
-
-      // Wait for completion
-      await refreshPromise;
-
-      // Check that refresh state is cleared
-      const statusAfterRefresh = dataLoadingService.getLoadingStatus();
-      expect(statusAfterRefresh.isRefreshing).toBe(false);
-      expect(statusAfterRefresh.hasRefreshPromise).toBe(false);
-    });
-
     it('should handle concurrent loadAllDataAfterAuth calls gracefully', async () => {
       // Start first load
       const firstLoad = dataLoadingService.loadAllDataAfterAuth('test-token-1');
@@ -196,24 +143,6 @@ describe('DataLoadingService', () => {
 
       // Both should complete successfully
       const [firstResult, secondResult] = await Promise.all([firstLoad, secondLoad]);
-
-      expect(firstResult).toHaveProperty('success');
-      expect(secondResult).toHaveProperty('success');
-    });
-
-    it('should handle concurrent refreshEventData calls gracefully', async () => {
-      // Start first refresh
-      const firstRefresh = dataLoadingService.refreshEventData('test-token-1');
-
-      // Check that state shows refreshing
-      const statusDuringRefresh = dataLoadingService.getLoadingStatus();
-      expect(statusDuringRefresh.isRefreshing).toBe(true);
-
-      // Start second refresh immediately - should not crash
-      const secondRefresh = dataLoadingService.refreshEventData('test-token-2');
-
-      // Both should complete successfully
-      const [firstResult, secondResult] = await Promise.all([firstRefresh, secondRefresh]);
 
       expect(firstResult).toHaveProperty('success');
       expect(secondResult).toHaveProperty('success');
@@ -550,101 +479,6 @@ describe('DataLoadingService', () => {
         category: 'reference',
         message: 'Synchronous error in reference service',
       });
-    });
-  });
-
-  describe('refreshEventData', () => {
-    it('should call services in correct order: Events → Attendance', async () => {
-      const callOrder = [];
-      const sections = [{ sectionid: 1, name: 'Test Section' }];
-
-      mockGetSections.mockResolvedValue(sections);
-
-      mockLoadEventsForSections.mockImplementation(async () => {
-        callOrder.push('events');
-        return {
-          success: true,
-          results: [{ sectionid: 1, events: [] }],
-          summary: 'Events refreshed',
-          hasErrors: false,
-          errors: [],
-        };
-      });
-
-      mockRefreshAllEventAttendance.mockImplementation(async () => {
-        callOrder.push('attendance');
-        return {
-          success: true,
-          message: 'Attendance refreshed',
-        };
-      });
-
-      await dataLoadingService.refreshEventData('test-token');
-
-      expect(callOrder).toEqual(['events', 'attendance']);
-      expect(mockLoadEventsForSections).toHaveBeenCalledTimes(1);
-      expect(mockRefreshAllEventAttendance).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle sections loading failure gracefully', async () => {
-      mockGetSections.mockRejectedValue(new Error('Cache error'));
-
-      mockRefreshAllEventAttendance.mockResolvedValue({
-        success: true,
-        message: 'Attendance refreshed',
-      });
-
-      const result = await dataLoadingService.refreshEventData('test-token');
-
-      expect(result.hasErrors).toBe(true);
-      expect(result.errors).toContainEqual(expect.objectContaining({
-        category: 'cache',
-      }));
-      expect(mockLoadEventsForSections).not.toHaveBeenCalled();
-      expect(mockRefreshAllEventAttendance).toHaveBeenCalledTimes(1);
-    });
-
-    it('should continue to attendance even if events refresh fails', async () => {
-      const sections = [{ sectionid: 1 }];
-      mockGetSections.mockResolvedValue(sections);
-      mockLoadEventsForSections.mockRejectedValue(new Error('Events API error'));
-      mockRefreshAllEventAttendance.mockResolvedValue({
-        success: true,
-        message: 'Attendance refreshed',
-      });
-
-      const result = await dataLoadingService.refreshEventData('test-token');
-
-      expect(result.success).toBe(true);
-      expect(result.hasErrors).toBe(true);
-      expect(mockRefreshAllEventAttendance).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return proper summary with partial failures', async () => {
-      const sections = [{ sectionid: 1 }];
-      mockGetSections.mockResolvedValue(sections);
-
-      mockLoadEventsForSections.mockResolvedValue({
-        success: true,
-        results: [],
-        summary: 'Events refreshed',
-        hasErrors: false,
-        errors: [],
-      });
-
-      mockRefreshAllEventAttendance.mockResolvedValue({
-        success: false,
-        message: 'Attendance refresh failed',
-      });
-
-      const result = await dataLoadingService.refreshEventData('test-token');
-
-      expect(result.success).toBe(true);
-      expect(result.hasErrors).toBe(true);
-      expect(result.summary.total).toBe(2);
-      expect(result.summary.successful).toBe(1);
-      expect(result.summary.categories.events).toBe(true);
-      expect(result.summary.categories.attendance).toBe(false);
     });
   });
 

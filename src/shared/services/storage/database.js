@@ -334,8 +334,6 @@ class DatabaseService {
         await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype], false);
       }
     });
-
-    await this.updateSyncStatus('sections');
   }
 
   /**
@@ -476,8 +474,6 @@ class DatabaseService {
         ], false);
       }
     });
-
-    await this.updateSyncStatus('events');
   }
 
   /**
@@ -638,8 +634,6 @@ class DatabaseService {
         ], false);
       }
     });
-
-    await this.updateSyncStatus('attendance');
   }
 
   /**
@@ -748,8 +742,6 @@ class DatabaseService {
         ], false);
       }
     });
-
-    await this.updateSyncStatus('attendance');
   }
 
   /**
@@ -839,60 +831,6 @@ class DatabaseService {
     const query = 'SELECT * FROM attendance WHERE scoutid = ? ORDER BY eventid';
     const result = await this.db.query(query, [scoutId]);
     return result.values || [];
-  }
-
-  /**
-   * Updates synchronization status for a data table
-   * 
-   * Records when data was last synchronized and marks table as current.
-   * Used for offline-first architecture to track which data needs
-   * synchronization when connection is restored. Only operates on
-   * native platforms with SQLite support.
-   * 
-   * @async
-   * @private
-   * @param {string} tableName - Name of table to update sync status for
-   * @returns {Promise<void>} Resolves when sync status is updated
-   * 
-   * @example
-   * // Called automatically after successful data saves
-   * await this.updateSyncStatus('sections');
-   * await this.updateSyncStatus('events');
-   */
-  async updateSyncStatus(tableName) {
-    if (!this.isNative || !this.db) return; // Skip for localStorage fallback
-    
-    const update = `
-      INSERT OR REPLACE INTO sync_status (table_name, last_sync, needs_sync)
-      VALUES (?, CURRENT_TIMESTAMP, 0)
-    `;
-    await this.db.run(update, [tableName], false);
-  }
-
-  /**
-   * Checks if a data table needs synchronization
-   * 
-   * Determines whether data has been modified locally and requires
-   * synchronization with the server. Used to optimize sync operations
-   * and avoid unnecessary network requests.
-   * 
-   * @async
-   * @param {string} tableName - Name of table to check sync status for
-   * @returns {Promise<boolean>} True if table needs synchronization
-   * 
-   * @example
-   * // Check if sections need syncing before API call
-   * if (await databaseService.needsSync('sections')) {
-   *   console.log('Sections data needs synchronization');
-   *   // Perform sync operation
-   * }
-   */
-  async needsSync(tableName) {
-    if (!this.isNative || !this.db) return false; // Skip for localStorage fallback
-    
-    const query = 'SELECT needs_sync FROM sync_status WHERE table_name = ?';
-    const result = await this.db.query(query, [tableName]);
-    return result.values?.[0]?.needs_sync === 1;
   }
 
   /**
@@ -1263,8 +1201,6 @@ class DatabaseService {
         ], false);
       }
     });
-
-    await this.updateSyncStatus('core_members');
   }
 
   /**
@@ -1595,129 +1531,6 @@ class DatabaseService {
   }
 
   /**
-   * Get records with conflicts that need resolution
-   */
-  async getConflictRecords(tableName = 'attendance') {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return [];
-    }
-
-    // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'events', 'sections'];
-    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
-
-    const query = `SELECT * FROM ${safeTableName} WHERE conflict_resolution_needed = 1`;
-    const result = await this.db.query(query);
-    return result.values || [];
-  }
-
-  /**
-   * Get locally modified records that haven't been synced
-   */
-  async getLocallyModifiedRecords(tableName = 'attendance') {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return [];
-    }
-
-    // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'events', 'sections'];
-    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
-
-    const query = `SELECT * FROM ${safeTableName} WHERE is_locally_modified = 1 AND local_version > last_sync_version`;
-    const result = await this.db.query(query);
-    return result.values || [];
-  }
-
-  /**
-   * Mark record as having a conflict
-   */
-  async markConflict(tableName, recordId, hasConflict = true) {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return;
-    }
-
-    // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'events', 'sections'];
-    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
-
-    const query = `UPDATE ${safeTableName} SET conflict_resolution_needed = ? WHERE id = ?`;
-    await this.db.run(query, [hasConflict ? 1 : 0, recordId], false);
-  }
-
-  /**
-   * Get version information for a record
-   */
-  async getRecordVersions(tableName, recordId) {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return null;
-    }
-
-    // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'events', 'sections'];
-    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
-
-    const query = `
-      SELECT version, local_version, last_sync_version, is_locally_modified,
-             updated_at, last_synced_at, conflict_resolution_needed
-      FROM ${safeTableName} WHERE id = ?
-    `;
-    const result = await this.db.query(query, [recordId]);
-    return result.values?.[0] || null;
-  }
-
-  /**
-   * Update record versions after sync
-   */
-  async updateRecordVersions(tableName, recordId, versions) {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return;
-    }
-
-    // Whitelist allowed table names to prevent SQL injection
-    const allowedTables = ['attendance', 'events', 'sections'];
-    const safeTableName = allowedTables.includes(tableName) ? tableName : 'attendance';
-
-    const {
-      version,
-      localVersion,
-      lastSyncVersion,
-      isLocallyModified = false,
-      conflictResolutionNeeded = false,
-    } = versions;
-
-    const query = `
-      UPDATE ${safeTableName} SET
-        version = ?,
-        local_version = ?,
-        last_sync_version = ?,
-        is_locally_modified = ?,
-        conflict_resolution_needed = ?,
-        last_synced_at = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
-
-    await this.db.run(query, [
-      version,
-      localVersion,
-      lastSyncVersion,
-      isLocallyModified ? 1 : 0,
-      conflictResolutionNeeded ? 1 : 0,
-      recordId,
-    ], false);
-  }
-
-  /**
    * Delete attendance record (used by offline operations)
    */
   async deleteAttendance(eventId) {
@@ -1730,46 +1543,6 @@ class DatabaseService {
 
     const query = 'DELETE FROM attendance WHERE eventid = ?';
     await this.db.run(query, [eventId], false);
-  }
-
-  /**
-   * Get sync statistics
-   */
-  async getSyncStats() {
-    await this.initialize();
-
-    if (!this.isNative || !this.db) {
-      return {
-        totalRecords: 0,
-        locallyModified: 0,
-        conflicted: 0,
-        synced: 0,
-      };
-    }
-
-    const stats = {};
-
-    // Count total attendance records
-    const totalQuery = 'SELECT COUNT(*) as count FROM attendance';
-    const totalResult = await this.db.query(totalQuery);
-    stats.totalRecords = totalResult.values?.[0]?.count || 0;
-
-    // Count locally modified
-    const modifiedQuery = 'SELECT COUNT(*) as count FROM attendance WHERE is_locally_modified = 1';
-    const modifiedResult = await this.db.query(modifiedQuery);
-    stats.locallyModified = modifiedResult.values?.[0]?.count || 0;
-
-    // Count conflicts
-    const conflictQuery = 'SELECT COUNT(*) as count FROM attendance WHERE conflict_resolution_needed = 1';
-    const conflictResult = await this.db.query(conflictQuery);
-    stats.conflicted = conflictResult.values?.[0]?.count || 0;
-
-    // Count synced
-    const syncedQuery = 'SELECT COUNT(*) as count FROM attendance WHERE last_synced_at IS NOT NULL';
-    const syncedResult = await this.db.query(syncedQuery);
-    stats.synced = syncedResult.values?.[0]?.count || 0;
-
-    return stats;
   }
 
   /**
@@ -1820,8 +1593,6 @@ class DatabaseService {
           ], false);
         }
       });
-
-      await this.updateSyncStatus('terms');
     } catch (error) {
       logger.error('Failed to save terms', {
         sectionId,
