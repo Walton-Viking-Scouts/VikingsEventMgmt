@@ -91,9 +91,10 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   };
 
 
-  const loadVikingEventData = async () => {
+  const loadVikingEventData = async (options = {}) => {
+    const { cacheOnly = false } = options;
     try {
-      const token = getToken();
+      const token = cacheOnly ? null : getToken();
 
       if (!token) {
         logger.info(

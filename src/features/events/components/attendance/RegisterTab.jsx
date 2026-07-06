@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import SignInOutButton from '../SignInOutButton.jsx';
 import { isFieldCleared } from '../../../../shared/constants/signInDataConstants.js';
 import { formatUKDateTime } from '../../../../shared/utils/dateFormatting.js';
@@ -94,8 +94,14 @@ function RegisterTab({
     onSort({ key, direction });
   };
 
+  const [search, setSearch] = useState('');
 
-  const youngPeople = attendees.filter(member => member.person_type === 'Young People');
+  const youngPeople = useMemo(() => {
+    const yp = attendees.filter(member => member.person_type === 'Young People');
+    const term = search.trim().toLowerCase();
+    if (!term) return yp;
+    return yp.filter(member => (member.name || '').toLowerCase().includes(term));
+  }, [attendees, search]);
 
   // Calculate signed in/out counts
   const signedInCount = youngPeople.filter(member =>
@@ -105,22 +111,37 @@ function RegisterTab({
   ).length;
   const notSignedInCount = youngPeople.length - signedInCount;
 
-  if (!youngPeople || youngPeople.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-gray-500 mb-4">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Young People Found</h3>
-        <p className="text-gray-600">No young people match the current filter criteria.</p>
+  const emptyState = (
+    <div className="text-center py-12">
+      <div className="text-gray-500 mb-4">
+        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+        </svg>
       </div>
-    );
-  }
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Young People Found</h3>
+      <p className="text-gray-600">
+        {search.trim()
+          ? `No young people match "${search.trim()}".`
+          : 'No young people match the current filter criteria.'}
+      </p>
+    </div>
+  );
 
   return (
     <div>
+      {/* Name search - the fastest way to find a scout at the gate */}
+      <div className="mb-4">
+        <input
+          type="search"
+          inputMode="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name..."
+          aria-label="Search members by name"
+          className="w-full sm:w-72 px-3 py-2 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-scout-blue focus:border-scout-blue"
+        />
+      </div>
+
       {/* Status pills and Clear button */}
       <div className="flex justify-between items-center mb-4">
         {/* Status Pills */}
@@ -163,145 +184,147 @@ function RegisterTab({
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('member')}
-              >
-                <div className="flex items-center">
+      {youngPeople.length === 0 ? emptyState : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th
+                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('member')}
+                >
+                  <div className="flex items-center">
                 Member {getSortIcon('member', sortConfig.key, sortConfig.direction)}
-                </div>
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </div>
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
-              </th>
-              <th
-                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('attendance')}
-              >
-                <div className="flex items-center">
+                </th>
+                <th
+                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('attendance')}
+                >
+                  <div className="flex items-center">
                 Status {getSortIcon('attendance', sortConfig.key, sortConfig.direction)}
-                </div>
-              </th>
-              <th
-                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('campGroup')}
-              >
-                <div className="flex items-center">
+                  </div>
+                </th>
+                <th
+                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('campGroup')}
+                >
+                  <div className="flex items-center">
                   Camp Group {getSortIcon('campGroup', sortConfig.key, sortConfig.direction)}
-                </div>
-              </th>
-              <th
-                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('signedIn')}
-              >
-                <div className="flex items-center">
+                  </div>
+                </th>
+                <th
+                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('signedIn')}
+                >
+                  <div className="flex items-center">
                   Signed In {getSortIcon('signedIn', sortConfig.key, sortConfig.direction)}
-                </div>
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </div>
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Signed Out
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {sortData(youngPeople, sortConfig.key, sortConfig.direction).map((member, index) => (
-              <tr key={member.scoutid || index} className="hover:bg-gray-50">
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
-                        if (fullMember) {
-                          onMemberClick(fullMember);
-                        }
-                      }}
-                      className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] text-xs"
-                    >
-                      {member.name}
-                    </button>
-                    {(() => {
-                      const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
-                      return <MemberStatusIcons member={fullMember} size="sm" />;
-                    })()}
-                  </div>
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <SignInOutButton
-                    member={member}
-                    onSignInOut={onSignInOut}
-                    loading={buttonLoading?.[member.scoutid] || false}
-                  />
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="flex gap-1 flex-wrap">
-                    {member.yes > 0 && (
-                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">
-                      Yes
-                      </span>
-                    )}
-                    {member.no > 0 && (
-                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">
-                      No
-                      </span>
-                    )}
-                    {member.invited > 0 && (
-                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">
-                      Invited
-                      </span>
-                    )}
-                    {member.notInvited > 0 && (
-                      <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">
-                      Not Invited
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
-                  {member.vikingEventData?.CampGroup || '-'}
-                </td>
-                <td className="px-3 py-2 text-xs">
-                  {member.vikingEventData?.SignedInBy || member.vikingEventData?.SignedInWhen ? (
-                    <div className="space-y-0.5">
-                      <div className="text-gray-900 font-medium leading-tight">
-                        {member.vikingEventData?.SignedInBy || '-'}
-                      </div>
-                      <div className="text-gray-500 text-xs leading-tight">
-                        {member.vikingEventData?.SignedInWhen
-                          ? formatUKDateTime(member.vikingEventData.SignedInWhen)
-                          : '-'
-                        }
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-xs">
-                  {member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? (
-                    <div className="space-y-0.5">
-                      <div className="text-gray-900 font-medium leading-tight">
-                        {member.vikingEventData?.SignedOutBy || '-'}
-                      </div>
-                      <div className="text-gray-500 text-xs leading-tight">
-                        {member.vikingEventData?.SignedOutWhen
-                          ? formatUKDateTime(member.vikingEventData.SignedOutWhen)
-                          : '-'
-                        }
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </td>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortData(youngPeople, sortConfig.key, sortConfig.direction).map((member, index) => (
+                <tr key={member.scoutid || index} className="hover:bg-gray-50">
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
+                          if (fullMember) {
+                            onMemberClick(fullMember);
+                          }
+                        }}
+                        className="font-semibold text-scout-blue hover:text-scout-blue-dark cursor-pointer transition-colors text-left break-words whitespace-normal leading-tight max-w-[120px] text-xs"
+                      >
+                        {member.name}
+                      </button>
+                      {(() => {
+                        const fullMember = members.find(m => m.scoutid.toString() === member.scoutid.toString());
+                        return <MemberStatusIcons member={fullMember} size="sm" />;
+                      })()}
+                    </div>
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <SignInOutButton
+                      member={member}
+                      onSignInOut={onSignInOut}
+                      loading={buttonLoading?.[member.scoutid] || false}
+                    />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex gap-1 flex-wrap">
+                      {member.yes > 0 && (
+                        <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-green text-white">
+                      Yes
+                        </span>
+                      )}
+                      {member.no > 0 && (
+                        <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-red text-white">
+                      No
+                        </span>
+                      )}
+                      {member.invited > 0 && (
+                        <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-scout-blue text-white">
+                      Invited
+                        </span>
+                      )}
+                      {member.notInvited > 0 && (
+                        <span className="inline-flex items-center font-medium rounded-full px-3 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200">
+                      Not Invited
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-900">
+                    {member.vikingEventData?.CampGroup || '-'}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {member.vikingEventData?.SignedInBy || member.vikingEventData?.SignedInWhen ? (
+                      <div className="space-y-0.5">
+                        <div className="text-gray-900 font-medium leading-tight">
+                          {member.vikingEventData?.SignedInBy || '-'}
+                        </div>
+                        <div className="text-gray-500 text-xs leading-tight">
+                          {member.vikingEventData?.SignedInWhen
+                            ? formatUKDateTime(member.vikingEventData.SignedInWhen)
+                            : '-'
+                          }
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {member.vikingEventData?.SignedOutBy || member.vikingEventData?.SignedOutWhen ? (
+                      <div className="space-y-0.5">
+                        <div className="text-gray-900 font-medium leading-tight">
+                          {member.vikingEventData?.SignedOutBy || '-'}
+                        </div>
+                        <div className="text-gray-500 text-xs leading-tight">
+                          {member.vikingEventData?.SignedOutWhen
+                            ? formatUKDateTime(member.vikingEventData.SignedOutWhen)
+                            : '-'
+                          }
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

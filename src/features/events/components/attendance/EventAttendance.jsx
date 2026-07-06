@@ -36,7 +36,7 @@ const hasSignInData = (vikingEventData) => {
 };
 
 
-function EventAttendance({ events, members: membersProp, onBack }) {
+function EventAttendance({ events, members: membersProp, onBack, activeTab: activeTabProp, onTabChange }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const {
@@ -56,19 +56,26 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     { notifyError, notifyWarning },
   );
 
-  const [activeTab, setActiveTab] = useState('overview');
+  // Tab state is URL-controlled when the parent provides it (EventAttendancePage),
+  // falling back to local state for any non-routed usage.
+  const [internalTab, setInternalTab] = useState('overview');
+  const activeTab = activeTabProp ?? internalTab;
+  const setActiveTab = onTabChange ?? setInternalTab;
 
   const [sortConfig, setSortConfig] = useState({
-    key: 'attendance',
-    direction: 'desc',
+    key: 'member',
+    direction: 'asc',
   });
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
 
+  // Default to everyone expected at the gate (Yes + Invited): a scout whose
+  // parents never flipped Invited -> Yes in OSM must still be visible when
+  // they walk up at camp.
   const [attendanceFilters, setAttendanceFilters] = useState({
     yes: true,
     no: false,
-    invited: false,
+    invited: true,
     notInvited: false,
   });
 
@@ -84,10 +91,13 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   // (hide). Missing keys (`undefined`) are treated as "show" — both by the
   // augmenting effect below and by the filter predicates throughout this
   // component. Do not write `null` or other falsy values.
+  // Persisted per event group: hiding Beavers on last month's event must not
+  // silently hide Beavers on every future event.
+  const sectionFiltersKey = `eventAttendance_sectionFilters_${events[0]?.name || 'unknown'}`;
   const [sectionFilters, setSectionFilters] = useState(() => {
     // Load saved section filters from localStorage
     try {
-      const saved = localStorage.getItem('eventAttendance_sectionFilters');
+      const saved = localStorage.getItem(sectionFiltersKey);
       if (saved) {
         const savedFilters = JSON.parse(saved);
         // Merge with current sections (in case new sections were added)
@@ -114,11 +124,11 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('eventAttendance_sectionFilters', JSON.stringify(sectionFilters));
+      localStorage.setItem(sectionFiltersKey, JSON.stringify(sectionFilters));
     } catch {
       // Ignore localStorage errors
     }
-  }, [sectionFilters]);
+  }, [sectionFilters, sectionFiltersKey]);
 
   // Initial sectionFilters only know about the user's own event sections.
   // For shared events with external participating sections (e.g. 4th Walton
@@ -288,16 +298,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     );
   };
 
-  const registeredFilteredAttendees = useMemo(() =>
-    enrichedAttendees.filter(member => {
-      const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
-      const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
-      return sectionMatch && statusMatch;
-    }),
-  [enrichedAttendees, sectionFilters, attendanceFilters],
-  );
-
-  const campGroupsFilteredAttendees = useMemo(() =>
+  const filteredAttendees = useMemo(() =>
     enrichedAttendees.filter(member => {
       const sectionMatch = isSectionAllowed(member.sectionid, sectionFilters);
       const statusMatch = checkMemberAttendanceMatch(member, attendanceFilters);
@@ -323,7 +324,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     setAttendanceFilters({
       yes: true,
       no: false,
-      invited: false,
+      invited: true,
       notInvited: false,
     });
     const allSectionsEnabled = {};
@@ -349,7 +350,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
 
     setClearingSignInData(true);
     try {
-      const clearEligibleMembers = campGroupsFilteredAttendees.filter(member =>
+      const clearEligibleMembers = filteredAttendees.filter(member =>
         hasSignInData(member.vikingEventData),
       );
 
@@ -572,7 +573,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     case 'register':
       return (
         <RegisterTab
-          attendees={registeredFilteredAttendees}
+          attendees={filteredAttendees}
           members={members}
           onSignInOut={handleSignInOut}
           buttonLoading={buttonLoading}
@@ -587,7 +588,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     case 'detailed':
       return (
         <DetailedTab
-          attendees={registeredFilteredAttendees}
+          attendees={filteredAttendees}
           members={members}
           onMemberClick={handleMemberClick}
           showContacts={dataFilters.contacts}
@@ -597,7 +598,7 @@ function EventAttendance({ events, members: membersProp, onBack }) {
     case 'campGroups':
       return (
         <CampGroupsView
-          attendees={campGroupsFilteredAttendees}
+          attendees={filteredAttendees}
           events={events}
           members={members}
           vikingEventData={vikingEventData}
@@ -763,11 +764,11 @@ function EventAttendance({ events, members: membersProp, onBack }) {
           isOpen={showClearModal}
           onClose={handleCloseClearModal}
           onConfirm={handleConfirmClearSignInData}
-          memberCount={campGroupsFilteredAttendees.filter(member =>
+          memberCount={filteredAttendees.filter(member =>
             hasSignInData(member.vikingEventData),
           ).length}
           sectionCount={Object.keys(uniqueSections.reduce((acc, section) => {
-            const hasSignInDataInSection = campGroupsFilteredAttendees.some(member =>
+            const hasSignInDataInSection = filteredAttendees.some(member =>
               String(member.sectionid) === String(section.sectionid) &&
               hasSignInData(member.vikingEventData),
             );

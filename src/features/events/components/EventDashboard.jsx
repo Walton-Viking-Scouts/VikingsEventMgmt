@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 // Removed API imports - UI only reads from IndexedDB
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { generateOAuthUrl } from '../../auth/services/auth.js';
-import { loginNative } from '../../auth/services/nativeOAuth.js';
 import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
@@ -22,15 +21,14 @@ import { notifyError, notifySuccess, notifyLoading, dismissToast } from '../../.
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 import { dedupAttendanceMapForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 
-function EventDashboard({ onNavigateToAttendance }) {
+function EventDashboard() {
+  const navigate = useNavigate();
   const { lastSyncTime } = useAuth(); // Get shared lastSyncTime from auth context
-  const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
 
   useEffect(() => {
     let mounted = true;
@@ -64,8 +62,6 @@ function EventDashboard({ onNavigateToAttendance }) {
         }, LOG_CATEGORIES.COMPONENT);
 
         if (sectionsData.length > 0 && mounted) {
-          setSections(sectionsData);
-
           // Build event cards from cache
           const cards = await buildEventCards(sectionsData);
 
@@ -141,7 +137,6 @@ function EventDashboard({ onNavigateToAttendance }) {
       const result = await dataLoadingService.loadAllDataAfterAuth(token);
 
       const sectionsData = await databaseService.getSections();
-      setSections(sectionsData);
       const cards = await buildEventCards(sectionsData);
       setEventCards(cards);
       setLastSync(new Date());
@@ -167,7 +162,9 @@ function EventDashboard({ onNavigateToAttendance }) {
         syncingToastId = null;
       }
       notifyError(`Refresh failed: ${error.message}`);
-      setError(`Refresh failed: ${error.message}`);
+      if (eventCards.length === 0) {
+        setError(`Refresh failed: ${error.message}`);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -275,109 +272,8 @@ function EventDashboard({ onNavigateToAttendance }) {
     return cards;
   };
 
-  const handleViewAttendees = async (eventCard) => {
-    try {
-      // Set loading state for this specific event card
-      setLoadingAttendees(eventCard.id);
-
-      // Extract all unique section IDs from the events in this card
-      const sectionIds = Array.from(
-        new Set(eventCard.events.map((event) => event.sectionid)),
-      );
-
-      // Stage 3: On-demand member loading with guaranteed data
-      let members = [];
-      try {
-        // First, try to load from cache
-        members = await databaseService.getMembers(sectionIds);
-
-        if (members.length === 0) {
-          logger.info(
-            'No cached members found - fetching on-demand',
-            {
-              sectionIds,
-              eventName: eventCard.name,
-            },
-            LOG_CATEGORIES.COMPONENT,
-          );
-
-          // No cached members - fetch immediately
-          const currentToken = getToken();
-          if (!currentToken) {
-            await loginNative(generateOAuthUrl(true));
-            return;
-          }
-
-          // Find the corresponding section objects for these IDs
-          const involvedSections = sections.filter((section) =>
-            sectionIds.includes(section.sectionid),
-          );
-
-          try {
-            // Get members from IndexedDB instead of API call
-            const sectionIds = involvedSections.map(s => s.sectionid);
-            members = await databaseService.getMembers(sectionIds);
-            logger.info(
-              'Successfully loaded members from IndexedDB',
-              {
-                memberCount: members.length,
-                sectionCount: involvedSections.length,
-              },
-              LOG_CATEGORIES.COMPONENT,
-            );
-          } catch (apiError) {
-            // Check if it's an authentication error
-            if (
-              apiError &&
-              typeof apiError === 'object' &&
-              (apiError.status === 401 ||
-                apiError.status === 403 ||
-                apiError.message?.includes('Invalid access token') ||
-                apiError.message?.includes('Token expired') ||
-                apiError.message?.includes('Unauthorized'))
-            ) {
-              await loginNative(generateOAuthUrl(true));
-              return;
-            }
-            throw apiError; // Re-throw non-auth errors
-          }
-        } else {
-          logger.info(
-            'Using cached members for attendance view',
-            {
-              memberCount: members.length,
-              sectionIds,
-            },
-            LOG_CATEGORIES.COMPONENT,
-          );
-        }
-      } catch (cacheErr) {
-        logger.warn(
-          'Error accessing member cache',
-          { error: cacheErr.message },
-          LOG_CATEGORIES.COMPONENT,
-        );
-        // Continue with empty members array - better than failing completely
-      }
-
-      // Navigate to attendance view with original events (preserves termid integrity)
-      const eventsToNavigate = eventCard.originalEvents || eventCard.events;
-      onNavigateToAttendance(eventsToNavigate, members);
-    } catch (err) {
-      logger.error(
-        'Error loading members for attendance view',
-        {
-          error: err,
-          eventName: eventCard.name,
-          eventCount: eventCard.events.length,
-        },
-        LOG_CATEGORIES.COMPONENT,
-      );
-      setError(`Failed to load members: ${err.message}`);
-    } finally {
-      // Clear loading state
-      setLoadingAttendees(null);
-    }
+  const handleViewAttendees = (eventCard) => {
+    navigate(`/events/${encodeURIComponent(eventCard.name)}/attendance`);
   };
 
   // Only show full-screen loading if there's no cached data to display
@@ -385,7 +281,7 @@ function EventDashboard({ onNavigateToAttendance }) {
     return <LoadingScreen message="Loading dashboard..." />;
   }
 
-  if (error) {
+  if (error && (!eventCards || eventCards.length === 0)) {
     return (
       <Alert variant="error" className="m-4">
         <Alert.Title>Error Loading Dashboard</Alert.Title>
@@ -454,7 +350,6 @@ function EventDashboard({ onNavigateToAttendance }) {
                     key={card.id}
                     eventCard={card}
                     onViewAttendees={handleViewAttendees}
-                    loading={loadingAttendees === card.id}
                   />
                 ))}
               </div>
