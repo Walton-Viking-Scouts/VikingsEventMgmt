@@ -120,7 +120,6 @@ function useAuthLogic() {
       tokenStored = true;
       broadcastAuthSync();
       localStorage.removeItem('token_expired');
-      localStorage.removeItem('token_invalid');
       setHasHandledExpiredToken(false);
       localStorage.removeItem('token_expiration_choice');
       if (tokenType) {

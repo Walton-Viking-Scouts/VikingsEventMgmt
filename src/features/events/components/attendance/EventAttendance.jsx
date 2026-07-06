@@ -7,7 +7,6 @@ import ClearSignInDataModal from '../ClearSignInDataModal.jsx';
 import { notifyError, notifyWarning, notifySuccess, notifyInfo } from '../../../../shared/utils/notifications.js';
 import { useAttendanceData } from '../../hooks/useAttendanceData.js';
 import { useSignInOut } from '../../../../shared/hooks/useSignInOut.js';
-import { useSharedAttendance } from '../../hooks/useSharedAttendance.js';
 import { bulkClearSignInData } from '../../services/signInDataService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
@@ -58,12 +57,6 @@ function EventAttendance({ events, members: membersProp, onBack }) {
   );
 
   const [activeTab, setActiveTab] = useState('overview');
-
-  const {
-    sharedAttendanceData: _sharedAttendanceDataFromHook,
-    loadingSharedAttendance: _loadingSharedAttendance,
-    hasSharedEvents: _hasSharedEvents,
-  } = useSharedAttendance(events, activeTab);
 
   const [sortConfig, setSortConfig] = useState({
     key: 'attendance',

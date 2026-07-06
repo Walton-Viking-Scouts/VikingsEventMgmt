@@ -18,9 +18,6 @@ const YoungLeadersPage = lazyWithRetry(() => import('../features/young-leaders/c
 const EventsRouter = lazyWithRetry(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
 const DataClearPage = lazyWithRetry(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
 
-// Import route guards (keep synchronous for security)
-import { RouteGuard } from '../shared/components/guards';
-
 // Internal component that uses auth and notifications
 function AppContent() {
   const {
@@ -77,54 +74,12 @@ function AppContent() {
           <Suspense fallback={<LoadingScreen message="Loading application..." />}>
             <Routes>
               {/* Main application sections */}
-              <Route 
-                path="/movers" 
-                element={
-                  <RouteGuard authLevel="none">
-                    <MoversPage />
-                  </RouteGuard>
-                } 
-              />
-              <Route
-                path="/sections"
-                element={
-                  <RouteGuard authLevel="none">
-                    <SectionsPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/photo-consent"
-                element={
-                  <RouteGuard authLevel="none">
-                    <PhotoConsentPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/young-leaders"
-                element={
-                  <RouteGuard authLevel="none">
-                    <YoungLeadersPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/events/*"
-                element={
-                  <RouteGuard authLevel="none">
-                    <EventsRouter />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/clear"
-                element={
-                  <RouteGuard authLevel="none">
-                    <DataClearPage />
-                  </RouteGuard>
-                }
-              />
+              <Route path="/movers" element={<MoversPage />} />
+              <Route path="/sections" element={<SectionsPage />} />
+              <Route path="/photo-consent" element={<PhotoConsentPage />} />
+              <Route path="/young-leaders" element={<YoungLeadersPage />} />
+              <Route path="/events/*" element={<EventsRouter />} />
+              <Route path="/clear" element={<DataClearPage />} />
 
               {/* Legacy route redirects */}
               <Route path="/dashboard" element={<Navigate to="/events" replace />} />

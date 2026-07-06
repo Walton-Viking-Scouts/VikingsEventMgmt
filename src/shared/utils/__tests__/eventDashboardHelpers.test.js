@@ -22,7 +22,7 @@ vi.mock('../../services/data/attendanceDataService.js', () => ({
   },
 }));
 
-vi.mock('../attendanceHelpers_new.js', () => ({
+vi.mock('../attendanceDataLoader.js', () => ({
   loadAllAttendanceFromDatabase: vi.fn(),
 }));
 
@@ -42,7 +42,7 @@ vi.mock('../../services/utils/logger.js', () => ({
 import databaseService from '../../services/storage/database.js';
 import attendanceDataService from '../../services/data/attendanceDataService.js';
 import logger from '../../services/utils/logger.js';
-import { loadAllAttendanceFromDatabase } from '../attendanceHelpers_new.js';
+import { loadAllAttendanceFromDatabase } from '../attendanceDataLoader.js';
 
 describe('EventDashboard Helper Functions', () => {
   beforeEach(() => {

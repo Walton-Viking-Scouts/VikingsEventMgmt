@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
+import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceDataLoader.js';
 import { dedupAttendanceForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 import databaseService from '../../../shared/services/storage/database.js';
 

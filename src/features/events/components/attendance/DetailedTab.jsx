@@ -6,8 +6,6 @@ import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/ut
 import { resolveSectionName } from '../../../../shared/utils/memberUtils.js';
 
 function DetailedTab({ attendees, members, onMemberClick, showContacts = false }) {
-  const [_selectedMember, _setSelectedMember] = useState(null);
-  const [_showMemberModal, _setShowMemberModal] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'age', direction: 'desc' });
 
   // Get all unique consent fields from all members for dynamic table rendering
