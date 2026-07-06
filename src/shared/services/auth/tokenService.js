@@ -22,7 +22,11 @@ export function getToken() {
 
 export function setToken(token) {
   localStorage.setItem('access_token', token);
-  
+
+  // A fresh authorization clears the blocked flag; if OSM is still blocking,
+  // the first API response re-sets it and the queue halts again.
+  localStorage.removeItem('osm_blocked');
+
   // Reset auth error state when new token is set
   authHandler.reset();
   

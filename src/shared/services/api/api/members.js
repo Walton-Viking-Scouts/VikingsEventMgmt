@@ -1,15 +1,9 @@
 // Members API service
 // Extracted from monolithic api.js for better modularity
 
-import {
-  BACKEND_URL,
-  validateTokenBeforeAPICall,
-  handleAPIResponseWithRateLimit,
-} from './base.js';
-import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
+import { osmRequest } from './base.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../auth/authHandler.js';
 import { getMostRecentTermId } from '../../../utils/termUtils.js';
 import { CurrentActiveTermsService } from '../../storage/currentActiveTermsService.js';
 import { getTerms } from './terms.js';
@@ -32,164 +26,105 @@ import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
  * });
  */
 export async function getMembersGrid(sectionId, termId, token) {
-  try {
-    // Skip API calls in demo mode - use cached data only
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      const cachedMembers = await databaseService.getMembers([sectionId]);
-      logger.debug('Demo mode: Using cached members from database service', {
-        sectionId,
-        memberCount: cachedMembers.length,
-      }, LOG_CATEGORIES.API);
-      return cachedMembers;
-    }
-
-    // Check network status first
-    const isOnline = await checkNetworkStatus();
-    
-    // If offline, get from local database (fallback to old format)
-    if (!isOnline) {
-      const cachedMembers = await databaseService.getMembers([sectionId]);
-      return cachedMembers;
-    }
-
-    // Validate token before making API call
-    validateTokenBeforeAPICall(token, 'getMembersGrid');
-
-    // Simple circuit breaker - use cache if auth already failed
-    if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - using cached members only', { sectionId }, LOG_CATEGORIES.API);
-      const cachedMembers = await databaseService.getMembers([sectionId]);
-      return cachedMembers;
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-members-grid`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          section_id: sectionId,
-          term_id: termId,
-        }),
-      });
-      
-      return await handleAPIResponseWithRateLimit(response, 'getMembersGrid');
-    });
-    
-    // Transform the grid data into a more usable format
-    if (data && data.data && data.data.members) {
-      // Look up this section's sectiontype shortname (e.g. 'adults',
-      // 'beavers'). Stamping it onto each transformed member lets the
-      // downstream saveMembers → deriveBestPersonType resolver apply the
-      // authoritative section-type override (e.g. 'adults' ⇒ Leaders) even
-      // when the per-attendee patrol_id / person_type fields from the OSM
-      // grid API are misleading or missing. Without this stamp the
-      // resolver only sees patrol_id and age signals, which means a
-      // genuine Leader with a positive sub-patrol id and no age can be
-      // silently downgraded to 'Young People'.
-      const sectionRow = await databaseService.getSections()
-        .then(rows => (rows || []).find(s => Number(s.sectionid) === Number(sectionId)))
-        .catch((err) => {
-          logger.warn('Could not look up sectiontype for getMembersGrid; section-type override disabled for this sync', {
-            sectionId,
-            error: err?.message,
-          }, LOG_CATEGORIES.API);
-          return null;
-        });
-      const sectiontype = sectionRow?.sectiontype || sectionRow?.section || null;
-
-      const transformedMembers = (Array.isArray(data?.data?.members) ? data.data.members : [])
-        .map(member => {
-          const scoutId = Number(member.member_id ?? member.scoutid);
-          const sectionIdNum = Number(member.section_id ?? member.sectionid);
-          const patrolId = Number(member.patrol_id ?? member.patrolid);
-          let person_type = 'Young People';
-          if (patrolId === -2) person_type = 'Leaders';
-          else if (patrolId === -3) person_type = 'Young Leaders';
-
-          return {
-            ...member,
-            // Core member info (normalised)
-            scoutid: scoutId,
-            member_id: scoutId,
-            firstname: member.first_name ?? member.firstname,
-            lastname: member.last_name ?? member.lastname,
-            date_of_birth: member.date_of_birth ?? member.dob,
-            age: (() => {
-              const ageValue = member.age || member.yrs || '';
-              if (!ageValue) return '';
-              const match = String(ageValue).match(/^(\d+)/);
-              if (match) {
-                const numericAge = parseInt(match[1], 10);
-                if (numericAge >= 25) return '25+';
-              }
-              return ageValue;
-            })(),
-            yrs: member.yrs || member.age || '',
-            // Section info
-            sectionid: sectionIdNum,
-            section: sectiontype,
-            patrol: member.patrol,
-            patrol_id: patrolId,
-            person_type,
-            started: member.started,
-            joined: member.joined,
-            active: member.active,
-            end_date: member.end_date,
-            // Photo info
-            photo_guid: member.photo_guid,
-            has_photo: (() => {
-              const v = member.has_photo ?? member.pic ?? member.photo_guid;
-              return typeof v === 'string'
-                ? ['1', 'y', 'true'].includes(v.toLowerCase())
-                : Boolean(v);
-            })(),
-            // Backward-compatible grouped contacts
-            contact_groups: member.contact_groups,
-          };
-        })
-        .filter(m => Number.isFinite(m.scoutid) && Number.isFinite(m.sectionid));
-      
-      // CRITICAL FIX: Save the transformed members to cache
-      try {
-        await databaseService.saveMembers([sectionId], transformedMembers);
-        logger.info('Members successfully cached', {
-          sectionId,
-          memberCount: transformedMembers.length,
-        }, LOG_CATEGORIES.API);
-      } catch (saveError) {
-        logger.error('Failed to save members to cache', {
-          sectionId,
-          error: saveError.message,
-          memberCount: transformedMembers.length,
-        }, LOG_CATEGORIES.ERROR);
-        // Don't throw - return the data even if caching fails
-      }
-      
-      return transformedMembers;
-    }
-
-    return [];
-
-  } catch (error) {
-    logger.error('Error fetching members grid', { sectionId, error: error }, LOG_CATEGORIES.API);
-    
-    // If online request fails, try local database as fallback
-    const isOnline = await checkNetworkStatus();
-    if (isOnline) {
-      try {
-        const cachedMembers = await databaseService.getMembers([sectionId]);
-        return cachedMembers;
-      } catch (dbError) {
-        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
-      }
-    }
-    
-    throw error;
+  if (isDemoMode()) {
+    const cachedMembers = await databaseService.getMembers([sectionId]);
+    logger.debug('Demo mode: Using cached members from database service', {
+      sectionId,
+      memberCount: cachedMembers.length,
+    }, LOG_CATEGORIES.API);
+    return cachedMembers;
   }
+
+  return osmRequest('getMembersGrid', '/get-members-grid', {
+    token,
+    method: 'POST',
+    body: { section_id: sectionId, term_id: termId },
+    cacheRead: () => databaseService.getMembers([sectionId]),
+    transform: (data) => transformMembersGridData(data, sectionId),
+    cacheWrite: async (transformedMembers) => {
+      if (transformedMembers.length > 0) {
+        await databaseService.saveMembers([sectionId], transformedMembers);
+      }
+    },
+    emptyValue: [],
+  });
+}
+
+/**
+ * Transforms raw get-members-grid response rows into the app's member shape,
+ * stamping the section's sectiontype so the person_type resolver can apply
+ * the authoritative section-type override (e.g. 'adults' => Leaders).
+ * @param {Object} data - Raw API response
+ * @param {number|string} sectionId - Section the request was made for
+ * @returns {Promise<Array<Object>>} Normalized member objects
+ */
+async function transformMembersGridData(data, sectionId) {
+  if (!data || !data.data || !data.data.members) {
+    return [];
+  }
+
+  const sectionRow = await databaseService.getSections()
+    .then(rows => (rows || []).find(s => Number(s.sectionid) === Number(sectionId)))
+    .catch((err) => {
+      logger.warn('Could not look up sectiontype for getMembersGrid; section-type override disabled for this sync', {
+        sectionId,
+        error: err?.message,
+      }, LOG_CATEGORIES.API);
+      return null;
+    });
+  const sectiontype = sectionRow?.sectiontype || sectionRow?.section || null;
+
+  return (Array.isArray(data?.data?.members) ? data.data.members : [])
+    .map(member => {
+      const scoutId = Number(member.member_id ?? member.scoutid);
+      const sectionIdNum = Number(member.section_id ?? member.sectionid);
+      const patrolId = Number(member.patrol_id ?? member.patrolid);
+      let person_type = 'Young People';
+      if (patrolId === -2) person_type = 'Leaders';
+      else if (patrolId === -3) person_type = 'Young Leaders';
+
+      return {
+        ...member,
+        // Core member info (normalised)
+        scoutid: scoutId,
+        member_id: scoutId,
+        firstname: member.first_name ?? member.firstname,
+        lastname: member.last_name ?? member.lastname,
+        date_of_birth: member.date_of_birth ?? member.dob,
+        age: (() => {
+          const ageValue = member.age || member.yrs || '';
+          if (!ageValue) return '';
+          const match = String(ageValue).match(/^(\d+)/);
+          if (match) {
+            const numericAge = parseInt(match[1], 10);
+            if (numericAge >= 25) return '25+';
+          }
+          return ageValue;
+        })(),
+        yrs: member.yrs || member.age || '',
+        // Section info
+        sectionid: sectionIdNum,
+        section: sectiontype,
+        patrol: member.patrol,
+        patrol_id: patrolId,
+        person_type,
+        started: member.started,
+        joined: member.joined,
+        active: member.active,
+        end_date: member.end_date,
+        // Photo info
+        photo_guid: member.photo_guid,
+        has_photo: (() => {
+          const v = member.has_photo ?? member.pic ?? member.photo_guid;
+          return typeof v === 'string'
+            ? ['1', 'y', 'true'].includes(v.toLowerCase())
+            : Boolean(v);
+        })(),
+        // Backward-compatible grouped contacts
+        contact_groups: member.contact_groups,
+      };
+    })
+    .filter(m => Number.isFinite(m.scoutid) && Number.isFinite(m.sectionid));
 }
 
 /**
@@ -268,85 +203,97 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
 
   // Online mode - fetch from API if cache is empty
   const memberMap = new Map(); // For deduplication by scoutid
-  
-  // Load terms once for all sections (major optimization!)
+
+  // Load terms once for all sections
   logger.info('Loading terms once for all sections', {}, LOG_CATEGORIES.API);
   const allTerms = await getTerms(token);
-  
-  for (const section of validSections) {
+
+  // Fetch all sections concurrently — the rate-limit queue serializes actual
+  // network dispatch, so this removes per-section latency stacking without
+  // increasing OSM pressure.
+  const sectionResults = await Promise.allSettled(validSections.map(async (section) => {
+    let termId = null;
     try {
-      // Use cached terms instead of calling API again
-      // Defensive check for section ID
-      if (!section.sectionid || section.sectionid === null || section.sectionid === undefined) {
-        logger.warn('Skipping section with invalid ID in getListOfMembers', {
-          section: section,
-          sectionKeys: Object.keys(section),
-        }, LOG_CATEGORIES.API);
-        continue;
-      }
-      
-      // Try direct table lookup first
-      let termId = null;
-      try {
-        const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
-        termId = currentTerm?.currentTermId || null;
-        if (termId) {
-          // Term ID found, can be used for future operations
-        }
-      } catch (tableError) {
-        logger.warn('Table lookup failed, falling back to legacy method', {
-          sectionId: section.sectionid,
-          error: tableError.message,
-        }, LOG_CATEGORIES.API);
-      }
+      const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(section.sectionid);
+      termId = currentTerm?.currentTermId || null;
+    } catch (tableError) {
+      logger.warn('Table lookup failed, falling back to legacy method', {
+        sectionId: section.sectionid,
+        error: tableError.message,
+      }, LOG_CATEGORIES.API);
+    }
 
-      // Fallback to legacy method if table lookup failed or returned no result
-      if (!termId) {
-        termId = getMostRecentTermId(section.sectionid, allTerms);
-        if (termId) {
-          logger.debug('Using fallback legacy method for term lookup', {
-            sectionId: section.sectionid,
-            termId,
-          }, LOG_CATEGORIES.API);
-        }
-      }
+    if (!termId) {
+      termId = getMostRecentTermId(section.sectionid, allTerms);
+    }
 
-      if (!termId) continue;
-      
-      // Use the new getMembersGrid API for comprehensive data
-      const members = await getMembersGrid(section.sectionid, termId, token);
-      
-      members.forEach(member => {
-        if (member && member.scoutid) {
-          const scoutId = member.scoutid;
+    if (!termId) return { section, members: [] };
 
-          if (memberMap.has(scoutId)) {
-            const existingMember = memberMap.get(scoutId);
-            if (!existingMember.sections) {
-              existingMember.sections = [existingMember.sectionname];
-            }
-            if (!existingMember.sections.includes(section.sectionname)) {
-              existingMember.sections.push(section.sectionname);
-            }
+    const members = await getMembersGrid(section.sectionid, termId, token);
+    return { section, members };
+  }));
 
-            if (!existingMember.sectionMemberships) {
-              existingMember.sectionMemberships = [{
-                sectionid: existingMember.sectionid,
-                sectionname: existingMember.sectionname,
-                person_type: existingMember.person_type,
-                patrol: existingMember.patrol,
-                patrol_id: existingMember.patrol_id,
-                started: existingMember.started,
-                joined: existingMember.joined,
-                end_date: existingMember.end_date,
-                active: existingMember.active,
-                patrol_role_level: existingMember.patrol_role_level,
-                patrol_role_level_label: existingMember.patrol_role_level_label,
-                section: existingMember.section,
-              }];
-            }
+  sectionResults.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      logger.warn('Failed to fetch members for section', {
+        sectionId: validSections[i]?.sectionid,
+        error: result.reason,
+      }, LOG_CATEGORIES.API);
+      return;
+    }
 
-            existingMember.sectionMemberships.push({
+    const { section, members: sectionMembers } = result.value;
+    sectionMembers.forEach(member => {
+      if (member && member.scoutid) {
+        const scoutId = member.scoutid;
+
+        if (memberMap.has(scoutId)) {
+          const existingMember = memberMap.get(scoutId);
+          if (!existingMember.sections) {
+            existingMember.sections = [existingMember.sectionname];
+          }
+          if (!existingMember.sections.includes(section.sectionname)) {
+            existingMember.sections.push(section.sectionname);
+          }
+
+          if (!existingMember.sectionMemberships) {
+            existingMember.sectionMemberships = [{
+              sectionid: existingMember.sectionid,
+              sectionname: existingMember.sectionname,
+              person_type: existingMember.person_type,
+              patrol: existingMember.patrol,
+              patrol_id: existingMember.patrol_id,
+              started: existingMember.started,
+              joined: existingMember.joined,
+              end_date: existingMember.end_date,
+              active: existingMember.active,
+              patrol_role_level: existingMember.patrol_role_level,
+              patrol_role_level_label: existingMember.patrol_role_level_label,
+              section: existingMember.section,
+            }];
+          }
+
+          existingMember.sectionMemberships.push({
+            sectionid: member.sectionid,
+            sectionname: section.sectionname,
+            person_type: member.person_type,
+            patrol: member.patrol,
+            patrol_id: member.patrol_id,
+            started: member.started,
+            joined: member.joined,
+            end_date: member.end_date,
+            active: member.active,
+            patrol_role_level: member.patrol_role_level,
+            patrol_role_level_label: member.patrol_role_level_label,
+            section: section.section,
+          });
+        } else {
+          memberMap.set(scoutId, {
+            ...member,
+            sectionname: section.sectionname,
+            section: section.section,
+            sections: [section.sectionname],
+            sectionMemberships: [{
               sectionid: member.sectionid,
               sectionname: section.sectionname,
               person_type: member.person_type,
@@ -359,38 +306,13 @@ export async function getListOfMembers(sections, token, forceRefresh = false) {
               patrol_role_level: member.patrol_role_level,
               patrol_role_level_label: member.patrol_role_level_label,
               section: section.section,
-            });
-          } else {
-            memberMap.set(scoutId, {
-              ...member,
-              sectionname: section.sectionname,
-              section: section.section,
-              sections: [section.sectionname],
-              sectionMemberships: [{
-                sectionid: member.sectionid,
-                sectionname: section.sectionname,
-                person_type: member.person_type,
-                patrol: member.patrol,
-                patrol_id: member.patrol_id,
-                started: member.started,
-                joined: member.joined,
-                end_date: member.end_date,
-                active: member.active,
-                patrol_role_level: member.patrol_role_level,
-                patrol_role_level_label: member.patrol_role_level_label,
-                section: section.section,
-              }],
-            });
-          }
+            }],
+          });
         }
-      });
-      
-    } catch (sectionError) {
-      logger.warn('Failed to fetch members for section', { sectionId: section.sectionid, error: sectionError }, LOG_CATEGORIES.API);
-      // Continue with other sections
-    }
-  }
-  
+      }
+    });
+  });
+
   // Convert map back to array
   const members = Array.from(memberMap.values());
   

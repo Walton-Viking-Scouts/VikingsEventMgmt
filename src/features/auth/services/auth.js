@@ -584,9 +584,9 @@ export async function validateToken() {
     }
 
     // Check if OSM API access is blocked
-    if (sessionStorage.getItem('osm_blocked') === 'true') {
+    if (localStorage.getItem('osm_blocked') === 'true') {
       logger.error('Application is blocked - cannot validate token', { 
-        blockedStatus: sessionStorage.getItem('osm_blocked'), 
+        blockedStatus: localStorage.getItem('osm_blocked'), 
       }, LOG_CATEGORIES.AUTH);
       return false;
     }
@@ -730,7 +730,7 @@ export async function logout() {
 
 // Check for blocked status
 export function isBlocked() {
-  return sessionStorage.getItem('osm_blocked') === 'true';
+  return localStorage.getItem('osm_blocked') === 'true';
 }
 
 export default {

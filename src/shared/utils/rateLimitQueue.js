@@ -46,6 +46,51 @@ export class RateLimitQueue {
     this.baseDelay = options.baseDelay || 1000; // 1 second base delay
     this.maxDelay = options.maxDelay || 30000; // 30 seconds max delay
     this.queueTimeout = options.queueTimeout || 300000; // 5 minutes max queue time
+    this.interRequestDelay = 20; // ms between dispatches; raised when OSM quota runs low
+  }
+
+  /**
+   * Feed OSM remaining-quota back into dispatch pacing. Called by the API
+   * response handler with the _rateLimitInfo.osm block, so the queue slows
+   * down BEFORE OSM starts returning 429s or blocks the account.
+   * @param {{remaining: number, limit: number, resetTime?: number}} osm
+   */
+  applyQuotaInfo(osm) {
+    if (!osm || !Number.isFinite(osm.remaining) || !(osm.limit > 0)) return;
+    if (osm.remaining >= 20) {
+      this.interRequestDelay = 20;
+      return;
+    }
+    const resetMs = Number.isFinite(osm.resetTime)
+      ? Math.max(0, osm.resetTime * 1000 - Date.now())
+      : 60000;
+    if (osm.remaining <= 5) {
+      // Nearly exhausted: pause the queue until the window resets
+      this.rateLimitedUntil = Date.now() + Math.max(resetMs, 5000);
+      logger.warn('OSM quota nearly exhausted - pausing queue until reset', {
+        remaining: osm.remaining,
+        pauseMs: Math.max(resetMs, 5000),
+      }, LOG_CATEGORIES.API);
+    } else {
+      // Low: spread the remaining requests across the window
+      this.interRequestDelay = Math.min(Math.ceil(resetMs / osm.remaining), 5000);
+      logger.info('OSM quota low - throttling queue', {
+        remaining: osm.remaining,
+        interRequestDelay: this.interRequestDelay,
+      }, LOG_CATEGORIES.API);
+    }
+  }
+
+  /**
+   * Hard stop: OSM has blocked the account/app. Reject everything queued —
+   * continuing to fire requests at a blocked account makes it worse.
+   */
+  isBlocked() {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem('osm_blocked') === 'true';
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -112,6 +157,10 @@ export class RateLimitQueue {
    */
   enqueue(apiCall, options = {}) {
     return new Promise((resolve, reject) => {
+      if (this.isBlocked()) {
+        reject(new Error('OSM API access is blocked - request not sent'));
+        return;
+      }
       const request = {
         apiCall,
         resolve,
@@ -142,13 +191,22 @@ export class RateLimitQueue {
       this.notifyListeners(this.getStatus());
       this.process();
 
-      // Set timeout for request and store timeout ID to prevent memory leaks
-      request._timeoutId = setTimeout(() => {
-        if (this.queue.includes(request)) {
+      // Set timeout for request and store timeout ID to prevent memory leaks.
+      // While the queue is deliberately waiting out a rate limit the clock is
+      // paused: the timer re-arms instead of rejecting, so a long retry-after
+      // doesn't silently kill the whole backlog.
+      const armTimeout = (delayMs) => {
+        request._timeoutId = setTimeout(() => {
+          if (!this.queue.includes(request)) return;
+          if (this.rateLimitedUntil && Date.now() < this.rateLimitedUntil) {
+            armTimeout((this.rateLimitedUntil - Date.now()) + request.timeout);
+            return;
+          }
           this.removeFromQueue(request);
           reject(new Error('Request timeout: queued too long'));
-        }
-      }, request.timeout);
+        }, delayMs);
+      };
+      armTimeout(request.timeout);
     });
   }
 
@@ -205,6 +263,11 @@ export class RateLimitQueue {
           await sleep(waitTime);
         }
 
+        if (this.isBlocked()) {
+          this.clear('OSM API access is blocked');
+          break;
+        }
+
         const request = this.queue.shift();
         if (!request) continue;
 
@@ -227,17 +290,23 @@ export class RateLimitQueue {
           
           request.resolve(result);
 
-          // Small delay between successful requests to ensure proper ordering
+          // Delay between successful requests: 20ms for ordering, longer
+          // when OSM quota feedback says we're close to the limit
           if (this.queue.length > 0) {
-            const delayMs = 20; // Minimal delay just for request ordering
-            await sleep(delayMs);
+            await sleep(this.interRequestDelay);
           }
 
         } catch (error) {
-          const is429 = error.message?.includes('rate limit') || error.status === 429;
-          // Request failed, checking if retryable
-          
-          if (is429 && request.attempts < this.maxRetries) {
+          const is429 = error.status === 429;
+
+          // A 429 is not a failure of the request, it's back-pressure —
+          // waiting out the window shouldn't consume retry attempts.
+          if (is429) {
+            request.attempts--;
+            request.rateLimitRequeues = (request.rateLimitRequeues || 0) + 1;
+          }
+
+          if (is429 && request.rateLimitRequeues <= 10) {
             // Handle rate limiting with exponential backoff
             await this.handleRateLimit(request, error);
             // CRITICAL FIX: Break out of processing loop immediately after rate limit

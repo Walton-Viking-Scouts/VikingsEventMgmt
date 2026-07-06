@@ -7,8 +7,6 @@ export {
   BACKEND_URL,
   TokenExpiredError,
   validateTokenBeforeAPICall,
-  apiQueue,
-  getAPIQueueStats,
   logRateLimitInfo,
   handleAPIResponseWithRateLimit,
   isOnline,

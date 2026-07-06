@@ -23,9 +23,15 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Key the effect on stable IDs, not array identity: a parent re-render
+  // producing a new (but identical) events/members array must not trigger a
+  // full network refetch of FlexiRecord data.
+  const eventIdsKey = events.map(e => e.eventid).join(',');
+  const memberIdsKey = members.map(m => m.scoutid).join(',');
+
   useEffect(() => {
     loadAttendance();
-  }, [events, members, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [eventIdsKey, memberIdsKey, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {

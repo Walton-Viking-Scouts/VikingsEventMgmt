@@ -14,7 +14,6 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../constants/signInDataConstants.js';
 
 // Inter-call delay to prevent API clashing - tunable for flaky APIs
-const STEP_DELAY_MS = 150;
 
 /**
  * Custom hook for handling sign-in/out functionality with memory leak prevention
@@ -300,9 +299,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             action: callNames[0],
           }, LOG_CATEGORIES.API);
           
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
           // Step 2: Set SignedInWhen
           logger.info(`Setting ${callNames[1]} for member`, {
             memberName: member.name || member.firstname,
@@ -323,9 +319,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             action: callNames[1],
           }, LOG_CATEGORIES.API);
           
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
           // Step 3: Clear SignedOutBy
           logger.info(`${callNames[2]} for member`, {
             memberName: member.name || member.firstname,
@@ -345,9 +338,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             memberName: member.name || member.firstname,
             action: callNames[2],
           }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 4: Clear SignedOutWhen
           logger.info(`${callNames[3]} for member`, {
@@ -405,9 +395,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
             memberName: member.name || member.firstname,
             action: 'SignedOutBy',
           }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
           
           // Step 2: Set SignedOutWhen
           logger.info('Setting SignedOutWhen for member', {

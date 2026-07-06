@@ -5,7 +5,6 @@ import {
   BACKEND_URL,
   validateTokenBeforeAPICall,
   handleAPIResponseWithRateLimit,
-  apiQueue,
 } from './base.js';
 import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
 import { checkNetworkStatus } from '../../../utils/networkUtils.js';
@@ -247,41 +246,43 @@ export async function getTerms(token, forceRefresh = false) {
  * @example
  * const termId = await fetchMostRecentTermId(123, userToken);
  */
+// A cold cache triggers at most ONE full terms refetch per app load, shared
+// by all sections — previously each section with a cache miss refetched the
+// entire terms payload independently.
+let termsRefreshPromise = null;
+
 export async function fetchMostRecentTermId(sectionId, token) {
-  return apiQueue.add(async () => {
-    try {
-      logger.debug('Fetching most recent term ID', { sectionId, sectionIdType: typeof sectionId }, LOG_CATEGORIES.API);
+  try {
+    const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
+    const termId = currentTerm?.currentTermId || null;
 
-      const currentTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
-      const termId = currentTerm?.currentTermId || null;
+    if (!termId) {
+      logger.info('No cached term found, refreshing from API', { sectionId }, LOG_CATEGORIES.API);
 
-      if (!termId) {
-        logger.info('No cached term found, refreshing from API', { sectionId }, LOG_CATEGORIES.API);
+      if (!termsRefreshPromise) {
+        termsRefreshPromise = getTerms(token, true).finally(() => {
+          termsRefreshPromise = null;
+        });
+      }
+      await termsRefreshPromise;
 
-        // If no term found, try refreshing data from API and wait for storage completion
-        await getTerms(token, true);
+      const refreshedTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
+      const refreshedTermId = refreshedTerm?.currentTermId || null;
 
-        // Add a small delay to ensure database writes complete
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const refreshedTerm = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
-        const refreshedTermId = refreshedTerm?.currentTermId || null;
-
-        if (!refreshedTermId) {
-          logger.warn('Term lookup failed even after API refresh', {
-            sectionId,
-            hadCurrentTerm: !!currentTerm,
-            hadRefreshedTerm: !!refreshedTerm,
-          }, LOG_CATEGORIES.API);
-        }
-
-        return refreshedTermId;
+      if (!refreshedTermId) {
+        logger.warn('Term lookup failed even after API refresh', {
+          sectionId,
+          hadCurrentTerm: !!currentTerm,
+          hadRefreshedTerm: !!refreshedTerm,
+        }, LOG_CATEGORIES.API);
       }
 
-      return termId;
-    } catch (error) {
-      logger.error('Error fetching most recent term ID', { sectionId, error: error }, LOG_CATEGORIES.ERROR);
-      throw error;
+      return refreshedTermId;
     }
-  });
+
+    return termId;
+  } catch (error) {
+    logger.error('Error fetching most recent term ID', { sectionId, error: error }, LOG_CATEGORIES.ERROR);
+    throw error;
+  }
 }
