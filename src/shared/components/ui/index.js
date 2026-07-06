@@ -40,6 +40,7 @@ export { default as ErrorState } from './ErrorState';
 export { default as SectionFilter } from './SectionFilter';
 export { default as SectionCardsFlexMasonry } from './SectionCardsFlexMasonry';
 export { default as MemberDetailModal } from './MemberDetailModal';
+export { default as MemberAvatar } from './MemberAvatar';
 export { default as MedicalDataDisplay } from './MedicalDataDisplay';
 export { MedicalDataPill, MedicalDataList } from './MedicalDataDisplay';
 
