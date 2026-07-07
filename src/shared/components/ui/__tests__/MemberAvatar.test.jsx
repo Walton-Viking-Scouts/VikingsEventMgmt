@@ -51,7 +51,7 @@ describe('MemberAvatar', () => {
     expect(screen.getByText('JD')).toBeInTheDocument();
   });
 
-  it('applies the correct size classes for sm, md, and lg', () => {
+  it('applies the correct size classes for sm, md, lg, and xl', () => {
     const member = { scoutid: 1234567, photo_guid: null, firstname: 'Jane', lastname: 'Doe' };
 
     const { rerender } = render(<MemberAvatar member={member} size="sm" />);
@@ -62,5 +62,16 @@ describe('MemberAvatar', () => {
 
     rerender(<MemberAvatar member={member} size="lg" />);
     expect(screen.getByText('JD')).toHaveClass('h-24', 'w-24');
+
+    rerender(<MemberAvatar member={member} size="xl" />);
+    expect(screen.getByText('JD')).toHaveClass('h-32', 'w-32');
+  });
+
+  it('uses the 250x250 variant for size xl', () => {
+    const member = { scoutid: 1234567, photo_guid: 'abc-guid', firstname: 'Jane', lastname: 'Doe' };
+    render(<MemberAvatar member={member} size="xl" />);
+
+    const img = screen.getByRole('img', { name: /jane doe/i });
+    expect(img).toHaveAttribute('src', expect.stringContaining('250x250_0.jpg'));
   });
 });

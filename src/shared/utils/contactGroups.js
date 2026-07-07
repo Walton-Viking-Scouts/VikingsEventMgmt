@@ -37,3 +37,17 @@ export function groupContactInfo(member) {
 
   return groups;
 }
+
+/**
+ * Determines whether a member's photographs consent is anything other than
+ * an explicit 'Yes' (i.e. 'No', empty, or missing all count as "not Yes").
+ * Checks both `photographs` and `Photographs` keys, case-insensitively.
+ *
+ * @param {Object} [consents] - The `memberData.consents` map.
+ * @returns {boolean} True when the member should be surfaced by the
+ *   "No Photo Consent" filter.
+ */
+export function isNotPhotoConsentYes(consents) {
+  const value = consents?.photographs ?? consents?.Photographs;
+  return String(value ?? '').trim().toLowerCase() !== 'yes';
+}

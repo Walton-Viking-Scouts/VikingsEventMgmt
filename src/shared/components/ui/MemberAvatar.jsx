@@ -5,12 +5,14 @@ const SIZE_CLASSES = {
   sm: 'h-8 w-8 text-xs',
   md: 'h-12 w-12 text-sm',
   lg: 'h-24 w-24 text-2xl',
+  xl: 'h-32 w-32 text-3xl',
 };
 
 const PHOTO_PIXEL_SIZE = {
   sm: '125x125',
   md: '125x125',
   lg: '250x250',
+  xl: '250x250',
 };
 
 /**
@@ -67,7 +69,7 @@ function getDisplayName(member) {
  * @component
  * @param {Object} props - Component props
  * @param {Object} props.member - Member data (scoutid, photo_guid, firstname/lastname or name)
- * @param {'sm'|'md'|'lg'} [props.size='sm'] - Avatar size: sm for table rows, md, lg for larger profile views
+ * @param {'sm'|'md'|'lg'|'xl'} [props.size='sm'] - Avatar size: sm for table rows, md, lg for larger profile views, xl for photo-first galleries
  * @param {string} [props.className] - Additional classes merged onto the avatar element
  * @returns {JSX.Element} Circular photo or initials fallback
  *
