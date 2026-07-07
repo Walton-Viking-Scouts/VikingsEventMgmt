@@ -6,6 +6,7 @@ import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
 import { useAuth } from '../features/auth/hooks';
 import { lazyWithRetry } from '../shared/utils/lazyWithRetry.js';
+import ErrorBoundary from '../shared/components/ErrorBoundary.jsx';
 
 // URL-based routing is now the only routing system
 
@@ -72,63 +73,65 @@ function AppContent() {
         lastSyncTime={lastSyncTime}
         isRefreshing={false}
       >
-        <Suspense fallback={<LoadingScreen message="Loading application..." />}>
-          <Routes>
-            {/* Main application sections */}
-            <Route 
-              path="/movers" 
-              element={
-                <RouteGuard authLevel="none">
-                  <MoversPage />
-                </RouteGuard>
-              } 
-            />
-            <Route
-              path="/sections"
-              element={
-                <RouteGuard authLevel="none">
-                  <SectionsPage />
-                </RouteGuard>
-              }
-            />
-            <Route
-              path="/photo-consent"
-              element={
-                <RouteGuard authLevel="none">
-                  <PhotoConsentPage />
-                </RouteGuard>
-              }
-            />
-            <Route
-              path="/young-leaders"
-              element={
-                <RouteGuard authLevel="none">
-                  <YoungLeadersPage />
-                </RouteGuard>
-              }
-            />
-            <Route
-              path="/events/*"
-              element={
-                <RouteGuard authLevel="none">
-                  <EventsRouter />
-                </RouteGuard>
-              }
-            />
-            <Route
-              path="/clear"
-              element={
-                <RouteGuard authLevel="none">
-                  <DataClearPage />
-                </RouteGuard>
-              }
-            />
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingScreen message="Loading application..." />}>
+            <Routes>
+              {/* Main application sections */}
+              <Route 
+                path="/movers" 
+                element={
+                  <RouteGuard authLevel="none">
+                    <MoversPage />
+                  </RouteGuard>
+                } 
+              />
+              <Route
+                path="/sections"
+                element={
+                  <RouteGuard authLevel="none">
+                    <SectionsPage />
+                  </RouteGuard>
+                }
+              />
+              <Route
+                path="/photo-consent"
+                element={
+                  <RouteGuard authLevel="none">
+                    <PhotoConsentPage />
+                  </RouteGuard>
+                }
+              />
+              <Route
+                path="/young-leaders"
+                element={
+                  <RouteGuard authLevel="none">
+                    <YoungLeadersPage />
+                  </RouteGuard>
+                }
+              />
+              <Route
+                path="/events/*"
+                element={
+                  <RouteGuard authLevel="none">
+                    <EventsRouter />
+                  </RouteGuard>
+                }
+              />
+              <Route
+                path="/clear"
+                element={
+                  <RouteGuard authLevel="none">
+                    <DataClearPage />
+                  </RouteGuard>
+                }
+              />
 
-            {/* Legacy route redirects */}
-            <Route path="/dashboard" element={<Navigate to="/events" replace />} />
-            <Route path="/" element={<Navigate to={`/events${window.location.search}`} replace />} />
-          </Routes>
-        </Suspense>
+              {/* Legacy route redirects */}
+              <Route path="/dashboard" element={<Navigate to="/events" replace />} />
+              <Route path="/" element={<Navigate to={`/events${window.location.search}`} replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </ResponsiveLayout>
 
       {/* Token expiration dialog */}

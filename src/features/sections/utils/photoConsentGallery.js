@@ -59,7 +59,9 @@ export function groupNoConsentMembersBySection(members, { hideAdults = false, se
     const sectionName = sectionNamesById.get(String(member.sectionid))
       || member.sectionname
       || resolveSectionName(member);
-    const sectionKey = member.sectionid ?? sectionName;
+    const sectionKey = member.sectionid !== null && member.sectionid !== undefined
+      ? String(member.sectionid)
+      : sectionName;
 
     if (!sectionsById.has(sectionKey)) {
       sectionsById.set(sectionKey, {

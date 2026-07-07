@@ -55,6 +55,8 @@ function PhotoConsentPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadMembers = async () => {
       if (selectedSections.length === 0) {
         setMembers([]);
@@ -65,17 +67,27 @@ function PhotoConsentPage() {
         setMembersLoading(true);
         const token = getToken();
         const membersData = await getListOfMembers(selectedSections, token);
-        setMembers(membersData || []);
+        if (!cancelled) {
+          setMembers(membersData || []);
+        }
       } catch (error) {
-        logger.error('Failed to load members', { error }, LOG_CATEGORIES.API);
-        notifyError('Failed to load members. Please check your connection and try again.');
-        setMembers([]);
+        if (!cancelled) {
+          logger.error('Failed to load members', { error }, LOG_CATEGORIES.API);
+          notifyError('Failed to load members. Please check your connection and try again.');
+          setMembers([]);
+        }
       } finally {
-        setMembersLoading(false);
+        if (!cancelled) {
+          setMembersLoading(false);
+        }
       }
     };
 
     loadMembers();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSections]);
 
   const handleNavigateToSectionMovements = () => {
