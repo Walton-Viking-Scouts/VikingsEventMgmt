@@ -141,12 +141,9 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
 
     // forceRefresh must reach the API layer: its own 30-min TTL would
     // otherwise serve the stale cache, hiding just-created records (the
-    // post-create banner refresh was broken by exactly this).
-    const flexiRecords = await getFlexiRecords(sectionId, token, 'n', forceRefresh);
-
-    await databaseService.saveFlexiLists(sectionId, flexiRecords.items || []);
-
-    return flexiRecords;
+    // post-create banner refresh was broken by exactly this). Caching is
+    // owned by the API layer's cacheWrite - no second save here.
+    return await getFlexiRecords(sectionId, token, 'n', forceRefresh);
 
   } catch (error) {
     logger.error('Error fetching flexirecords list', {
@@ -218,17 +215,12 @@ export async function getFlexiRecordStructure(flexirecordId, sectionId, termId, 
       return null;
     }
 
+    // Caching (incl. _cacheTimestamp) is owned by the API layer's cacheWrite
     const structure = await getFlexiStructure(flexirecordId, sectionId, termId, token);
 
     if (!structure) {
       throw new Error('Failed to retrieve flexirecord structure');
     }
-
-    const cachedData = {
-      ...structure,
-      _cacheTimestamp: Date.now(),
-    };
-    await databaseService.saveFlexiStructure(flexirecordId, cachedData);
 
     return structure;
 
