@@ -131,7 +131,7 @@ export async function loadEventsForSections(sections, token) {
       sectionCount: results.length,
       sectionsWithEvents: resultsWithEvents.length,
     }, LOG_CATEGORIES.DATA_SERVICE);
-    await detectAndStoreSharedEventsAcrossSections(results, token);
+    await detectAndStoreSharedEventsAcrossSections(results);
   } else {
     logger.warn('❌ Skipping shared event detection - no sections with events', {
       sectionCount: results.length,
@@ -283,21 +283,15 @@ async function detectAndStoreSharedEventsAcrossSections(results) {
           eventid: evt.eventid,
         }));
 
-        // Store shared metadata for each instance of the event
+        // Store shared metadata for each instance of the event, in the
+        // schema's shape — underscore-prefixed fields were silently stripped
+        // by SharedEventMetadataSchema, persisting an empty sections list.
         for (const eventInstance of eventInstances) {
-          const sharedMetadata = {
-            _isSharedEvent: true,
-            _ownerSection: firstEvent._sectionId, // First section is considered owner
-            _sharedWithSections: allParticipatingSections.length,
-            _allSections: allParticipatingSections,
-            _detectedAt: new Date().toISOString(),
-            eventName: eventInstance.name,
-            eventDate: eventInstance.startdate,
-          };
-
           await databaseService.saveSharedEventMetadata({
-            ...sharedMetadata,
             eventid: String(eventInstance.eventid),
+            isSharedEvent: true,
+            ownerSectionId: Number(firstEvent._sectionId),
+            sections: allParticipatingSections,
           });
         }
 

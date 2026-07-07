@@ -39,11 +39,12 @@ function EventDashboard() {
 
       // Initialize demo mode if enabled BEFORE loading sections
       try {
-        const { isDemoMode, initializeDemoMode } = await import(
+        const { isDemoMode, initializeDemoMode, seedDemoStorage } = await import(
           '../../../config/demoMode.js'
         );
         if (isDemoMode()) {
           await initializeDemoMode();
+          await seedDemoStorage(databaseService);
         }
       } catch (demoError) {
         logger.warn('Demo mode initialization failed', {

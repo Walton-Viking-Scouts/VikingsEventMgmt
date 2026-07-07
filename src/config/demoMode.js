@@ -15,24 +15,24 @@ export function isDemoMode() {
   }
   
   try {
+    // Sticky for the session: in-app navigation drops query params, and demo
+    // mode silently switching off mid-session leaves the user on an empty
+    // dashboard. Cleared by logout.
+    if (sessionStorage.getItem('viking_demo_mode') === 'true') {
+      return true;
+    }
+
     // Check URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const demoParam = urlParams.get('demo') === 'true';
     const modeParam = urlParams.get('mode') === 'demo';
-    
-    // Demo mode detection (logging removed to prevent console spam)
-    
-    if (demoParam || modeParam) {
-      return true;
-    }
-    
-    // Check subdomain
-    if (window.location.hostname && window.location.hostname.startsWith('demo.')) {
-      return true;
-    }
-    
-    // Check path
-    if (window.location.pathname && window.location.pathname.startsWith('/demo')) {
+
+    const detected = demoParam || modeParam ||
+      (window.location.hostname && window.location.hostname.startsWith('demo.')) ||
+      (window.location.pathname && window.location.pathname.startsWith('/demo'));
+
+    if (detected) {
+      sessionStorage.setItem('viking_demo_mode', 'true');
       return true;
     }
   } catch (error) {
@@ -467,7 +467,7 @@ export async function initializeDemoMode() {
       totalDataKeys: Object.keys(DEMO_CACHE_DATA).length + (DEMO_CACHE_DATA.viking_sections_offline.length * 3),
       sharedEventsWithCache: 'Swimming Gala',
     }, LOG_CATEGORIES.APP);
-    
+
     return true;
     
   } catch (error) {
@@ -475,6 +475,45 @@ export async function initializeDemoMode() {
       error: error.message,
     }, LOG_CATEGORIES.ERROR);
     return false;
+  }
+}
+
+/**
+ * Seeds the real storage facade with the demo dataset. All UI reads go
+ * through databaseService (IndexedDB on web / SQLite native) — the demo
+ * localStorage keys only feed the API layer's demo branches, so without this
+ * the dashboard renders "No Upcoming Events" in demo mode.
+ *
+ * The service is passed in (not imported) to avoid a demoMode <-> database
+ * import cycle. Call after initializeDemoMode().
+ *
+ * @param {Object} databaseService - The storage facade
+ * @returns {Promise<void>}
+ */
+export async function seedDemoStorage(databaseService) {
+  if (!isDemoMode()) return;
+
+  try {
+    await databaseService.saveSections(DEMO_CACHE_DATA.viking_sections_offline);
+    for (const section of DEMO_CACHE_DATA.viking_sections_offline) {
+      const events = generateEventsForSection(section);
+      await databaseService.saveEvents(section.sectionid, events);
+      const members = DEMO_MEMBERS_BY_SECTION.get(section.sectionid) || [];
+      if (members.length > 0) {
+        await databaseService.saveMembers([section.sectionid], members);
+      }
+      for (const event of events) {
+        const attendance = generateAttendanceForEvent(section, event.eventid);
+        const items = Array.isArray(attendance) ? attendance : (attendance?.items || []);
+        if (items.length > 0) {
+          await databaseService.saveAttendance(event.eventid, items);
+        }
+      }
+    }
+  } catch (dbSeedError) {
+    logger.error('Demo mode: failed to seed databaseService', {
+      error: dbSeedError.message,
+    }, LOG_CATEGORIES.ERROR);
   }
 }
 

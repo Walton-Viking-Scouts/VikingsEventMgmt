@@ -28,7 +28,12 @@ import { SectionSchema, EventSchema, AttendanceSchema, SharedEventMetadataSchema
 import { CurrentActiveTermsService } from './currentActiveTermsService.js';
 import { sentryUtils } from '../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
-import { deriveBestPersonType } from '../../utils/personTypeDerivation.js';
+import {
+  normalizeMembersForStorage,
+  reconstructMembers,
+  adaptSqliteCoreRow,
+  adaptSqliteSectionRow,
+} from './memberTransforms.js';
 
 /**
  * SQLite Database Service for offline data persistence
@@ -307,8 +312,40 @@ class DatabaseService {
    * await databaseService.saveSections(sections);
    * console.log('Sections saved successfully');
    */
+  /**
+   * Guards bulk replaces against destructive empty overwrites: a flaky API
+   * returning [] must not erase a populated offline cache. Returns true when
+   * the save should be skipped (incoming empty, existing non-empty).
+   *
+   * @private
+   * @param {string} entityName - Entity label for logging
+   * @param {Array} incoming - Incoming records
+   * @param {Function} getExistingCount - async () => number of cached records
+   * @returns {Promise<boolean>} true to skip the save
+   */
+  async _shouldSkipEmptyReplace(entityName, incoming, getExistingCount) {
+    if (Array.isArray(incoming) && incoming.length > 0) return false;
+    try {
+      const existingCount = await getExistingCount();
+      if (existingCount > 0) {
+        logger.warn(`Refusing to replace ${existingCount} cached ${entityName} with empty payload`, {
+          entityName,
+          existingCount,
+        }, LOG_CATEGORIES.DATABASE);
+        return true;
+      }
+    } catch {
+      // If we can't count, allow the save
+    }
+    return false;
+  }
+
   async saveSections(sections) {
     await this.initialize();
+
+    if (await this._shouldSkipEmptyReplace('sections', sections, async () => (await this.getSections()).length)) {
+      return;
+    }
 
     if (!this.isNative || !this.db) {
       const { data: validSections, errors } = safeParseArray(SectionSchema, sections);
@@ -443,6 +480,10 @@ class DatabaseService {
         totalCount: enrichedEvents.length,
         errors: errors.slice(0, 5),
       }, LOG_CATEGORIES.DATABASE);
+    }
+
+    if (await this._shouldSkipEmptyReplace('events', validEvents, async () => (await this.getEvents(sectionId)).length)) {
+      return;
     }
 
     if (!this.isNative || !this.db) {
@@ -610,6 +651,10 @@ class DatabaseService {
       }
     }
 
+    if (await this._shouldSkipEmptyReplace('attendance records', validRecords, async () => (await this.getAttendance(eventId)).length)) {
+      return;
+    }
+
     if (!this.isNative || !this.db) {
       await IndexedDBService.bulkReplaceAttendanceForEvent(eventId, validRecords);
       return;
@@ -769,7 +814,40 @@ class DatabaseService {
       validationError.eventid = metadata?.eventid;
       throw validationError;
     }
-    const validMetadata = result.data;
+    let validMetadata = result.data;
+
+    // Merge, don't stomp: this record has multiple writers (event-sync
+    // detection and shared-attendance sync). A writer with an empty or
+    // group-less sections list must not erase a richer list already stored —
+    // last-write-wins here previously wiped groupname enrichment on every
+    // events refresh.
+    try {
+      const existing = await this.getSharedEventMetadata(validMetadata.eventid);
+      if (existing?.sections?.length) {
+        if (!validMetadata.sections?.length) {
+          validMetadata = { ...validMetadata, sections: existing.sections };
+        } else {
+          const incomingById = new Map(validMetadata.sections.map(s => [Number(s.sectionid), s]));
+          const merged = existing.sections.map(existingSection => {
+            const incoming = incomingById.get(Number(existingSection.sectionid));
+            if (!incoming) return existingSection;
+            incomingById.delete(Number(existingSection.sectionid));
+            return {
+              ...existingSection,
+              ...Object.fromEntries(
+                Object.entries(incoming).filter(([, v]) => v !== null && v !== undefined),
+              ),
+            };
+          });
+          validMetadata = { ...validMetadata, sections: [...merged, ...incomingById.values()] };
+        }
+      }
+    } catch (mergeError) {
+      logger.warn('Shared metadata merge failed - saving incoming as-is', {
+        eventid: validMetadata.eventid,
+        error: mergeError.message,
+      }, LOG_CATEGORIES.DATABASE);
+    }
 
     if (!this.isNative || !this.db) {
       await IndexedDBService.saveSharedEventMetadata(validMetadata);
@@ -878,119 +956,9 @@ class DatabaseService {
   async saveMembers(sectionIds, members) {
     await this.initialize();
 
+    const { coreMembers, sectionMembers } = normalizeMembersForStorage(members);
+
     if (!this.isNative || !this.db) {
-      const coreMembers = [];
-      const sectionMembers = [];
-      const coreMemberMap = new Map();
-
-      const knownFields = new Set([
-        'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months', 'yrs',
-        'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
-        'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
-        'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
-        'read_only', 'filter_string', '_filterString', 'sectionMemberships',
-      ]);
-
-      for (const member of members) {
-        if (!member.scoutid && !member.member_id) {
-          continue;
-        }
-
-        const scoutid = member.scoutid || member.member_id;
-
-        const flattenedFields = {};
-        Object.keys(member).forEach(key => {
-          if (!knownFields.has(key)) {
-            flattenedFields[key] = member[key];
-          }
-        });
-
-        const coreData = {
-          scoutid,
-          firstname: member.firstname,
-          lastname: member.lastname,
-          date_of_birth: member.date_of_birth,
-          photo_guid: member.photo_guid,
-          has_photo: member.has_photo,
-          contact_groups: member.contact_groups || {},
-          custom_data: member.custom_data || {},
-          flattened_fields: flattenedFields,
-          age: member.age,
-          yrs: member.yrs,
-          email: member.email,
-          age_years: member.age_years,
-          age_months: member.age_months,
-          pic: member.pic,
-          read_only: member.read_only,
-          filter_string: member._filterString || member.filter_string,
-        };
-
-        if (!coreMemberMap.has(scoutid)) {
-          coreMemberMap.set(scoutid, coreData);
-        } else {
-          const existing = coreMemberMap.get(scoutid);
-          // Merge all fields from new data into existing
-          Object.keys(coreData).forEach(key => {
-            if (key === 'contact_groups' || key === 'custom_data' || key === 'flattened_fields') {
-              // Deep merge for these special fields
-              existing[key] = { ...existing[key], ...coreData[key] };
-            } else if (coreData[key] !== undefined) {
-              // Update all other fields if they're present in new data
-              existing[key] = coreData[key];
-            }
-            // If coreData[key] is undefined, keep existing value (accumulate from other sections)
-          });
-        }
-
-        if (member.sectionMemberships && Array.isArray(member.sectionMemberships)) {
-          member.sectionMemberships.forEach(sectionMembership => {
-            const sectionData = {
-              scoutid,
-              sectionid: sectionMembership.sectionid,
-              person_type: deriveBestPersonType({
-                sectiontype: sectionMembership.section,
-                attendee: sectionMembership,
-                existing: null,
-              }),
-              patrol: sectionMembership.patrol,
-              patrol_id: sectionMembership.patrol_id,
-              started: sectionMembership.started,
-              joined: sectionMembership.joined,
-              end_date: sectionMembership.end_date,
-              active: sectionMembership.active,
-              patrol_role_level: sectionMembership.patrol_role_level,
-              patrol_role_level_label: sectionMembership.patrol_role_level_label,
-              sectionname: sectionMembership.sectionname,
-              section: sectionMembership.section,
-            };
-            sectionMembers.push(sectionData);
-          });
-        } else if (member.sectionid) {
-          const sectionData = {
-            scoutid,
-            sectionid: member.sectionid,
-            person_type: deriveBestPersonType({
-              sectiontype: member.section,
-              attendee: member,
-              existing: null,
-            }),
-            patrol: member.patrol,
-            patrol_id: member.patrol_id,
-            started: member.started,
-            joined: member.joined,
-            end_date: member.end_date,
-            active: member.active,
-            patrol_role_level: member.patrol_role_level,
-            patrol_role_level_label: member.patrol_role_level_label,
-            sectionname: member.sectionname,
-            section: member.section,
-          };
-          sectionMembers.push(sectionData);
-        }
-      }
-
-      coreMembers.push(...coreMemberMap.values());
-
       try {
         if (coreMembers.length > 0) {
           await IndexedDBService.bulkUpsertCoreMembers(coreMembers);
@@ -1026,109 +994,6 @@ class DatabaseService {
       return;
     }
 
-    const knownFields = new Set([
-      'scoutid', 'member_id', 'firstname', 'lastname', 'date_of_birth', 'age', 'age_years', 'age_months', 'yrs',
-      'sectionid', 'sectionname', 'section', 'sections', 'patrol', 'patrol_id', 'person_type',
-      'started', 'joined', 'end_date', 'active', 'photo_guid', 'has_photo', 'pic',
-      'patrol_role_level', 'patrol_role_level_label', 'email', 'contact_groups', 'custom_data',
-      'read_only', 'filter_string', '_filterString', 'sectionMemberships',
-    ]);
-
-    const coreMemberMap = new Map();
-    const sectionMembersToInsert = [];
-
-    for (const member of members) {
-      if (!member.scoutid && !member.member_id) {
-        continue;
-      }
-
-      const scoutid = member.scoutid || member.member_id;
-
-      const flattenedFields = {};
-      Object.keys(member).forEach(key => {
-        if (!knownFields.has(key)) {
-          flattenedFields[key] = member[key];
-        }
-      });
-
-      const coreData = {
-        scoutid,
-        firstname: member.firstname,
-        lastname: member.lastname,
-        date_of_birth: member.date_of_birth,
-        photo_guid: member.photo_guid,
-        has_photo: member.has_photo,
-        contact_groups: member.contact_groups || {},
-        custom_data: member.custom_data || {},
-        flattened_fields: flattenedFields,
-        age: member.age,
-        yrs: member.yrs,
-        email: member.email,
-        age_years: member.age_years,
-        age_months: member.age_months,
-        pic: member.pic,
-        read_only: member.read_only,
-        filter_string: member._filterString || member.filter_string,
-      };
-
-      if (!coreMemberMap.has(scoutid)) {
-        coreMemberMap.set(scoutid, coreData);
-      } else {
-        const existing = coreMemberMap.get(scoutid);
-        Object.keys(coreData).forEach(key => {
-          if (key === 'contact_groups' || key === 'custom_data' || key === 'flattened_fields') {
-            existing[key] = { ...existing[key], ...coreData[key] };
-          } else if (coreData[key] !== undefined) {
-            existing[key] = coreData[key];
-          }
-        });
-      }
-
-      if (member.sectionMemberships && Array.isArray(member.sectionMemberships)) {
-        member.sectionMemberships.forEach(sectionMembership => {
-          sectionMembersToInsert.push({
-            scoutid,
-            sectionid: Number(sectionMembership.sectionid),
-            person_type: deriveBestPersonType({
-              sectiontype: sectionMembership.section,
-              attendee: sectionMembership,
-              existing: null,
-            }),
-            patrol: sectionMembership.patrol,
-            patrol_id: sectionMembership.patrol_id,
-            started: sectionMembership.started,
-            joined: sectionMembership.joined,
-            end_date: sectionMembership.end_date,
-            active: sectionMembership.active,
-            patrol_role_level: sectionMembership.patrol_role_level,
-            patrol_role_level_label: sectionMembership.patrol_role_level_label,
-            sectionname: sectionMembership.sectionname,
-            section: sectionMembership.section,
-          });
-        });
-      } else if (member.sectionid) {
-        sectionMembersToInsert.push({
-          scoutid,
-          sectionid: Number(member.sectionid),
-          person_type: deriveBestPersonType({
-            sectiontype: member.section,
-            attendee: member,
-            existing: null,
-          }),
-          patrol: member.patrol,
-          patrol_id: member.patrol_id,
-          started: member.started,
-          joined: member.joined,
-          end_date: member.end_date,
-          active: member.active,
-          patrol_role_level: member.patrol_role_level,
-          patrol_role_level_label: member.patrol_role_level_label,
-          sectionname: member.sectionname,
-          section: member.section,
-        });
-      }
-    }
-
     const updatedAt = Date.now();
 
     await this._runInTransaction(async () => {
@@ -1150,7 +1015,7 @@ class DatabaseService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      for (const core of coreMemberMap.values()) {
+      for (const core of coreMembers) {
         await this.db.run(coreInsert, [
           core.scoutid,
           core.firstname,
@@ -1182,7 +1047,7 @@ class DatabaseService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      for (const sm of sectionMembersToInsert) {
+      for (const sm of sectionMembers) {
         await this.db.run(sectionInsert, [
           sm.scoutid,
           sm.sectionid,
@@ -1247,6 +1112,13 @@ class DatabaseService {
       return [];
     }
 
+    const onOrphan = (scoutid, sectionid) => {
+      logger.warn('Orphaned member_section record - missing core_members data', {
+        scoutid,
+        sectionid,
+      }, LOG_CATEGORIES.DATABASE);
+    };
+
     if (!this.isNative || !this.db) {
       try {
         const sectionMemberships = await Promise.all(
@@ -1269,91 +1141,7 @@ class DatabaseService {
           coreMembers.filter(m => m).map(m => [m.scoutid, m]),
         );
 
-        const sectionsByScoutId = new Map();
-        for (const section of sectionMemberships) {
-          if (!sectionsByScoutId.has(section.scoutid)) {
-            sectionsByScoutId.set(section.scoutid, []);
-          }
-          sectionsByScoutId.get(section.scoutid).push(section);
-        }
-
-        const members = [];
-        const processedScoutIds = new Set();
-
-        for (const sectionMember of sectionMemberships) {
-          if (processedScoutIds.has(sectionMember.scoutid)) {
-            continue;
-          }
-          processedScoutIds.add(sectionMember.scoutid);
-
-          const core = coreMemberMap.get(sectionMember.scoutid);
-          if (!core) {
-            logger.warn('Orphaned member_section record - missing core_members data', {
-              scoutid: sectionMember.scoutid,
-              sectionid: sectionMember.sectionid,
-            }, LOG_CATEGORIES.DATABASE);
-            continue;
-          }
-
-          const allSections = sectionsByScoutId.get(sectionMember.scoutid) || [];
-
-          const member = {
-            scoutid: core.scoutid,
-            member_id: core.scoutid,
-            firstname: core.firstname ?? null,
-            lastname: core.lastname ?? null,
-            date_of_birth: core.date_of_birth ?? null,
-            dateofbirth: core.date_of_birth ?? null,
-            age: core.age ?? null,
-            age_years: core.age_years || null,
-            age_months: core.age_months || null,
-            yrs: core.yrs ?? null,
-            photo_guid: core.photo_guid ?? null,
-            has_photo: core.has_photo ?? null,
-            pic: core.pic ?? null,
-            email: core.email ?? null,
-            contact_groups: core.contact_groups || {},
-            custom_data: core.custom_data || {},
-            read_only: core.read_only || [],
-
-            sectionid: sectionMember.sectionid ?? null,
-            sectionname: sectionMember.sectionname ?? null,
-            section: sectionMember.section ?? null,
-            person_type: sectionMember.person_type ?? null,
-            patrol: sectionMember.patrol ?? null,
-            patrol_id: sectionMember.patrol_id ?? null,
-            started: sectionMember.started ?? null,
-            joined: sectionMember.joined ?? null,
-            end_date: sectionMember.end_date ?? null,
-            active: sectionMember.active ?? null,
-            patrol_role_level: sectionMember.patrol_role_level ?? null,
-            patrol_role_level_label: sectionMember.patrol_role_level_label ?? null,
-
-            sections: allSections.map(s => ({
-              section_id: s.sectionid,
-              sectionid: s.sectionid,
-              sectionname: s.sectionname,
-              section: s.section,
-              person_type: s.person_type,
-              patrol: s.patrol,
-              active: s.active,
-            })),
-
-            ...(typeof core.flattened_fields === 'object' && !Array.isArray(core.flattened_fields)
-              ? core.flattened_fields
-              : {}),
-          };
-
-          members.push(member);
-        }
-
-        members.sort((a, b) => {
-          const lastNameCmp = (a.lastname || '').localeCompare(b.lastname || '');
-          return lastNameCmp !== 0 ? lastNameCmp : (a.firstname || '').localeCompare(b.firstname || '');
-        });
-
-        return members;
-
+        return reconstructMembers(coreMemberMap, sectionMemberships, onOrphan);
       } catch (error) {
         logger.warn('Failed to fetch members from dual-store', {
           error: error.message,
@@ -1362,7 +1150,7 @@ class DatabaseService {
         return [];
       }
     }
-    
+
     try {
       const numericSectionIds = sectionIds.map(id => Number(id));
       const placeholders = numericSectionIds.map(() => '?').join(',');
@@ -1371,7 +1159,7 @@ class DatabaseService {
         `SELECT * FROM member_section WHERE sectionid IN (${placeholders})`,
         numericSectionIds,
       );
-      const sectionRows = sectionRowsResult.values || [];
+      const sectionRows = (sectionRowsResult.values || []).map(adaptSqliteSectionRow);
 
       if (sectionRows.length === 0) {
         return [];
@@ -1383,109 +1171,11 @@ class DatabaseService {
         `SELECT * FROM core_members WHERE scoutid IN (${corePlaceholders})`,
         uniqueScoutIds,
       );
-      const coreRows = coreRowsResult.values || [];
-
-      const parseJson = (value, fallback) => {
-        if (value === null || value === undefined || value === '') return fallback;
-        if (typeof value === 'object') return value;
-        try {
-          return JSON.parse(value);
-        } catch {
-          return fallback;
-        }
-      };
+      const coreRows = (coreRowsResult.values || []).map(adaptSqliteCoreRow);
 
       const coreMemberMap = new Map(coreRows.map(r => [r.scoutid, r]));
 
-      const sectionsByScoutId = new Map();
-      for (const sectionRow of sectionRows) {
-        if (!sectionsByScoutId.has(sectionRow.scoutid)) {
-          sectionsByScoutId.set(sectionRow.scoutid, []);
-        }
-        sectionsByScoutId.get(sectionRow.scoutid).push(sectionRow);
-      }
-
-      const members = [];
-      const processedScoutIds = new Set();
-
-      for (const sectionRow of sectionRows) {
-        if (processedScoutIds.has(sectionRow.scoutid)) {
-          continue;
-        }
-        processedScoutIds.add(sectionRow.scoutid);
-
-        const coreRow = coreMemberMap.get(sectionRow.scoutid);
-        if (!coreRow) {
-          logger.warn('Orphaned member_section record - missing core_members data', {
-            scoutid: sectionRow.scoutid,
-            sectionid: sectionRow.sectionid,
-          }, LOG_CATEGORIES.DATABASE);
-          continue;
-        }
-
-        const allSections = sectionsByScoutId.get(sectionRow.scoutid) || [];
-
-        const contactGroups = parseJson(coreRow.contact_groups, {});
-        const customData = parseJson(coreRow.custom_data, {});
-        const readOnly = parseJson(coreRow.read_only, []);
-        const flattenedFields = parseJson(coreRow.flattened_fields, {});
-
-        const member = {
-          scoutid: coreRow.scoutid,
-          member_id: coreRow.scoutid,
-          firstname: coreRow.firstname,
-          lastname: coreRow.lastname,
-          date_of_birth: coreRow.date_of_birth,
-          dateofbirth: coreRow.date_of_birth,
-          age: coreRow.age,
-          age_years: coreRow.age_years || null,
-          age_months: coreRow.age_months || null,
-          yrs: coreRow.yrs,
-          photo_guid: coreRow.photo_guid,
-          has_photo: coreRow.has_photo === 1 ? true : (coreRow.has_photo === 0 ? false : null),
-          pic: coreRow.pic === 1 ? true : (coreRow.pic === 0 ? false : null),
-          email: coreRow.email,
-          contact_groups: contactGroups,
-          custom_data: customData,
-          read_only: readOnly,
-
-          sectionid: sectionRow.sectionid,
-          sectionname: sectionRow.sectionname,
-          section: sectionRow.section,
-          person_type: sectionRow.person_type,
-          patrol: sectionRow.patrol,
-          patrol_id: sectionRow.patrol_id,
-          started: sectionRow.started,
-          joined: sectionRow.joined,
-          end_date: sectionRow.end_date,
-          active: sectionRow.active === 1 ? true : (sectionRow.active === 0 ? false : null),
-          patrol_role_level: sectionRow.patrol_role_level,
-          patrol_role_level_label: sectionRow.patrol_role_level_label,
-
-          sections: allSections.map(s => ({
-            section_id: s.sectionid,
-            sectionid: s.sectionid,
-            sectionname: s.sectionname,
-            section: s.section,
-            person_type: s.person_type,
-            patrol: s.patrol,
-            active: s.active === 1,
-          })),
-
-          ...(typeof flattenedFields === 'object' && !Array.isArray(flattenedFields)
-            ? flattenedFields
-            : {}),
-        };
-
-        members.push(member);
-      }
-
-      members.sort((a, b) => {
-        const lastNameCmp = (a.lastname || '').localeCompare(b.lastname || '');
-        return lastNameCmp !== 0 ? lastNameCmp : (a.firstname || '').localeCompare(b.firstname || '');
-      });
-
-      return members;
+      return reconstructMembers(coreMemberMap, sectionRows, onOrphan);
     } catch (error) {
       logger.warn('Failed to fetch members from SQLite dual-store', {
         error: error.message,

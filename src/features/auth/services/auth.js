@@ -705,6 +705,7 @@ export async function logout() {
         localStorage.removeItem(key);
       }
     });
+    sessionStorage.removeItem('viking_demo_mode');
   }
 
   try {
