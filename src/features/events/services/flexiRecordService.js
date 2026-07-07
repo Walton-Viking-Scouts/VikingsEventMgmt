@@ -139,7 +139,10 @@ export async function getFlexiRecordsList(sectionId, token, forceRefresh = false
       return cached || { items: [] };
     }
 
-    const flexiRecords = await getFlexiRecords(sectionId, token);
+    // forceRefresh must reach the API layer: its own 30-min TTL would
+    // otherwise serve the stale cache, hiding just-created records (the
+    // post-create banner refresh was broken by exactly this).
+    const flexiRecords = await getFlexiRecords(sectionId, token, 'n', forceRefresh);
 
     await databaseService.saveFlexiLists(sectionId, flexiRecords.items || []);
 

@@ -110,7 +110,7 @@ export async function drain(token = getToken()) {
   let completed = 0;
 
   try {
-    let ops = await readOps();
+    const ops = await readOps();
 
     while (ops.length > 0) {
       if (!token) {
