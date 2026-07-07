@@ -15,7 +15,7 @@ import { isFieldCleared } from '../../../../shared/constants/signInDataConstants
 import { buildOverviewStats } from '../../utils/overviewStatsBuilder.js';
 import { buildAttendanceTabSections, isYoungPerson } from '../../utils/attendanceTabBuilder.js';
 import { isSectionAllowed } from '../../utils/sectionFilterPredicate.js';
-import { checkAttendanceMatch } from '../../../../shared/utils/attendanceHelpers.js';
+import { checkAttendanceMatch, incrementAttendanceCount } from '../../../../shared/utils/attendanceHelpers.js';
 
 import AttendanceHeader from './AttendanceHeader.jsx';
 import AttendanceFilters from './AttendanceFilters.jsx';
@@ -257,16 +257,10 @@ function EventAttendance({ events, members: membersProp, onBack, activeTab: acti
         );
       }
 
-      const attending = record.attending;
-      if (attending === 'Yes') {
-        memberEntry.yes += 1;
-      } else if (attending === 'No') {
-        memberEntry.no += 1;
-      } else if (attending === 'Invited') {
-        memberEntry.invited += 1;
-      } else if (attending === 'Not Invited') {
-        memberEntry.notInvited += 1;
-      }
+      // Canonical mapping: blank/unknown RSVPs count as notInvited, matching
+      // the dashboard - previously they incremented nothing, making those
+      // members invisible on every tab regardless of filters.
+      incrementAttendanceCount(memberEntry, record.attending);
     });
 
     const members = Array.from(memberMap.values());
