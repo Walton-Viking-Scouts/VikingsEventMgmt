@@ -86,13 +86,12 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
   // Data filter state - for controlling which columns to show
   const [dataFilters, setDataFilters] = useState({
     contacts: false, // Primary and Emergency contacts (hidden by default as requested)
-    photos: false, // Member photo column (hidden by default)
+    photos: false,
   });
 
-  // Member filter state - for controlling which member rows are shown
   const [memberFilters, setMemberFilters] = useState({
-    noPhotoConsent: false, // Only show members without 'Yes' photographs consent
-    hideAdults: false, // Exclude person_type === 'Leaders'
+    noPhotoConsent: false,
+    hideAdults: false,
   });
 
   // Load members when sections change
@@ -236,7 +235,6 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     setSelectedMember(null);
   };
 
-  // Members visible after applying the "No Photo Consent" and "Hide Adults" filters
   const visibleMembers = React.useMemo(() => {
     return members.filter((member) => {
       if (memberFilters.hideAdults && member.person_type === 'Leaders') {
@@ -518,7 +516,6 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {/* Photo Header - conditionally shown */}
                 {dataFilters.photos && (
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Photo
@@ -591,7 +588,6 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
 
                 return (
                   <tr key={member.scoutid || index} className="hover:bg-gray-50 text-xs">
-                    {/* Photo Cell - conditionally shown */}
                     {dataFilters.photos && (
                       <td className="px-3 py-2 whitespace-nowrap">
                         <MemberAvatar member={member} size="sm" />
