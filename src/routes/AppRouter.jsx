@@ -5,16 +5,17 @@ import LoadingScreen from '../shared/components/LoadingScreen.jsx';
 import ResponsiveLayout from '../shared/components/layout/ResponsiveLayout.jsx';
 import TokenExpiredDialog from '../shared/components/TokenExpiredDialog.jsx';
 import { useAuth } from '../features/auth/hooks';
+import { lazyWithRetry } from '../shared/utils/lazyWithRetry.js';
 
 // URL-based routing is now the only routing system
 
 // Lazy load main feature modules for better performance
-const MoversPage = React.lazy(() => import('../features/movements/components').then(module => ({ default: module.MoversPage })));
-const SectionsPage = React.lazy(() => import('../features/sections/components').then(module => ({ default: module.SectionsPage })));
-const PhotoConsentPage = React.lazy(() => import('../features/sections/components').then(module => ({ default: module.PhotoConsentPage })));
-const YoungLeadersPage = React.lazy(() => import('../features/young-leaders/components').then(module => ({ default: module.YoungLeadersPage })));
-const EventsRouter = React.lazy(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
-const DataClearPage = React.lazy(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
+const MoversPage = lazyWithRetry(() => import('../features/movements/components').then(module => ({ default: module.MoversPage })));
+const SectionsPage = lazyWithRetry(() => import('../features/sections/components').then(module => ({ default: module.SectionsPage })));
+const PhotoConsentPage = lazyWithRetry(() => import('../features/sections/components').then(module => ({ default: module.PhotoConsentPage })));
+const YoungLeadersPage = lazyWithRetry(() => import('../features/young-leaders/components').then(module => ({ default: module.YoungLeadersPage })));
+const EventsRouter = lazyWithRetry(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
+const DataClearPage = lazyWithRetry(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
 
 // Import route guards (keep synchronous for security)
 import { RouteGuard } from '../shared/components/guards';
