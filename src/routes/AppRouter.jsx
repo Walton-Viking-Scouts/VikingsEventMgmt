@@ -40,9 +40,13 @@ function AppContent() {
     return <LoadingScreen message="Checking authentication..." />;
   }
 
-  // Header refresh runs the SAME full sequence as the dashboard refresh and
-  // post-login load. It previously refreshed reference data only, so a user
-  // who hit it saw "refreshed" while events and attendance stayed stale.
+  /**
+   * Header refresh: runs the SAME full sequence as the dashboard refresh and
+   * post-login load. It previously refreshed reference data only, so a user
+   * who hit it saw "refreshed" while events and attendance stayed stale.
+   *
+   * @returns {Promise<void>}
+   */
   const handleRefresh = async () => {
     try {
       const { notifyWarning } = await import('../shared/utils/notifications.js');
