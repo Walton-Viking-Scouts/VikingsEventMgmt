@@ -77,6 +77,20 @@ describe('groupNoConsentMembersBySection', () => {
     expect(result[0].members.map((m) => m.firstname)).toEqual(['Amy', 'Zack']);
   });
 
+  it('prefers the section rows sectionname over member fields for card titles', () => {
+    const members = [member({ section: 'cubs', sectionname: undefined })];
+    const result = groupNoConsentMembersBySection(members, {
+      sections: [{ sectionid: 100, sectionname: 'Monday Cubs' }],
+    });
+    expect(result[0].sectionname).toBe('Monday Cubs');
+  });
+
+  it('falls back to member.sectionname over the section type when no section rows given', () => {
+    const members = [member({ section: 'cubs', sectionname: 'Monday Cubs' })];
+    const result = groupNoConsentMembersBySection(members);
+    expect(result[0].sectionname).toBe('Monday Cubs');
+  });
+
   it('returns an empty array for no members', () => {
     expect(groupNoConsentMembersBySection([])).toEqual([]);
     expect(groupNoConsentMembersBySection(undefined)).toEqual([]);

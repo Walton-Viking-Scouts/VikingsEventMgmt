@@ -36,19 +36,29 @@ function memberLacksPhotoConsent(member) {
  *   currently selected sections.
  * @param {Object} [options]
  * @param {boolean} [options.hideAdults=false] - Exclude person_type === 'Leaders'.
+ * @param {Array<Object>} [options.sections] - Section rows (sectionid, sectionname)
+ *   used to resolve display names; member.section only holds the section type
+ *   (e.g. 'cubs'), not the section's actual name.
  * @returns {Array<{sectionid: string|number|undefined, sectionname: string, members: Array<Object>}>}
  *   One entry per section that has at least one matching member, sorted
  *   alphabetically by section name; members within each section are sorted
  *   alphabetically by first then last name.
  */
-export function groupNoConsentMembersBySection(members, { hideAdults = false } = {}) {
+export function groupNoConsentMembersBySection(members, { hideAdults = false, sections = [] } = {}) {
   const sectionsById = new Map();
+  const sectionNamesById = new Map(
+    (sections || [])
+      .filter((s) => s?.sectionid !== null && s?.sectionid !== undefined && s?.sectionname)
+      .map((s) => [String(s.sectionid), s.sectionname]),
+  );
 
   for (const member of members || []) {
     if (hideAdults && member.person_type === 'Leaders') continue;
     if (!memberLacksPhotoConsent(member)) continue;
 
-    const sectionName = resolveSectionName(member);
+    const sectionName = sectionNamesById.get(String(member.sectionid))
+      || member.sectionname
+      || resolveSectionName(member);
     const sectionKey = member.sectionid ?? sectionName;
 
     if (!sectionsById.has(sectionKey)) {
@@ -61,9 +71,9 @@ export function groupNoConsentMembersBySection(members, { hideAdults = false } =
     sectionsById.get(sectionKey).members.push(member);
   }
 
-  const sections = Array.from(sectionsById.values());
+  const grouped = Array.from(sectionsById.values());
 
-  for (const section of sections) {
+  for (const section of grouped) {
     section.members.sort((a, b) => {
       const aName = `${a.firstname || ''} ${a.lastname || ''}`.trim();
       const bName = `${b.firstname || ''} ${b.lastname || ''}`.trim();
@@ -71,7 +81,7 @@ export function groupNoConsentMembersBySection(members, { hideAdults = false } =
     });
   }
 
-  sections.sort((a, b) => a.sectionname.localeCompare(b.sectionname));
+  grouped.sort((a, b) => a.sectionname.localeCompare(b.sectionname));
 
-  return sections;
+  return grouped;
 }

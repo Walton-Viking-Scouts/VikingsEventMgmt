@@ -93,8 +93,8 @@ function PhotoConsentPage() {
   };
 
   const noConsentSections = useMemo(
-    () => groupNoConsentMembersBySection(members, { hideAdults }),
-    [members, hideAdults],
+    () => groupNoConsentMembersBySection(members, { hideAdults, sections: selectedSections }),
+    [members, hideAdults, selectedSections],
   );
 
   const sortedSections = useMemo(
