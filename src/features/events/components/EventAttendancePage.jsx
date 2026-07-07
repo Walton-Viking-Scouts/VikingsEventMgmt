@@ -17,7 +17,14 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 function EventAttendancePage() {
   const { eventName, tab } = useParams();
   const navigate = useNavigate();
-  const decodedName = decodeURIComponent(eventName || '');
+  // Guarded: a hand-edited or truncated deep link with malformed percent-
+  // encoding must land on the not-found redirect, not throw during render.
+  let decodedName = eventName || '';
+  try {
+    decodedName = decodeURIComponent(eventName || '');
+  } catch {
+    // keep the raw segment; the no-events-found path below handles it
+  }
 
   const [events, setEvents] = useState(null);
   const [members, setMembers] = useState([]);
@@ -52,6 +59,7 @@ function EventAttendancePage() {
           logger.warn('Could not load cached members for attendance view', {
             error: memberError.message,
           }, LOG_CATEGORIES.COMPONENT);
+          notifyWarning('Member details unavailable - showing attendance only.');
         }
 
         if (!mounted) return;

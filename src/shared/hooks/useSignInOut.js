@@ -47,9 +47,11 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
           if (remaining > 0 && notifyWarning) {
             notifyWarning(`${remaining} sign-in change(s) still waiting to sync to OSM.`);
           }
+        }).catch((error) => {
+          logger.error('Outbox drain on mount failed', { error: error.message }, LOG_CATEGORIES.ERROR);
         });
       }
-    });
+    }).catch(() => {});
 
     return () => {
       if (abortControllerRef.current) {
@@ -297,19 +299,24 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
         createdAt: timestamp,
       };
 
-      // 1. Local first: the leader at the gate sees the row change immediately
-      await signInOutbox.applyLocal(op);
+      // Queue first: if the outbox store is failing we must error out
+      // rather than paint an optimistic row that nothing will ever sync.
       await signInOutbox.enqueue(op);
+      await signInOutbox.applyLocal(op);
 
       // 2. Push to OSM now if we can
       const online = await checkNetworkStatus();
-      let drainResult = { completed: 0, remaining: 1, errors: [] };
+      let drainResult = { completed: 0, remaining: 1, dropped: 0, errors: [] };
       if (online && opToken) {
         drainResult = await signInOutbox.drain(opToken);
       }
 
       if (abortControllerRef.current?.signal.aborted) {
         return;
+      }
+
+      if (drainResult.dropped > 0 && notifyError) {
+        notifyError(`Could not save to OSM: ${drainResult.errors[0] || 'permanent error'}`);
       }
 
       if (drainResult.remaining > 0) {

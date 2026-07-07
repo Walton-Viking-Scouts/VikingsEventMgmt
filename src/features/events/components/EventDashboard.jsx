@@ -98,6 +98,7 @@ function EventDashboard() {
         }, LOG_CATEGORIES.COMPONENT);
         if (mounted) {
           setLoading(false);
+          setError(`Failed to load events from local storage: ${error.message}`);
         }
       }
     };
@@ -140,18 +141,28 @@ function EventDashboard() {
       const sectionsData = await databaseService.getSections();
       const cards = await buildEventCards(sectionsData);
       setEventCards(cards);
-      setLastSync(new Date());
 
-      let message = 'Data refreshed successfully';
-      const summary = result?.results?.attendance?.details;
-      if (summary) {
-        message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
-      }
       if (syncingToastId) {
         dismissToast(syncingToastId);
         syncingToastId = null;
       }
-      notifySuccess(message);
+
+      // loadAllDataAfterAuth never throws - it reports per-category errors.
+      // Only claim success (and stamp the sync time) on a clean run.
+      if (result?.success && !result?.hasErrors) {
+        setLastSync(new Date());
+        let message = 'Data refreshed successfully';
+        const summary = result?.results?.attendance?.details;
+        if (summary) {
+          message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
+        }
+        notifySuccess(message);
+      } else {
+        const failedCategories = [...new Set((result?.errors || []).map(e => e.category).filter(Boolean))];
+        notifyError(failedCategories.length > 0
+          ? `Refresh incomplete - failed: ${failedCategories.join(', ')}`
+          : 'Refresh failed - showing cached data');
+      }
 
     } catch (error) {
       logger.error('Manual refresh failed', {

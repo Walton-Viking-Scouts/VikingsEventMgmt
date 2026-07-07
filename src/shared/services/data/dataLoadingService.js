@@ -7,9 +7,6 @@
  * Flow: Core Reference → Events → Attendance → FlexiRecord Data
  *
  * @module dataLoadingService
- * @version 1.1.0
- * @since 1.1.0 - Split FlexiRecord loading to run after events/attendance
- * @author Vikings Event Management Team
  */
 
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';

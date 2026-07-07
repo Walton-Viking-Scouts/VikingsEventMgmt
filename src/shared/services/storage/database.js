@@ -3,7 +3,7 @@
  * 
  * Provides comprehensive offline-first data persistence for Scout sections, events,
  * attendance records, and member information. Uses Capacitor SQLite on native
- * platforms with localStorage fallback for web browsers. Supports demo mode
+ * platforms with IndexedDB fallback for web browsers. Supports demo mode
  * data segregation and comprehensive member caching across multiple sections.
  * 
  * Key features:
@@ -39,7 +39,7 @@ import {
  * SQLite Database Service for offline data persistence
  * 
  * Manages all local data storage for the Vikings Event Management application.
- * Automatically detects platform capabilities and falls back to localStorage
+ * Automatically detects platform capabilities and falls back to IndexedDB
  * when SQLite is not available. Provides consistent API across all platforms
  * with support for Scout sections, events, attendance, and member data.
  * 
@@ -204,27 +204,19 @@ class DatabaseService {
 
   /**
    * Initializes the database service and creates necessary tables
-   * 
+   *
    * Detects platform capabilities and establishes appropriate storage mechanism.
    * On native platforms, initializes SQLite with proper connections and creates
-   * database schema. On web platforms, validates localStorage availability and
-   * sets up fallback mode. Safe to call multiple times - subsequent calls are ignored.
-   * 
+   * database schema. On web platforms, uses IndexedDB. Safe to call multiple
+   * times - subsequent calls are ignored. Never throws: initialization errors
+   * are logged and the service degrades to the IndexedDB fallback.
+   *
    * @async
    * @returns {Promise<void>} Resolves when initialization is complete
-   * @throws {Error} Only logs errors, never throws - gracefully falls back to localStorage
-   * 
+   *
    * @example
-   * // Initialize before any database operations
    * import databaseService from './storage/database.js';
-   * 
-   * try {
-   *   await databaseService.initialize();
-   *   console.log('Database ready for use');
-   * } catch (error) {
-   *   // Service automatically falls back to localStorage
-   *   console.log('Using localStorage fallback');
-   * }
+   * await databaseService.initialize();
    */
   async initialize() {
     if (this.isInitialized) return;
@@ -291,8 +283,8 @@ class DatabaseService {
    * 
    * Stores section information with complete replacement of existing data.
    * On native platforms, uses SQLite with proper transaction handling.
-   * On web platforms, uses localStorage with demo mode data segregation.
-   * Automatically updates sync status after successful save.
+   * On web platforms, uses IndexedDB.
+   * 
    * 
    * @async
    * @param {Array<Object>} sections - Array of section objects to save
@@ -378,7 +370,7 @@ class DatabaseService {
    * 
    * Loads section information with automatic demo mode filtering.
    * On native platforms, queries SQLite database with proper ordering.
-   * On web platforms, retrieves from localStorage with data validation.
+   * On web platforms, retrieves from IndexedDB with data validation.
    * Automatically filters out demo sections when not in demo mode.
    * 
    * @async
@@ -426,7 +418,7 @@ class DatabaseService {
    * Stores event information with section-specific data isolation.
    * Replaces all existing events for the specified section. On native
    * platforms, uses SQLite with foreign key relationships. On web platforms,
-   * uses localStorage with section-specific keys and demo mode support.
+   * uses IndexedDB.
    * 
    * @async
    * @param {number} sectionId - Section identifier to save events for
@@ -522,7 +514,7 @@ class DatabaseService {
    * 
    * Loads event information with automatic demo mode filtering and proper
    * date ordering. On native platforms, queries SQLite with section filtering.
-   * On web platforms, retrieves from localStorage with data validation.
+   * On web platforms, retrieves from IndexedDB with data validation.
    * Returns events sorted by start date (most recent first).
    * 
    * @async
@@ -843,6 +835,16 @@ class DatabaseService {
         }
       }
     } catch (mergeError) {
+      // A failed read means we can't know whether a richer record exists.
+      // Saving an empty sections list here would be exactly the stomp the
+      // merge prevents, so only proceed when the incoming record adds data.
+      if (!validMetadata.sections?.length) {
+        logger.warn('Shared metadata merge failed and incoming has no sections - skipping save', {
+          eventid: validMetadata.eventid,
+          error: mergeError.message,
+        }, LOG_CATEGORIES.DATABASE);
+        return;
+      }
       logger.warn('Shared metadata merge failed - saving incoming as-is', {
         eventid: validMetadata.eventid,
         error: mergeError.message,

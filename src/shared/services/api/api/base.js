@@ -1,7 +1,6 @@
-// Base API configuration and shared utilities
-// Owns the single request pipeline (osmRequest) shared by every endpoint:
-// demo mode -> network check -> blocked/breaker guards -> token validation ->
-// rate-limit queue -> response handling -> cache write/fallback.
+// Base API configuration and shared utilities.
+// Owns the single request pipeline (osmRequest) shared by every endpoint —
+// see the osmRequest JSDoc for the exact step order.
 
 import { sentryUtils } from '../../utils/sentry.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
@@ -263,16 +262,20 @@ export { isOnline };
  * @param {string} opts.token - OSM auth token
  * @param {string} [opts.method='GET'] - HTTP method
  * @param {Object} [opts.body] - JSON body for POST requests
- * @param {boolean} [opts.write=false] - Marks OSM writes: enforces write
- *   permission and jumps the read queue (priority 10)
+ * @param {boolean} [opts.write=false] - Marks OSM writes: blocks the call
+ *   when the stored token is known-expired (checkWritePermission), jumps the
+ *   read queue (priority 10), and errors instead of returning emptyValue
+ *   when the request cannot be sent
  * @param {number} [opts.priority] - Explicit queue priority override
  * @param {Function} [opts.cacheRead] - async () => cached value or null.
- *   Used for demo mode, TTL check, offline, breaker fallback, error fallback.
+ *   Used for every unavailable state (demo, offline, blocked, breaker), the
+ *   TTL check, and the error fallback.
  * @param {Function} [opts.cacheWrite] - async (data) => void. Failures logged, not thrown.
  * @param {number} [opts.ttl] - Cache max-age in ms. With cacheRead: fresh cache
  *   is returned without hitting the network unless forceRefresh.
  * @param {boolean} [opts.forceRefresh=false] - Bypass the TTL check
- * @param {*} [opts.emptyValue=null] - Returned when offline/blocked with no cache
+ * @param {*} [opts.emptyValue=null] - Returned for reads in any unavailable
+ *   state (demo/offline/blocked/breaker) with no cache; writes throw instead
  * @param {boolean} [opts.throwWhenUnavailable=false] - Throw instead of
  *   returning emptyValue when the request can't be made and no cache exists
  * @param {Function} [opts.transform] - Maps the raw response before cacheWrite
@@ -296,6 +299,15 @@ export async function osmRequest(apiName, path, opts = {}) {
   } = opts;
 
   const unavailable = async (reason) => {
+    // Writes must NEVER resolve via this path: a write that "succeeds"
+    // without sending anything makes callers (e.g. the sign-in outbox)
+    // discard the operation as synced. Offline/blocked/breaker are errors
+    // for a write.
+    if (write) {
+      const err = new Error(`${apiName}: cannot send write - ${reason}`);
+      err.code = 'WRITE_UNAVAILABLE';
+      throw err;
+    }
     if (cacheRead) {
       try {
         const cached = await cacheRead();

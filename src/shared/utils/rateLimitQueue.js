@@ -28,8 +28,10 @@ const toastOptions = {
 };
 
 /**
- * Intelligent rate limit queue that handles 429 responses with exponential backoff
- * Provides user feedback and queuing for rate-limited requests
+ * Rate limit queue: serializes API dispatch, waits out backend-provided
+ * retry-after on 429 (min baseDelay), re-queues rate-limited requests at
+ * higher priority (up to 10 requeues per request), and throttles pacing
+ * from OSM quota feedback. Provides user feedback via toasts.
  */
 export class RateLimitQueue {
   constructor(options = {}) {
@@ -42,7 +44,6 @@ export class RateLimitQueue {
     this._countdownInterval = null;
 
     // Configuration
-    this.maxRetries = options.maxRetries || 3;
     this.baseDelay = options.baseDelay || 1000; // 1 second base delay
     this.maxDelay = options.maxDelay || 30000; // 30 seconds max delay
     this.queueTimeout = options.queueTimeout || 300000; // 5 minutes max queue time
@@ -192,9 +193,9 @@ export class RateLimitQueue {
       this.process();
 
       // Set timeout for request and store timeout ID to prevent memory leaks.
-      // While the queue is deliberately waiting out a rate limit the clock is
-      // paused: the timer re-arms instead of rejecting, so a long retry-after
-      // doesn't silently kill the whole backlog.
+      // While the queue is waiting out a rate limit the timer re-arms with a
+      // fresh full timeout once the rate-limit window ends, so a long
+      // retry-after doesn't silently kill the whole backlog.
       const armTimeout = (delayMs) => {
         request._timeoutId = setTimeout(() => {
           if (!this.queue.includes(request)) return;
@@ -279,7 +280,6 @@ export class RateLimitQueue {
           if (request.attempts > 1) {
             logger.debug('Retrying API request', {
               attempt: request.attempts,
-              maxRetries: this.maxRetries,
             }, LOG_CATEGORIES.API);
           }
 
@@ -307,7 +307,7 @@ export class RateLimitQueue {
           }
 
           if (is429 && request.rateLimitRequeues <= 10) {
-            // Handle rate limiting with exponential backoff
+            // Wait out the rate limit and re-queue at higher priority
             await this.handleRateLimit(request, error);
             // CRITICAL FIX: Break out of processing loop immediately after rate limit
             // The rate limit timeout will be handled at the top of the next process() call
@@ -494,7 +494,6 @@ export class RateLimitQueue {
 
 // Global instance
 export const globalRateLimitQueue = new RateLimitQueue({
-  maxRetries: 3,
   baseDelay: 1000,
   maxDelay: 30000,
   queueTimeout: 300000,

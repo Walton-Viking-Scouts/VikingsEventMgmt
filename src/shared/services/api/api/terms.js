@@ -246,9 +246,9 @@ export async function getTerms(token, forceRefresh = false) {
  * @example
  * const termId = await fetchMostRecentTermId(123, userToken);
  */
-// A cold cache triggers at most ONE full terms refetch per app load, shared
-// by all sections — previously each section with a cache miss refetched the
-// entire terms payload independently.
+// Concurrent cold-cache misses share ONE in-flight terms refetch —
+// previously each section with a cache miss refetched the entire terms
+// payload independently.
 let termsRefreshPromise = null;
 
 export async function fetchMostRecentTermId(sectionId, token) {
