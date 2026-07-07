@@ -14,11 +14,13 @@ function AttendanceTabNavigation({
 
   return (
     <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex flex-wrap space-x-4 sm:space-x-8">
+      {/* Horizontal scroll instead of wrapping: five tabs wrapped into two
+          cramped rows on small phones. min-h keeps targets ~44px. */}
+      <nav className="-mb-px flex overflow-x-auto space-x-4 sm:space-x-8" style={{ scrollbarWidth: 'none' }}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+            className={`py-3 px-2 min-h-[44px] border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.id
                 ? 'border-scout-blue text-scout-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

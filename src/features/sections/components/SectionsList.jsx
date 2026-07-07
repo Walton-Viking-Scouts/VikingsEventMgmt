@@ -8,6 +8,7 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
 import { groupContactInfo, isNotPhotoConsentYes } from '../../../shared/utils/contactGroups.js';
+import { getComprehensiveMemberData as extractMemberData, csvCell, downloadCSV } from '../../../shared/utils/memberDataExtractor.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 import { resolveSectionName } from '../../../shared/utils/memberUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
@@ -108,102 +109,19 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     loadMembers();
   }, [sections]);
 
-  // Use shared groupContactInfo utility
-
-  // Extract comprehensive member data (same as AttendanceView)
+  // Shared extractor, with local additions: identity/photo fields for the
+  // avatar + photo-consent UI, age computed from date_of_birth, and consents
+  // merged from both permission groups.
   const getComprehensiveMemberData = (member) => {
     const contactGroups = groupContactInfo(member);
-    
-    // Helper to get field from any group
-    const _getField = (groupNames, fieldNames) => {
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) return group[fieldName];
-          }
-        }
-      }
-      return '';
-    };
-
-    // Helper to combine multiple fields
-    const combineFields = (groupNames, fieldNames, separator = ', ') => {
-      const values = [];
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) values.push(group[fieldName]);
-          }
-        }
-      }
-      return values.join(separator);
-    };
-
     return {
-      // Basic info
-      name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
+      ...extractMemberData(member),
       firstname: member.firstname || member.first_name || '',
       lastname: member.lastname || member.last_name || '',
       scoutid: member.scoutid,
       photo_guid: member.photo_guid,
       person_type: member.person_type,
-      section: resolveSectionName(member),
-      patrol: member.patrol || '',
       age: calculateAge(member.date_of_birth),
-      
-      // Primary Contacts (1 and 2)
-      primary_contacts: (() => {
-        const contacts = [];
-        
-        // Primary Contact 1
-        const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
-        const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
-        const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
-        
-        if (pc1_name || pc1_phone || pc1_email) {
-          contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
-        }
-        
-        // Primary Contact 2
-        const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
-        const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
-        const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
-        
-        if (pc2_name || pc2_phone || pc2_email) {
-          contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
-        }
-        
-        return contacts;
-      })(),
-      
-      // Emergency Contacts
-      emergency_contacts: (() => {
-        const contacts = [];
-        
-        // Emergency Contact
-        const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
-        const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
-        
-        if (ec_name || ec_phone) {
-          contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
-        }
-        
-        return contacts;
-      })(),
-      
-      // Essential Information (comprehensive approach)
-      essential_information: contactGroups.essential_information || {},
-      allergies: contactGroups.essential_information?.allergies || '',
-      medical_details: contactGroups.essential_information?.medical_details || '',
-      dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
-      tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
-      swimmer: contactGroups.essential_information?.swimmer || '',
-      other_useful_information: contactGroups.essential_information?.other_useful_information || '',
-      confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
-      
-      // Consents - merge both consents and permissions groups to avoid data loss
       consents: {
         ...(contactGroups.permissions || {}),
         ...(contactGroups.consents || {}),
@@ -284,7 +202,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
 
       const headers = [...baseHeaders, ...consentHeaders];
 
-      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csv = csvCell;
       const csvRows = [
         headers.map(csv).join(','),
         ...members.map((member) => {
@@ -313,24 +231,11 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
         }),
       ];
 
-      const csvContent = '\uFEFF' + csvRows.join('\n');
-      const blob = new globalThis.Blob([csvContent], {
-        type: 'text/csv;charset=utf-8;',
-      });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      
       const sectionNames = sections.map(s => s.sectionname).join('_');
       const safeSectionNames = sectionNames.replace(/[^a-zA-Z0-9]/g, '_');
       const dateStr = new Date().toISOString().split('T')[0];
-      
-      link.setAttribute('download', `sections_members_${safeSectionNames}_${dateStr}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+
+      downloadCSV(csvRows, `sections_members_${safeSectionNames}_${dateStr}.csv`);
       
       notifySuccess(`Exported ${members.length} member records`);
     } catch (error) {
