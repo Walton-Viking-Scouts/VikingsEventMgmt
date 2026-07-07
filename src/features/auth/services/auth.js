@@ -183,7 +183,6 @@ export function setToken(token) {
  */
 export function clearToken() {
   localStorage.removeItem('access_token');
-  localStorage.removeItem('token_invalid');
   localStorage.removeItem('token_expired');
   localStorage.removeItem('token_expires_at');
   
@@ -262,14 +261,6 @@ export function isAuthenticated() {
     return false;
   }
   
-  // Check if we've previously determined this token is invalid
-  const tokenInvalid = localStorage.getItem('token_invalid');
-  if (tokenInvalid === 'true') {
-    // Token was marked as invalid, but don't clear it immediately
-    // Let the auth flow decide when to clear it
-    return false;
-  }
-  
   return true;
 }
 
@@ -287,7 +278,6 @@ export function isAuthenticated() {
  * // API response validation
  * const handleApiResponse = (response) => {
  *   if (!isTokenValid(response)) {
- *     localStorage.setItem('token_invalid', 'true');
  *     notifyError('Session expired. Please log in again.');
  *     handleTokenExpiration();
  *     return;
@@ -330,7 +320,6 @@ export function handleTokenExpiration() {
   // DON'T clear offline cached data when token expires
   // The offline data should remain available for offline access
   // Only clear session-specific data
-  localStorage.removeItem('token_invalid');
     
   // Instead of reloading, we'll let React handle the state change
   // The useAuth hook will detect the token removal and update accordingly
@@ -595,9 +584,9 @@ export async function validateToken() {
     }
 
     // Check if OSM API access is blocked
-    if (sessionStorage.getItem('osm_blocked') === 'true') {
+    if (localStorage.getItem('osm_blocked') === 'true') {
       logger.error('Application is blocked - cannot validate token', { 
-        blockedStatus: sessionStorage.getItem('osm_blocked'), 
+        blockedStatus: localStorage.getItem('osm_blocked'), 
       }, LOG_CATEGORIES.AUTH);
       return false;
     }
@@ -606,7 +595,6 @@ export async function validateToken() {
     // Real validation happens when actual API calls are made
     
     // Clear any invalid token flag since we're assuming the token is good
-    localStorage.removeItem('token_invalid');
     localStorage.removeItem('token_expired');
     
     return true;
@@ -717,6 +705,7 @@ export async function logout() {
         localStorage.removeItem(key);
       }
     });
+    sessionStorage.removeItem('viking_demo_mode');
   }
 
   try {
@@ -742,7 +731,7 @@ export async function logout() {
 
 // Check for blocked status
 export function isBlocked() {
-  return sessionStorage.getItem('osm_blocked') === 'true';
+  return localStorage.getItem('osm_blocked') === 'true';
 }
 
 export default {

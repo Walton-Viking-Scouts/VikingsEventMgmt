@@ -3,7 +3,7 @@
 
 import databaseService from '../services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
-import { loadAllAttendanceFromDatabase } from './attendanceHelpers_new.js';
+import { loadAllAttendanceFromDatabase } from './attendanceDataLoader.js';
 
 /**
  * Fetches events for all sections from IndexedDB only

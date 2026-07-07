@@ -18,9 +18,6 @@ const YoungLeadersPage = lazyWithRetry(() => import('../features/young-leaders/c
 const EventsRouter = lazyWithRetry(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
 const DataClearPage = lazyWithRetry(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
 
-// Import route guards (keep synchronous for security)
-import { RouteGuard } from '../shared/components/guards';
-
 // Internal component that uses auth and notifications
 function AppContent() {
   const {
@@ -43,21 +40,36 @@ function AppContent() {
     return <LoadingScreen message="Checking authentication..." />;
   }
 
+  /**
+   * Header refresh: runs the SAME full sequence as the dashboard refresh and
+   * post-login load. It previously refreshed reference data only, so a user
+   * who hit it saw "refreshed" while events and attendance stayed stale.
+   *
+   * @returns {Promise<void>}
+   */
   const handleRefresh = async () => {
-    if (isOfflineMode) {
-      return;
-    }
     try {
+      const { notifyWarning } = await import('../shared/utils/notifications.js');
+      if (isOfflineMode) {
+        notifyWarning('Offline - showing cached data. Reconnect to refresh.');
+        return;
+      }
       const { getToken } = await import('../shared/services/auth/tokenService.js');
-      const { loadInitialReferenceData } = await import('../shared/services/referenceData/referenceDataService.js');
+      const { default: dataLoadingService } = await import('../shared/services/data/dataLoadingService.js');
 
       const token = getToken();
       if (token) {
-        await loadInitialReferenceData(token);
+        await dataLoadingService.loadAllDataAfterAuth(token);
+      } else {
+        notifyWarning('Sign in to OSM to refresh data.');
       }
     } catch (error) {
       const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
       logger.error('Refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
+      const { notifyError } = await import('../shared/utils/notifications.js').catch(() => ({ notifyError: null }));
+      if (notifyError) {
+        notifyError(`Refresh failed: ${error.message}`);
+      }
     }
   };
 
@@ -77,54 +89,12 @@ function AppContent() {
           <Suspense fallback={<LoadingScreen message="Loading application..." />}>
             <Routes>
               {/* Main application sections */}
-              <Route 
-                path="/movers" 
-                element={
-                  <RouteGuard authLevel="none">
-                    <MoversPage />
-                  </RouteGuard>
-                } 
-              />
-              <Route
-                path="/sections"
-                element={
-                  <RouteGuard authLevel="none">
-                    <SectionsPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/photo-consent"
-                element={
-                  <RouteGuard authLevel="none">
-                    <PhotoConsentPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/young-leaders"
-                element={
-                  <RouteGuard authLevel="none">
-                    <YoungLeadersPage />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/events/*"
-                element={
-                  <RouteGuard authLevel="none">
-                    <EventsRouter />
-                  </RouteGuard>
-                }
-              />
-              <Route
-                path="/clear"
-                element={
-                  <RouteGuard authLevel="none">
-                    <DataClearPage />
-                  </RouteGuard>
-                }
-              />
+              <Route path="/movers" element={<MoversPage />} />
+              <Route path="/sections" element={<SectionsPage />} />
+              <Route path="/photo-consent" element={<PhotoConsentPage />} />
+              <Route path="/young-leaders" element={<YoungLeadersPage />} />
+              <Route path="/events/*" element={<EventsRouter />} />
+              <Route path="/clear" element={<DataClearPage />} />
 
               {/* Legacy route redirects */}
               <Route path="/dashboard" element={<Navigate to="/events" replace />} />

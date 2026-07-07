@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 // Removed API imports - UI only reads from IndexedDB
 import { getToken } from '../../../shared/services/auth/tokenService.js';
-import { generateOAuthUrl } from '../../auth/services/auth.js';
-import { loginNative } from '../../auth/services/nativeOAuth.js';
-import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { useAuth } from '../../auth/hooks/index.js';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import EventCard from './EventCard.jsx';
-import { SectionsList } from '../../sections/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { Alert, RefreshButton } from '../../../shared/components/ui/index.js';
-import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import {
@@ -25,75 +21,17 @@ import { notifyError, notifySuccess, notifyLoading, dismissToast } from '../../.
 import { formatLastRefresh } from '../../../shared/utils/timeFormatting.js';
 import { dedupAttendanceMapForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 
-function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
+function EventDashboard() {
+  const navigate = useNavigate();
   const { lastSyncTime } = useAuth(); // Get shared lastSyncTime from auth context
-  const [sections, setSections] = useState([]);
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Debug: Expose sections.length globally for console debugging
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      window.debugSectionsLength = sections.length;
-      window.debugEventCardsLength = eventCards.length;
-      window.debugLoading = loading;
-    }
-  }, [sections.length, eventCards.length, loading]);
-
-  // Override loading state for design mode compatibility
-  const [forceLoaded, setForceLoaded] = useState(false);
-
-  useEffect(() => {
-    // Only bypass loading spinner in development/design mode
-    if (import.meta.env.DEV) {
-      setForceLoaded(true);
-    }
-  }, []);
-
-  const isActuallyLoading = import.meta.env.DEV ? (loading && !forceLoaded) : loading;
-  const [loadingAttendees, setLoadingAttendees] = useState(null); // Track which event card is loading attendees
-  const [loadingSection, setLoadingSection] = useState(null); // Track which section is loading members
-
-  // Simple view toggle state
-  const [currentView] = useState('events'); // 'events' or 'sections'
-
-  // Section selection state for the Sections card
-  const [selectedSections, setSelectedSections] = useState([]);
-
-  // Handle section selection for the Sections card
-  const handleSectionToggleForCard = (section) => {
-    setSelectedSections((prev) => {
-      const isSelected = prev.some((s) => s.sectionid === section.sectionid);
-      if (isSelected) {
-        return prev.filter((s) => s.sectionid !== section.sectionid);
-      } else {
-        return [...prev, section];
-      }
-    });
-  };
-
-  // Modal state for confirmation dialogs
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmModalData, setConfirmModalData] = useState({
-    title: '',
-    message: '',
-    onConfirm: null,
-    onCancel: null,
-    confirmText: 'Confirm',
-    cancelText: 'Cancel',
-  });
-
-  // Component mount tracking and timeout management
-  const isMountedRef = useRef(false);
-  const backgroundSyncTimeoutIdRef = useRef(null);
-
-
   useEffect(() => {
     let mounted = true;
-    isMountedRef.current = true;
 
     // Unified data loading function - handles initial load from cache
     const loadEventCards = async () => {
@@ -101,11 +39,12 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
       // Initialize demo mode if enabled BEFORE loading sections
       try {
-        const { isDemoMode, initializeDemoMode } = await import(
+        const { isDemoMode, initializeDemoMode, seedDemoStorage } = await import(
           '../../../config/demoMode.js'
         );
         if (isDemoMode()) {
           await initializeDemoMode();
+          await seedDemoStorage(databaseService);
         }
       } catch (demoError) {
         logger.warn('Demo mode initialization failed', {
@@ -124,8 +63,6 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         }, LOG_CATEGORIES.COMPONENT);
 
         if (sectionsData.length > 0 && mounted) {
-          setSections(sectionsData);
-
           // Build event cards from cache
           const cards = await buildEventCards(sectionsData);
 
@@ -135,14 +72,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
 
           if (mounted) {
             setEventCards(cards);
-
-            // Keep loading state true briefly to show indicator with cached data
-            // This ensures users see loading feedback even when data loads quickly from cache
-            setTimeout(() => {
-              if (mounted) {
-                setLoading(false);
-              }
-            }, 300);
+            setLoading(false);
 
             const lastSyncRecord = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync');
             const lastSyncEpoch = lastSyncRecord?.timestamp ?? null;
@@ -168,155 +98,21 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         }, LOG_CATEGORIES.COMPONENT);
         if (mounted) {
           setLoading(false);
+          setError(`Failed to load events from local storage: ${error.message}`);
         }
       }
     };
 
 
 
-    // Initialize: load initial data
-    const initialize = async () => {
-      await loadEventCards(false); // Initial load
-    };
-
-    initialize();
-
+    loadEventCards();
 
     return () => {
       mounted = false;
-      isMountedRef.current = false;
-      if (backgroundSyncTimeoutIdRef.current) {
-        clearTimeout(backgroundSyncTimeoutIdRef.current);
-      }
     };
   }, [lastSyncTime]); // Re-run when lastSyncTime changes after data load
 
 
-
-  // Background initialization - doesn't affect UI loading state
-  const loadInitialDataInBackground = async () => {
-    try {
-      setError(null); // Clear any previous errors, but don't affect loading state
-
-      // Initialize demo mode if enabled (moved from main.jsx)
-      const { isDemoMode, initializeDemoMode } = await import(
-        '../../../config/demoMode.js'
-      );
-      if (isDemoMode()) {
-        await initializeDemoMode();
-      } else {
-        // Clean up any demo cache data when not in demo mode
-        const { cleanupDemoCache } = await import('../../../shared/utils/cacheCleanup.js');
-        cleanupDemoCache();
-      }
-
-      // Check if we have offline data
-      const hasOfflineData = await databaseService.hasOfflineData();
-
-      const bgSyncRecord = await IndexedDBService.get(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync');
-      const lastSyncEpoch = bgSyncRecord?.timestamp ?? null;
-      const lastSyncMs = Number(lastSyncEpoch);
-      const isDataFresh =
-        lastSyncEpoch &&
-        Number.isFinite(lastSyncMs) &&
-        Date.now() - lastSyncMs < 30 * 60 * 1000; // 30 minutes
-
-      if (hasOfflineData && isDataFresh) {
-        // Data is fresh - no need to sync
-        if (import.meta.env.DEV) {
-          logger.debug('Background check: Data is fresh, no sync needed', {}, LOG_CATEGORIES.COMPONENT);
-        }
-        return;
-      } else if (hasOfflineData && !isDataFresh) {
-        // Stale cached data - auto-sync in background
-        if (import.meta.env.DEV) {
-          logger.debug('Background check: Data is stale, will sync in background', {}, LOG_CATEGORIES.COMPONENT);
-        }
-
-        // Auto-sync in background only if auth hasn't failed
-        backgroundSyncTimeoutIdRef.current = setTimeout(async () => {
-          try {
-            if (!isMountedRef.current) return;
-
-            if (authHandler.hasAuthFailed()) {
-              return;
-            }
-
-            const backgroundToken = getToken();
-            if (!backgroundToken) {
-              return;
-            }
-
-            // No automatic sync - user must manually refresh
-          } catch (error) {
-            // Don't show error - this is background sync
-            if (import.meta.env.DEV) {
-              logger.debug(
-                'Background sync failed',
-                { error: error.message },
-                LOG_CATEGORIES.COMPONENT,
-              );
-            }
-          }
-        }, 1000);
-      } else {
-        // No cached data - attempt sync but don't affect loading state if cache load already succeeded
-        if (import.meta.env.DEV) {
-          logger.debug(
-            'Background check: No cached data found - attempting sync',
-            {},
-            LOG_CATEGORIES.COMPONENT,
-          );
-        }
-
-        if (authHandler.hasAuthFailed()) {
-          if (eventCards.length === 0) {
-            // Only set error if we have no cached data to show
-            setError(
-              'Authentication expired and no cached data available. Please reconnect to OSM.',
-            );
-          }
-          return;
-        }
-
-        const syncToken = getToken();
-        if (!syncToken) {
-          if (import.meta.env.DEV) {
-            logger.debug(
-              'Background sync skipped - no token available',
-              {},
-              LOG_CATEGORIES.COMPONENT,
-            );
-          }
-          return;
-        }
-
-        // No automatic sync - user must manually refresh
-      }
-    } catch (err) {
-      logger.error(
-        'Error in background initialization',
-        { error: err },
-        LOG_CATEGORIES.COMPONENT,
-      );
-
-      // Only set error if we have no cached data to show
-      if (eventCards.length === 0) {
-        setError(err.message);
-      }
-    }
-  };
-
-  // Manual refresh function - runs in background without affecting UI
-  const loadInitialData = async () => {
-    // Don't change loading state - keep showing cached data during refresh
-    try {
-      await loadInitialDataInBackground();
-    } catch (error) {
-      logger.error('Manual refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
-      // Don't affect UI on error - just log it
-    }
-  };
 
   // Manual refresh handler — full data refresh, same sequence as post-login
   // load. Refreshes reference data (terms, roles, members), events,
@@ -343,21 +139,30 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       const result = await dataLoadingService.loadAllDataAfterAuth(token);
 
       const sectionsData = await databaseService.getSections();
-      setSections(sectionsData);
       const cards = await buildEventCards(sectionsData);
       setEventCards(cards);
-      setLastSync(new Date());
 
-      let message = 'Data refreshed successfully';
-      const summary = result?.results?.attendance?.details;
-      if (summary) {
-        message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
-      }
       if (syncingToastId) {
         dismissToast(syncingToastId);
         syncingToastId = null;
       }
-      notifySuccess(message);
+
+      // loadAllDataAfterAuth never throws - it reports per-category errors.
+      // Only claim success (and stamp the sync time) on a clean run.
+      if (result?.success && !result?.hasErrors) {
+        setLastSync(new Date());
+        let message = 'Data refreshed successfully';
+        const summary = result?.results?.attendance?.details;
+        if (summary) {
+          message = `Refreshed ${summary.syncedEvents}/${summary.totalEvents} events (+ members + flexi)`;
+        }
+        notifySuccess(message);
+      } else {
+        const failedCategories = [...new Set((result?.errors || []).map(e => e.category).filter(Boolean))];
+        notifyError(failedCategories.length > 0
+          ? `Refresh incomplete - failed: ${failedCategories.join(', ')}`
+          : 'Refresh failed - showing cached data');
+      }
 
     } catch (error) {
       logger.error('Manual refresh failed', {
@@ -369,35 +174,11 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
         syncingToastId = null;
       }
       notifyError(`Refresh failed: ${error.message}`);
-      setError(`Refresh failed: ${error.message}`);
+      if (eventCards.length === 0) {
+        setError(`Refresh failed: ${error.message}`);
+      }
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  // Format last refresh time following SimpleAttendanceViewer pattern
-
-
-
-  // Load member data proactively in background
-  const _loadMemberDataInBackground = async (sectionsData, token) => {
-    try {
-      if (!token || authHandler.hasAuthFailed()) {
-        return;
-      }
-
-      // Members are loaded by Reference Data Service - no need to call API here
-      // Data is already available in IndexedDB
-    } catch (error) {
-      // Don't show error to user - this is background loading
-      logger.warn(
-        'Background member loading failed',
-        {
-          error: error.message,
-          sectionCount: sectionsData.length,
-        },
-        LOG_CATEGORIES.COMPONENT,
-      );
     }
   };
 
@@ -503,183 +284,23 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
     return cards;
   };
 
-  const _handleSectionSelect = async (section) => {
-    try {
-      // Set loading state for this specific section
-      setLoadingSection(section.sectionid);
-
-      // Try to load cached members first
-      let members = [];
-      try {
-        members = await databaseService.getMembers([section.sectionid]);
-      } catch (cacheError) {
-        // Ignore cache errors - will fallback to empty array
-      }
-      if (members.length > 0) {
-        onNavigateToMembers(section, members);
-      } else {
-        // No cached data - ask user if they want to fetch from OSM
-        setConfirmModalData({
-          title: 'Fetch Member Data',
-          message: `No member data found for "${section.sectionname}".\n\nWould you like to connect to OSM to fetch member data?`,
-          onConfirm: async () => {
-            setShowConfirmModal(false);
-            // Redirect to OSM OAuth since we know the token is expired/invalid
-            // (web: location.href; native iOS: in-app browser + deep link)
-            await loginNative(generateOAuthUrl(true));
-          },
-          onCancel: () => {
-            setShowConfirmModal(false);
-            setLoadingSection(null);
-            // Handle cancel - show empty members screen for this specific section
-            onNavigateToMembers(section, []);
-          },
-          confirmText: 'Fetch Data',
-          cancelText: 'Use Empty',
-        });
-        setShowConfirmModal(true);
-
-        // The modal will handle the user's response
-        return;
-      }
-    } catch (err) {
-      logger.error(
-        'Error loading members for section',
-        {
-          error: err,
-          sectionId: section.sectionid,
-          sectionName: section.sectionname,
-        },
-        LOG_CATEGORIES.COMPONENT,
-      );
-      setError(`Failed to load members: ${err.message}`);
-
-      // Fallback to empty members screen
-      onNavigateToMembers(section, []);
-    } finally {
-      // Clear loading state
-      setLoadingSection(null);
-    }
-  };
-
-  const handleViewAttendees = async (eventCard) => {
-    try {
-      // Set loading state for this specific event card
-      setLoadingAttendees(eventCard.id);
-
-      // Extract all unique section IDs from the events in this card
-      const sectionIds = Array.from(
-        new Set(eventCard.events.map((event) => event.sectionid)),
-      );
-
-      // Stage 3: On-demand member loading with guaranteed data
-      let members = [];
-      try {
-        // First, try to load from cache
-        members = await databaseService.getMembers(sectionIds);
-
-        if (members.length === 0) {
-          logger.info(
-            'No cached members found - fetching on-demand',
-            {
-              sectionIds,
-              eventName: eventCard.name,
-            },
-            LOG_CATEGORIES.COMPONENT,
-          );
-
-          // No cached members - fetch immediately
-          const currentToken = getToken();
-          if (!currentToken) {
-            await loginNative(generateOAuthUrl(true));
-            return;
-          }
-
-          // Find the corresponding section objects for these IDs
-          const involvedSections = sections.filter((section) =>
-            sectionIds.includes(section.sectionid),
-          );
-
-          try {
-            // Get members from IndexedDB instead of API call
-            const sectionIds = involvedSections.map(s => s.sectionid);
-            members = await databaseService.getMembers(sectionIds);
-            logger.info(
-              'Successfully loaded members from IndexedDB',
-              {
-                memberCount: members.length,
-                sectionCount: involvedSections.length,
-              },
-              LOG_CATEGORIES.COMPONENT,
-            );
-          } catch (apiError) {
-            // Check if it's an authentication error
-            if (
-              apiError &&
-              typeof apiError === 'object' &&
-              (apiError.status === 401 ||
-                apiError.status === 403 ||
-                apiError.message?.includes('Invalid access token') ||
-                apiError.message?.includes('Token expired') ||
-                apiError.message?.includes('Unauthorized'))
-            ) {
-              await loginNative(generateOAuthUrl(true));
-              return;
-            }
-            throw apiError; // Re-throw non-auth errors
-          }
-        } else {
-          logger.info(
-            'Using cached members for attendance view',
-            {
-              memberCount: members.length,
-              sectionIds,
-            },
-            LOG_CATEGORIES.COMPONENT,
-          );
-        }
-      } catch (cacheErr) {
-        logger.warn(
-          'Error accessing member cache',
-          { error: cacheErr.message },
-          LOG_CATEGORIES.COMPONENT,
-        );
-        // Continue with empty members array - better than failing completely
-      }
-
-      // Navigate to attendance view with original events (preserves termid integrity)
-      const eventsToNavigate = eventCard.originalEvents || eventCard.events;
-      onNavigateToAttendance(eventsToNavigate, members);
-    } catch (err) {
-      logger.error(
-        'Error loading members for attendance view',
-        {
-          error: err,
-          eventName: eventCard.name,
-          eventCount: eventCard.events.length,
-        },
-        LOG_CATEGORIES.COMPONENT,
-      );
-      setError(`Failed to load members: ${err.message}`);
-    } finally {
-      // Clear loading state
-      setLoadingAttendees(null);
-    }
+  const handleViewAttendees = (eventCard) => {
+    navigate(`/events/${encodeURIComponent(eventCard.name)}/attendance`);
   };
 
   // Only show full-screen loading if there's no cached data to display
-  if (isActuallyLoading && (!eventCards || eventCards.length === 0)) {
+  if (loading && (!eventCards || eventCards.length === 0)) {
     return <LoadingScreen message="Loading dashboard..." />;
   }
 
-  if (error) {
+  if (error && (!eventCards || eventCards.length === 0)) {
     return (
       <Alert variant="error" className="m-4">
         <Alert.Title>Error Loading Dashboard</Alert.Title>
         <Alert.Description>{error}</Alert.Description>
         <Alert.Actions>
           <button
-            onClick={loadInitialData}
+            onClick={handleManualRefresh}
             type="button"
             className="inline-flex items-center justify-center rounded-md font-medium px-4 py-2 text-base bg-scout-blue text-white hover:bg-scout-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-scout-blue-light active:bg-scout-blue-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -693,7 +314,7 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Loading overlay when refreshing cached data */}
-      {(isActuallyLoading || refreshing) && eventCards && eventCards.length > 0 && (
+      {(loading || refreshing) && eventCards && eventCards.length > 0 && (
         <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 border border-scout-blue-light">
           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-scout-blue"></div>
           <span className="text-sm text-gray-700">Refreshing data...</span>
@@ -703,113 +324,79 @@ function EventDashboard({ onNavigateToMembers, onNavigateToAttendance }) {
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
       >
-        {/* Sections Card */}
-        {currentView === 'sections' && (
-          <div className="mb-8" id="sections-panel" data-testid="sections-list">
-            <SectionsList
-              sections={sections}
-              selectedSections={selectedSections}
-              onSectionToggle={handleSectionToggleForCard}
-              loadingSection={loadingSection}
-              allSections={sections}
-            />
-          </div>
-        )}
-
         {/* Events Card */}
-        {currentView === 'events' && (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm" id="events-panel">
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2
-                    className="text-lg font-semibold text-gray-900 m-0"
-                  >
-                    Upcoming Events{' '}
-                    {eventCards.length > 0 && `(${eventCards.length})`}
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Event attendance data with manual refresh control
-                  </p>
-                </div>
-                <RefreshButton
-                  onRefresh={handleManualRefresh}
-                  loading={refreshing}
-                  size="default"
-                />
-              </div>
-              <div className="mt-2 text-xs text-gray-500">
-                Last refreshed: {formatLastRefresh(lastSync)}
-                {eventCards.length > 0 && (
-                  <span> • {eventCards.length} events</span>
-                )}
-              </div>
-            </div>
-            <div className="p-4">
-              {eventCards.length > 0 ? (
-                <div
-                  className="grid grid-cols-1 min-[830px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm" id="events-panel">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2
+                  className="text-lg font-semibold text-gray-900 m-0"
                 >
-                  {eventCards.map((card) => (
-                    <EventCard
-                      key={card.id}
-                      eventCard={card}
-                      onViewAttendees={handleViewAttendees}
-                      loading={loadingAttendees === card.id}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-500 mb-4">
-                    <svg
-                      className="mx-auto h-12 w-12 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
-                      />
-                    </svg>
-                  </div>
-                  <h3
-                    className="text-lg font-semibold text-gray-900 mb-2"
-                  >
-                    No Upcoming Events
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {!lastSync
-                      ? 'Click "Sign in to OSM" in the header to retrieve event data.'
-                      : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
-                  </p>
-                </div>
+                    Upcoming Events{' '}
+                  {eventCards.length > 0 && `(${eventCards.length})`}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                    Event attendance data with manual refresh control
+                </p>
+              </div>
+              <RefreshButton
+                onRefresh={handleManualRefresh}
+                loading={refreshing}
+                size="default"
+              />
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+                Last refreshed: {formatLastRefresh(lastSync)}
+              {eventCards.length > 0 && (
+                <span> • {eventCards.length} events</span>
               )}
             </div>
           </div>
-        )}
+          <div className="p-4">
+            {eventCards.length > 0 ? (
+              <div
+                className="grid grid-cols-1 min-[830px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+              >
+                {eventCards.map((card) => (
+                  <EventCard
+                    key={card.id}
+                    eventCard={card}
+                    onViewAttendees={handleViewAttendees}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-500 mb-4">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10a2 2 0 002 2h4a2 2 0 002-2V11M9 7h6"
+                    />
+                  </svg>
+                </div>
+                <h3
+                  className="text-lg font-semibold text-gray-900 mb-2"
+                >
+                    No Upcoming Events
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {!lastSync
+                    ? 'Click "Sign in to OSM" in the header to retrieve event data.'
+                    : 'No events found for the next week or events from the past week. Click "Sign in to OSM" in the header to get the latest data.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        title={confirmModalData.title}
-        message={confirmModalData.message}
-        confirmText={confirmModalData.confirmText}
-        cancelText={confirmModalData.cancelText}
-        onConfirm={confirmModalData.onConfirm}
-        onCancel={
-          confirmModalData.onCancel ||
-          (() => {
-            setShowConfirmModal(false);
-            setLoadingSection(null);
-          })
-        }
-      />
-
     </div>
   );
 }

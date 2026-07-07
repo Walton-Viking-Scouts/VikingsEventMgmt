@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import MemberAvatar from './MemberAvatar.jsx';
 import { isMobileLayout } from '../../utils/platform.js';
 import { groupContactInfo } from '../../utils/contactGroups.js';
 import { calculateAge } from '../../utils/ageUtils.js';
@@ -126,12 +127,7 @@ function MemberDetailModal({ member, isOpen, onClose }) {
         >
           <div className="flex items-center space-x-4">
             <div className="flex-shrink-0">
-              <div
-                className="w-12 h-12 rounded-full bg-scout-purple flex items-center justify-center text-white font-semibold"
-              >
-                {member.firstname?.[0]}
-                {member.lastname?.[0]}
-              </div>
+              <MemberAvatar member={member} size="md" />
             </div>
             <div>
               <h2

@@ -1,5 +1,7 @@
 // Simple Authentication Error Handler
-// Minimal solution to prevent multiple 403 errors and provide clear UX
+// Circuit breaker for authentication failures.
+// Trips on 401 (token invalid/expired) only. 403 is a per-endpoint permission
+// problem — one section lacking flexi access must not kill all API traffic.
 
 class SimpleAuthHandler {
   constructor() {
@@ -13,11 +15,10 @@ class SimpleAuthHandler {
    * @returns {boolean} - true if auth is OK, false if auth failed
    */
   handleAPIResponse(response) {
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       if (!this.hasShownAuthError) {
         this.hasShownAuthError = true;
-        // Authentication failed - blocked further API calls this session
-        
+
         // Notify components about auth failure
         if (this.onAuthError) {
           this.onAuthError();
@@ -25,7 +26,7 @@ class SimpleAuthHandler {
       }
       return false; // Signal auth failure
     }
-    return true; // Auth OK
+    return true; // Auth OK (403 handled per-endpoint as a permission error)
   }
 
   /**
@@ -33,18 +34,13 @@ class SimpleAuthHandler {
    * @returns {boolean} - true if safe to make API calls
    */
   shouldMakeAPICall() {
-    if (!this.hasShownAuthError) {
-      return true;
-    }
-    // Skipping API call - authentication already failed this session
-    return false;
+    return !this.hasShownAuthError;
   }
 
   /**
    * Reset auth error state (call when user gets new token or reconnects)
    */
   reset() {
-    // Resetting auth error state
     this.hasShownAuthError = false;
   }
 

@@ -7,8 +7,6 @@ export {
   BACKEND_URL,
   TokenExpiredError,
   validateTokenBeforeAPICall,
-  apiQueue,
-  getAPIQueueStats,
   logRateLimitInfo,
   handleAPIResponseWithRateLimit,
   isOnline,
@@ -31,8 +29,6 @@ export {
 export {
   getEvents,
   getEventAttendance,
-  getEventSummary,
-  getEventSharingStatus,
   getSharedEventAttendance,
 } from './events.js';
 

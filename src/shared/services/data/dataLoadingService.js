@@ -7,20 +7,14 @@
  * Flow: Core Reference → Events → Attendance → FlexiRecord Data
  *
  * @module dataLoadingService
- * @version 1.1.0
- * @since 1.1.0 - Split FlexiRecord loading to run after events/attendance
- * @author Vikings Event Management Team
  */
 
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
-import databaseService from '../storage/database.js';
 
 class DataLoadingService {
   constructor() {
     this.isLoadingAll = false;
-    this.isRefreshing = false;
     this.loadAllPromise = null;
-    this.refreshPromise = null;
   }
 
   /**
@@ -319,221 +313,13 @@ class DataLoadingService {
   }
 
   /**
-   * Refreshes events and attendance data (for manual refresh)
-   * Does not reload reference data
-   *
-   * @param {string} token - OSM authentication token
-   * @returns {Promise<Object>} Results object with refresh results
-   */
-  async refreshEventData(token) {
-    if (this.isRefreshing) {
-      logger.debug('Event data refresh already in progress', {}, LOG_CATEGORIES.DATA_SERVICE);
-      if (this.refreshPromise) {
-        return await this.refreshPromise;
-      }
-    }
-
-    this.refreshPromise = this._doRefreshEventData(token);
-    return await this.refreshPromise;
-  }
-
-  async _doRefreshEventData(token) {
-    const startTime = performance.now();
-
-    try {
-      this.isRefreshing = true;
-      logger.info('Starting event data refresh', {}, LOG_CATEGORIES.DATA_SERVICE);
-
-      if (!token) {
-        logger.warn('No token provided for event data refresh', {}, LOG_CATEGORIES.DATA_SERVICE);
-        return {
-          success: false,
-          hasErrors: true,
-          errors: ['No authentication token available'],
-          results: {
-            events: null,
-            attendance: null,
-          },
-        };
-      }
-
-      const results = {
-        events: null,
-        attendance: null,
-      };
-      const errors = [];
-      let successCount = 0;
-
-      // Get cached sections for events loading
-      let sections = [];
-      try {
-        sections = await databaseService.getSections();
-        logger.debug('Retrieved cached sections for refresh', {
-          sectionCount: sections.length,
-        }, LOG_CATEGORIES.DATA_SERVICE);
-      } catch (sectionsError) {
-        logger.warn('Could not retrieve cached sections', {
-          error: sectionsError.message,
-        }, LOG_CATEGORIES.DATA_SERVICE);
-        errors.push({
-          type: 'sections',
-          category: 'cache',
-          message: 'Could not retrieve cached sections for refresh',
-          originalError: sectionsError.message,
-        });
-      }
-
-      // Refresh events
-      if (sections.length > 0) {
-        try {
-          logger.debug('Refreshing events', {
-            sectionCount: sections.length,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-
-          const { loadEventsForSections } = await import('./eventsService.js');
-          results.events = await loadEventsForSections(sections, token);
-
-          if (results.events.success) {
-            successCount++;
-            logger.info('Events refreshed successfully', {
-              summary: results.events.summary,
-            }, LOG_CATEGORIES.DATA_SERVICE);
-          } else {
-            logger.warn('Events refresh had issues', {
-              summary: results.events.summary,
-            }, LOG_CATEGORIES.DATA_SERVICE);
-            errors.push(...results.events.errors.map(e => ({ ...e, category: 'events' })));
-          }
-        } catch (eventsError) {
-          logger.error('Failed to refresh events', {
-            error: eventsError.message,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-          errors.push({
-            type: 'events',
-            category: 'events',
-            message: eventsError.message,
-            originalError: eventsError.message,
-          });
-        }
-      }
-
-      // Refresh attendance
-      try {
-        logger.debug('Refreshing attendance data', {}, LOG_CATEGORIES.DATA_SERVICE);
-
-        const eventDataLoaderModule = await import('./eventDataLoader.js');
-        const eventDataLoader = eventDataLoaderModule.default;
-        results.attendance = await eventDataLoader.refreshAllEventAttendance();
-
-        if (results.attendance.success) {
-          successCount++;
-          logger.info('Attendance refreshed successfully', {
-            message: results.attendance.message,
-            details: results.attendance.details,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-        } else {
-          logger.warn('Attendance refresh failed', {
-            message: results.attendance.message,
-          }, LOG_CATEGORIES.DATA_SERVICE);
-          errors.push({
-            type: 'attendance',
-            category: 'attendance',
-            message: results.attendance.message,
-            originalError: results.attendance.message,
-          });
-        }
-      } catch (attendanceError) {
-        logger.error('Failed to refresh attendance', {
-          error: attendanceError.message,
-        }, LOG_CATEGORIES.DATA_SERVICE);
-        errors.push({
-          type: 'attendance',
-          category: 'attendance',
-          message: attendanceError.message,
-          originalError: attendanceError.message,
-        });
-      }
-
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      const hasErrors = errors.length > 0;
-      const isCompleteFailure = successCount === 0;
-
-      // Log refresh summary
-      if (isCompleteFailure) {
-        logger.error('Complete event data refresh failure', {
-          totalAttempts: 2,
-          successCount,
-          errorCount: errors.length,
-          duration: `${Math.round(duration)}ms`,
-        }, LOG_CATEGORIES.ERROR);
-      } else if (hasErrors) {
-        logger.warn('Partial event data refresh failure', {
-          totalAttempts: 2,
-          successCount,
-          errorCount: errors.length,
-          duration: `${Math.round(duration)}ms`,
-        }, LOG_CATEGORIES.DATA_SERVICE);
-      } else {
-        logger.info('Event data refresh completed successfully', {
-          totalAttempts: 2,
-          successCount,
-          duration: `${Math.round(duration)}ms`,
-        }, LOG_CATEGORIES.DATA_SERVICE);
-      }
-
-      return {
-        success: !isCompleteFailure,
-        hasErrors,
-        errors,
-        results,
-        summary: {
-          total: 2,
-          successful: successCount,
-          failed: errors.length,
-          duration,
-          categories: {
-            events: results.events?.success || false,
-            attendance: results.attendance?.success || false,
-          },
-        },
-      };
-
-    } catch (error) {
-      logger.error('Critical error during event data refresh', {
-        error: error.message,
-      }, LOG_CATEGORIES.ERROR);
-
-      return {
-        success: false,
-        hasErrors: true,
-        errors: [{
-          type: 'critical',
-          category: 'system',
-          message: error.message,
-          originalError: error.message,
-        }],
-        results: {
-          events: null,
-          attendance: null,
-        },
-      };
-    } finally {
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-    }
-  }
-
-  /**
    * Gets loading status for debugging
    * @returns {Object} Current loading state
    */
   getLoadingStatus() {
     return {
       isLoadingAll: this.isLoadingAll,
-      isRefreshing: this.isRefreshing,
       hasLoadAllPromise: !!this.loadAllPromise,
-      hasRefreshPromise: !!this.refreshPromise,
     };
   }
 }

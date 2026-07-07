@@ -120,7 +120,6 @@ function useAuthLogic() {
       tokenStored = true;
       broadcastAuthSync();
       localStorage.removeItem('token_expired');
-      localStorage.removeItem('token_invalid');
       setHasHandledExpiredToken(false);
       localStorage.removeItem('token_expiration_choice');
       if (tokenType) {
@@ -281,31 +280,32 @@ function useAuthLogic() {
         syncingToastId = null;
       }
 
-      if (allDataResults.success) {
+      if (allDataResults.success && !allDataResults.hasErrors) {
         logger.info('Comprehensive data load completed', {
           summary: allDataResults.summary,
         }, LOG_CATEGORIES.AUTH);
 
         notifySuccess('Data synced successfully');
+
+        // Only stamp the sync time when everything succeeded — stamping a
+        // partial failure makes stale attendance look freshly synced.
+        const syncTime = Date.now();
+        await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
+        setLastSyncTime(syncTime);
       } else {
         logger.warn('Comprehensive data load had issues', {
           summary: allDataResults.summary,
           hasErrors: allDataResults.hasErrors,
         }, LOG_CATEGORIES.AUTH);
-      }
 
-      const syncTime = Date.now();
-      await IndexedDBService.set(IndexedDBService.STORES.CACHE_DATA, 'viking_last_sync', { timestamp: syncTime });
-      if (import.meta.env.DEV) {
-        logger.debug('All data loaded - final sync time', {
-          syncTime,
-        }, LOG_CATEGORIES.AUTH);
-      }
-      setLastSyncTime(syncTime);
+        const failedCategories = [...new Set((allDataResults.errors || []).map(e => e.category).filter(Boolean))];
+        if (failedCategories.length > 0) {
+          notifyWarning(`Some data failed to sync: ${failedCategories.join(', ')}. Pull refresh to retry.`);
+        }
 
-      if (allDataResults.hasErrors && allDataResults.errors?.some(e => e.category === 'reference')) {
-        const referenceData = allDataResults?.results?.reference ?? allDataResults;
-        const userMessage = getLoadingResultMessage(referenceData);
+        const userMessage = allDataResults.errors?.some(e => e.category === 'reference')
+          ? getLoadingResultMessage(allDataResults?.results?.reference ?? allDataResults)
+          : null;
         if (userMessage) {
           notifyWarning(userMessage);
         }

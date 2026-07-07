@@ -93,3 +93,6 @@ docs/jsdoc-validation.json
 # Task files
 # tasks.json
 # tasks/ 
+
+# Playwright MCP browser session artifacts (may contain real member data)
+.playwright-mcp/

@@ -52,32 +52,38 @@ export async function loadInitialReferenceData(token) {
   const errors = [];
   let successCount = 0;
 
-  // Load terms data
-  try {
-    logger.debug('Loading terms data', {}, LOG_CATEGORIES.AUTH);
-    results.terms = await getTerms(token, false); // Use cache if available
+  // Terms, user roles, and startup data are independent — load them
+  // concurrently. The rate-limit queue paces actual network dispatch.
+  const [termsResult, userRolesResult, startupResult] = await Promise.allSettled([
+    getTerms(token, false),
+    getUserRoles(token),
+    getStartupData(token),
+  ]);
+
+  if (termsResult.status === 'fulfilled') {
+    results.terms = termsResult.value;
     successCount++;
     logger.info('Terms data loaded successfully', {
       sectionsCount: Object.keys(results.terms || {}).filter(k => !k.startsWith('_')).length,
     }, LOG_CATEGORIES.AUTH);
-  } catch (error) {
+  } else {
+    const error = termsResult.reason;
     const message = handleScoutError(error, 'loading terms data', {
-      showNotification: false, // Don't show notifications for background loading
+      showNotification: false,
       isWarning: true,
     });
     errors.push({ type: 'terms', message, originalError: error.message });
     logger.warn('Terms data loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
-  // Load user roles
-  try {
-    logger.debug('Loading user roles', {}, LOG_CATEGORIES.AUTH);
-    results.userRoles = await getUserRoles(token);
+  if (userRolesResult.status === 'fulfilled') {
+    results.userRoles = userRolesResult.value;
     successCount++;
     logger.info('User roles loaded successfully', {
       sectionsCount: results.userRoles?.length || 0,
     }, LOG_CATEGORIES.AUTH);
-  } catch (error) {
+  } else {
+    const error = userRolesResult.reason;
     const message = handleScoutError(error, 'loading user roles', {
       showNotification: false,
       isWarning: true,
@@ -86,15 +92,9 @@ export async function loadInitialReferenceData(token) {
     logger.warn('User roles loading failed', { error: error }, LOG_CATEGORIES.AUTH);
   }
 
-  // Load startup data
-  try {
-    logger.debug('Loading startup data', {}, LOG_CATEGORIES.AUTH);
-    results.startupData = await getStartupData(token);
+  if (startupResult.status === 'fulfilled') {
+    results.startupData = startupResult.value;
     successCount++;
-    logger.info('Startup data loaded successfully', {
-      hasGlobals: !!(results.startupData?.globals),
-      hasRoles: !!(results.startupData?.roles),
-    }, LOG_CATEGORIES.AUTH);
 
     // Extract and set user info from startup data
     if (results.startupData?.globals) {
@@ -108,17 +108,14 @@ export async function loadInitialReferenceData(token) {
           fullname: `${results.startupData.globals.firstname || 'Scout'} ${results.startupData.globals.lastname || 'Leader'}`.trim(),
         };
         setUserInfo(userInfo);
-        logger.info('User info extracted from startup data', {
-          firstname: userInfo.firstname,
-          hasUserInfo: true,
-        }, LOG_CATEGORIES.AUTH);
       } catch (userInfoError) {
         logger.warn('Could not set user info from startup data', {
           error: userInfoError.message,
         }, LOG_CATEGORIES.AUTH);
       }
     }
-  } catch (error) {
+  } else {
+    const error = startupResult.reason;
     const message = handleScoutError(error, 'loading startup data', {
       showNotification: false,
       isWarning: true,
@@ -235,31 +232,36 @@ export async function loadFlexiRecordData(sections, token) {
       structures: [],
     };
 
-    // Load FlexiRecord lists for all sections
-    for (const section of sections) {
-      try {
-        const flexiRecords = await getFlexiRecords(section.sectionid, token, 'n', true);
-        if (flexiRecords && flexiRecords.items) {
+    // Load FlexiRecord lists for all sections concurrently. The 30-minute
+    // TTL applies (no forceRefresh): record definitions rarely change, and
+    // sign-in DATA freshness is handled separately by getSingleFlexiRecord.
+    const listResults = await Promise.allSettled(sections.map(section =>
+      getFlexiRecords(section.sectionid, token, 'n', false),
+    ));
+    listResults.forEach((result, i) => {
+      const section = sections[i];
+      if (result.status === 'fulfilled') {
+        if (result.value && result.value.items) {
           flexiRecordData.lists.push({
             sectionId: section.sectionid,
             sectionName: section.sectionname,
-            records: flexiRecords.items,
+            records: result.value.items,
           });
         }
-      } catch (sectionError) {
+      } else {
         logger.warn('Failed to load FlexiRecord list for section', {
           sectionId: section.sectionid,
           sectionName: section.sectionname,
-          error: sectionError.message,
+          error: result.reason?.message,
         }, LOG_CATEGORIES.DATA_SERVICE);
         errors.push({
           type: 'flexiRecordList',
           sectionId: section.sectionid,
           message: `Failed to load FlexiRecord list for ${section.sectionname}`,
-          originalError: sectionError.message,
+          originalError: result.reason?.message,
         });
       }
-    }
+    });
 
     // Load structures for Viking-specific FlexiRecords
     const allFlexiRecords = new Map();
@@ -283,32 +285,34 @@ export async function loadFlexiRecordData(sections, token) {
       record.name === 'Viking Event Mgmt' || record.name === 'Viking Section Movers',
     );
 
-    for (const record of vikingRecords) {
-      try {
-        const sectionId = record.sectionIds[0]; // Use first section for request
-        const structure = await getFlexiStructure(record.extraid, sectionId, null, token, true);
-        if (structure) {
+    const structureResults = await Promise.allSettled(vikingRecords.map(record =>
+      getFlexiStructure(record.extraid, record.sectionIds[0], null, token, false),
+    ));
+    structureResults.forEach((result, i) => {
+      const record = vikingRecords[i];
+      if (result.status === 'fulfilled') {
+        if (result.value) {
           flexiRecordData.structures.push({
             extraid: record.extraid,
             name: record.name,
-            structure: structure,
+            structure: result.value,
             sectionIds: record.sectionIds,
           });
         }
-      } catch (structureError) {
+      } else {
         logger.warn('Failed to load FlexiRecord structure', {
           recordName: record.name,
           extraid: record.extraid,
-          error: structureError.message,
+          error: result.reason?.message,
         }, LOG_CATEGORIES.DATA_SERVICE);
         errors.push({
           type: 'flexiRecordStructure',
           recordName: record.name,
           message: `Failed to load structure for ${record.name}`,
-          originalError: structureError.message,
+          originalError: result.reason?.message,
         });
       }
-    }
+    });
 
     const hasErrors = errors.length > 0;
     const hasData = flexiRecordData.lists.length > 0 || flexiRecordData.structures.length > 0;

@@ -1,16 +1,9 @@
 // Events API service
 // Extracted from monolithic api.js for better modularity
 
-import {
-  BACKEND_URL,
-  validateTokenBeforeAPICall,
-  handleAPIResponseWithRateLimit,
-} from './base.js';
-import { withRateLimitQueue } from '../../../utils/rateLimitQueue.js';
-import { checkNetworkStatus } from '../../../utils/networkUtils.js';
+import { osmRequest } from './base.js';
 import { safeGetItem } from '../../../utils/storageUtils.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { authHandler } from '../../auth/authHandler.js';
 import databaseService from '../../storage/database.js';
 import IndexedDBService from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
@@ -28,89 +21,37 @@ import { deriveBestPersonType } from '../../../utils/personTypeDerivation.js';
  * 
  * @example
  * const events = await getEvents(123, '456', userToken);
- * console.log(`Found ${events.length} events`);
+ * logger.debug(`Found ${events.length} events`);
  */
 export async function getEvents(sectionId, termId, token) {
-  try {
-    // Skip API calls in demo mode - use cached data only
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      const cacheKey = `demo_viking_events_${sectionId}_${termId}_offline`;
-      const cached = safeGetItem(cacheKey, []);
-      return cached;
-    }
-    
-    // Check network status first
-    const isOnlineNow = await checkNetworkStatus();
-        
-    // If offline, get from local database
-    if (!isOnlineNow) {
-      const events = await databaseService.getEvents(sectionId);
-      return events;
-    }
-    
-    // Simple circuit breaker - use cache if auth already failed
-    if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - using cached events only', { sectionId, termId }, LOG_CATEGORIES.API);
-      const events = await databaseService.getEvents(sectionId);
-      return events;
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      // Online and allowed – validate now
-      validateTokenBeforeAPICall(token, 'getEvents');
-      
-      const response = await fetch(
-        `${BACKEND_URL}/get-events?sectionid=${encodeURIComponent(sectionId)}&termid=${encodeURIComponent(termId)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        },
-      );
-
-      return await handleAPIResponseWithRateLimit(response, 'getEvents');
-    });
-    // Events are in the 'items' property of the response
-    const events = (data && data.items) ? data.items : [];
-    
-    // Filter out any demo events that might be in production data
-    const filteredEvents = events.filter((event) => {
-      const eid = event?.eventid;
-      return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
-    });
-
-    // CRITICAL FIX: Add termid to each event for consistent database storage
-    // Web storage needs termid field for attendance sync validation, but API response doesn't include it
-    const eventsWithTermId = filteredEvents.map((event) => ({
-      ...event,
-      termid: event.termid ?? termId ?? null,
-      sectionid: event.sectionid ?? sectionId ?? null,
-    }));
-
-    // Save to local database when online (even if empty to cache the result)
-    await databaseService.saveEvents(sectionId, eventsWithTermId);
-
-    return eventsWithTermId;
-
-  } catch (error) {
-    logger.error('Error fetching events', { sectionId, termId, error: error }, LOG_CATEGORIES.API);
-        
-    // If online request fails, try local database as fallback
-    const isOnlineNow = await checkNetworkStatus();
-    if (isOnlineNow) {
-      try {
-        const events = await databaseService.getEvents(sectionId);
-        return events;
-      } catch (dbError) {
-        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
-      }
-    }
-        
-    throw error;
+  if (isDemoMode()) {
+    const cacheKey = `demo_viking_events_${sectionId}_${termId}_offline`;
+    return safeGetItem(cacheKey, []);
   }
+
+  return osmRequest(
+    'getEvents',
+    `/get-events?sectionid=${encodeURIComponent(sectionId)}&termid=${encodeURIComponent(termId)}`,
+    {
+      token,
+      cacheRead: () => databaseService.getEvents(sectionId),
+      transform: (data) => {
+        const events = (data && data.items) ? data.items : [];
+        return events
+          .filter((event) => {
+            const eid = event?.eventid;
+            return !(typeof eid === 'string' && eid.startsWith('demo_event_'));
+          })
+          .map((event) => ({
+            ...event,
+            termid: event.termid ?? termId ?? null,
+            sectionid: event.sectionid ?? sectionId ?? null,
+          }));
+      },
+      cacheWrite: (events) => databaseService.saveEvents(sectionId, events),
+      emptyValue: [],
+    },
+  );
 }
 
 /**
@@ -124,232 +65,30 @@ export async function getEvents(sectionId, termId, token) {
  * 
  * @example
  * const attendance = await getEventAttendance(123, 789, '456', userToken);
- * console.log(`${attendance.length} people attended`);
+ * logger.debug(`${attendance.length} people attended`);
  */
 export async function getEventAttendance(sectionId, eventId, termId, token) {
-  try {
-    // Skip API calls in demo mode - use cached data only
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      const cacheKey = `demo_viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
-      const cached = safeGetItem(cacheKey, []);
-      // Normalize to array format if cached as object with items
-      const attendance = Array.isArray(cached) ? cached : (cached.items || []);
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Using cached attendance', {
-          sectionId,
-          eventId,
-          termId,
-          attendanceCount: attendance.length,
-        }, LOG_CATEGORIES.API);
-      }
-      return attendance;
-    }
-    
-    // Check network status first
-    const isOnlineNow = await checkNetworkStatus();
-        
-    // If offline, get from local database
-    if (!isOnlineNow) {
-      const attendance = await databaseService.getAttendance(eventId);
-      return attendance;
-    }
-
-    // Simple circuit breaker - use cache if auth already failed
-    if (!authHandler.shouldMakeAPICall()) {
-      logger.info('Auth failed - using cached attendance only', { eventId }, LOG_CATEGORIES.API);
-      const attendance = await databaseService.getAttendance(eventId);
-      return attendance;
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      validateTokenBeforeAPICall(token, 'getEventAttendance');
-      
-      const response = await fetch(`${BACKEND_URL}/get-event-attendance?sectionid=${sectionId}&termid=${termId}&eventid=${eventId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      return await handleAPIResponseWithRateLimit(response, 'getEventAttendance');
-    });
-    // Attendance is in the 'items' property of the response
-    const attendance = (data && data.items) ? data.items : [];
-
-    // Save to local database when online
-    if (attendance.length > 0) {
-      await databaseService.saveAttendance(eventId, attendance);
-    }
-
-    return attendance;
-
-  } catch (error) {
-    logger.error('Error fetching event attendance', { eventId, error: error }, LOG_CATEGORIES.API);
-        
-    // If online request fails, try local database as fallback
-    const isOnlineNow = await checkNetworkStatus();
-    if (isOnlineNow) {
-      try {
-        const attendance = await databaseService.getAttendance(eventId);
-        return attendance;
-      } catch (dbError) {
-        logger.error('Database fallback failed', { dbError: dbError.message }, LOG_CATEGORIES.API);
-      }
-    }
-        
-    throw error;
+  if (isDemoMode()) {
+    const cacheKey = `demo_viking_attendance_${sectionId}_${termId}_${eventId}_offline`;
+    const cached = safeGetItem(cacheKey, []);
+    return Array.isArray(cached) ? cached : (cached.items || []);
   }
-}
 
-/**
- * Gets event summary including sharing information
- * @param {number|string} eventId - OSM event identifier
- * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} Event summary with sharing data
- * @throws {Error} When API request fails
- * 
- * @example
- * const summary = await getEventSummary('1573792', token);
- * if (summary.sharing?.is_owner) {
- *   // This section owns a shared event
- * }
- */
-export async function getEventSummary(eventId, token) {
-  try {
-    // Skip API calls in demo mode - return mock data
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Returning mock event summary', {
-          eventId,
-        }, LOG_CATEGORIES.API);
-      }
-      // Return a basic mock summary for demo mode
-      return {
-        eventId,
-        attendees: 0,
-        invited: 0,
-        confirmed: 0,
-      };
-    }
-    
-    validateTokenBeforeAPICall(token, 'getEventSummary');
-    
-    // Check network status first
-    const isOnlineNow = await checkNetworkStatus();
-    
-    if (!isOnlineNow) {
-      throw new Error('No network connection available for event summary');
-    }
-
-    if (!token) {
-      throw new Error('Authentication token required for event summary');
-    }
-
-    // Simple circuit breaker - use cache if auth already failed
-    if (!authHandler.shouldMakeAPICall()) {
-      throw new Error('Authentication failed - cannot fetch event summary');
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      const response = await fetch(`${BACKEND_URL}/get-event-summary?eventid=${encodeURIComponent(eventId)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      return await handleAPIResponseWithRateLimit(response, 'getEventSummary');
-    });
-
-    return data || null;
-
-  } catch (error) {
-    logger.error('Error fetching event summary', { 
-      eventId, 
-      error: error.message, 
-    }, LOG_CATEGORIES.API);
-    throw error;
-  }
-}
-
-/**
- * Retrieves sharing status for an event to see which sections it has been shared with
- * @param {number|string} eventId - OSM event identifier  
- * @param {number|string} sectionId - OSM section identifier (owner section)
- * @param {string} token - OSM authentication token
- * @returns {Promise<Object>} Sharing status data with shared sections list
- * @throws {Error} When API request fails
- * 
- * @example
- * const sharingStatus = await getEventSharingStatus('12345', '67890', token);
- * console.log(`Event shared with ${sharingStatus.items.length} sections`);
- */
-export async function getEventSharingStatus(eventId, sectionId, token) {
-  try {
-    // Skip API calls in demo mode - return mock data
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      if (import.meta.env.DEV) {
-        logger.debug('Demo mode: Returning mock sharing status', {
-          eventId,
-          sectionId,
-        }, LOG_CATEGORIES.API);
-      }
-      // Return empty sharing status for demo mode
-      return {
-        items: [],
-      };
-    }
-    
-    validateTokenBeforeAPICall(token, 'getEventSharingStatus');
-    
-    // Check network status first
-    const isOnlineNow = await checkNetworkStatus();
-    
-    if (!isOnlineNow) {
-      throw new Error('No network connection available for sharing status');
-    }
-
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
-    // Simple circuit breaker - use cache if auth already failed
-    if (!authHandler.shouldMakeAPICall()) {
-      throw new Error('Authentication failed - cannot fetch sharing status');
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      const response = await fetch(
-        `${BACKEND_URL}/get-event-sharing-status?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        },
-      );
-
-      return await handleAPIResponseWithRateLimit(response, 'getEventSharingStatus');
-    });
-
-    return data || { items: [] };
-
-  } catch (error) {
-    logger.error('Error fetching event sharing status', { 
-      eventId, 
-      sectionId, 
-      error: error.message, 
-    }, LOG_CATEGORIES.API);
-    
-    // Re-throw the error to let calling code handle it
-    throw error;
-  }
+  return osmRequest(
+    'getEventAttendance',
+    `/get-event-attendance?sectionid=${encodeURIComponent(sectionId)}&termid=${encodeURIComponent(termId)}&eventid=${encodeURIComponent(eventId)}`,
+    {
+      token,
+      cacheRead: () => databaseService.getAttendance(eventId),
+      transform: (data) => ((data && data.items) ? data.items : []),
+      cacheWrite: async (attendance) => {
+        if (attendance.length > 0) {
+          await databaseService.saveAttendance(eventId, attendance);
+        }
+      },
+      emptyValue: [],
+    },
+  );
 }
 
 /**
@@ -362,45 +101,30 @@ export async function getEventSharingStatus(eventId, sectionId, token) {
  * 
  * @example
  * const sharedAttendance = await getSharedEventAttendance('12345', '67890', token);
- * console.log(`${sharedAttendance.combined_attendance.length} total attendees`);
+ * logger.debug(`${sharedAttendance.combined_attendance.length} total attendees`);
  */
 export async function getSharedEventAttendance(eventId, sectionId, token) {
-  try {
-    // Demo mode fallback
-    const demoMode = isDemoMode();
-    if (demoMode) {
-      logger.debug('Demo mode: Generating shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
-      return generateDemoSharedAttendance(eventId, sectionId);
-    }
+  if (isDemoMode()) {
+    logger.debug('Demo mode: Generating shared attendance data', { eventId, sectionId }, LOG_CATEGORIES.API);
+    return generateDemoSharedAttendance(eventId, sectionId);
+  }
 
-    validateTokenBeforeAPICall(token, 'getSharedEventAttendance');
+  return osmRequest(
+    'getSharedEventAttendance',
+    `/get-shared-event-attendance?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
+    {
+      token,
+      cacheRead: async () => {
+        const sharedRecords = await databaseService.getAttendance(eventId);
+        const cachedShared = (sharedRecords || []).filter(r => r.isSharedSection === true);
+        return cachedShared.length > 0 ? { items: cachedShared } : null;
+      },
+      cacheWrite: async (data) => {
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const combined = Array.isArray(data?.combined_attendance) ? data.combined_attendance : [];
+        const attendance = items.length > 0 ? items : combined;
+        if (attendance.length === 0) return;
 
-    // Simple circuit breaker
-    if (!authHandler.shouldMakeAPICall()) {
-      throw new Error('Authentication failed - cannot fetch shared attendance');
-    }
-
-    const data = await withRateLimitQueue(async () => {
-      const response = await fetch(
-        `${BACKEND_URL}/get-shared-event-attendance?eventid=${encodeURIComponent(eventId)}&sectionid=${encodeURIComponent(sectionId)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        },
-      );
-
-      return await handleAPIResponseWithRateLimit(response, 'getSharedEventAttendance');
-    });
-
-    try {
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const combined = Array.isArray(data?.combined_attendance) ? data.combined_attendance : [];
-      const attendance = items.length > 0 ? items : combined;
-
-      if (attendance.length > 0) {
         const coreSharedRecords = attendance.map(record => ({
           scoutid: record.scoutid,
           eventid: String(eventId),
@@ -413,7 +137,7 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
         await databaseService.saveSharedAttendance(eventId, coreSharedRecords);
 
         const sharedSections = buildSharedSectionsList(attendance, sectionId);
-        if (attendance.length > 0 && sharedSections.length === 0) {
+        if (sharedSections.length === 0) {
           logger.warn('Shared attendance returned records but yielded no valid section metadata', {
             eventId,
             sectionId,
@@ -427,50 +151,10 @@ export async function getSharedEventAttendance(eventId, sectionId, token) {
           ownerSectionId: Number(sectionId),
           sections: sharedSections,
         });
-      }
-
-      logger.debug('Saved shared attendance to normalized store', { eventId, sectionId }, LOG_CATEGORIES.API);
-    } catch (cacheError) {
-      logger.warn(`Failed to save shared attendance to normalized store (eventId=${eventId}): ${cacheError?.message || cacheError}`, { error: cacheError?.message, stack: cacheError?.stack }, LOG_CATEGORIES.API);
-      if (cacheError instanceof Error) {
-        sentryUtils.captureException(cacheError, {
-          tags: { operation: 'save_shared_attendance' },
-          contexts: { event: { id: String(eventId), sectionId: String(sectionId) } },
-        });
-      }
-    }
-
-    return data;
-
-  } catch (error) {
-    logger.error('Error fetching shared event attendance', {
-      eventId,
-      sectionId,
-      error: error.message,
-    }, LOG_CATEGORIES.API);
-
-    try {
-      if (isDemoMode()) {
-        const sharedCacheKey = `demo_viking_shared_attendance_${eventId}_${sectionId}_offline`;
-        const cachedData = safeGetItem(sharedCacheKey);
-        if (cachedData) {
-          logger.info('Using stale cached shared attendance data (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
-          return cachedData;
-        }
-      } else {
-        const sharedRecords = await databaseService.getAttendance(eventId);
-        const cachedShared = (sharedRecords || []).filter(r => r.isSharedSection === true);
-        if (cachedShared.length > 0) {
-          logger.info('Using stale normalized shared attendance (API error fallback)', { eventId, sectionId }, LOG_CATEGORIES.API);
-          return { items: cachedShared };
-        }
-      }
-    } catch (cacheError) {
-      // Ignore cache errors in fallback
-    }
-
-    throw error;
-  }
+      },
+      throwWhenUnavailable: true,
+    },
+  );
 }
 
 /**
@@ -504,18 +188,12 @@ function generateDemoSharedAttendance(eventId, sectionId) {
 
 export async function createMemberSectionRecordsForSharedAttendees(sectionId, attendance) {
   try {
-    console.log('🔵 createMemberSectionRecordsForSharedAttendees CALLED', {
-      ownerSectionId: sectionId,
-      attendanceCount: attendance.length,
-      firstAttendeeExample: attendance[0],
-    });
     logger.debug('createMemberSectionRecordsForSharedAttendees called', {
       ownerSectionId: sectionId,
       attendanceCount: attendance.length,
     }, LOG_CATEGORIES.DATABASE);
 
     if (attendance.length === 0) {
-      console.log('⚠️ No attendance records to process');
       logger.debug('No attendance records to process', {}, LOG_CATEGORIES.DATABASE);
       return;
     }
@@ -530,24 +208,15 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
       attendeesBySection.get(attendeeSectionId).push(attendee);
     });
 
-    console.log('🔵 Grouped attendees by their actual sections', {
+    logger.debug('Grouped attendees by their actual sections', {
       totalSections: attendeesBySection.size,
-      sections: Array.from(attendeesBySection.entries()).map(([sectionId, attendees]) => ({
-        sectionId,
-        sectionName: attendees[0]?.sectionname || attendees[0]?.section_name || attendees[0]?.section,
-        attendeeCount: attendees.length,
-      })),
-    });
+    }, LOG_CATEGORIES.DATABASE);
 
     // Step 2: Create core_members for ALL attendees (section-agnostic)
     const uniqueScoutIds = [...new Set(attendance.map(a => Number(a.scoutid)))];
     const existingCoreMembers = await IndexedDBService.bulkGetCoreMembers(uniqueScoutIds);
     const existingCoreMemberIds = new Set(existingCoreMembers.map(m => m.scoutid));
 
-    console.log('🔵 Existing core_members', {
-      count: existingCoreMembers.length,
-      scoutIds: Array.from(existingCoreMemberIds),
-    });
 
     const attendanceByScoutId = new Map(attendance.map(a => [Number(a.scoutid), a]));
 
@@ -595,18 +264,13 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
     const coreMembersToUpsert = [...missingCoreMembers, ...existingNeedingBackfill];
 
     if (coreMembersToUpsert.length > 0) {
-      console.log('✅ Upserting core_members (new + backfill)', {
-        new: missingCoreMembers.length,
-        backfilled: existingNeedingBackfill.length,
-        scoutIds: coreMembersToUpsert.map(m => m.scoutid),
-      });
       await IndexedDBService.bulkUpsertCoreMembers(coreMembersToUpsert);
       logger.debug('Upserted core_member records for shared attendees', {
         new: missingCoreMembers.length,
         backfilled: existingNeedingBackfill.length,
       }, LOG_CATEGORIES.DATABASE);
     } else {
-      console.log('✅ All shared attendees already exist in core_members with complete data');
+      logger.debug('All shared attendees already exist in core_members with complete data', {}, LOG_CATEGORIES.DATABASE);
     }
 
     // sectiontype lookup table for person_type derivation. An attendee in an
@@ -631,17 +295,10 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
       const sectiontype = sectionTypeBySectionId.get(Number(attendeeSectionId)) || null;
       const scoutIdsForSection = sectionAttendees.map(a => Number(a.scoutid));
 
-      console.log(`🔵 Processing section ${attendeeSectionId} (${sectionName}, type=${sectiontype})`, {
-        attendeeCount: scoutIdsForSection.length,
-      });
 
       const existingSections = await IndexedDBService.getMemberSectionsByScoutIds(scoutIdsForSection, attendeeSectionId);
       const existingSectionMap = new Map(existingSections.map(s => [s.scoutid, s]));
 
-      console.log(`🔵 Existing member_section records for section ${attendeeSectionId}`, {
-        count: existingSections.length,
-        scoutIds: Array.from(existingSectionMap.keys()),
-      });
 
       // Create records for new scouts + update existing records with null sectionname
       // or with a person_type that fresh signals disagree with.
@@ -671,10 +328,6 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
       const updatedRecords = memberSectionsToUpsert.filter(r => existingSectionMap.has(r.scoutid));
 
       if (memberSectionsToUpsert.length > 0) {
-        console.log(`✅ UPSERTING ${memberSectionsToUpsert.length} member_section records for section ${attendeeSectionId} (${sectionName})`, {
-          new: newRecords.length,
-          updated: updatedRecords.length,
-        });
         await IndexedDBService.bulkUpsertMemberSections(memberSectionsToUpsert);
         totalNewRecords += memberSectionsToUpsert.length;
         logger.debug('Upserted member_section records for section', {
@@ -684,18 +337,14 @@ export async function createMemberSectionRecordsForSharedAttendees(sectionId, at
           sectionId: attendeeSectionId,
           sectionName,
         }, LOG_CATEGORIES.DATABASE);
-      } else {
-        console.log(`⚠️ NO member_section records to upsert for section ${attendeeSectionId} (${sectionName}) - all records already have sectionname`);
       }
     }
 
-    console.log(`✅ COMPLETED: Created ${totalNewRecords} total member_section records across ${attendeesBySection.size} sections`);
+    logger.debug('Created member_section records for shared attendees', {
+      totalNewRecords,
+      sectionCount: attendeesBySection.size,
+    }, LOG_CATEGORIES.DATABASE);
   } catch (error) {
-    console.error('❌ FAILED to create member_section records for shared attendees', {
-      ownerSectionId: sectionId,
-      error: error.message,
-      stack: error.stack,
-    });
     logger.error('Failed to create member_section records for shared attendees', {
       ownerSectionId: sectionId,
       error,

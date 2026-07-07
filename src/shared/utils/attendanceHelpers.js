@@ -37,12 +37,10 @@ export const getAttendanceStatus = (attending) => {
  * @returns {boolean} True if the record matches the filters
  */
 export const checkAttendanceMatch = (attending, attendanceFilters) => {
-  return (
-    ((attending === ATTENDANCE_STATUS.YES.value || attending === ATTENDANCE_STATUS.YES.string || attending === 'Yes') && attendanceFilters.yes) ||
-    ((attending === ATTENDANCE_STATUS.NO.value || attending === ATTENDANCE_STATUS.NO.string || attending === 'No') && attendanceFilters.no) ||
-    ((attending === ATTENDANCE_STATUS.INVITED.value || attending === ATTENDANCE_STATUS.INVITED.string || attending === 'Invited') && attendanceFilters.invited) ||
-    ((attending === ATTENDANCE_STATUS.NOT_INVITED.value || attending === ATTENDANCE_STATUS.NOT_INVITED.string || attending === 'Not Invited') && attendanceFilters.notInvited)
-  );
+  // Route through getAttendanceStatus so unknown/blank RSVP values (OSM
+  // returns attending: "" for members never invited) map to notInvited and
+  // stay filterable, matching the dashboard's counting.
+  return attendanceFilters[getAttendanceStatus(attending)] === true;
 };
 
 /**

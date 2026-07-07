@@ -2,7 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
-import EventsContainer from './EventsContainer.jsx';
+import EventDashboard from './EventDashboard.jsx';
+import EventAttendancePage from './EventAttendancePage.jsx';
 import SimpleAttendanceViewer from './SimpleAttendanceViewer.jsx';
 
 function EventsRouter() {
@@ -16,8 +17,10 @@ function EventsRouter() {
     <>
       <MainNavigation onNavigateToSectionMovements={handleNavigateToSectionMovements} />
       <Routes>
-        {/* Default events route - uses state-based navigation like LegacyApp */}
-        <Route index element={<EventsContainer />} />
+        <Route index element={<EventDashboard />} />
+
+        {/* URL-addressable attendance view: survives reloads and back-swipe */}
+        <Route path=":eventName/attendance/:tab?" element={<EventAttendancePage />} />
 
         <Route path="attendance-viewer" element={<SimpleAttendanceViewer />} />
 

@@ -3,11 +3,9 @@ import { MedicalDataPill } from '../../../../shared/components/ui';
 import { formatMedicalDataForDisplay, NONE_VARIATIONS, SYSTEM_DEFAULTS } from '../../../../shared/utils/medicalDataUtils.js';
 import { groupContactInfo } from '../../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../../shared/utils/notifications.js';
-import { resolveSectionName } from '../../../../shared/utils/memberUtils.js';
+import { getComprehensiveMemberData, csvCell, downloadCSV } from '../../../../shared/utils/memberDataExtractor.js';
 
 function DetailedTab({ attendees, members, onMemberClick, showContacts = false }) {
-  const [_selectedMember, _setSelectedMember] = useState(null);
-  const [_showMemberModal, _setShowMemberModal] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'age', direction: 'desc' });
 
   // Get all unique consent fields from all members for dynamic table rendering
@@ -27,63 +25,6 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
     return Array.from(fields).sort();
   }, [attendees, members]);
 
-  const getComprehensiveMemberData = React.useCallback((member) => {
-    const contactGroups = groupContactInfo(member);
-    const combineFields = (groupNames, fieldNames, separator = ', ') => {
-      const values = [];
-      for (const groupName of Array.isArray(groupNames) ? groupNames : [groupNames]) {
-        const group = contactGroups[groupName];
-        if (group) {
-          for (const fieldName of Array.isArray(fieldNames) ? fieldNames : [fieldNames]) {
-            if (group[fieldName]) values.push(group[fieldName]);
-          }
-        }
-      }
-      return values.join(separator);
-    };
-
-    return {
-      name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
-      section: resolveSectionName(member),
-      patrol: member.patrol || '',
-      age: member.age || member.yrs || '',
-      primary_contacts: (() => {
-        const contacts = [];
-        const pc1_name = combineFields(['primary_contact_1'], ['first_name', 'last_name'], ' ') || '';
-        const pc1_phone = combineFields(['primary_contact_1'], ['phone_1', 'phone_2']) || '';
-        const pc1_email = combineFields(['primary_contact_1'], ['email_1', 'email_2']) || '';
-        if (pc1_name || pc1_phone || pc1_email) {
-          contacts.push({ name: pc1_name, phone: pc1_phone, email: pc1_email, label: 'PC1' });
-        }
-        const pc2_name = combineFields(['primary_contact_2'], ['first_name', 'last_name'], ' ') || '';
-        const pc2_phone = combineFields(['primary_contact_2'], ['phone_1', 'phone_2']) || '';
-        const pc2_email = combineFields(['primary_contact_2'], ['email_1', 'email_2']) || '';
-        if (pc2_name || pc2_phone || pc2_email) {
-          contacts.push({ name: pc2_name, phone: pc2_phone, email: pc2_email, label: 'PC2' });
-        }
-        return contacts;
-      })(),
-      emergency_contacts: (() => {
-        const contacts = [];
-        const ec_name = combineFields(['emergency_contact'], ['first_name', 'last_name'], ' ') || '';
-        const ec_phone = combineFields(['emergency_contact'], ['phone_1', 'phone_2']) || '';
-        if (ec_name || ec_phone) {
-          contacts.push({ name: ec_name, phone: ec_phone, label: 'Emergency' });
-        }
-        return contacts;
-      })(),
-      essential_information: contactGroups.essential_information || {},
-      allergies: contactGroups.essential_information?.allergies || '',
-      medical_details: contactGroups.essential_information?.medical_details || '',
-      dietary_requirements: contactGroups.essential_information?.dietary_requirements || '',
-      tetanus_year_of_last_jab: contactGroups.essential_information?.tetanus_year_of_last_jab || '',
-      swimmer: contactGroups.essential_information?.swimmer || '',
-      other_useful_information: contactGroups.essential_information?.other_useful_information || '',
-      confirmed_by_parents: contactGroups.essential_information?.confirmed_by_parents || '',
-      consents: contactGroups.consents || contactGroups.permissions || {},
-    };
-  }, []);
-
   const getMemberAttendanceStatus = React.useCallback((attendee) => {
     if (attendee.yes > 0) return 'Yes';
     if (attendee.no > 0) return 'No';
@@ -96,66 +37,61 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
     return attendee?.vikingEventData || null;
   }, []);
 
-  // Sort the summary stats
-  // Must be before early return to satisfy Rules of Hooks
+  // Precompute the row model ONCE per data change. The previous comparator
+  // called members.find() + full contact-group parsing for BOTH operands on
+  // EVERY comparison — O(n^2 · parse) per header click on a 200-member camp.
+  const memberById = React.useMemo(
+    () => new Map((members || []).map(m => [String(m.scoutid), m])),
+    [members],
+  );
+
+  const rowModel = React.useMemo(() => {
+    if (!attendees) return [];
+    return attendees.map(attendee => {
+      const member = memberById.get(String(attendee.scoutid)) || {};
+      return {
+        attendee,
+        member,
+        data: getComprehensiveMemberData(member),
+        status: getMemberAttendanceStatus(attendee),
+        vikingEventData: getMemberVikingEventData(attendee),
+      };
+    });
+  }, [attendees, memberById, getMemberAttendanceStatus, getMemberVikingEventData]);
+
   const sortedStats = React.useMemo(() => {
-    if (!sortConfig.key || !attendees) return attendees;
+    if (!sortConfig.key) return attendees;
 
-    const sorted = [...attendees].sort((a, b) => {
-      const memberA = members.find(m => m.scoutid.toString() === a.scoutid.toString()) || {};
-      const memberB = members.find(m => m.scoutid.toString() === b.scoutid.toString()) || {};
-      const dataA = getComprehensiveMemberData(memberA);
-      const dataB = getComprehensiveMemberData(memberB);
+    const isEmptyValue = (val) => {
+      if (!val || val === '' || val === '---') return true;
+      const normalized = String(val).toLowerCase().trim();
+      if (normalized === '') return true;
+      if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
+      if (NONE_VARIATIONS.exact.some(exactVal => normalized === exactVal)) return true;
+      const noneRegex = new RegExp(`\\b(${NONE_VARIATIONS.phrases.join('|')})\\b`, 'i');
+      if (noneRegex.test(val)) return true;
+      return false;
+    };
 
-      let aValue, bValue;
-
+    const sortValue = (row) => {
       switch (sortConfig.key) {
-      case 'name':
-        aValue = dataA.name.toLowerCase();
-        bValue = dataB.name.toLowerCase();
-        break;
-      case 'section':
-        aValue = dataA.section.toLowerCase();
-        bValue = dataB.section.toLowerCase();
-        break;
-      case 'patrol':
-        aValue = dataA.patrol.toLowerCase();
-        bValue = dataB.patrol.toLowerCase();
-        break;
-      case 'age':
-        aValue = parseInt(dataA.age) || 0;
-        bValue = parseInt(dataB.age) || 0;
-        break;
-      case 'status':
-        aValue = getMemberAttendanceStatus(a).toLowerCase();
-        bValue = getMemberAttendanceStatus(b).toLowerCase();
-        break;
-      case 'campGroup':
-        aValue = (getMemberVikingEventData(a)?.CampGroup || '').toLowerCase();
-        bValue = (getMemberVikingEventData(b)?.CampGroup || '').toLowerCase();
-        break;
+      case 'name': return row.data.name.toLowerCase();
+      case 'section': return row.data.section.toLowerCase();
+      case 'patrol': return row.data.patrol.toLowerCase();
+      case 'age': return parseInt(row.data.age) || 0;
+      case 'status': return row.status.toLowerCase();
+      case 'campGroup': return (row.vikingEventData?.CampGroup || '').toLowerCase();
       default:
         if (allConsentFields.includes(sortConfig.key)) {
-          aValue = (dataA.consents?.[sortConfig.key] || '').toLowerCase();
-          bValue = (dataB.consents?.[sortConfig.key] || '').toLowerCase();
-        } else {
-          const rawA = dataA[sortConfig.key] || '';
-          const rawB = dataB[sortConfig.key] || '';
-          aValue = String(rawA).toLowerCase();
-          bValue = String(rawB).toLowerCase();
+          return (row.data.consents?.[sortConfig.key] || '').toLowerCase();
         }
+        return String(row.data[sortConfig.key] || '').toLowerCase();
       }
+    };
 
-      const isEmptyValue = (val) => {
-        if (!val || val === '' || val === '---') return true;
-        const normalized = String(val).toLowerCase().trim();
-        if (normalized === '') return true;
-        if (SYSTEM_DEFAULTS.some(def => normalized === def)) return true;
-        if (NONE_VARIATIONS.exact.some(exactVal => normalized === exactVal)) return true;
-        const noneRegex = new RegExp(`\\b(${NONE_VARIATIONS.phrases.join('|')})\\b`, 'i');
-        if (noneRegex.test(val)) return true;
-        return false;
-      };
+    const sorted = [...rowModel].sort((a, b) => {
+      const aValue = sortValue(a);
+      const bValue = sortValue(b);
 
       const aIsEmpty = isEmptyValue(aValue);
       const bIsEmpty = isEmptyValue(bValue);
@@ -169,8 +105,8 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
       return 0;
     });
 
-    return sorted;
-  }, [attendees, members, sortConfig, allConsentFields, getComprehensiveMemberData, getMemberAttendanceStatus, getMemberVikingEventData]);
+    return sorted.map(row => row.attendee);
+  }, [attendees, rowModel, sortConfig, allConsentFields]);
 
   if (!attendees || !Array.isArray(attendees) || attendees.length === 0) {
     return (
@@ -244,7 +180,7 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
 
       const headers = [...baseHeaders, ...contactHeaders, ...medicalHeaders, ...consentHeaders];
 
-      const csv = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const csv = csvCell;
       const csvRows = [
         headers.map(csv).join(','),
         ...attendees.map((attendee) => {
@@ -294,21 +230,8 @@ function DetailedTab({ attendees, members, onMemberClick, showContacts = false }
         }),
       ];
 
-      const csvContent = '\uFEFF' + csvRows.join('\n');
-      const blob = new globalThis.Blob([csvContent], {
-        type: 'text/csv;charset=utf-8;',
-      });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-
       const dateStr = new Date().toISOString().split('T')[0];
-      link.setAttribute('download', `event_attendance_detailed_${dateStr}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      downloadCSV(csvRows, `event_attendance_detailed_${dateStr}.csv`);
 
       notifySuccess(`Exported ${attendees.length} member records`);
     } catch (error) {

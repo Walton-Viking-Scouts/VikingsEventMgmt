@@ -28,8 +28,10 @@ const toastOptions = {
 };
 
 /**
- * Intelligent rate limit queue that handles 429 responses with exponential backoff
- * Provides user feedback and queuing for rate-limited requests
+ * Rate limit queue: serializes API dispatch, waits out backend-provided
+ * retry-after on 429 (min baseDelay), re-queues rate-limited requests at
+ * higher priority (up to 10 requeues per request), and throttles pacing
+ * from OSM quota feedback. Provides user feedback via toasts.
  */
 export class RateLimitQueue {
   constructor(options = {}) {
@@ -42,10 +44,54 @@ export class RateLimitQueue {
     this._countdownInterval = null;
 
     // Configuration
-    this.maxRetries = options.maxRetries || 3;
     this.baseDelay = options.baseDelay || 1000; // 1 second base delay
     this.maxDelay = options.maxDelay || 30000; // 30 seconds max delay
     this.queueTimeout = options.queueTimeout || 300000; // 5 minutes max queue time
+    this.interRequestDelay = 20; // ms between dispatches; raised when OSM quota runs low
+  }
+
+  /**
+   * Feed OSM remaining-quota back into dispatch pacing. Called by the API
+   * response handler with the _rateLimitInfo.osm block, so the queue slows
+   * down BEFORE OSM starts returning 429s or blocks the account.
+   * @param {{remaining: number, limit: number, resetTime?: number}} osm
+   */
+  applyQuotaInfo(osm) {
+    if (!osm || !Number.isFinite(osm.remaining) || !(osm.limit > 0)) return;
+    if (osm.remaining >= 20) {
+      this.interRequestDelay = 20;
+      return;
+    }
+    const resetMs = Number.isFinite(osm.resetTime)
+      ? Math.max(0, osm.resetTime * 1000 - Date.now())
+      : 60000;
+    if (osm.remaining <= 5) {
+      // Nearly exhausted: pause the queue until the window resets
+      this.rateLimitedUntil = Date.now() + Math.max(resetMs, 5000);
+      logger.warn('OSM quota nearly exhausted - pausing queue until reset', {
+        remaining: osm.remaining,
+        pauseMs: Math.max(resetMs, 5000),
+      }, LOG_CATEGORIES.API);
+    } else {
+      // Low: spread the remaining requests across the window
+      this.interRequestDelay = Math.min(Math.ceil(resetMs / osm.remaining), 5000);
+      logger.info('OSM quota low - throttling queue', {
+        remaining: osm.remaining,
+        interRequestDelay: this.interRequestDelay,
+      }, LOG_CATEGORIES.API);
+    }
+  }
+
+  /**
+   * Hard stop: OSM has blocked the account/app. Reject everything queued —
+   * continuing to fire requests at a blocked account makes it worse.
+   */
+  isBlocked() {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem('osm_blocked') === 'true';
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -112,6 +158,10 @@ export class RateLimitQueue {
    */
   enqueue(apiCall, options = {}) {
     return new Promise((resolve, reject) => {
+      if (this.isBlocked()) {
+        reject(new Error('OSM API access is blocked - request not sent'));
+        return;
+      }
       const request = {
         apiCall,
         resolve,
@@ -142,13 +192,22 @@ export class RateLimitQueue {
       this.notifyListeners(this.getStatus());
       this.process();
 
-      // Set timeout for request and store timeout ID to prevent memory leaks
-      request._timeoutId = setTimeout(() => {
-        if (this.queue.includes(request)) {
+      // Set timeout for request and store timeout ID to prevent memory leaks.
+      // While the queue is waiting out a rate limit the timer re-arms with a
+      // fresh full timeout once the rate-limit window ends, so a long
+      // retry-after doesn't silently kill the whole backlog.
+      const armTimeout = (delayMs) => {
+        request._timeoutId = setTimeout(() => {
+          if (!this.queue.includes(request)) return;
+          if (this.rateLimitedUntil && Date.now() < this.rateLimitedUntil) {
+            armTimeout((this.rateLimitedUntil - Date.now()) + request.timeout);
+            return;
+          }
           this.removeFromQueue(request);
           reject(new Error('Request timeout: queued too long'));
-        }
-      }, request.timeout);
+        }, delayMs);
+      };
+      armTimeout(request.timeout);
     });
   }
 
@@ -205,6 +264,11 @@ export class RateLimitQueue {
           await sleep(waitTime);
         }
 
+        if (this.isBlocked()) {
+          this.clear('OSM API access is blocked');
+          break;
+        }
+
         const request = this.queue.shift();
         if (!request) continue;
 
@@ -216,7 +280,6 @@ export class RateLimitQueue {
           if (request.attempts > 1) {
             logger.debug('Retrying API request', {
               attempt: request.attempts,
-              maxRetries: this.maxRetries,
             }, LOG_CATEGORIES.API);
           }
 
@@ -227,18 +290,24 @@ export class RateLimitQueue {
           
           request.resolve(result);
 
-          // Small delay between successful requests to ensure proper ordering
+          // Delay between successful requests: 20ms for ordering, longer
+          // when OSM quota feedback says we're close to the limit
           if (this.queue.length > 0) {
-            const delayMs = 20; // Minimal delay just for request ordering
-            await sleep(delayMs);
+            await sleep(this.interRequestDelay);
           }
 
         } catch (error) {
-          const is429 = error.message?.includes('rate limit') || error.status === 429;
-          // Request failed, checking if retryable
-          
-          if (is429 && request.attempts < this.maxRetries) {
-            // Handle rate limiting with exponential backoff
+          const is429 = error.status === 429;
+
+          // A 429 is not a failure of the request, it's back-pressure —
+          // waiting out the window shouldn't consume retry attempts.
+          if (is429) {
+            request.attempts--;
+            request.rateLimitRequeues = (request.rateLimitRequeues || 0) + 1;
+          }
+
+          if (is429 && request.rateLimitRequeues <= 10) {
+            // Wait out the rate limit and re-queue at higher priority
             await this.handleRateLimit(request, error);
             // CRITICAL FIX: Break out of processing loop immediately after rate limit
             // The rate limit timeout will be handled at the top of the next process() call
@@ -425,7 +494,6 @@ export class RateLimitQueue {
 
 // Global instance
 export const globalRateLimitQueue = new RateLimitQueue({
-  maxRetries: 3,
   baseDelay: 1000,
   maxDelay: 30000,
   queueTimeout: 300000,

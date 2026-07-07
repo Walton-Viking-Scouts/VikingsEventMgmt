@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getVikingEventDataForEvents } from '../services/flexiRecordService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceHelpers_new.js';
+import { loadAllAttendanceFromDatabase } from '../../../shared/utils/attendanceDataLoader.js';
 import { dedupAttendanceForEventGroup } from '../../../shared/utils/sharedEventAttendance.js';
 import databaseService from '../../../shared/services/storage/database.js';
 
@@ -23,9 +23,18 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  /**
+   * Stable identity keys for the load effect: a parent re-render producing a
+   * new (but identical) events/members array must not trigger a full network
+   * refetch of FlexiRecord data, so the effect keys on joined IDs instead of
+   * array identity.
+   */
+  const eventIdsKey = events.map(e => e.eventid).join(',');
+  const memberIdsKey = members.map(m => m.scoutid).join(',');
+
   useEffect(() => {
     loadAttendance();
-  }, [events, members, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [eventIdsKey, memberIdsKey, refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAttendance = async () => {
     try {
@@ -85,9 +94,10 @@ export function useAttendanceData(events, members = [], refreshTrigger = 0) {
   };
 
 
-  const loadVikingEventData = async () => {
+  const loadVikingEventData = async (options = {}) => {
+    const { cacheOnly = false } = options;
     try {
-      const token = getToken();
+      const token = cacheOnly ? null : getToken();
 
       if (!token) {
         logger.info(

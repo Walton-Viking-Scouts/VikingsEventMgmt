@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { fetchMostRecentTermId } from '../services/api/api/terms.js';
-import { updateFlexiRecord } from '../services/api/api/flexiRecords.js';
+import signInOutbox from '../services/signInOutbox.js';
+import { checkNetworkStatus } from '../utils/networkUtils.js';
 import { getFlexiRecordsList } from '../../features/events/services/flexiRecordService.js';
 // TODO: Move getFlexiRecordStructure to shared layer to avoid circular dependency
 // import { getFlexiRecordStructure } from '../../features/events/services/flexiRecordService.js';
@@ -14,7 +15,6 @@ import logger, { LOG_CATEGORIES } from '../services/utils/logger.js';
 import { CLEAR_STRING_SENTINEL, CLEAR_TIME_SENTINEL } from '../constants/signInDataConstants.js';
 
 // Inter-call delay to prevent API clashing - tunable for flaky APIs
-const STEP_DELAY_MS = 150;
 
 /**
  * Custom hook for handling sign-in/out functionality with memory leak prevention
@@ -34,12 +34,31 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
   // Initialize AbortController and cleanup on unmount to prevent memory leaks
   useEffect(() => {
     abortControllerRef.current = new AbortController();
-    
+
+    // Pick up any ops left from a previous session (e.g. app was killed
+    // offline) and retry them in the background.
+    signInOutbox.installNetworkListener();
+    signInOutbox.pendingCount().then((count) => {
+      if (count > 0) {
+        signInOutbox.drain().then(({ completed, remaining }) => {
+          if (completed > 0 && onDataRefresh) {
+            onDataRefresh();
+          }
+          if (remaining > 0 && notifyWarning) {
+            notifyWarning(`${remaining} sign-in change(s) still waiting to sync to OSM.`);
+          }
+        }).catch((error) => {
+          logger.error('Outbox drain on mount failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+        });
+      }
+    }).catch(() => {});
+
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Get current user info from cached startup data
@@ -113,11 +132,6 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
 
   // Get Viking Event Mgmt flexirecord data for a section
   const getVikingEventFlexiRecord = async (sectionId, termId, token) => {
-    // CRITICAL: Validate token before making any API calls
-    if (!token) {
-      throw new Error('Authentication required: No valid token available. Please sign in.');
-    }
-
     try {
       const allStructures = await databaseService.getAllFlexiStructures();
 
@@ -165,7 +179,11 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
       console.warn('Failed to load Viking Event data from normalized storage:', error);
     }
 
-    // Fallback to Viking Event FlexiRecords approach (same as camp groups)
+    // Fallback to Viking Event FlexiRecords approach (same as camp groups).
+    // Only this API path needs a token; the cached-structure path above works offline.
+    if (!token) {
+      throw new Error('Viking Event flexirecord structure not cached - sign in to OSM once to load it.');
+    }
     const flexiRecords = await getFlexiRecordsList(sectionId, token);
 
     const vikingRecord = flexiRecords.items.find(record =>
@@ -220,293 +238,119 @@ export function useSignInOut(events, onDataRefresh, notificationHandlers = {}) {
     throw new Error('FlexiRecord structure not available - failed to fetch structure for FlexiRecord ID: ' + vikingRecord.extraid);
   };
 
-  // Main sign in/out handler with memory leak prevention
+  // Main sign in/out handler: optimistic local write + persistent outbox.
+  // The row updates instantly; the OSM writes drain through the rate-limit
+  // queue, surviving offline gaps, app restarts, and mid-operation failures
+  // (per-field progress is persisted, so nothing is half-written twice).
   const handleSignInOut = async (member, action) => {
-    // Freeze token for this operation to ensure consistency
     const opToken = getToken();
-
-    // CRITICAL: Check token validity FIRST before any other operations
-    if (!opToken) {
-      const message = 'You are not signed in. Please sign in to perform sign-in/sign-out operations.';
-      logger.warn('Sign-in/out attempted without valid token', {
-        memberName: member.name || member.firstname,
-        action,
-      }, LOG_CATEGORIES.AUTH);
-
-      if (notifyWarning) {
-        notifyWarning(message);
-      }
-      return;
-    }
+    const memberLabel = member.name || member.firstname || String(member.scoutid);
 
     try {
-      // Check if component is still mounted before starting
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
 
-      // Set loading state for this specific button
       setButtonLoading(prev => ({ ...prev, [member.scoutid]: true }));
-      
-      // Get current user info from cached startup data
+
       const userInfo = await getCurrentUserInfo();
       const currentUser = `${userInfo.firstname} ${userInfo.lastname}`;
       const timestamp = new Date().toISOString();
-      
-      // Get termId from events
+
       const event = events.find(e => e.sectionid === member.sectionid);
-      const termId = event?.termid || await fetchMostRecentTermId(member.sectionid, opToken);
-      
+      const termId = event?.termid || (opToken ? await fetchMostRecentTermId(member.sectionid, opToken) : null);
+
       if (!termId) {
         throw new Error('No term ID available - required for flexirecord updates');
       }
-      
+
       const cachedSections = await databaseService.getSections() || [];
       const sectionConfig = cachedSections.find(section => section.sectionid === member.sectionid);
       const sectionType = sectionConfig?.sectiontype || 'beavers';
-      
-      // Get Viking Event Mgmt flexirecord structure for this section
+
       const vikingFlexiRecord = await getVikingEventFlexiRecord(member.sectionid, termId, opToken);
 
-      // Check if component is still mounted after async operation
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
 
-      // Using FlexiRecord for sign-in/out operations
+      const updates = action === 'signin'
+        ? [
+          { fieldId: getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping), value: currentUser },
+          { fieldId: getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping), value: timestamp },
+          { fieldId: getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping), value: CLEAR_STRING_SENTINEL },
+          { fieldId: getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping), value: CLEAR_TIME_SENTINEL },
+        ]
+        : [
+          { fieldId: getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping), value: currentUser },
+          { fieldId: getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping), value: timestamp },
+        ];
 
-      if (action === 'signin') {
-        // Execute API calls sequentially with longer delays to prevent clashing
-        const callNames = ['SignedInBy', 'SignedInWhen', 'Clear SignedOutBy', 'Clear SignedOutWhen'];
+      const op = {
+        id: `${member.scoutid}-${action}-${Date.now()}`,
+        memberLabel,
+        action,
+        scoutid: member.scoutid,
+        sectionid: member.sectionid,
+        extraid: vikingFlexiRecord.extraid,
+        termId,
+        sectionType,
+        updates,
+        createdAt: timestamp,
+      };
 
-        try {
-          // Step 1: Set SignedInBy
-          logger.info(`Setting ${callNames[0]} for member`, {
-            memberName: member.name || member.firstname,
-            action: callNames[0],
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedInBy', vikingFlexiRecord.fieldMapping),
-            currentUser,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info(`${callNames[0]} completed successfully`, {
-            memberName: member.name || member.firstname,
-            action: callNames[0],
-          }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
-          // Step 2: Set SignedInWhen
-          logger.info(`Setting ${callNames[1]} for member`, {
-            memberName: member.name || member.firstname,
-            action: callNames[1],
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedInWhen', vikingFlexiRecord.fieldMapping),
-            timestamp,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info(`${callNames[1]} completed successfully`, {
-            memberName: member.name || member.firstname,
-            action: callNames[1],
-          }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
-          // Step 3: Clear SignedOutBy
-          logger.info(`${callNames[2]} for member`, {
-            memberName: member.name || member.firstname,
-            action: callNames[2],
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-            CLEAR_STRING_SENTINEL,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info(`${callNames[2]} completed successfully`, {
-            memberName: member.name || member.firstname,
-            action: callNames[2],
-          }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
-          // Step 4: Clear SignedOutWhen
-          logger.info(`${callNames[3]} for member`, {
-            memberName: member.name || member.firstname,
-            action: callNames[3],
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-            CLEAR_TIME_SENTINEL,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info(`${callNames[3]} completed successfully`, {
-            memberName: member.name || member.firstname,
-            action: callNames[3],
-          }, LOG_CATEGORIES.API);
-          
-        } catch (callError) {
-          logger.error('Sign-in operation failed', { 
-            error: callError.message,
-            memberName: member.name || member.firstname, 
-          }, LOG_CATEGORIES.API);
-          throw callError; // Re-throw to be handled by outer catch
-        }
-        
-        // Check if component is still mounted after sign-in operations
-        if (abortControllerRef.current?.signal.aborted) {
-          return;
-        }
-        
-        // Member signed in successfully
-      } else {
-        // Execute sign-out API calls sequentially with longer delays to prevent clashing
-        try {
-          // Step 1: Set SignedOutBy
-          logger.info('Setting SignedOutBy for member', {
-            memberName: member.name || member.firstname,
-            action: 'SignedOutBy',
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutBy', vikingFlexiRecord.fieldMapping),
-            currentUser,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info('SignedOutBy completed successfully', {
-            memberName: member.name || member.firstname,
-            action: 'SignedOutBy',
-          }, LOG_CATEGORIES.API);
-          
-          // Delay to prevent clashing
-          await new Promise(r => setTimeout(r, STEP_DELAY_MS));
-          
-          // Step 2: Set SignedOutWhen
-          logger.info('Setting SignedOutWhen for member', {
-            memberName: member.name || member.firstname,
-            action: 'SignedOutWhen',
-          }, LOG_CATEGORIES.API);
-          await updateFlexiRecord(
-            member.sectionid,
-            member.scoutid,
-            vikingFlexiRecord.extraid,
-            getFieldId('SignedOutWhen', vikingFlexiRecord.fieldMapping),
-            timestamp,
-            termId,
-            sectionType,
-            opToken,
-          );
-          logger.info('SignedOutWhen completed successfully', {
-            memberName: member.name || member.firstname,
-            action: 'SignedOutWhen',
-          }, LOG_CATEGORIES.API);
-          
-        } catch (callError) {
-          logger.error('Sign-out operation failed', { 
-            error: callError.message,
-            memberName: member.name || member.firstname, 
-          }, LOG_CATEGORIES.API);
-          throw callError; // Re-throw to be handled by outer catch
-        }
-        
-        // Check if component is still mounted after sign-out operations
-        if (abortControllerRef.current?.signal.aborted) {
-          return;
-        }
-        
-        // Member signed out successfully
+      // Queue first: if the outbox store is failing we must error out
+      // rather than paint an optimistic row that nothing will ever sync.
+      await signInOutbox.enqueue(op);
+      await signInOutbox.applyLocal(op);
+
+      // 2. Push to OSM now if we can
+      const online = await checkNetworkStatus();
+      let drainResult = { completed: 0, remaining: 1, dropped: 0, errors: [] };
+      if (online && opToken) {
+        drainResult = await signInOutbox.drain(opToken);
       }
-      
-      // Check if component is still mounted before refreshing data
+
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
-      
-      // Refresh Viking Event data to show updates
-      if (onDataRefresh) {
+
+      if (drainResult.dropped > 0 && notifyError) {
+        notifyError(`Could not save to OSM: ${drainResult.errors[0] || 'permanent error'}`);
+      }
+
+      if (drainResult.remaining > 0) {
+        const reason = !opToken
+          ? 'sign in to OSM to sync'
+          : (online ? 'will retry automatically' : 'will sync when back online');
+        if (notifyWarning) {
+          notifyWarning(`${memberLabel} ${action === 'signin' ? 'signed in' : 'signed out'} locally - ${reason}.`);
+        }
+        // Refresh from cache only - a network refetch would overwrite the
+        // optimistic update with stale OSM data
+        if (onDataRefresh) {
+          await onDataRefresh({ cacheOnly: true });
+        }
+      } else if (onDataRefresh) {
+        // Fully synced: refresh from OSM so this phone converges with others
         await onDataRefresh();
       }
-      
+
     } catch (error) {
-      // Don't show errors if component was unmounted
       if (abortControllerRef.current?.signal.aborted) {
         return;
       }
-      
-      const memberLabel = member.name || member.firstname || String(member.scoutid);
+
       logger.error(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} member`, {
         member: { id: member.scoutid, label: memberLabel },
         action,
         error: error?.stack || error?.message || String(error),
       }, LOG_CATEGORIES.API);
-      
-      // Check if this is a token expiration error
-      if (error.message?.includes('No authentication token')) {
-        // Handle authentication failure to trigger auth state update
-        // TODO: Move handleApiAuthError to shared layer
-        const authResult = { offline: false, shouldReload: false }; // Temporary mock
-        
-        if (authResult.offline) {
-          // Token expired but we have cached data - user can still use app offline
-          if (notifyWarning) {
-            notifyWarning('Your session has expired. Please sign in again to refresh data from OSM, or continue using cached data offline.');
-          } else {
-            console.warn('Session expired with offline mode available');
-          }
-        } else {
-          // No cached data available - user needs to log in
-          if (notifyError) {
-            notifyError('Your session has expired. Please sign in to OSM to continue.');
-          } else {
-            console.error('Session expired without cached data');
-          }
-        }
-        
-        // Force a page reload to trigger auth state re-evaluation
-        if (authResult.shouldReload) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 100);
-        }
-      } else {
-        // Regular error - show generic message
-        if (notifyError) {
-          notifyError(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${memberLabel}: ${error.message}`);
-        } else {
-          console.error(`Sign in/out failed: ${error.message}`);
-        }
+
+      if (notifyError) {
+        notifyError(`Failed to ${action === 'signin' ? 'sign in' : 'sign out'} ${memberLabel}: ${error.message}`);
       }
-      
     } finally {
-      // Only clear loading state if component is still mounted
       if (!abortControllerRef.current?.signal.aborted) {
         setButtonLoading(prev => ({ ...prev, [member.scoutid]: false }));
       }
