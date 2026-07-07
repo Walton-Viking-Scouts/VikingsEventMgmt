@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getListOfMembers } from '../../../shared/services/api/api/members.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui/index.js';
@@ -6,24 +7,10 @@ import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
-import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
+import { groupContactInfo, isNotPhotoConsentYes } from '../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 import { resolveSectionName } from '../../../shared/utils/memberUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-
-/**
- * Determines whether a member's photographs consent is anything other than
- * an explicit 'Yes' (i.e. 'No', empty, or missing all count as "not Yes").
- * Checks both `photographs` and `Photographs` keys, case-insensitively.
- *
- * @param {Object} [consents] - The `memberData.consents` map.
- * @returns {boolean} True when the member should be surfaced by the
- *   "No Photo Consent" filter.
- */
-export function isNotPhotoConsentYes(consents) {
-  const value = consents?.photographs ?? consents?.Photographs;
-  return String(value ?? '').trim().toLowerCase() !== 'yes';
-}
 
 function SectionsList({
   sections,
@@ -77,6 +64,7 @@ function SectionsList({
 
 // Members Table Content - Integrated into main card
 function MembersTableContent({ sections, onSectionToggle, allSections, loadingSection }) {
+  const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -360,11 +348,11 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
       {/* Header with Export Button */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-lg font-medium text-gray-900">Members ({visibleMembers.length})</h4>
-        {members.length > 0 && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={exportToCSV}
+            onClick={() => navigate('/photo-consent')}
             type="button"
-            className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300 px-4 py-2 text-base"
+            className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-scout-blue text-white hover:bg-scout-blue-dark focus:ring-scout-blue px-4 py-2 text-base"
           >
             <svg
               className="w-4 h-4 mr-2"
@@ -375,11 +363,32 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
               strokeLinejoin="round"
               strokeWidth={2}
             >
-              <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path d="M12 17a4 4 0 100-8 4 4 0 000 8z" />
             </svg>
-            Export CSV
+            Photo Consent Gallery
           </button>
-        )}
+          {members.length > 0 && (
+            <button
+              onClick={exportToCSV}
+              type="button"
+              className="inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300 px-4 py-2 text-base"
+            >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              >
+                <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Section */}

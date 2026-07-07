@@ -11,6 +11,7 @@ import { useAuth } from '../features/auth/hooks';
 // Lazy load main feature modules for better performance
 const MoversPage = React.lazy(() => import('../features/movements/components').then(module => ({ default: module.MoversPage })));
 const SectionsPage = React.lazy(() => import('../features/sections/components').then(module => ({ default: module.SectionsPage })));
+const PhotoConsentPage = React.lazy(() => import('../features/sections/components').then(module => ({ default: module.PhotoConsentPage })));
 const YoungLeadersPage = React.lazy(() => import('../features/young-leaders/components').then(module => ({ default: module.YoungLeadersPage })));
 const EventsRouter = React.lazy(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
 const DataClearPage = React.lazy(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
@@ -86,6 +87,14 @@ function AppContent() {
               element={
                 <RouteGuard authLevel="none">
                   <SectionsPage />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/photo-consent"
+              element={
+                <RouteGuard authLevel="none">
+                  <PhotoConsentPage />
                 </RouteGuard>
               }
             />

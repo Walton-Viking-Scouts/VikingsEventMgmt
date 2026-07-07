@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isNotPhotoConsentYes } from '../SectionsList.jsx';
+import { isNotPhotoConsentYes } from '../contactGroups.js';
 
 describe('isNotPhotoConsentYes', () => {
   it('returns false when photographs consent is Yes', () => {
