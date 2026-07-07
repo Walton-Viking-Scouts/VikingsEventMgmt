@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getListOfMembers } from '../../../shared/services/api/api/members.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { MemberDetailModal, MedicalDataPill } from '../../../shared/components/ui/index.js';
+import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { formatMedicalDataForDisplay } from '../../../shared/utils/medicalDataUtils.js';
 import { calculateAge } from '../../../shared/utils/ageUtils.js';
@@ -9,6 +10,20 @@ import { groupContactInfo } from '../../../shared/utils/contactGroups.js';
 import { notifyError, notifySuccess, notifyWarning } from '../../../shared/utils/notifications.js';
 import { resolveSectionName } from '../../../shared/utils/memberUtils.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
+
+/**
+ * Determines whether a member's photographs consent is anything other than
+ * an explicit 'Yes' (i.e. 'No', empty, or missing all count as "not Yes").
+ * Checks both `photographs` and `Photographs` keys, case-insensitively.
+ *
+ * @param {Object} [consents] - The `memberData.consents` map.
+ * @returns {boolean} True when the member should be surfaced by the
+ *   "No Photo Consent" filter.
+ */
+export function isNotPhotoConsentYes(consents) {
+  const value = consents?.photographs ?? consents?.Photographs;
+  return String(value ?? '').trim().toLowerCase() !== 'yes';
+}
 
 function SectionsList({
   sections,
@@ -71,6 +86,12 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
   // Data filter state - for controlling which columns to show
   const [dataFilters, setDataFilters] = useState({
     contacts: false, // Primary and Emergency contacts (hidden by default as requested)
+    photos: false,
+  });
+
+  const [memberFilters, setMemberFilters] = useState({
+    noPhotoConsent: false,
+    hideAdults: false,
   });
 
   // Load members when sections change
@@ -135,6 +156,11 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     return {
       // Basic info
       name: `${member.firstname || member.first_name} ${member.lastname || member.last_name}`,
+      firstname: member.firstname || member.first_name || '',
+      lastname: member.lastname || member.last_name || '',
+      scoutid: member.scoutid,
+      photo_guid: member.photo_guid,
+      person_type: member.person_type,
       section: resolveSectionName(member),
       patrol: member.patrol || '',
       age: calculateAge(member.date_of_birth),
@@ -208,6 +234,25 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     setShowMemberModal(false);
     setSelectedMember(null);
   };
+
+  const visibleMembers = React.useMemo(() => {
+    return members.filter((member) => {
+      if (memberFilters.hideAdults && member.person_type === 'Leaders') {
+        return false;
+      }
+      if (memberFilters.noPhotoConsent) {
+        const contactGroups = groupContactInfo(member);
+        const consents = {
+          ...(contactGroups.permissions || {}),
+          ...(contactGroups.consents || {}),
+        };
+        if (!isNotPhotoConsentYes(consents)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [members, memberFilters]);
 
   // Get all unique consent fields from all members for dynamic table rendering
   const allConsentFields = React.useMemo(() => {
@@ -314,7 +359,7 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
     <div>
       {/* Header with Export Button */}
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-lg font-medium text-gray-900">Members ({members.length})</h4>
+        <h4 className="text-lg font-medium text-gray-900">Members ({visibleMembers.length})</h4>
         {members.length > 0 && (
           <button
             onClick={exportToCSV}
@@ -411,12 +456,58 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
               >
                   Contacts
               </button>
+              <button
+                onClick={() => setDataFilters(prev => ({ ...prev, photos: !prev.photos }))}
+                className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                  dataFilters.photos
+                    ? 'bg-scout-blue text-white border-scout-blue'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                type="button"
+              >
+                  Photos
+              </button>
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  const turningOn = !memberFilters.noPhotoConsent;
+                  setMemberFilters(prev => ({ ...prev, noPhotoConsent: turningOn }));
+                  if (turningOn) {
+                    setDataFilters(prev => ({ ...prev, photos: true }));
+                  }
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                  memberFilters.noPhotoConsent
+                    ? 'bg-scout-blue text-white border-scout-blue'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                type="button"
+              >
+                  No Photo Consent
+              </button>
+              <button
+                onClick={() => setMemberFilters(prev => ({ ...prev, hideAdults: !prev.hideAdults }))}
+                className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                  memberFilters.hideAdults
+                    ? 'bg-scout-blue text-white border-scout-blue'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                type="button"
+              >
+                  Hide Adults
+              </button>
             </div>
           </div>
         </div>
       </div>
-        
-      {members.length === 0 ? (
+
+      {visibleMembers.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
           <p className="text-gray-500">No members found for the selected sections.</p>
         </div>
@@ -425,6 +516,12 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                {dataFilters.photos && (
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Photo
+                  </th>
+                )}
+
                 {/* Basic Info Headers */}
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
                 Member
@@ -485,12 +582,18 @@ function MembersTableContent({ sections, onSectionToggle, allSections, loadingSe
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {members.map((member, index) => {
+              {visibleMembers.map((member, index) => {
               // Get comprehensive member data
                 const memberData = getComprehensiveMemberData(member);
 
                 return (
                   <tr key={member.scoutid || index} className="hover:bg-gray-50 text-xs">
+                    {dataFilters.photos && (
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <MemberAvatar member={member} size="sm" />
+                      </td>
+                    )}
+
                     {/* Basic Info Cells */}
                     <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white">
                       <button
