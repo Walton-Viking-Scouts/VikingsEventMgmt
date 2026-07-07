@@ -514,6 +514,12 @@ export async function seedDemoStorage(databaseService) {
     logger.error('Demo mode: failed to seed databaseService', {
       error: dbSeedError.message,
     }, LOG_CATEGORIES.ERROR);
+    try {
+      const { notifyWarning } = await import('../shared/utils/notifications.js');
+      notifyWarning('Demo data failed to load - try reloading the page.');
+    } catch {
+      // notifications unavailable (e.g. tests) - the log above suffices
+    }
   }
 }
 

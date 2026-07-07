@@ -32,6 +32,9 @@ function EventAttendancePage() {
   useEffect(() => {
     let mounted = true;
 
+    setEvents(null);
+    setMembers([]);
+
     const load = async () => {
       try {
         const sections = await databaseService.getSections();
@@ -59,7 +62,9 @@ function EventAttendancePage() {
           logger.warn('Could not load cached members for attendance view', {
             error: memberError.message,
           }, LOG_CATEGORIES.COMPONENT);
-          notifyWarning('Member details unavailable - showing attendance only.');
+          if (mounted) {
+            notifyWarning('Member details unavailable - showing attendance only.');
+          }
         }
 
         if (!mounted) return;

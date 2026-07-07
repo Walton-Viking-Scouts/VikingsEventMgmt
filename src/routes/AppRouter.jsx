@@ -44,12 +44,12 @@ function AppContent() {
   // post-login load. It previously refreshed reference data only, so a user
   // who hit it saw "refreshed" while events and attendance stayed stale.
   const handleRefresh = async () => {
-    const { notifyError, notifyWarning } = await import('../shared/utils/notifications.js');
-    if (isOfflineMode) {
-      notifyWarning('Offline - showing cached data. Reconnect to refresh.');
-      return;
-    }
     try {
+      const { notifyWarning } = await import('../shared/utils/notifications.js');
+      if (isOfflineMode) {
+        notifyWarning('Offline - showing cached data. Reconnect to refresh.');
+        return;
+      }
       const { getToken } = await import('../shared/services/auth/tokenService.js');
       const { default: dataLoadingService } = await import('../shared/services/data/dataLoadingService.js');
 
@@ -62,7 +62,10 @@ function AppContent() {
     } catch (error) {
       const { default: logger, LOG_CATEGORIES } = await import('../shared/services/utils/logger.js');
       logger.error('Refresh failed', { error: error }, LOG_CATEGORIES.ERROR);
-      notifyError(`Refresh failed: ${error.message}`);
+      const { notifyError } = await import('../shared/utils/notifications.js').catch(() => ({ notifyError: null }));
+      if (notifyError) {
+        notifyError(`Refresh failed: ${error.message}`);
+      }
     }
   };
 
