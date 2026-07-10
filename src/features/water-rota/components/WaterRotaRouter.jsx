@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, NavLink, useNavigate } from 'react-router-dom'
 import MainNavigation from '../../../shared/components/layout/MainNavigation.jsx';
 import RotaBoardPage from './RotaBoardPage.jsx';
 import MyCommitmentsPage from './MyCommitmentsPage.jsx';
+import RotaSetupWizard from './setup/RotaSetupWizard.jsx';
 
 /**
  * Segmented control switching between the board and the personal view.
@@ -55,6 +56,7 @@ function WaterRotaRouter() {
       <Routes>
         <Route index element={<RotaBoardPage />} />
         <Route path="me" element={<MyCommitmentsPage />} />
+        <Route path="setup" element={<RotaSetupWizard />} />
         <Route path="*" element={<Navigate to="/water-rota" replace />} />
       </Routes>
     </>

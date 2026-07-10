@@ -13,9 +13,12 @@ import {
   withdrawalNeedsConfirm,
 } from '../utils/rotaDisplay.js';
 import { bucketSessionsByWeek, startOfIsoWeek } from '../utils/rotaDates.js';
+import { useRotaPermissions } from '../hooks/useRotaPermissions.js';
+import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
 import SessionCard from './SessionCard.jsx';
 import TermOverviewStrip from './TermOverviewStrip.jsx';
 import IdentityPickerModal from './IdentityPickerModal.jsx';
+import SessionDetailModal from './SessionDetailModal.jsx';
 
 const FILTERS_STORAGE_KEY = 'viking_water_rota_section_filters';
 
@@ -35,27 +38,35 @@ function readStoredFilters() {
 
 /**
  * The rota board: term overview strip plus a week-bucketed session list
- * with one-tap signups. Auto-scrolls to the current week on load. Renders
- * empty/error/first-run states when there is no rota for the year.
+ * with one-tap signups and a session detail/edit modal. Auto-scrolls to
+ * the current week on load. Renders empty/error/first-run states when
+ * there is no rota for the year.
  *
- * @param {Object} props
- * @param {Function} [props.onSelectSession] - Called with a session view when a card is tapped
  * @returns {JSX.Element} Board page
  */
-function RotaBoardPage({ onSelectSession }) {
+function RotaBoardPage() {
   const navigate = useNavigate();
   const { loading, rota, error, refresh, year } = useWaterRota();
   const identityState = useRotaIdentity(rota);
   const { identity, needsPicker, choose } = identityState;
   const { setSignup, pendingFieldId } = useRotaSignup(rota, identity, refresh);
+  const { canEdit } = useRotaPermissions(rota);
 
   const [sectionFilters, setSectionFilters] = useState(readStoredFilters);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
   const weekRefs = useRef(new Map());
   const didAutoScroll = useRef(false);
 
   const sessions = useMemo(() => (rota ? resolveAllSessions(rota) : []), [rota]);
+  const selectedSession = useMemo(
+    () => sessions.find((session) => session.fieldId === selectedFieldId) ?? null,
+    [sessions, selectedFieldId],
+  );
+  const { counts: ypCounts } = useSectionYPCounts(
+    useMemo(() => (rota?.config?.cfg?.sections ?? []).map((entry) => entry.sid), [rota]),
+  );
 
   const filterSections = useMemo(
     () =>
@@ -224,7 +235,7 @@ function RotaBoardPage({ onSelectSession }) {
                   <SessionCard
                     key={session.fieldId}
                     session={session}
-                    onSelect={onSelectSession}
+                    onSelect={() => setSelectedFieldId(session.fieldId)}
                     myStatus={identity ? myStatusFor(session, identity.scoutid) : null}
                     onSignupChange={handleSignupChange}
                     signupDisabled={!identity && !needsPicker}
@@ -235,6 +246,21 @@ function RotaBoardPage({ onSelectSession }) {
             </section>
           ))}
         </div>
+      )}
+
+      {selectedSession && (
+        <SessionDetailModal
+          session={selectedSession}
+          rota={rota}
+          identity={identity}
+          canEdit={canEdit}
+          sectionYPCount={ypCounts[selectedSession.sectionId] ?? null}
+          myStatus={identity ? myStatusFor(selectedSession, identity.scoutid) : null}
+          signupPending={pendingFieldId === selectedSession.fieldId}
+          onSignupChange={handleSignupChange}
+          refresh={refresh}
+          onClose={() => setSelectedFieldId(null)}
+        />
       )}
 
       <IdentityPickerModal
