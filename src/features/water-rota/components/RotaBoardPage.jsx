@@ -15,6 +15,10 @@ import {
 import { bucketSessionsByWeek, startOfIsoWeek } from '../utils/rotaDates.js';
 import { useRotaPermissions } from '../hooks/useRotaPermissions.js';
 import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
+import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
+import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
+import { getToken } from '../../../shared/services/auth/tokenService.js';
+import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import SessionCard from './SessionCard.jsx';
 import TermOverviewStrip from './TermOverviewStrip.jsx';
 import IdentityPickerModal from './IdentityPickerModal.jsx';
@@ -52,10 +56,12 @@ function RotaBoardPage() {
   const { setSignup, pendingFieldId } = useRotaSignup(rota, identity, refresh);
   const { canEdit } = useRotaPermissions(rota);
 
+  const online = useOnlineStatus();
   const [sectionFilters, setSectionFilters] = useState(readStoredFilters);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
   const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const weekRefs = useRef(new Map());
   const didAutoScroll = useRef(false);
 
@@ -120,6 +126,30 @@ function RotaBoardPage() {
     setSignup(session.fieldId, newStatus);
   };
 
+  const handleSyncProgramme = async () => {
+    setSyncing(true);
+    try {
+      const { added, orphaned, errors } = await syncRotaWithProgramme({ rota, token: getToken() });
+      if (errors.length > 0) {
+        notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
+      } else if (added === 0 && orphaned.length === 0) {
+        notifyInfo('Rota already matches the programmes.');
+      } else {
+        notifySuccess(`Added ${added} new session${added === 1 ? '' : 's'}.`);
+      }
+      if (orphaned.length > 0) {
+        notifyInfo(
+          `${orphaned.length} session${orphaned.length === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
+        );
+      }
+      await refresh();
+    } catch (error) {
+      notifyError(`Programme sync failed: ${error.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading water rota..." />;
   }
@@ -166,14 +196,32 @@ function RotaBoardPage() {
     <div className="max-w-3xl mx-auto px-4 py-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold text-gray-900">Water Rota {year}</h1>
-        <button
-          type="button"
-          onClick={refresh}
-          className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-4">
+          {canEdit && online && (
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={handleSyncProgramme}
+              className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium disabled:opacity-50"
+            >
+              {syncing ? 'Syncing…' : 'Sync programme'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={refresh}
+            className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {!online && (
+        <div className="mt-3 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
+          You&apos;re offline — showing the last loaded rota. Signups need a connection.
+        </div>
+      )}
 
       {needsPicker && (
         <button
@@ -238,7 +286,7 @@ function RotaBoardPage() {
                     onSelect={() => setSelectedFieldId(session.fieldId)}
                     myStatus={identity ? myStatusFor(session, identity.scoutid) : null}
                     onSignupChange={handleSignupChange}
-                    signupDisabled={!identity && !needsPicker}
+                    signupDisabled={!online || (!identity && !needsPicker)}
                     signupPending={pendingFieldId === session.fieldId}
                   />
                 ))}

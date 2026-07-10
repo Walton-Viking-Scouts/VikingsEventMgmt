@@ -16,7 +16,9 @@ import { createOrCompleteFlexiRecord } from '../../flexi-records/services/flexiR
 import {
   getFlexiStructure,
 } from '../../../shared/services/api/api/index.js';
+import { CurrentActiveTermsService } from '../../../shared/services/storage/currentActiveTermsService.js';
 import { parseFlexiStructure } from '../../../shared/utils/flexiRecordTransforms.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import {
   ROTA_CONFIG_COLUMN,
   buildSessionColumnName,
@@ -24,6 +26,8 @@ import {
 } from './rotaEncoding.js';
 import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
 import { writeConfig } from './rotaService.js';
+import { fetchProgrammeMeetings } from './programmeService.js';
+import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
 
 /**
  * Create or complete the rota record for a year on the host section.
@@ -106,6 +110,65 @@ export function diffSessions(existingColumns, descriptors) {
   );
 
   return { toAdd, orphaned };
+}
+
+/**
+ * Sync an existing rota with each section's programme: appends columns for
+ * newly added meeting dates and reports sessions whose programme meeting
+ * has vanished (candidates to mark not-on-water — never deleted, since OSM
+ * has no column delete).
+ *
+ * @param {Object} params
+ * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota with config
+ * @param {string} params.token - OSM authentication token
+ * @returns {Promise<{added: number, orphaned: Array, errors: Array}>} Sync outcome
+ * @throws {Error} When the rota has no config to sync against
+ */
+export async function syncRotaWithProgramme({ rota, token }) {
+  const cfg = rota?.config?.cfg;
+  if (!cfg) {
+    throw new Error('The rota has no plan config yet — run setup first');
+  }
+
+  const range = { start: cfg.start, end: cfg.end };
+  const descriptors = [];
+
+  for (const section of cfg.sections ?? []) {
+    try {
+      const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
+      if (!term?.currentTermId) {
+        continue;
+      }
+      const meetings = await fetchProgrammeMeetings(section.sid, term.currentTermId, token);
+      descriptors.push(...generateSessionsFromProgramme(meetings, section, range));
+    } catch (error) {
+      logger.warn('Programme sync: section fetch failed', {
+        sectionId: section.sid,
+        error: error.message,
+      }, LOG_CATEGORIES.API);
+    }
+  }
+
+  const existingColumns = rota.sessions.map((session) => ({
+    fieldId: session.fieldId,
+    date: session.date,
+    sectionId: session.sectionId,
+  }));
+  const { toAdd, orphaned } = diffSessions(existingColumns, descriptors);
+
+  let errors = [];
+  if (toAdd.length > 0) {
+    const result = await createOrCompleteRota({
+      hostSection: rota.hostSection,
+      year: rota.year,
+      termId: rota.termId,
+      sessions: toAdd,
+      token,
+    });
+    errors = result.errors ?? [];
+  }
+
+  return { added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length, orphaned, errors };
 }
 
 /**

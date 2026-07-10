@@ -7,6 +7,25 @@ up (confirmed or backup) and see their week at a glance.
 Full design plan: agreed 2026-07-10 (see PR description). This document tracks the storage
 design and open spike questions.
 
+## Feature map
+
+- `/water-rota` — the board: term overview strip (one status dot per session per week),
+  week-bucketed session cards with one-tap `I'm in` / `Backup` signup pills, section
+  filter, offline banner, and (for plan editors) a "Sync programme" action that appends
+  columns for newly added programme meetings and flags vanished ones.
+- Tap a card → **SessionDetailModal**: signup lists with relative times, session notes,
+  edit form (activity presets, times, expected-kids defaulting to the section YP total,
+  permit-holders-needed, notes) and a restorable "Not on water this week" toggle.
+- `/water-rota/me` — **My week**: the user's commitments bucketed this week / next week /
+  later, with inline withdraw (confirm dialog when leaving a session short).
+- `/water-rota/setup` — 3-step wizard: host section + sections + date range → per-section
+  programme review with on-water checkboxes (weekly-slot fallback) → preview + resumable
+  creation + initial config write.
+- Identity: signups write to the user's own member row, resolved by stored choice →
+  unique full-name match → one-time picker (`useRotaIdentity`).
+- Cover status: green covered / amber covered-only-with-backups / red short / grey
+  not-on-water or target-unset (`rotaDisplay.js`).
+
 ## Storage design
 
 One OSM FlexiRecord per calendar year — `Viking Water Rota <year>` — created in a

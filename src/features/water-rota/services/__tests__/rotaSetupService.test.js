@@ -29,13 +29,24 @@ vi.mock('../../../../shared/services/storage/currentActiveTermsService.js', () =
   CurrentActiveTermsService: { getCurrentActiveTerm: vi.fn() },
 }));
 
+vi.mock('../programmeService.js', () => ({
+  fetchProgrammeMeetings: vi.fn(),
+}));
+
 import { createOrCompleteFlexiRecord } from '../../../flexi-records/services/flexiRecordCreationService.js';
 import {
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
 } from '../../../../shared/services/api/api/index.js';
-import { createOrCompleteRota, diffSessions, writeRotaConfig } from '../rotaSetupService.js';
+import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
+import { fetchProgrammeMeetings } from '../programmeService.js';
+import {
+  createOrCompleteRota,
+  diffSessions,
+  syncRotaWithProgramme,
+  writeRotaConfig,
+} from '../rotaSetupService.js';
 
 const HOST_SECTION = { sectionid: 900, sectionname: 'Adults', section: 'adults' };
 
@@ -134,6 +145,61 @@ describe('writeRotaConfig', () => {
         token: 'tok',
       }),
     ).rejects.toThrow(/RotaConfig column not found/);
+  });
+});
+
+describe('syncRotaWithProgramme', () => {
+  const rota = {
+    year: 2026,
+    hostSection: HOST_SECTION,
+    recordId: 777,
+    termId: 'T1',
+    config: {
+      cfg: {
+        start: '2026-06-01',
+        end: '2026-08-31',
+        sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
+      },
+    },
+    sessions: [
+      { fieldId: 'f_2', date: '2026-06-02', sectionId: '49097', meta: null, signups: [] },
+      { fieldId: 'f_3', date: '2026-06-09', sectionId: '49097', meta: null, signups: [] },
+    ],
+  };
+
+  beforeEach(() => {
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
+  });
+
+  it('appends columns for new meetings and reports vanished ones', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: null },
+      { date: '2026-06-16', startTime: null, endTime: null, title: null },
+    ]);
+    createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777, errors: [] });
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(result.added).toBe(1);
+    expect(result.orphaned.map((column) => column.date)).toEqual(['2026-06-09']);
+    const { template } = createOrCompleteFlexiRecord.mock.calls[0][0];
+    expect(template.fields).toEqual(['RotaConfig', 'S_20260616_49097']);
+  });
+
+  it('does nothing when the rota already matches', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: null },
+      { date: '2026-06-09', startTime: null, endTime: null, title: null },
+    ]);
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(result).toEqual({ added: 0, orphaned: [], errors: [] });
+    expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('throws without a plan config', async () => {
+    await expect(syncRotaWithProgramme({ rota: { ...rota, config: null }, token: 'tok' })).rejects.toThrow(/config/);
   });
 });
 
