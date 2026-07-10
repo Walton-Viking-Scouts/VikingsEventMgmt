@@ -125,6 +125,47 @@ export function resolveAllSessions(rota) {
 }
 
 /**
+ * The current user's signup status on a resolved session.
+ *
+ * @param {SessionView} session - Resolved session view
+ * @param {string|null|undefined} scoutid - The user's member row id
+ * @returns {string|null} SIGNUP_STATUS value, or null when not signed up
+ */
+export function myStatusFor(session, scoutid) {
+  if (!scoutid) {
+    return null;
+  }
+  const id = String(scoutid);
+  if (session.confirmed.some((signup) => signup.scoutid === id)) {
+    return SIGNUP_STATUS.IN;
+  }
+  if (session.backups.some((signup) => signup.scoutid === id)) {
+    return SIGNUP_STATUS.BACKUP;
+  }
+  return null;
+}
+
+/**
+ * Whether withdrawing (or stepping down from confirmed) needs confirmation:
+ * true when the user is currently confirmed and losing them drops the
+ * session below its permit-holder target.
+ *
+ * @param {SessionView} session - Resolved session view
+ * @param {string|null} currentStatus - The user's current signup status
+ * @param {string|null} newStatus - The requested signup status
+ * @returns {boolean} True when the change warrants a confirm dialog
+ */
+export function withdrawalNeedsConfirm(session, currentStatus, newStatus) {
+  if (currentStatus !== SIGNUP_STATUS.IN || newStatus === SIGNUP_STATUS.IN) {
+    return false;
+  }
+  if (session.needed === null) {
+    return false;
+  }
+  return session.confirmed.length - 1 < session.needed;
+}
+
+/**
  * Tailwind classes for a section chip, matching the app's section colors.
  *
  * @param {string} sectionName - Section display name

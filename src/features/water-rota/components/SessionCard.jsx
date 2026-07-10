@@ -2,20 +2,33 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import { coverStatusBgClass, sectionChipClass, COVER_STATUS } from '../utils/rotaDisplay.js';
+import SignupButtons from './SignupButtons.jsx';
 
 const MAX_AVATARS = 4;
 
 /**
  * One session on the rota board: cover-status rail, section chip, date and
- * times, activity, expected young people, and the permit-holder cover line
- * with an overlapping avatar cluster (backups get a dashed ring).
+ * times, activity, expected young people, the permit-holder cover line with
+ * an overlapping avatar cluster (backups get a dashed ring), and — when a
+ * signup handler is provided — one-tap signup pills.
  *
  * @param {Object} props
  * @param {import('../utils/rotaDisplay.js').SessionView} props.session - Resolved session view model
- * @param {Function} [props.onSelect] - Called with the session when the card is tapped
+ * @param {Function} [props.onSelect] - Called with the session when the card body is tapped
+ * @param {string|null} [props.myStatus] - Current user's signup for this session ('I', 'B', or null)
+ * @param {Function} [props.onSignupChange] - Called with (session, newStatus); omitting hides the pills
+ * @param {boolean} [props.signupDisabled] - Disable the pills (offline / identity unresolved)
+ * @param {boolean} [props.signupPending] - A signup write is in flight for this session
  * @returns {JSX.Element} Session card
  */
-function SessionCard({ session, onSelect }) {
+function SessionCard({
+  session,
+  onSelect,
+  myStatus = null,
+  onSignupChange,
+  signupDisabled = false,
+  signupPending = false,
+}) {
   const {
     date,
     sectionName,
@@ -34,19 +47,22 @@ function SessionCard({ session, onSelect }) {
   const people = [...confirmed, ...backups];
   const overflow = people.length - MAX_AVATARS;
   const timeLabel = startTime && endTime ? `${startTime}–${endTime}` : startTime || '';
+  const showSignup = Boolean(onSignupChange) && !cancelled;
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect?.(session)}
+    <div
       data-testid={`session-${session.fieldId}`}
-      className={`relative w-full text-left bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-scout-blue ${
+      className={`relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden ${
         cancelled ? 'opacity-60' : ''
       }`}
     >
       <span className={`absolute inset-y-0 left-0 w-1.5 ${coverStatusBgClass(status)}`} aria-hidden="true" />
 
-      <span className="block pl-4 pr-3 py-3">
+      <button
+        type="button"
+        onClick={() => onSelect?.(session)}
+        className="block w-full text-left pl-4 pr-3 pt-3 pb-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-scout-blue"
+      >
         <span className="flex items-center gap-2 flex-wrap">
           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(sectionName)}`}>
             {sectionName}
@@ -114,8 +130,19 @@ function SessionCard({ session, onSelect }) {
             )}
           </span>
         )}
-      </span>
-    </button>
+      </button>
+
+      {showSignup && (
+        <div className="pl-4 pr-3 pb-3">
+          <SignupButtons
+            myStatus={myStatus}
+            disabled={signupDisabled || signupPending}
+            pending={signupPending}
+            onChange={(newStatus) => onSignupChange(session, newStatus)}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

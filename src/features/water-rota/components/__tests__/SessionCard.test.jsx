@@ -72,7 +72,7 @@ describe('SessionCard', () => {
     const session = makeSession();
     render(<SessionCard session={session} onSelect={onSelect} />);
 
-    fireEvent.click(screen.getByTestId('session-f_2'));
+    fireEvent.click(screen.getByRole('button'));
     expect(onSelect).toHaveBeenCalledWith(session);
   });
 });
