@@ -29,7 +29,7 @@ export const ACTIVITY_PRESETS = [
  * Default permit holders needed per session until a leader sets a number.
  * @type {number}
  */
-export const DEFAULT_PERMIT_HOLDERS = 2;
+export const DEFAULT_PERMIT_HOLDERS = 4;
 
 /**
  * Fallback session times used when a section has no programme times and the
