@@ -85,6 +85,33 @@ export function guessActivityFromTitle(title) {
 }
 
 /**
+ * Keywords that mark a programme meeting as an on-water session. Kept broad
+ * (a leader can untick a false positive) so real water nights are never
+ * silently dropped.
+ * @type {string[]}
+ */
+export const WATER_KEYWORDS = [
+  'water', 'river', 'ocean', 'lake',
+  'kayak', 'canoe', 'paddle', 'boat', 'sail', 'raft', 'swim',
+];
+
+/**
+ * Whether a programme meeting title looks like an on-water session, used to
+ * pre-select the water nights in setup (most programme meetings are not on
+ * the water).
+ *
+ * @param {string|null|undefined} title - Programme meeting title
+ * @returns {boolean} True when the title mentions a water/boat keyword
+ */
+export function looksLikeWaterSession(title) {
+  if (typeof title !== 'string') {
+    return false;
+  }
+  const haystack = title.toLowerCase();
+  return WATER_KEYWORDS.some((keyword) => haystack.includes(keyword));
+}
+
+/**
  * Extract the year from a rota FlexiRecord name.
  *
  * @param {string} name - FlexiRecord name

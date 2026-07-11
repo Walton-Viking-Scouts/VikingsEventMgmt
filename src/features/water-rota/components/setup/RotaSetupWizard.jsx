@@ -10,7 +10,7 @@ import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger
 import { fetchProgrammeMeetings } from '../../services/programmeService.js';
 import { createOrCompleteRota, writeRotaConfig } from '../../services/rotaSetupService.js';
 import { loadRota } from '../../services/rotaService.js';
-import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle } from '../../services/rotaTemplates.js';
+import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle, looksLikeWaterSession } from '../../services/rotaTemplates.js';
 import { buildSessionColumnName } from '../../services/rotaEncoding.js';
 import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek } from '../../utils/rotaDates.js';
 import { getCurrentUserName } from '../../hooks/useRotaIdentity.js';
@@ -127,14 +127,22 @@ function RotaSetupWizard() {
         return;
       }
       setSections(cached);
-      const adults = cached.find((section) =>
-        `${section.section ?? ''} ${section.sectionname ?? ''}`.toLowerCase().includes('adult'),
-      );
+      const isWaitingList = (section) =>
+        /waiting/i.test(`${section.section ?? ''} ${section.sectiontype ?? ''} ${section.sectionname ?? ''}`);
+      const isAdults = (section) =>
+        `${section.section ?? ''} ${section.sectionname ?? ''}`.toLowerCase().includes('adult');
+
+      const adults = cached.find(isAdults);
       if (adults) {
         setHostSectionId(String(adults.sectionid));
       }
-      const nonAdults = cached.filter((section) => section !== adults);
-      setSelectedIds(Object.fromEntries(nonAdults.map((section) => [String(section.sectionid), true])));
+      // Auto-select the youth sections that actually run programmes — not the
+      // Adults host, and not waiting lists (which have no meetings and would
+      // otherwise generate a full year of weekly-slot sessions).
+      const youthSections = cached.filter(
+        (section) => !isAdults(section) && !isWaitingList(section),
+      );
+      setSelectedIds(Object.fromEntries(youthSections.map((section) => [String(section.sectionid), true])));
     }
     init();
     return () => {
@@ -142,14 +150,31 @@ function RotaSetupWizard() {
     };
   }, []);
 
+  const hostSection = useMemo(
+    () => (sections ?? []).find((section) => String(section.sectionid) === hostSectionId) ?? null,
+    [sections, hostSectionId],
+  );
+
+  const participating = useMemo(
+    () =>
+      (sections ?? [])
+        .filter((section) => selectedIds[String(section.sectionid)])
+        .map((section) => ({ sid: String(section.sectionid), sname: section.sectionname })),
+    [sections, selectedIds],
+  );
+
+  const rangeSourceSid = participating[0]?.sid ?? hostSectionId;
+
   useEffect(() => {
     let cancelled = false;
     async function defaultRange() {
-      if (!hostSectionId || range.start) {
+      if (!rangeSourceSid || range.start) {
         return;
       }
       try {
-        const term = await CurrentActiveTermsService.getCurrentActiveTerm(hostSectionId);
+        // Prefer a youth section's term: it's the real school term (~summer),
+        // whereas the Adults host term often spans a full year.
+        const term = await CurrentActiveTermsService.getCurrentActiveTerm(rangeSourceSid);
         if (!cancelled && term?.startDate && term?.endDate) {
           setRange({
             start: term.startDate.slice(0, 10),
@@ -164,20 +189,7 @@ function RotaSetupWizard() {
     return () => {
       cancelled = true;
     };
-  }, [hostSectionId, range.start]);
-
-  const hostSection = useMemo(
-    () => (sections ?? []).find((section) => String(section.sectionid) === hostSectionId) ?? null,
-    [sections, hostSectionId],
-  );
-
-  const participating = useMemo(
-    () =>
-      (sections ?? [])
-        .filter((section) => selectedIds[String(section.sectionid)])
-        .map((section) => ({ sid: String(section.sectionid), sname: section.sectionname })),
-    [sections, selectedIds],
-  );
+  }, [rangeSourceSid, range.start]);
 
   const { counts: ypCounts } = useSectionYPCounts(
     useMemo(() => participating.map((section) => section.sid), [participating]),
@@ -204,7 +216,15 @@ function RotaSetupWizard() {
         const meetings = term?.currentTermId
           ? await fetchProgrammeMeetings(section.sid, term.currentTermId, token)
           : [];
-        nextPlans[section.sid] = { ...withKids, meetings };
+        // Pre-select only the water nights: most programme meetings are not
+        // on the water, so default non-water meetings to excluded rather than
+        // making the leader untick ~10 of 14.
+        const excluded = Object.fromEntries(
+          meetings
+            .filter((meeting) => !looksLikeWaterSession(meeting.title))
+            .map((meeting) => [meeting.date, true]),
+        );
+        nextPlans[section.sid] = { ...withKids, meetings, excluded };
       } catch (error) {
         logger.warn('Programme fetch failed during setup', {
           sectionId: section.sid,
@@ -416,10 +436,18 @@ function RotaSetupWizard() {
                   </span>
                   <span className="text-xs text-gray-500">
                     {hasProgramme
-                      ? `${visibleMeetings.length} programme meeting${visibleMeetings.length === 1 ? '' : 's'} in range`
+                      ? `${visibleMeetings.filter((m) => !plan.excluded[m.date]).length} water night${
+                        visibleMeetings.filter((m) => !plan.excluded[m.date]).length === 1 ? '' : 's'
+                      } selected of ${visibleMeetings.length} programme meetings`
                       : 'No programme found — using a weekly slot'}
                   </span>
                 </h2>
+                {hasProgramme && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    Water nights are auto-picked from the meeting name; tick or untick any.
+                    Times aren&apos;t in the OSM programme, so the section time below is used.
+                  </p>
+                )}
 
                 <div className="mt-3 flex flex-wrap items-end gap-3">
                   <div>
