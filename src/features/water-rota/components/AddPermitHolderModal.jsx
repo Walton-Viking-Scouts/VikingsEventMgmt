@@ -55,7 +55,7 @@ function AddPermitHolderModal({ isOpen, members, existingScoutids, onPick, onClo
                 >
                   <MemberAvatar
                     member={{ scoutid: member.scoutid, photo_guid: member.photo_guid, name: member.name }}
-                    size="sm"
+                    size="md"
                   />
                   <span className="flex-1 text-sm font-medium text-gray-800">{member.name}</span>
                   {alreadyOn && (

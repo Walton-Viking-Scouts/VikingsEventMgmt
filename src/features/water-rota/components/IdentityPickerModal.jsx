@@ -51,7 +51,10 @@ function IdentityPickerModal({ isOpen, members, onChoose, onClose }) {
                 onClick={() => onChoose(member.scoutid)}
                 className="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-gray-50 rounded-md"
               >
-                <MemberAvatar member={{ name: member.name }} size="sm" />
+                <MemberAvatar
+                  member={{ scoutid: member.scoutid, photo_guid: member.photo_guid, name: member.name }}
+                  size="md"
+                />
                 <span className="text-sm font-medium text-gray-800">{member.name}</span>
               </button>
             </li>

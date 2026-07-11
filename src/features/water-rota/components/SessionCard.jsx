@@ -112,7 +112,7 @@ function SessionCard({
             </span>
 
             {people.length > 0 && (
-              <span className="flex -space-x-2" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
+              <span className="flex -space-x-3" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
                 {people.slice(0, MAX_AVATARS).map((person) => (
                   <span
                     key={person.scoutid}
@@ -122,12 +122,12 @@ function SessionCard({
                   >
                     <MemberAvatar
                       member={{ scoutid: person.scoutid, photo_guid: person.photo_guid, name: person.name }}
-                      size="sm"
+                      size="md"
                     />
                   </span>
                 ))}
                 {overflow > 0 && (
-                  <span className="h-8 w-8 rounded-full bg-gray-200 text-gray-700 text-xs font-medium flex items-center justify-center ring-2 ring-white">
+                  <span className="h-12 w-12 rounded-full bg-gray-200 text-gray-700 text-sm font-medium flex items-center justify-center ring-2 ring-white">
                     +{overflow}
                   </span>
                 )}

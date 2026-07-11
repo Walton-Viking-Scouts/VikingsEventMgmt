@@ -17,7 +17,7 @@ function SignupRow({ person, onRemove, removing = false }) {
     <li className="flex items-center gap-3 py-2">
       <MemberAvatar
         member={{ scoutid: person.scoutid, photo_guid: person.photo_guid, name: person.name }}
-        size="sm"
+        size="md"
       />
       <span className="flex-1 text-sm font-medium text-gray-800">{person.name}</span>
       {person.at && (
