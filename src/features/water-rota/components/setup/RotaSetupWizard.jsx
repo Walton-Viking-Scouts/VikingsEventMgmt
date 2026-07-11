@@ -128,6 +128,7 @@ function RotaSetupWizard() {
   const [loadingProgramme, setLoadingProgramme] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creationErrors, setCreationErrors] = useState([]);
+  const [activeSectionSid, setActiveSectionSid] = useState(null);
   const seededFromConfig = useRef(false);
 
   useEffect(() => {
@@ -266,6 +267,11 @@ function RotaSetupWizard() {
   const participatingSids = useMemo(() => participating.map((section) => section.sid), [participating]);
   const { counts: ypCounts } = useSectionYPCounts(participatingSids);
   const { candidates: leaderCandidates } = useSectionLeaders(participatingSids, hostSectionId);
+
+  const activeSid = participating.some((s) => s.sid === activeSectionSid)
+    ? activeSectionSid
+    : participating[0]?.sid ?? null;
+  const activeSection = participating.find((s) => s.sid === activeSid) ?? null;
 
   const allSessions = useMemo(
     () =>
@@ -516,11 +522,30 @@ function RotaSetupWizard() {
 
       {step === 2 && (
         <div className="mt-5 space-y-6">
-          {participating.map((section) => {
+          <div className="flex flex-wrap gap-1.5">
+            {participating.map((section) => {
+              const active = section.sid === activeSid;
+              return (
+                <button
+                  key={section.sid}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setActiveSectionSid(section.sid)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                    active
+                      ? sectionChipClass(section.sname) + ' border-transparent'
+                      : 'bg-white border-gray-300 text-gray-500'
+                  }`}
+                >
+                  {section.sname}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeSection && plans[activeSection.sid] && (() => {
+            const section = activeSection;
             const plan = plans[section.sid];
-            if (!plan) {
-              return null;
-            }
             const hasProgramme = plan.meetings && plan.meetings.length > 0;
             const visibleMeetings = (plan.meetings ?? []).filter(
               (meeting) => meeting.date >= range.start && meeting.date <= range.end,
@@ -663,6 +688,7 @@ function RotaSetupWizard() {
                       const activity = plan.meetingActivity?.[meeting.date]
                         ?? guessActivityFromTitle(meeting.title)
                         ?? plan.act;
+                      const isCustomActivity = !ACTIVITY_PRESETS.includes(activity);
                       return (
                         <li key={meeting.date} className="flex items-center gap-3 py-2">
                           <input
@@ -678,19 +704,22 @@ function RotaSetupWizard() {
                           />
                           <label
                             htmlFor={`meeting-${section.sid}-${meeting.date}`}
-                            className="text-sm text-gray-700 whitespace-nowrap"
+                            className="min-w-0 flex-1 text-sm text-gray-700"
                           >
-                            <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
-                            {meeting.startTime && (
-                              <span className="ml-2 text-gray-500">
-                                {meeting.startTime}
-                                {meeting.endTime ? `–${meeting.endTime}` : ''}
-                              </span>
+                            <span className="flex items-baseline gap-2 whitespace-nowrap">
+                              <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
+                              {meeting.startTime && (
+                                <span className="text-gray-500">
+                                  {meeting.startTime}
+                                  {meeting.endTime ? `–${meeting.endTime}` : ''}
+                                </span>
+                              )}
+                            </span>
+                            {meeting.title && (
+                              <span className="block text-xs text-gray-500 truncate">{meeting.title}</span>
                             )}
                           </label>
-                          <input
-                            type="text"
-                            list={`activity-presets-${section.sid}`}
+                          <select
                             value={activity}
                             disabled={!included}
                             onChange={(event) =>
@@ -700,20 +729,20 @@ function RotaSetupWizard() {
                             }
                             className="ml-auto w-36 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-scout-blue focus:outline-none disabled:opacity-40"
                             aria-label={`Activity for ${format(parseISO(meeting.date), 'd MMM')}`}
-                          />
+                          >
+                            {isCustomActivity && <option value={activity}>{activity}</option>}
+                            {ACTIVITY_PRESETS.map((preset) => (
+                              <option key={preset} value={preset}>{preset}</option>
+                            ))}
+                          </select>
                         </li>
                       );
                     })}
-                    <datalist id={`activity-presets-${section.sid}`}>
-                      {ACTIVITY_PRESETS.map((preset) => (
-                        <option key={preset} value={preset} />
-                      ))}
-                    </datalist>
                   </ul>
                 )}
               </section>
             );
-          })}
+          })()}
 
           <div className="flex gap-3">
             <button
