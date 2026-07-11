@@ -132,16 +132,22 @@ export async function syncRotaWithProgramme({ rota, token }) {
 
   const range = { start: cfg.start, end: cfg.end };
   const descriptors = [];
+  // Sections whose programme we could not read this run (no active term, or a
+  // fetch error). We must NOT treat their existing sessions as orphaned — we
+  // simply don't know what's on their programme, so leave them untouched.
+  const unchecked = new Set();
 
   for (const section of cfg.sections ?? []) {
     try {
       const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
       if (!term?.currentTermId) {
+        unchecked.add(String(section.sid));
         continue;
       }
       const meetings = await fetchProgrammeMeetings(section.sid, term.currentTermId, token);
       descriptors.push(...generateSessionsFromProgramme(meetings, section, range));
     } catch (error) {
+      unchecked.add(String(section.sid));
       logger.warn('Programme sync: section fetch failed', {
         sectionId: section.sid,
         error: error.message,
@@ -154,7 +160,10 @@ export async function syncRotaWithProgramme({ rota, token }) {
     date: session.date,
     sectionId: session.sectionId,
   }));
-  const { toAdd, orphaned } = diffSessions(existingColumns, descriptors);
+  const { toAdd, orphaned: rawOrphaned } = diffSessions(existingColumns, descriptors);
+  // Drop orphans from sections we couldn't check — otherwise a transient fetch
+  // failure would flag every one of that section's valid sessions.
+  const orphaned = rawOrphaned.filter((column) => !unchecked.has(String(column.sectionId)));
 
   let errors = [];
   if (toAdd.length > 0) {
@@ -182,7 +191,18 @@ export async function syncRotaWithProgramme({ rota, token }) {
     }
   }
 
-  return { added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length, orphaned, errors };
+  if (errors.length > 0) {
+    logger.error('Programme sync: some session columns failed to create', {
+      errors,
+    }, LOG_CATEGORIES.API);
+  }
+
+  return {
+    added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length,
+    orphaned,
+    errors,
+    uncheckedSections: [...unchecked],
+  };
 }
 
 /**

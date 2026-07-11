@@ -167,17 +167,22 @@ function RotaBoardPage() {
   const handleSyncProgramme = async () => {
     setSyncing(true);
     try {
-      const { added, orphaned, errors } = await syncRotaWithProgramme({ rota, token: getToken() });
+      const { added, orphaned, errors, uncheckedSections = [] } = await syncRotaWithProgramme({ rota, token: getToken() });
       if (errors.length > 0) {
         notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
-      } else if (added === 0 && orphaned.length === 0) {
+      } else if (added === 0 && orphaned.length === 0 && uncheckedSections.length === 0) {
         notifyInfo('Rota already matches the programmes.');
-      } else {
+      } else if (added > 0) {
         notifySuccess(`Added ${added} new session${added === 1 ? '' : 's'}.`);
       }
       if (orphaned.length > 0) {
         notifyInfo(
           `${orphaned.length} session${orphaned.length === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
+        );
+      }
+      if (uncheckedSections.length > 0) {
+        notifyInfo(
+          `Couldn't read the programme for ${uncheckedSections.length} section${uncheckedSections.length === 1 ? '' : 's'} — their sessions were left unchanged.`,
         );
       }
       await refresh();

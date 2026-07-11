@@ -198,8 +198,30 @@ describe('syncRotaWithProgramme', () => {
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
-    expect(result).toEqual({ added: 0, orphaned: [], errors: [] });
+    expect(result).toEqual({ added: 0, orphaned: [], errors: [], uncheckedSections: [] });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('does not orphan sessions of a section whose programme could not be read', async () => {
+    // The one section's programme fetch fails, so we cannot know what's on its
+    // programme — its existing sessions must NOT be reported as orphaned.
+    fetchProgrammeMeetings.mockRejectedValue(new Error('OSM 500'));
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(result.orphaned).toEqual([]);
+    expect(result.uncheckedSections).toEqual(['49097']);
+    expect(result.added).toBe(0);
+    expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('flags a section with no active term as unchecked, not orphaned', async () => {
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: null });
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(result.orphaned).toEqual([]);
+    expect(result.uncheckedSections).toEqual(['49097']);
   });
 
   it('throws without a plan config', async () => {
