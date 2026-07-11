@@ -186,6 +186,18 @@ describe('encodeConfig', () => {
     expect(() => encodeConfig({ ...CONFIG, cfg: { start: '2026-06-01', end: '2026-08-31' } })).toThrow();
   });
 
+  it('round-trips a per-session overrides map', () => {
+    const cfg = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sessions: { S_20260714_49097: { act: 'Powerboats', st: '18:00', en: '19:00' } },
+      },
+    };
+    const decoded = mergeLwwConfig([encodeConfig(cfg)]);
+    expect(decoded.cfg.sessions.S_20260714_49097).toEqual({ act: 'Powerboats', st: '18:00', en: '19:00' });
+  });
+
   it('accepts optional per-section kids/permits defaults', () => {
     const cfg = {
       ...CONFIG,

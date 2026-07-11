@@ -9,6 +9,7 @@
  */
 
 import { addDays, format, parseISO, startOfWeek } from 'date-fns';
+import { guessActivityFromTitle } from '../services/rotaTemplates.js';
 
 /**
  * Session descriptor produced by generation, consumed by setup/board code.
@@ -49,7 +50,7 @@ export function generateSessionsFromProgramme(meetings, section, range) {
       sectionName: section.sname,
       startTime: meeting.startTime || section.st,
       endTime: meeting.endTime || section.en,
-      activity: section.act,
+      activity: guessActivityFromTitle(meeting.title) ?? section.act,
       title: meeting.title ?? null,
     });
   }

@@ -124,6 +124,32 @@ describe('resolveSessionView', () => {
     expect(view.confirmed).toHaveLength(2);
   });
 
+  it('applies a per-session override for activity and times, above section defaults', () => {
+    const configWithOverride = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sessions: { S_20260714_49097: { act: 'Powerboats', st: '18:00', en: '19:00' } },
+      },
+    };
+    const view = resolveSessionView({ ...baseSession, meta: null, signups: [] }, configWithOverride);
+    expect(view.activity).toBe('Powerboats');
+    expect(view.startTime).toBe('18:00');
+    expect(view.endTime).toBe('19:00');
+  });
+
+  it('lets live per-session meta win over a setup override', () => {
+    const configWithOverride = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sessions: { S_20260714_49097: { act: 'Powerboats' } },
+      },
+    };
+    const view = resolveSessionView({ ...baseSession, meta: { ...META, act: 'Rafting' } }, configWithOverride);
+    expect(view.activity).toBe('Rafting');
+  });
+
   it('falls back to cached section names when config is missing', () => {
     const view = resolveSessionView(
       { ...baseSession, meta: null, signups: [] },

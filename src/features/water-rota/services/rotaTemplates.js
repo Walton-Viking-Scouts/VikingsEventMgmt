@@ -56,6 +56,35 @@ export function buildRotaRecordName(year) {
 }
 
 /**
+ * Guess a water-activity preset from a programme meeting title. OSM leaders
+ * put the session type in the meeting name (e.g. "Kayaking", "Cubs
+ * Powerboats"), so match the title against the known presets, including
+ * common singular/spelling variants.
+ *
+ * @param {string|null|undefined} title - Programme meeting title
+ * @returns {string|null} Matched activity preset, or null when nothing matches
+ */
+export function guessActivityFromTitle(title) {
+  if (typeof title !== 'string' || title.trim() === '') {
+    return null;
+  }
+  const haystack = title.toLowerCase();
+  const aliases = {
+    Kayaking: ['kayak'],
+    Canoeing: ['canoe'],
+    Paddleboarding: ['paddleboard', 'paddle board', 'sup', 'stand up paddle'],
+    Powerboats: ['powerboat', 'power boat', 'motorboat', 'safety boat'],
+  };
+  for (const preset of ACTIVITY_PRESETS) {
+    const needles = aliases[preset] ?? [preset.toLowerCase()];
+    if (needles.some((needle) => haystack.includes(needle))) {
+      return preset;
+    }
+  }
+  return null;
+}
+
+/**
  * Extract the year from a rota FlexiRecord name.
  *
  * @param {string} name - FlexiRecord name

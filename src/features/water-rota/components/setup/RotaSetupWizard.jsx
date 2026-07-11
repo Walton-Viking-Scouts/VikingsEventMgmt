@@ -10,7 +10,8 @@ import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger
 import { fetchProgrammeMeetings } from '../../services/programmeService.js';
 import { createOrCompleteRota, writeRotaConfig } from '../../services/rotaSetupService.js';
 import { loadRota } from '../../services/rotaService.js';
-import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES } from '../../services/rotaTemplates.js';
+import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle } from '../../services/rotaTemplates.js';
+import { buildSessionColumnName } from '../../services/rotaEncoding.js';
 import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek } from '../../utils/rotaDates.js';
 import { getCurrentUserName } from '../../hooks/useRotaIdentity.js';
 import { useSectionYPCounts } from '../../hooks/useSectionYPCounts.js';
@@ -34,6 +35,7 @@ function defaultPlan() {
     p: DEFAULT_PERMIT_HOLDERS,
     meetings: null,
     excluded: {},
+    meetingActivity: {},
     slotWeekday: 2,
   };
 }
@@ -52,9 +54,46 @@ function sessionsForSection(section, plan, range) {
   const sectionCfg = { sid: section.sid, sname: section.sname, act: plan.act, st: plan.st, en: plan.en };
   if (plan.meetings && plan.meetings.length > 0) {
     const included = plan.meetings.filter((meeting) => !plan.excluded[meeting.date]);
-    return generateSessionsFromProgramme(included, sectionCfg, range);
+    // Apply per-meeting activity overrides the leader set (default is the
+    // title-guessed activity, applied by generateSessionsFromProgramme).
+    return generateSessionsFromProgramme(included, sectionCfg, range).map((descriptor) => {
+      const chosen = plan.meetingActivity?.[descriptor.date];
+      return chosen ? { ...descriptor, activity: chosen } : descriptor;
+    });
   }
   return expandWeeklySlot({ weekday: plan.slotWeekday, ...sectionCfg }, range);
+}
+
+/**
+ * Build the per-session override map for RotaConfig from generated session
+ * descriptors: activity and times that differ from the section default, so
+ * each session shows its programme-derived activity/time without a
+ * per-session cell write. Keyed by session column name.
+ *
+ * @param {Array} descriptors - Session descriptors for all participating sections
+ * @param {Array<{sid: string, act: string, st: string, en: string}>} sectionDefaults - Config section defaults
+ * @returns {Object} Map of column name to override object (only differing fields)
+ */
+function buildSessionOverrides(descriptors, sectionDefaults) {
+  const defaultsBySid = new Map(sectionDefaults.map((entry) => [String(entry.sid), entry]));
+  const overrides = {};
+  for (const descriptor of descriptors) {
+    const base = defaultsBySid.get(String(descriptor.sectionId));
+    const override = {};
+    if (descriptor.activity && descriptor.activity !== base?.act) {
+      override.act = descriptor.activity;
+    }
+    if (descriptor.startTime && descriptor.startTime !== base?.st) {
+      override.st = descriptor.startTime;
+    }
+    if (descriptor.endTime && descriptor.endTime !== base?.en) {
+      override.en = descriptor.endTime;
+    }
+    if (Object.keys(override).length > 0) {
+      overrides[buildSessionColumnName(descriptor.date, descriptor.sectionId)] = override;
+    }
+  }
+  return overrides;
 }
 
 /**
@@ -217,6 +256,18 @@ function RotaSetupWizard() {
       }
 
       const by = (await getCurrentUserName()) ?? 'Setup';
+      const sectionDefaults = participating.map((section) => {
+        const plan = plans[section.sid];
+        return {
+          sid: section.sid,
+          sname: section.sname,
+          act: plan.act,
+          st: plan.st,
+          en: plan.en,
+          k: plan.k ?? ypCounts[section.sid] ?? 0,
+          p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
+        };
+      });
       await writeRotaConfig({
         hostSection,
         recordId: result.flexirecordid,
@@ -226,18 +277,8 @@ function RotaSetupWizard() {
         cfg: {
           start: range.start,
           end: range.end,
-          sections: participating.map((section) => {
-            const plan = plans[section.sid];
-            return {
-              sid: section.sid,
-              sname: section.sname,
-              act: plan.act,
-              st: plan.st,
-              en: plan.en,
-              k: plan.k ?? ypCounts[section.sid] ?? 0,
-              p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
-            };
-          }),
+          sections: sectionDefaults,
+          sessions: buildSessionOverrides(allSessions, sectionDefaults),
         },
         token,
       });
@@ -451,33 +492,57 @@ function RotaSetupWizard() {
 
                 {hasProgramme && (
                   <ul className="mt-3 divide-y divide-gray-100">
-                    {visibleMeetings.map((meeting) => (
-                      <li key={meeting.date} className="flex items-center gap-3 py-2">
-                        <input
-                          type="checkbox"
-                          id={`meeting-${section.sid}-${meeting.date}`}
-                          checked={!plan.excluded[meeting.date]}
-                          onChange={(event) =>
-                            updatePlan(section.sid, {
-                              excluded: { ...plan.excluded, [meeting.date]: !event.target.checked },
-                            })
-                          }
-                          className="h-4 w-4 rounded border-gray-300 text-scout-blue focus:ring-scout-blue"
-                        />
-                        <label
-                          htmlFor={`meeting-${section.sid}-${meeting.date}`}
-                          className="flex-1 text-sm text-gray-700"
-                        >
-                          <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
-                          {meeting.startTime && (
-                            <span className="ml-2 text-gray-500">{meeting.startTime}</span>
-                          )}
-                          {meeting.title && (
-                            <span className="ml-2 text-gray-400">{meeting.title}</span>
-                          )}
-                        </label>
-                      </li>
-                    ))}
+                    {visibleMeetings.map((meeting) => {
+                      const included = !plan.excluded[meeting.date];
+                      const activity = plan.meetingActivity?.[meeting.date]
+                        ?? guessActivityFromTitle(meeting.title)
+                        ?? plan.act;
+                      return (
+                        <li key={meeting.date} className="flex items-center gap-3 py-2">
+                          <input
+                            type="checkbox"
+                            id={`meeting-${section.sid}-${meeting.date}`}
+                            checked={included}
+                            onChange={(event) =>
+                              updatePlan(section.sid, {
+                                excluded: { ...plan.excluded, [meeting.date]: !event.target.checked },
+                              })
+                            }
+                            className="h-4 w-4 rounded border-gray-300 text-scout-blue focus:ring-scout-blue"
+                          />
+                          <label
+                            htmlFor={`meeting-${section.sid}-${meeting.date}`}
+                            className="text-sm text-gray-700 whitespace-nowrap"
+                          >
+                            <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
+                            {meeting.startTime && (
+                              <span className="ml-2 text-gray-500">
+                                {meeting.startTime}
+                                {meeting.endTime ? `–${meeting.endTime}` : ''}
+                              </span>
+                            )}
+                          </label>
+                          <input
+                            type="text"
+                            list={`activity-presets-${section.sid}`}
+                            value={activity}
+                            disabled={!included}
+                            onChange={(event) =>
+                              updatePlan(section.sid, {
+                                meetingActivity: { ...plan.meetingActivity, [meeting.date]: event.target.value },
+                              })
+                            }
+                            className="ml-auto w-36 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-scout-blue focus:outline-none disabled:opacity-40"
+                            aria-label={`Activity for ${format(parseISO(meeting.date), 'd MMM')}`}
+                          />
+                        </li>
+                      );
+                    })}
+                    <datalist id={`activity-presets-${section.sid}`}>
+                      {ACTIVITY_PRESETS.map((preset) => (
+                        <option key={preset} value={preset} />
+                      ))}
+                    </datalist>
                   </ul>
                 )}
               </section>

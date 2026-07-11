@@ -6,7 +6,7 @@
  * @module rotaDisplay
  */
 
-import { SIGNUP_STATUS } from '../services/rotaEncoding.js';
+import { SIGNUP_STATUS, buildSessionColumnName } from '../services/rotaEncoding.js';
 
 /**
  * Cover status values, from healthy to missing data.
@@ -81,6 +81,11 @@ export function resolveSessionView(session, config, sectionNames = {}) {
   const sectionDefaults = (config?.cfg?.sections ?? []).find(
     (entry) => String(entry.sid) === String(session.sectionId),
   );
+  // Per-session overrides captured at setup (activity from the programme
+  // meeting title, programme times) sit between live per-session edits (meta)
+  // and the section defaults.
+  const columnName = buildSessionColumnName(session.date, session.sectionId);
+  const override = config?.cfg?.sessions?.[columnName];
   const meta = session.meta;
 
   const confirmed = session.signups.filter((signup) => signup.status === SIGNUP_STATUS.IN);
@@ -91,11 +96,11 @@ export function resolveSessionView(session, config, sectionNames = {}) {
     date: session.date,
     sectionId: session.sectionId,
     sectionName: sectionDefaults?.sname ?? sectionNames[String(session.sectionId)] ?? `Section ${session.sectionId}`,
-    activity: meta?.act ?? sectionDefaults?.act ?? '',
-    startTime: meta?.st ?? sectionDefaults?.st ?? '',
-    endTime: meta?.en ?? sectionDefaults?.en ?? '',
-    kids: meta?.k ?? sectionDefaults?.k ?? null,
-    needed: meta?.p ?? sectionDefaults?.p ?? null,
+    activity: meta?.act ?? override?.act ?? sectionDefaults?.act ?? '',
+    startTime: meta?.st ?? override?.st ?? sectionDefaults?.st ?? '',
+    endTime: meta?.en ?? override?.en ?? sectionDefaults?.en ?? '',
+    kids: meta?.k ?? override?.k ?? sectionDefaults?.k ?? null,
+    needed: meta?.p ?? override?.p ?? sectionDefaults?.p ?? null,
     notes: meta?.n ?? '',
     cancelled: meta?.c === 1,
     hasMeta: Boolean(meta),

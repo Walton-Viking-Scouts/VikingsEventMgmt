@@ -29,19 +29,26 @@ export function useSectionYPCounts(sectionIds) {
         return;
       }
       try {
-        const ids = key.split(',');
-        const members = await databaseService.getMembers(ids);
+        const stringIds = key.split(',');
+        // member_section stores sectionid as a Number and the IndexedDB index
+        // lookup is type-strict, so query with numeric ids (matching how
+        // useAttendanceData calls getMembers). String ids silently return
+        // nothing on the web backend.
+        const members = await databaseService.getMembers(stringIds.map(Number));
         const counts = {};
-        for (const id of ids) {
+        for (const id of stringIds) {
           counts[id] = 0;
         }
+        // Count from each member's per-section memberships, not the top-level
+        // person_type (which reflects only their primary section). A scout is a
+        // Young Person in section X iff their section-X membership says so.
         for (const member of members ?? []) {
-          if (member.person_type !== 'Young People') {
-            continue;
-          }
-          const sid = String(member.sectionid);
-          if (sid in counts) {
-            counts[sid] += 1;
+          const sections = Array.isArray(member.sections) ? member.sections : [];
+          for (const membership of sections) {
+            const sid = String(membership.sectionid);
+            if (sid in counts && membership.person_type === 'Young People') {
+              counts[sid] += 1;
+            }
           }
         }
         if (!cancelled) {

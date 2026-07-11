@@ -48,6 +48,16 @@ const sectionDefaultsSchema = z
   })
   .passthrough();
 
+const sessionOverrideSchema = z
+  .object({
+    act: z.string().optional(),
+    st: timeSchema.optional(),
+    en: timeSchema.optional(),
+    k: z.number().int().nonnegative().optional(),
+    p: z.number().int().nonnegative().optional(),
+  })
+  .passthrough();
+
 const rotaConfigSchema = z
   .object({
     v: z.number().int().nonnegative(),
@@ -59,6 +69,7 @@ const rotaConfigSchema = z
         end: isoDateSchema,
         termId: z.string().optional(),
         sections: z.array(sectionDefaultsSchema),
+        sessions: z.record(z.string(), sessionOverrideSchema).optional(),
       })
       .passthrough(),
   })

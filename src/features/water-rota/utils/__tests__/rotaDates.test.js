@@ -31,6 +31,16 @@ describe('generateSessionsFromProgramme', () => {
     expect(sessions[1]).toMatchObject({ date: '2026-06-09', startTime: '18:15', endTime: '19:30' });
   });
 
+  it('derives activity from the meeting title, falling back to the section default', () => {
+    const meetings = [
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Powerboats' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Water fun' },
+    ];
+    const sessions = generateSessionsFromProgramme(meetings, CUBS, RANGE);
+    expect(sessions[0].activity).toBe('Powerboats');
+    expect(sessions[1].activity).toBe('Kayaking'); // no title match → section default
+  });
+
   it('collapses duplicate meeting dates to the first meeting', () => {
     const meetings = [
       { date: '2026-06-02', startTime: '18:00', endTime: '19:00', title: 'First' },
