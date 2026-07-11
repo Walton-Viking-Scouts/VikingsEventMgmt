@@ -10,9 +10,10 @@ import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger
 import { fetchProgrammeMeetings } from '../../services/programmeService.js';
 import { createOrCompleteRota, writeRotaConfig } from '../../services/rotaSetupService.js';
 import { loadRota } from '../../services/rotaService.js';
-import { ACTIVITY_PRESETS, DEFAULT_SESSION_TIMES } from '../../services/rotaTemplates.js';
+import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES } from '../../services/rotaTemplates.js';
 import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek } from '../../utils/rotaDates.js';
 import { getCurrentUserName } from '../../hooks/useRotaIdentity.js';
+import { useSectionYPCounts } from '../../hooks/useSectionYPCounts.js';
 import { sectionChipClass } from '../../utils/rotaDisplay.js';
 import IdentityPickerModal from '../IdentityPickerModal.jsx';
 
@@ -30,6 +31,8 @@ function defaultPlan() {
     act: ACTIVITY_PRESETS[0],
     st: DEFAULT_SESSION_TIMES.start,
     en: DEFAULT_SESSION_TIMES.end,
+    k: null,
+    p: DEFAULT_PERMIT_HOLDERS,
     meetings: null,
     excluded: {},
     slotWeekday: 2,
@@ -139,6 +142,10 @@ function RotaSetupWizard() {
     [sections, selectedIds],
   );
 
+  const { counts: ypCounts } = useSectionYPCounts(
+    useMemo(() => participating.map((section) => section.sid), [participating]),
+  );
+
   const allSessions = useMemo(
     () =>
       participating.flatMap((section) =>
@@ -154,18 +161,19 @@ function RotaSetupWizard() {
     const nextPlans = {};
     for (const section of participating) {
       const plan = plans[section.sid] ?? defaultPlan();
+      const withKids = { ...plan, k: plan.k ?? ypCounts[section.sid] ?? 0 };
       try {
         const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
         const meetings = term?.currentTermId
           ? await fetchProgrammeMeetings(section.sid, term.currentTermId, token)
           : [];
-        nextPlans[section.sid] = { ...plan, meetings };
+        nextPlans[section.sid] = { ...withKids, meetings };
       } catch (error) {
         logger.warn('Programme fetch failed during setup', {
           sectionId: section.sid,
           error: error.message,
         }, LOG_CATEGORIES.API);
-        nextPlans[section.sid] = { ...plan, meetings: [] };
+        nextPlans[section.sid] = { ...withKids, meetings: [] };
       }
     }
     setPlans(nextPlans);
@@ -189,7 +197,15 @@ function RotaSetupWizard() {
         end: range.end,
         sections: participating.map((section) => {
           const plan = plans[section.sid];
-          return { sid: section.sid, sname: section.sname, act: plan.act, st: plan.st, en: plan.en };
+          return {
+            sid: section.sid,
+            sname: section.sname,
+            act: plan.act,
+            st: plan.st,
+            en: plan.en,
+            k: plan.k ?? 0,
+            p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
+          };
         }),
       },
       token,
@@ -411,6 +427,28 @@ function RotaSetupWizard() {
                       </select>
                     </div>
                   )}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Expected YP</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={plan.k ?? 0}
+                      onChange={(event) => updatePlan(section.sid, { k: Math.max(0, Number(event.target.value) || 0) })}
+                      className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                      aria-label={`Expected young people for ${section.sname}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Permit holders</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={plan.p}
+                      onChange={(event) => updatePlan(section.sid, { p: Math.max(0, Number(event.target.value) || 0) })}
+                      className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                      aria-label={`Permit holders needed for ${section.sname}`}
+                    />
+                  </div>
                 </div>
 
                 {hasProgramme && (

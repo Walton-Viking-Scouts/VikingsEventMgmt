@@ -185,4 +185,15 @@ describe('encodeConfig', () => {
   it('rejects config without sections', () => {
     expect(() => encodeConfig({ ...CONFIG, cfg: { start: '2026-06-01', end: '2026-08-31' } })).toThrow();
   });
+
+  it('accepts optional per-section kids/permits defaults', () => {
+    const cfg = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sections: [{ ...CONFIG.cfg.sections[0], k: 22, p: 2 }],
+      },
+    };
+    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg.sections[0]).toMatchObject({ k: 22, p: 2 });
+  });
 });

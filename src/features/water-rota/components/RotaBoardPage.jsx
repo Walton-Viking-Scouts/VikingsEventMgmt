@@ -88,8 +88,25 @@ function RotaBoardPage() {
     [sessions, sectionFilters],
   );
 
-  const weeks = useMemo(() => bucketSessionsByWeek(visibleSessions), [visibleSessions]);
+  const allWeeks = useMemo(() => bucketSessionsByWeek(visibleSessions), [visibleSessions]);
   const currentWeekStart = startOfIsoWeek(format(new Date(), 'yyyy-MM-dd'));
+  const [showPast, setShowPast] = useState(false);
+  const pastWeekCount = useMemo(
+    () => allWeeks.filter((week) => week.weekStart < currentWeekStart).length,
+    [allWeeks, currentWeekStart],
+  );
+  const weeks = useMemo(
+    () => (showPast ? allWeeks : allWeeks.filter((week) => week.weekStart >= currentWeekStart)),
+    [allWeeks, showPast, currentWeekStart],
+  );
+  const pendingScrollWeek = useRef(null);
+
+  useEffect(() => {
+    if (pendingScrollWeek.current) {
+      weekRefs.current.get(pendingScrollWeek.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      pendingScrollWeek.current = null;
+    }
+  }, [weeks]);
 
   useEffect(() => {
     if (didAutoScroll.current || weeks.length === 0) {
@@ -110,6 +127,11 @@ function RotaBoardPage() {
   };
 
   const scrollToWeek = (weekStart) => {
+    if (weekStart < currentWeekStart && !showPast) {
+      pendingScrollWeek.current = weekStart;
+      setShowPast(true);
+      return;
+    }
     weekRefs.current.get(weekStart)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -198,14 +220,23 @@ function RotaBoardPage() {
         <h1 className="text-lg font-semibold text-gray-900">Water Rota {year}</h1>
         <div className="flex items-center gap-4">
           {canEdit && online && (
-            <button
-              type="button"
-              disabled={syncing}
-              onClick={handleSyncProgramme}
-              className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium disabled:opacity-50"
-            >
-              {syncing ? 'Syncing…' : 'Sync programme'}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => navigate('/water-rota/setup')}
+                className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
+              >
+                Edit plan
+              </button>
+              <button
+                type="button"
+                disabled={syncing}
+                onClick={handleSyncProgramme}
+                className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium disabled:opacity-50"
+              >
+                {syncing ? 'Syncing…' : 'Sync programme'}
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -246,13 +277,25 @@ function RotaBoardPage() {
 
       <div className="mt-3 sticky top-0 z-10 bg-white/95 backdrop-blur rounded-lg">
         <TermOverviewStrip
-          weeks={weeks}
+          weeks={allWeeks}
           currentWeekStart={currentWeekStart}
           onSelectWeek={scrollToWeek}
         />
       </div>
 
-      {weeks.length === 0 ? (
+      {pastWeekCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowPast((previous) => !previous)}
+          className="mt-2 w-full py-1.5 text-xs font-medium text-gray-500 hover:text-scout-blue"
+        >
+          {showPast
+            ? 'Hide earlier weeks'
+            : `Show ${pastWeekCount} earlier week${pastWeekCount === 1 ? '' : 's'}`}
+        </button>
+      )}
+
+      {allWeeks.length === 0 ? (
         <p className="mt-8 text-center text-sm text-gray-500">
           No sessions match the current filters.
         </p>

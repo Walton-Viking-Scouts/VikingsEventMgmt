@@ -79,6 +79,20 @@ describe('resolveSessionView', () => {
     expect(view.hasMeta).toBe(true);
   });
 
+  it('defaults kids and needed from config section defaults, giving fresh sessions a live status', () => {
+    const configWithDefaults = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sections: [{ ...CONFIG.cfg.sections[0], k: 22, p: 2 }],
+      },
+    };
+    const view = resolveSessionView({ ...baseSession, meta: null, signups: [] }, configWithDefaults);
+    expect(view.kids).toBe(22);
+    expect(view.needed).toBe(2);
+    expect(view.status).toBe(COVER_STATUS.SHORT);
+  });
+
   it('self-heals from config defaults when metadata is gone', () => {
     const view = resolveSessionView({ ...baseSession, meta: null, signups: [] }, CONFIG);
     expect(view.activity).toBe('Kayaking');

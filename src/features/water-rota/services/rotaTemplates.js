@@ -22,10 +22,14 @@ export const ACTIVITY_PRESETS = [
   'Kayaking',
   'Canoeing',
   'Paddleboarding',
-  'Bell boats',
-  'Rafting',
-  'Sailing',
+  'Powerboats',
 ];
+
+/**
+ * Default permit holders needed per session until a leader sets a number.
+ * @type {number}
+ */
+export const DEFAULT_PERMIT_HOLDERS = 2;
 
 /**
  * Fallback session times used when a section has no programme times and the

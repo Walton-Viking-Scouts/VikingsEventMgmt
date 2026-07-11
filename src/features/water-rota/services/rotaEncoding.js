@@ -43,6 +43,8 @@ const sectionDefaultsSchema = z
     act: z.string(),
     st: timeSchema,
     en: timeSchema,
+    k: z.number().int().nonnegative().optional(),
+    p: z.number().int().nonnegative().optional(),
   })
   .passthrough();
 
