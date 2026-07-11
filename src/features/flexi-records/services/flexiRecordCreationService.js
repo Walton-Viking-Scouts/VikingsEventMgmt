@@ -22,6 +22,7 @@ import {
   getFlexiRecordsList,
   getFlexiRecordStructure,
 } from '../../events/services/flexiRecordService.js';
+import { parseFlexiStructure } from '../../../shared/utils/flexiRecordTransforms.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 
 /**
@@ -117,8 +118,14 @@ async function findExistingRecord(sectionId, recordName, token) {
  */
 async function getExistingFieldNames(flexirecordid, sectionId, termId, token) {
   const structure = await getFlexiRecordStructure(flexirecordid, sectionId, termId, token, true);
-  const fieldMapping = structure?.fieldMapping || {};
-  return new Set(Object.values(fieldMapping).map(field => field.name));
+  if (!structure) {
+    return new Set();
+  }
+  // OSM returns the raw structure (a `config` JSON string of columns), not a
+  // pre-built fieldMapping. Parse it so existing columns are actually seen —
+  // otherwise every run re-adds all template fields and duplicates columns.
+  const mapping = parseFlexiStructure(structure);
+  return new Set([...mapping.values()].map(field => field.name).filter(Boolean));
 }
 
 /**
