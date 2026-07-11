@@ -25,7 +25,7 @@ import {
   parseSessionColumnName,
 } from './rotaEncoding.js';
 import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
-import { writeConfig } from './rotaService.js';
+import { loadRota, prefillRegulars, writeConfig } from './rotaService.js';
 import { fetchProgrammeMeetings } from './programmeService.js';
 import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
 
@@ -166,6 +166,20 @@ export async function syncRotaWithProgramme({ rota, token }) {
       token,
     });
     errors = result.errors ?? [];
+
+    // Pre-fill each section's regulars onto the NEW sessions only — never
+    // re-touch existing sessions, which would undo people's withdrawals.
+    const regularsBySection = Object.fromEntries(
+      (cfg.sections ?? []).map((section) => [String(section.sid), section.regulars ?? []]),
+    );
+    if (Object.values(regularsBySection).some((list) => list.length > 0)) {
+      const reloaded = await loadRota(rota.year, token);
+      const addedNames = new Set(toAdd.map((d) => buildSessionColumnName(d.date, d.sectionId)));
+      const newSessions = (reloaded?.sessions ?? []).filter(
+        (session) => session.fieldId && addedNames.has(buildSessionColumnName(session.date, session.sectionId)),
+      );
+      await prefillRegulars({ rota: reloaded, regularsBySection, token, sessions: newSessions });
+    }
   }
 
   return { added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length, orphaned, errors };

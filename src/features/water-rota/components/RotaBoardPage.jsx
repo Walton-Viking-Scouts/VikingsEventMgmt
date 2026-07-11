@@ -351,7 +351,7 @@ function RotaBoardPage() {
                     myStatus={identity ? myStatusFor(session, identity.scoutid) : null}
                     onSignupChange={handleSignupChange}
                     signupDisabled={!online || (!identity && !needsPicker)}
-                    signupPending={pendingFieldId === session.fieldId}
+                    signupPending={Boolean(session.fieldId) && pendingFieldId === session.fieldId}
                   />
                 ))}
               </div>
@@ -368,7 +368,7 @@ function RotaBoardPage() {
           canEdit={canEdit}
           sectionYPCount={ypCounts[selectedSession.sectionId] ?? null}
           myStatus={identity ? myStatusFor(selectedSession, identity.scoutid) : null}
-          signupPending={pendingFieldId === selectedSession.fieldId}
+          signupPending={Boolean(selectedSession.fieldId) && pendingFieldId === selectedSession.fieldId}
           onSignupChange={handleSignupChange}
           refresh={refresh}
           onClose={() => setSelectedKey(null)}

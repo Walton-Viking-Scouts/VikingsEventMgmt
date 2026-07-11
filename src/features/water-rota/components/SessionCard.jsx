@@ -47,11 +47,13 @@ function SessionCard({
   const people = [...confirmed, ...backups];
   const overflow = people.length - MAX_AVATARS;
   const timeLabel = startTime && endTime ? `${startTime}–${endTime}` : startTime || '';
-  const showSignup = Boolean(onSignupChange) && !cancelled;
+  // Config-only (not-on-water) sessions have no signup column (fieldId null),
+  // so they can't be signed up to — never show the pills for them.
+  const showSignup = Boolean(onSignupChange) && !cancelled && Boolean(session.fieldId);
 
   return (
     <div
-      data-testid={`session-${session.fieldId}`}
+      data-testid={`session-${session.key}`}
       className={`relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden ${
         cancelled ? 'opacity-60' : ''
       }`}

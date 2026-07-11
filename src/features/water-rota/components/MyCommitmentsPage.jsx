@@ -145,7 +145,7 @@ function MyCommitmentsPage() {
                       session={session}
                       myStatus={myStatusFor(session, identity.scoutid)}
                       onSignupChange={handleSignupChange}
-                      signupPending={pendingFieldId === session.fieldId}
+                      signupPending={Boolean(session.fieldId) && pendingFieldId === session.fieldId}
                     />
                   ))}
                 </div>

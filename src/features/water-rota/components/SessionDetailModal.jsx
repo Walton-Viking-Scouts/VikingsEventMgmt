@@ -169,7 +169,7 @@ function SessionDetailModal({
         )}
       </Modal.Body>
 
-      {!session.cancelled && !editing && (
+      {!session.cancelled && !editing && session.fieldId && (
         <Modal.Footer>
           <div className="w-full">
             <SignupButtons

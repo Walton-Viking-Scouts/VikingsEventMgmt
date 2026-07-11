@@ -1,15 +1,18 @@
 /**
  * Water Rota data service: discovers the yearly rota FlexiRecord across the
- * user's sections, loads and decodes it, and performs the three rota writes
- * (signup, session metadata, plan config).
+ * user's sections, loads and decodes it, and performs the rota writes
+ * (signup, session metadata, plan config, and regular pre-fill).
  *
- * Write discipline (PRD §5.4 freshness constraint): every write re-fetches
- * the live grid, merges into the writer's OWN cell only (preserving whatever
- * else that cell holds), sends a single updateFlexiRecord, then patches the
- * local cache optimistically. Writes are serialized through a module-level
- * promise-chain lock so two in-flight writes cannot interleave their
- * read-merge-write cycles. Rota writes are online-only — offline attempts
- * throw WRITE_UNAVAILABLE from the API layer.
+ * Write discipline (PRD §5.4 freshness constraint): the per-user writes
+ * (signup, session metadata) re-fetch the live grid, merge into a single
+ * target row's cell (the caller's own row for signup/meta; a deterministic
+ * anchor row for config — see writeConfig), send one updateFlexiRecord, then
+ * patch the local cache optimistically. These are serialized through a
+ * module-level promise-chain lock so two in-flight writes cannot interleave
+ * their read-merge-write cycles. prefillRegulars is a setup-time bulk write
+ * that targets other members' rows (organiser-only, cells empty). Rota writes
+ * are online-only — offline attempts throw WRITE_UNAVAILABLE from the API
+ * layer.
  *
  * @module rotaService
  */
@@ -19,6 +22,7 @@ import {
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
+  multiUpdateFlexiRecord,
 } from '../../../shared/services/api/api/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../shared/services/storage/currentActiveTermsService.js';
@@ -313,6 +317,61 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, token
 }
 
 /**
+ * Pre-fill a section's regular permit holders as confirmed signups on its
+ * water sessions. Setup-time bulk write: one multiUpdateFlexiRecord per
+ * session sets every regular's cell to a confirmed signup. Targets other
+ * members' rows (organiser-only, run when cells are empty), so it does NOT go
+ * through the own-cell write lock. Confirmed-by-default: gaps on a session
+ * then represent the extra permit holders still needed.
+ *
+ * @param {Object} params
+ * @param {LoadedRota} params.rota - Loaded rota (host section, record, term)
+ * @param {Object<string, string[]>} params.regularsBySection - Map of sectionId → regular scoutids
+ * @param {string} params.token - OSM authentication token
+ * @param {Array<{fieldId: string|null, sectionId: string}>} [params.sessions] - Sessions to fill; defaults to every column-backed session in the rota
+ * @returns {Promise<{filled: number, errors: Array<{fieldId: string, error: string}>}>} Outcome
+ */
+export async function prefillRegulars({ rota, regularsBySection, token, sessions }) {
+  const targetSessions = (sessions ?? rota.sessions ?? []).filter((session) => session.fieldId);
+  const atISO = new Date().toISOString();
+  const inValue = JSON.stringify({ s: SIGNUP_STATUS.IN, sat: atISO });
+
+  let filled = 0;
+  const errors = [];
+
+  for (const session of targetSessions) {
+    const scouts = regularsBySection[String(session.sectionId)] ?? [];
+    if (scouts.length === 0) {
+      continue;
+    }
+    try {
+      const response = await multiUpdateFlexiRecord(
+        rota.hostSection.sectionid,
+        scouts,
+        inValue,
+        session.fieldId,
+        rota.recordId,
+        token,
+      );
+      const failure = detectWriteFailure(response);
+      if (failure) {
+        errors.push({ fieldId: session.fieldId, error: failure });
+      } else {
+        filled += 1;
+      }
+    } catch (error) {
+      logger.error('Rota: regular pre-fill failed for a session', {
+        fieldId: session.fieldId,
+        error: error.message,
+      }, LOG_CATEGORIES.API);
+      errors.push({ fieldId: session.fieldId, error: error.message });
+    }
+  }
+
+  return { filled, errors };
+}
+
+/**
  * Shared write cycle: under the write lock, re-fetch the live grid, compute
  * the caller's new own-cell value, send one updateFlexiRecord, then patch
  * the local flexi cache so the UI reflects the write immediately.
@@ -338,7 +397,7 @@ async function writeOwnCell({ rota, fieldId, scoutid, token, mutate }) {
 
     const newValue = mutate(ownRow[fieldId], items);
 
-    await updateFlexiRecord(
+    const response = await updateFlexiRecord(
       hostSection.sectionid,
       scoutid,
       recordId,
@@ -348,9 +407,42 @@ async function writeOwnCell({ rota, fieldId, scoutid, token, mutate }) {
       hostSection.section,
       token,
     );
+    const failure = detectWriteFailure(response);
+    if (failure) {
+      throw new Error(`OSM rejected the write: ${failure}`);
+    }
 
     await patchLocalCache({ recordId, hostSection, termId, scoutid, fieldId, newValue });
   });
+}
+
+/**
+ * Detect an OSM write rejection returned as HTTP 200 with a failure body.
+ * osmRequest only throws on non-2xx, but OSM write endpoints can return 200
+ * with `{error}` / `{ok:false}` / `{success:false}` / `{status:'fail'}`.
+ * Conservative on purpose: it does NOT treat `result:0` as failure, because a
+ * successful no-op update can legitimately report zero rows changed.
+ *
+ * @param {*} response - Raw updateFlexiRecord/multiUpdateFlexiRecord response
+ * @returns {string|null} A failure message, or null when the response looks fine
+ */
+function detectWriteFailure(response) {
+  if (!response || typeof response !== 'object') {
+    return null;
+  }
+  if (response.error) {
+    return String(response.error);
+  }
+  if (response.success === false) {
+    return String(response.message || response.error_description || 'success: false');
+  }
+  if (response.ok === false) {
+    return String(response.message || 'ok: false');
+  }
+  if (response.status === 'fail' || response.status === 'error') {
+    return String(response.message || response.error_description || `status: ${response.status}`);
+  }
+  return null;
 }
 
 /**

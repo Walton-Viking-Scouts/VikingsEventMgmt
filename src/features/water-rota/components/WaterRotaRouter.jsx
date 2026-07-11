@@ -40,9 +40,8 @@ function ViewSwitch() {
 }
 
 /**
- * Nested router for the Water Rota feature: board (default) and My week,
- * with unknown paths falling back to the board. The setup wizard route is
- * added by its own PR.
+ * Nested router for the Water Rota feature: board (default), My week, and
+ * the setup wizard, with unknown paths falling back to the board.
  *
  * @returns {JSX.Element} Water rota routes under /water-rota
  */

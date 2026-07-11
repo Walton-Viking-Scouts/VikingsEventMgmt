@@ -11,6 +11,7 @@ vi.mock('../../../../shared/services/api/api/index.js', () => ({
   getFlexiStructure: vi.fn(),
   getSingleFlexiRecord: vi.fn(),
   updateFlexiRecord: vi.fn(),
+  multiUpdateFlexiRecord: vi.fn(),
 }));
 
 vi.mock('../../../../shared/services/storage/database.js', () => ({
@@ -30,12 +31,14 @@ import {
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
+  multiUpdateFlexiRecord,
 } from '../../../../shared/services/api/api/index.js';
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import {
   discoverRotaRecord,
   loadRota,
+  prefillRegulars,
   writeSignup,
   writeSessionMeta,
 } from '../rotaService.js';
@@ -266,6 +269,25 @@ describe('writeSignup', () => {
     ).rejects.toThrow(/offline/);
   });
 
+  it('throws when OSM returns HTTP 200 with a failure body', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_2: '' }]));
+    updateFlexiRecord.mockResolvedValue({ ok: false, message: 'no write permission' });
+
+    await expect(
+      writeSignup({ rota, fieldId: 'f_2', scoutid: 10, status: SIGNUP_STATUS.IN, token: TOKEN }),
+    ).rejects.toThrow(/no write permission/);
+  });
+
+  it('does not treat a no-op result:0 response as failure', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_2: '' }]));
+    updateFlexiRecord.mockResolvedValue({ result: 0, items: [] });
+    databaseService.getFlexiData.mockResolvedValue({ items: [{ scoutid: 10, f_2: '' }] });
+
+    await expect(
+      writeSignup({ rota, fieldId: 'f_2', scoutid: 10, status: SIGNUP_STATUS.IN, token: TOKEN }),
+    ).resolves.toBeUndefined();
+  });
+
   it('serializes concurrent writes through the lock', async () => {
     const order = [];
     getSingleFlexiRecord.mockImplementation(async () => {
@@ -314,5 +336,75 @@ describe('writeSessionMeta', () => {
     expect(written.m.by).toBe('Simon Clark');
     expect(written.s).toBe('B');
     expect(written.sat).toBe('2026-07-01T08:00:00Z');
+  });
+});
+
+describe('prefillRegulars', () => {
+  const rota = {
+    hostSection: HOST_SECTION,
+    recordId: 777,
+    termId: 'T1',
+    sessions: [
+      { fieldId: 'f_2', sectionId: '49097' },
+      { fieldId: 'f_3', sectionId: '49097' },
+      { fieldId: 'f_4', sectionId: '49099' },
+      { fieldId: null, sectionId: '49097' }, // config-only not-on-water → skipped
+    ],
+  };
+
+  it('writes one multiUpdate per on-water session with the section regulars', async () => {
+    multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+
+    const result = await prefillRegulars({
+      rota,
+      regularsBySection: { '49097': ['10', '11'], '49099': ['12'] },
+      token: TOKEN,
+    });
+
+    expect(result.filled).toBe(3);
+    expect(result.errors).toEqual([]);
+    // f_2, f_3 (Cubs) get [10,11]; f_4 (Scouts) gets [12]; null skipped
+    expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(3);
+    const [sectionid, scouts, value, column, recordId] = multiUpdateFlexiRecord.mock.calls[0];
+    expect([sectionid, column, recordId]).toEqual([900, 'f_2', 777]);
+    expect(scouts).toEqual(['10', '11']);
+    expect(JSON.parse(value)).toMatchObject({ s: 'I' });
+  });
+
+  it('skips sessions whose section has no regulars', async () => {
+    multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+    const result = await prefillRegulars({
+      rota,
+      regularsBySection: { '49097': ['10'] },
+      token: TOKEN,
+    });
+    // only f_2 and f_3 (Cubs); f_4 (Scouts, no regulars) skipped
+    expect(result.filled).toBe(2);
+    expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it('collects per-session errors and continues', async () => {
+    multiUpdateFlexiRecord
+      .mockResolvedValueOnce({ ok: false, message: 'denied' })
+      .mockResolvedValue({ ok: true });
+    const result = await prefillRegulars({
+      rota,
+      regularsBySection: { '49097': ['10'], '49099': ['12'] },
+      token: TOKEN,
+    });
+    expect(result.filled).toBe(2);
+    expect(result.errors).toEqual([{ fieldId: 'f_2', error: 'denied' }]);
+  });
+
+  it('can target a specific subset of sessions (e.g. newly synced)', async () => {
+    multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+    await prefillRegulars({
+      rota,
+      regularsBySection: { '49097': ['10'] },
+      token: TOKEN,
+      sessions: [{ fieldId: 'f_9', sectionId: '49097' }],
+    });
+    expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
+    expect(multiUpdateFlexiRecord.mock.calls[0][3]).toBe('f_9');
   });
 });

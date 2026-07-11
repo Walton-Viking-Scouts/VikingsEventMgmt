@@ -198,6 +198,17 @@ describe('encodeConfig', () => {
     expect(decoded.cfg.sessions.S_20260714_49097).toEqual({ act: 'Powerboats', st: '18:00', en: '19:00' });
   });
 
+  it('round-trips per-section regulars (scoutids)', () => {
+    const cfg = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sections: [{ ...CONFIG.cfg.sections[0], regulars: ['10', '11'] }],
+      },
+    };
+    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg.sections[0].regulars).toEqual(['10', '11']);
+  });
+
   it('accepts optional per-section kids/permits defaults', () => {
     const cfg = {
       ...CONFIG,
