@@ -530,9 +530,11 @@ function useAuthLogic() {
     }
   }, [determineAuthState, consumeOAuthCallback]);
 
-  // Login function
+  // Login function. Store the current path (incl. query) so the OAuth callback
+  // returns the user to where they started — e.g. a shared deep link opened
+  // logged-out — instead of dropping them on the default landing page.
   const login = useCallback(async () => {
-    const oauthUrl = generateOAuthUrl();
+    const oauthUrl = generateOAuthUrl(true);
     await loginNative(oauthUrl);
   }, []);
 
