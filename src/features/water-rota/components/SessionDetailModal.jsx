@@ -139,7 +139,14 @@ function SessionDetailModal({
           </>
         )}
 
-        {canEdit && !editing && (
+        {canEdit && !editing && !session.fieldId && (
+          <p className="mt-5 text-xs text-gray-500">
+            This programme week isn&apos;t set up as a water session. Add it from the
+            board&apos;s &quot;Edit plan&quot; or &quot;Sync programme&quot;.
+          </p>
+        )}
+
+        {canEdit && !editing && session.fieldId && (
           <div className="mt-5 flex gap-2">
             {!session.cancelled && (
               <button

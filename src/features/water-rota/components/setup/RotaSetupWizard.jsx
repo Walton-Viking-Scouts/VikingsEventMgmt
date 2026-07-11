@@ -53,31 +53,39 @@ function defaultPlan() {
 function sessionsForSection(section, plan, range) {
   const sectionCfg = { sid: section.sid, sname: section.sname, act: plan.act, st: plan.st, en: plan.en };
   if (plan.meetings && plan.meetings.length > 0) {
-    const included = plan.meetings.filter((meeting) => !plan.excluded[meeting.date]);
-    // Apply per-meeting activity overrides the leader set (default is the
-    // title-guessed activity, applied by generateSessionsFromProgramme).
-    return generateSessionsFromProgramme(included, sectionCfg, range).map((descriptor) => {
+    // Every programme meeting becomes a session; onWater (checkbox) decides
+    // whether it gets a signup column or is shown as not-on-water.
+    return generateSessionsFromProgramme(plan.meetings, sectionCfg, range).map((descriptor) => {
       const chosen = plan.meetingActivity?.[descriptor.date];
-      return chosen ? { ...descriptor, activity: chosen } : descriptor;
+      return {
+        ...descriptor,
+        activity: chosen ?? descriptor.activity,
+        onWater: !plan.excluded[descriptor.date],
+      };
     });
   }
-  return expandWeeklySlot({ weekday: plan.slotWeekday, ...sectionCfg }, range);
+  return expandWeeklySlot({ weekday: plan.slotWeekday, ...sectionCfg }, range).map((d) => ({ ...d, onWater: true }));
 }
 
 /**
- * Build the per-session override map for RotaConfig from generated session
- * descriptors: activity and times that differ from the section default, so
- * each session shows its programme-derived activity/time without a
- * per-session cell write. Keyed by session column name.
+ * Build the per-session config map from all generated descriptors: water
+ * sessions carry activity/time overrides (only fields differing from the
+ * section default); not-on-water weeks carry {c:1} so they show greyed
+ * without needing a FlexiRecord column. Keyed by session column name.
  *
- * @param {Array} descriptors - Session descriptors for all participating sections
+ * @param {Array} descriptors - All session descriptors (each with an onWater flag)
  * @param {Array<{sid: string, act: string, st: string, en: string}>} sectionDefaults - Config section defaults
- * @returns {Object} Map of column name to override object (only differing fields)
+ * @returns {Object} Map of column name to override object
  */
 function buildSessionOverrides(descriptors, sectionDefaults) {
   const defaultsBySid = new Map(sectionDefaults.map((entry) => [String(entry.sid), entry]));
   const overrides = {};
   for (const descriptor of descriptors) {
+    const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
+    if (descriptor.onWater === false) {
+      overrides[key] = { c: 1 };
+      continue;
+    }
     const base = defaultsBySid.get(String(descriptor.sectionId));
     const override = {};
     if (descriptor.activity && descriptor.activity !== base?.act) {
@@ -90,7 +98,7 @@ function buildSessionOverrides(descriptors, sectionDefaults) {
       override.en = descriptor.endTime;
     }
     if (Object.keys(override).length > 0) {
-      overrides[buildSessionColumnName(descriptor.date, descriptor.sectionId)] = override;
+      overrides[key] = override;
     }
   }
   return overrides;
@@ -202,6 +210,8 @@ function RotaSetupWizard() {
       ),
     [participating, plans, range],
   );
+  // Only water sessions get signup columns; not-on-water weeks live in config.
+  const waterSessions = useMemo(() => allSessions.filter((s) => s.onWater !== false), [allSessions]);
 
   const year = range.start ? Number(range.start.slice(0, 4)) : new Date().getFullYear();
 
@@ -250,7 +260,7 @@ function RotaSetupWizard() {
         hostSection,
         year,
         termId: (await CurrentActiveTermsService.getCurrentActiveTerm(hostSectionId))?.currentTermId,
-        sessions: allSessions,
+        sessions: waterSessions,
         token,
       });
 
@@ -600,11 +610,14 @@ function RotaSetupWizard() {
       {step === 3 && (
         <div className="mt-5 space-y-5">
           <p className="text-sm text-gray-700">
-            This creates <span className="font-semibold">{allSessions.length} sessions</span> across{' '}
-            <span className="font-semibold">{bucketSessionsByWeek(allSessions).length} weeks</span> in{' '}
+            This creates <span className="font-semibold">{waterSessions.length} water session{waterSessions.length === 1 ? '' : 's'}</span> permit holders can sign up to, across{' '}
+            <span className="font-semibold">{bucketSessionsByWeek(waterSessions).length} weeks</span> in{' '}
             <span className="font-semibold">{hostSection?.sectionname}</span>&apos;s{' '}
             <span className="font-mono text-xs">Viking Water Rota {year}</span> record.
-            Sessions can be edited or marked not-on-water later, but can&apos;t be deleted.
+            {allSessions.length > waterSessions.length && (
+              <> The other <span className="font-semibold">{allSessions.length - waterSessions.length}</span> programme
+              weeks show as not-on-water. Sessions can be edited later, but signup columns can&apos;t be deleted.</>
+            )}
           </p>
 
           <ul className="max-h-56 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100 text-sm">

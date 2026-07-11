@@ -60,15 +60,15 @@ function RotaBoardPage() {
   const [sectionFilters, setSectionFilters] = useState(readStoredFilters);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
-  const [selectedFieldId, setSelectedFieldId] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const weekRefs = useRef(new Map());
   const didAutoScroll = useRef(false);
 
   const sessions = useMemo(() => (rota ? resolveAllSessions(rota) : []), [rota]);
   const selectedSession = useMemo(
-    () => sessions.find((session) => session.fieldId === selectedFieldId) ?? null,
-    [sessions, selectedFieldId],
+    () => sessions.find((session) => session.key === selectedKey) ?? null,
+    [sessions, selectedKey],
   );
   const { counts: ypCounts } = useSectionYPCounts(
     useMemo(() => (rota?.config?.cfg?.sections ?? []).map((entry) => entry.sid), [rota]),
@@ -345,9 +345,9 @@ function RotaBoardPage() {
               <div className="space-y-2">
                 {weekSessions.map((session) => (
                   <SessionCard
-                    key={session.fieldId}
+                    key={session.key}
                     session={session}
-                    onSelect={() => setSelectedFieldId(session.fieldId)}
+                    onSelect={() => setSelectedKey(session.key)}
                     myStatus={identity ? myStatusFor(session, identity.scoutid) : null}
                     onSignupChange={handleSignupChange}
                     signupDisabled={!online || (!identity && !needsPicker)}
@@ -371,7 +371,7 @@ function RotaBoardPage() {
           signupPending={pendingFieldId === selectedSession.fieldId}
           onSignupChange={handleSignupChange}
           refresh={refresh}
-          onClose={() => setSelectedFieldId(null)}
+          onClose={() => setSelectedKey(null)}
         />
       )}
 

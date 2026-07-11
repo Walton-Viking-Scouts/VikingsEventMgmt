@@ -164,6 +164,21 @@ describe('resolveSessionView', () => {
     expect(view.cancelled).toBe(true);
     expect(view.status).toBe(COVER_STATUS.OFF);
   });
+
+  it('flags not-on-water from a config override (config-only week, no column)', () => {
+    const configOff = {
+      ...CONFIG,
+      cfg: { ...CONFIG.cfg, sessions: { S_20260714_49097: { c: 1 } } },
+    };
+    const view = resolveSessionView(
+      { fieldId: null, date: '2026-07-14', sectionId: '49097', meta: null, signups: [] },
+      configOff,
+    );
+    expect(view.cancelled).toBe(true);
+    expect(view.status).toBe(COVER_STATUS.OFF);
+    expect(view.key).toBe('S_20260714_49097');
+    expect(view.fieldId).toBeNull();
+  });
 });
 
 describe('resolveAllSessions', () => {

@@ -163,6 +163,26 @@ describe('loadRota', () => {
     expect(rota.sectionNames).toEqual({ '900': 'Adults', '901': 'Cubs' });
   });
 
+  it('synthesizes config-only sessions for not-on-water weeks (no column)', async () => {
+    const configWithOff = JSON.stringify({
+      v: 1, at: '2026-06-01T09:00:00Z', by: 'Simon Clark',
+      cfg: {
+        start: '2026-06-01', end: '2026-08-31',
+        sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
+        sessions: { S_20260721_49097: { c: 1 } },
+      },
+    });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: configWithOff, f_2: '' },
+    ]));
+
+    const rota = await loadRota(2026, TOKEN);
+    // f_2 column session (14 Jul) + config-only not-on-water session (21 Jul)
+    expect(rota.sessions).toHaveLength(2);
+    const configOnly = rota.sessions.find((s) => s.fieldId === null);
+    expect(configOnly).toMatchObject({ date: '2026-07-21', sectionId: '49097' });
+  });
+
   it('returns a null config (not an error) when RotaConfig was never written', async () => {
     // Column exists but no row holds a value — the setup-not-finished state.
     getSingleFlexiRecord.mockResolvedValue(gridWith([

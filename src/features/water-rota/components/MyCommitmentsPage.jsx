@@ -141,7 +141,7 @@ function MyCommitmentsPage() {
                 <div className="space-y-2">
                   {buckets[key].map((session) => (
                     <SessionCard
-                      key={session.fieldId}
+                      key={session.key}
                       session={session}
                       myStatus={myStatusFor(session, identity.scoutid)}
                       onSignupChange={handleSignupChange}

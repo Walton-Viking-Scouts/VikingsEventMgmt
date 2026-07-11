@@ -55,6 +55,10 @@ const sessionOverrideSchema = z
     en: timeSchema.optional(),
     k: z.number().int().nonnegative().optional(),
     p: z.number().int().nonnegative().optional(),
+    // c:1 marks a programme week that is not on the water — stored here
+    // (rather than as a signup column) so the full term shows without
+    // creating a FlexiRecord column per non-water week.
+    c: z.union([z.literal(0), z.literal(1)]).optional(),
   })
   .passthrough();
 

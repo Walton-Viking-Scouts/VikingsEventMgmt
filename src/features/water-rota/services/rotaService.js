@@ -27,11 +27,13 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import {
   ROTA_CONFIG_COLUMN,
   SIGNUP_STATUS,
+  buildSessionColumnName,
   encodeConfig,
   encodeSessionMeta,
   encodeSignup,
   mergeLwwConfig,
   mergeSessionColumn,
+  parseSessionColumnName,
 } from './rotaEncoding.js';
 import { buildRotaRecordName } from './rotaTemplates.js';
 import { validateWaterRotaStructure } from './vikingWaterRotaValidation.js';
@@ -164,6 +166,21 @@ export async function loadRota(year, token) {
     );
     return { ...column, meta, signups };
   });
+
+  // Not-on-water programme weeks live in the config only (no signup column).
+  // Surface them as display-only sessions so the full term shows on the board.
+  const columnNames = new Set(
+    check.sessionColumns.map((column) => buildSessionColumnName(column.date, column.sectionId)),
+  );
+  for (const columnName of Object.keys(config?.cfg?.sessions ?? {})) {
+    if (columnNames.has(columnName)) {
+      continue;
+    }
+    const parsed = parseSessionColumnName(columnName);
+    if (parsed) {
+      sessions.push({ fieldId: null, date: parsed.date, sectionId: parsed.sectionId, meta: null, signups: [] });
+    }
+  }
 
   const members = items.map((item) => ({
     scoutid: String(item.scoutid),

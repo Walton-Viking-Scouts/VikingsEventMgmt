@@ -93,6 +93,9 @@ export function resolveSessionView(session, config, sectionNames = {}) {
 
   const view = {
     fieldId: session.fieldId,
+    // Stable identity for React keys and selection — session columns share it
+    // with config-only (not-on-water) sessions that have no fieldId.
+    key: columnName,
     date: session.date,
     sectionId: session.sectionId,
     sectionName: sectionDefaults?.sname ?? sectionNames[String(session.sectionId)] ?? `Section ${session.sectionId}`,
@@ -102,7 +105,7 @@ export function resolveSessionView(session, config, sectionNames = {}) {
     kids: meta?.k ?? override?.k ?? sectionDefaults?.k ?? null,
     needed: meta?.p ?? override?.p ?? sectionDefaults?.p ?? null,
     notes: meta?.n ?? '',
-    cancelled: meta?.c === 1,
+    cancelled: (meta?.c ?? override?.c ?? 0) === 1,
     hasMeta: Boolean(meta),
     confirmed,
     backups,

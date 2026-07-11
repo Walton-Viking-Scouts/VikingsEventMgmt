@@ -41,7 +41,7 @@ function TermOverviewStrip({ weeks, currentWeekStart, onSelectWeek }) {
               <span className="flex gap-1">
                 {sessions.map((session) => (
                   <span
-                    key={session.fieldId}
+                    key={session.key}
                     className={`h-2.5 w-2.5 rounded-full ${coverStatusBgClass(session.status)} ${
                       session.cancelled ? 'opacity-40' : ''
                     }`}
