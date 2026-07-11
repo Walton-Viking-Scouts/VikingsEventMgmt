@@ -173,7 +173,15 @@ function SessionDetailModal({
       </Modal.Header>
 
       <Modal.Body>
-        {session.cancelled ? (
+        {activating ? (
+          <SessionEditForm
+            session={session}
+            sectionYPCount={sectionYPCount}
+            saving={saving}
+            onSave={handleActivate}
+            submitLabel="Put on the water"
+          />
+        ) : session.cancelled ? (
           <p className="text-sm font-medium text-gray-500">
             Not on water this week.
           </p>
@@ -183,14 +191,6 @@ function SessionDetailModal({
             sectionYPCount={sectionYPCount}
             saving={saving}
             onSave={handleSave}
-          />
-        ) : activating ? (
-          <SessionEditForm
-            session={session}
-            sectionYPCount={sectionYPCount}
-            saving={saving}
-            onSave={handleActivate}
-            submitLabel="Put on the water"
           />
         ) : (
           <>

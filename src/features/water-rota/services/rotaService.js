@@ -125,10 +125,12 @@ export async function resolveRotaTermId(hostSectionId) {
  *
  * @param {number} year - Calendar year
  * @param {string} token - OSM authentication token
+ * @param {Object} [options]
+ * @param {boolean} [options.forceRefresh=false] - Bypass the structure cache (use after adding a column)
  * @returns {Promise<LoadedRota|null>} Decoded rota, or null when none exists for the year
  * @throws {Error} When the record exists but its structure is invalid or unreadable
  */
-export async function loadRota(year, token) {
+export async function loadRota(year, token, { forceRefresh = false } = {}) {
   const discovery = await discoverRotaRecord(year, token);
   if (!discovery) {
     return null;
@@ -140,7 +142,7 @@ export async function loadRota(year, token) {
     throw new Error('No active term found for the rota host section');
   }
 
-  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token);
+  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, forceRefresh);
   const structure = decodeStructure(structureData);
   const check = validateWaterRotaStructure(structure);
   if (!check.isValid) {

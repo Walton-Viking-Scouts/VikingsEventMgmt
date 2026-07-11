@@ -214,7 +214,10 @@ export async function activateWaterSession({ rota, date, sectionId, fields, by, 
     throw new Error(result.errors?.[0]?.error || 'Could not create the session');
   }
 
-  const reloaded = await loadRota(rota.year, token);
+  // The column was just added, so bypass the cached structure — otherwise the
+  // new session comes back as config-only (fieldId null) and the meta write
+  // that puts it on the water is silently skipped.
+  const reloaded = await loadRota(rota.year, token, { forceRefresh: true });
   const columnName = buildSessionColumnName(date, sectionId);
   const session = (reloaded?.sessions ?? []).find(
     (s) => s.fieldId && buildSessionColumnName(s.date, s.sectionId) === columnName,
