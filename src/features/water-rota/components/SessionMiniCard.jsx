@@ -30,6 +30,9 @@ function SessionMiniCard({ session, onSelect }) {
   } else {
     ratioLabel = `${confirmed.length}/${needed}`;
   }
+  // Dead (not-on-water / not-yet-set-up) sessions recede so the eye lands on
+  // live cover ratios that actually need permit holders.
+  const ratioMuted = cancelled || (status === COVER_STATUS.UNSET && !hasMeta);
 
   return (
     <button
@@ -45,7 +48,9 @@ function SessionMiniCard({ session, onSelect }) {
       </span>
       <span className="mt-1 block truncate text-xs text-gray-600">{activity || 'Activity not set'}</span>
 
-      <span className="mt-1 block text-lg font-bold text-gray-900">{ratioLabel}</span>
+      <span className={`mt-1 block ${ratioMuted ? 'text-sm font-medium text-gray-400' : 'text-lg font-bold text-gray-900'}`}>
+        {ratioLabel}
+      </span>
 
       {people.length > 0 && (
         <span className="mt-1.5 flex -space-x-2" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
