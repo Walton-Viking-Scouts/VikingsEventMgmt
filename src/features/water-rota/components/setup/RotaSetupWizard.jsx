@@ -15,7 +15,6 @@ import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek }
 import { getCurrentUserName } from '../../hooks/useRotaIdentity.js';
 import { useSectionYPCounts } from '../../hooks/useSectionYPCounts.js';
 import { sectionChipClass } from '../../utils/rotaDisplay.js';
-import IdentityPickerModal from '../IdentityPickerModal.jsx';
 
 const WEEKDAYS = [
   [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [7, 'Sun'],
@@ -80,7 +79,6 @@ function RotaSetupWizard() {
   const [loadingProgramme, setLoadingProgramme] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creationErrors, setCreationErrors] = useState([]);
-  const [pendingIdentity, setPendingIdentity] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,35 +183,6 @@ function RotaSetupWizard() {
     setPlans((previous) => ({ ...previous, [sid]: { ...previous[sid], ...patch } }));
   };
 
-  const finishCreation = async (identityScoutId, identityName, recordId) => {
-    await writeRotaConfig({
-      hostSection,
-      recordId,
-      termId: (await CurrentActiveTermsService.getCurrentActiveTerm(hostSectionId))?.currentTermId,
-      scoutid: identityScoutId,
-      by: identityName,
-      cfg: {
-        start: range.start,
-        end: range.end,
-        sections: participating.map((section) => {
-          const plan = plans[section.sid];
-          return {
-            sid: section.sid,
-            sname: section.sname,
-            act: plan.act,
-            st: plan.st,
-            en: plan.en,
-            k: plan.k ?? ypCounts[section.sid] ?? 0,
-            p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
-          };
-        }),
-      },
-      token,
-    });
-    notifySuccess('Water rota created');
-    navigate('/water-rota');
-  };
-
   const handleCreate = async () => {
     setCreating(true);
     setCreationErrors([]);
@@ -237,15 +206,44 @@ function RotaSetupWizard() {
         return;
       }
 
-      const fullName = await getCurrentUserName();
-      const matches = fullName
-        ? rota.members.filter((member) => member.name.toLowerCase() === fullName.toLowerCase())
-        : [];
-      if (matches.length === 1) {
-        await finishCreation(matches[0].scoutid, matches[0].name, result.flexirecordid);
-      } else {
-        setPendingIdentity({ members: rota.members, recordId: result.flexirecordid });
+      // The plan config is section-level data (not per-member), so it is
+      // written to a deterministic member row rather than the operator's own
+      // row. This decouples "did setup finish" from identity resolution — an
+      // unmatched name can no longer leave a rota with columns but no config.
+      const configRow = [...rota.members].sort((a, b) => a.scoutid.localeCompare(b.scoutid))[0];
+      if (!configRow) {
+        setCreationErrors([{ field: 'RotaConfig', error: 'Host section has no members to store the plan against' }]);
+        return;
       }
+
+      const by = (await getCurrentUserName()) ?? 'Setup';
+      await writeRotaConfig({
+        hostSection,
+        recordId: result.flexirecordid,
+        termId: rota.termId,
+        scoutid: configRow.scoutid,
+        by,
+        cfg: {
+          start: range.start,
+          end: range.end,
+          sections: participating.map((section) => {
+            const plan = plans[section.sid];
+            return {
+              sid: section.sid,
+              sname: section.sname,
+              act: plan.act,
+              st: plan.st,
+              en: plan.en,
+              k: plan.k ?? ypCounts[section.sid] ?? 0,
+              p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
+            };
+          }),
+        },
+        token,
+      });
+
+      notifySuccess('Water rota saved');
+      navigate('/water-rota');
     } catch (error) {
       notifyError(`Setup failed: ${error.message}`);
       setCreationErrors([{ field: '_meta', error: error.message }]);
@@ -559,26 +557,6 @@ function RotaSetupWizard() {
             </button>
           </div>
         </div>
-      )}
-
-      {pendingIdentity && (
-        <IdentityPickerModal
-          isOpen
-          members={pendingIdentity.members}
-          onChoose={async (scoutid) => {
-            const member = pendingIdentity.members.find((entry) => entry.scoutid === String(scoutid));
-            const recordId = pendingIdentity.recordId;
-            setPendingIdentity(null);
-            try {
-              localStorage.setItem(`viking_rota_identity_${recordId}`, member.scoutid);
-              await finishCreation(member.scoutid, member.name, recordId);
-            } catch (error) {
-              notifyError(`Config write failed: ${error.message}`);
-              setCreationErrors([{ field: 'RotaConfig', error: error.message }]);
-            }
-          }}
-          onClose={() => setPendingIdentity(null)}
-        />
       )}
     </div>
   );

@@ -109,6 +109,30 @@ describe('resolveSessionView', () => {
     expect(view.status).toBe(COVER_STATUS.UNSET);
   });
 
+  it('reproduces the missing-config bug: id name + needs-setup even with signups', () => {
+    // Rota whose RotaConfig cell was never written (setup did not finish): the
+    // session column and its signups exist, but there is no config and no meta.
+    const view = resolveSessionView(
+      { ...baseSession, meta: null, signups: [signup(1, 'I'), signup(2, 'I')] },
+      null,
+    );
+    expect(view.sectionName).toBe('Section 49097');
+    expect(view.hasMeta).toBe(false);
+    expect(view.needed).toBeNull();
+    expect(view.status).toBe(COVER_STATUS.UNSET);
+    // signups themselves survive — the bug is display, not data loss
+    expect(view.confirmed).toHaveLength(2);
+  });
+
+  it('falls back to cached section names when config is missing', () => {
+    const view = resolveSessionView(
+      { ...baseSession, meta: null, signups: [] },
+      null,
+      { '49097': 'Tuesday Cubs' },
+    );
+    expect(view.sectionName).toBe('Tuesday Cubs');
+  });
+
   it('flags not-on-water sessions', () => {
     const view = resolveSessionView({ ...baseSession, meta: { ...META, c: 1 } }, CONFIG);
     expect(view.cancelled).toBe(true);

@@ -254,6 +254,27 @@ function RotaBoardPage() {
         </div>
       )}
 
+      {!rota.config && (
+        <div className="mt-3 rounded-lg border border-scout-orange bg-scout-orange/10 px-4 py-3 text-sm text-gray-800">
+          <p className="font-medium">Setup isn&apos;t finished.</p>
+          <p className="mt-0.5 text-gray-600">
+            The sessions exist but their activities, times and cover targets haven&apos;t been
+            saved yet, so they show as &quot;needs setting up&quot;.
+          </p>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => navigate('/water-rota/setup')}
+              className="mt-2 px-4 py-1.5 rounded-md bg-scout-orange text-white text-sm font-semibold hover:opacity-90"
+            >
+              Finish setup
+            </button>
+          ) : (
+            <p className="mt-1 text-gray-500">Ask a leader with edit access to finish it.</p>
+          )}
+        </div>
+      )}
+
       {needsPicker && (
         <button
           type="button"

@@ -74,9 +74,10 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  *
  * @param {{fieldId: string, date: string, sectionId: string, meta: Object|null, signups: Array}} session - Decoded session from loadRota
  * @param {Object|null} config - LWW-winning config candidate ({cfg}) or null
+ * @param {Object} [sectionNames] - Fallback map of sectionId to name (from cached sections)
  * @returns {SessionView} Render-ready view model
  */
-export function resolveSessionView(session, config) {
+export function resolveSessionView(session, config, sectionNames = {}) {
   const sectionDefaults = (config?.cfg?.sections ?? []).find(
     (entry) => String(entry.sid) === String(session.sectionId),
   );
@@ -89,7 +90,7 @@ export function resolveSessionView(session, config) {
     fieldId: session.fieldId,
     date: session.date,
     sectionId: session.sectionId,
-    sectionName: sectionDefaults?.sname ?? `Section ${session.sectionId}`,
+    sectionName: sectionDefaults?.sname ?? sectionNames[String(session.sectionId)] ?? `Section ${session.sectionId}`,
     activity: meta?.act ?? sectionDefaults?.act ?? '',
     startTime: meta?.st ?? sectionDefaults?.st ?? '',
     endTime: meta?.en ?? sectionDefaults?.en ?? '',
@@ -120,7 +121,7 @@ export function resolveSessionView(session, config) {
  */
 export function resolveAllSessions(rota) {
   return (rota?.sessions ?? [])
-    .map((session) => resolveSessionView(session, rota.config))
+    .map((session) => resolveSessionView(session, rota.config, rota.sectionNames))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sectionName.localeCompare(b.sectionName));
 }
 

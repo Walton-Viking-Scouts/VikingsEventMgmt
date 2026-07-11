@@ -159,6 +159,20 @@ describe('loadRota', () => {
       { scoutid: '11', name: 'Alice Smith' },
     ]);
     expect(databaseService.saveFlexiData).toHaveBeenCalledWith(777, 900, 'T1', expect.any(Array));
+    expect(rota.configFieldId).toBe('f_1');
+    expect(rota.sectionNames).toEqual({ '900': 'Adults', '901': 'Cubs' });
+  });
+
+  it('returns a null config (not an error) when RotaConfig was never written', async () => {
+    // Column exists but no row holds a value — the setup-not-finished state.
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: '', f_2: JSON.stringify({ s: 'I', sat: '2026-07-02T10:00:00Z' }) },
+    ]));
+
+    const rota = await loadRota(2026, TOKEN);
+    expect(rota.config).toBeNull();
+    expect(rota.sessions[0].signups).toHaveLength(1);
+    expect(rota.configFieldId).toBe('f_1');
   });
 
   it('returns null when no rota record exists', async () => {

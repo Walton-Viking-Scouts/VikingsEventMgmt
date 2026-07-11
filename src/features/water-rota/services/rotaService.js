@@ -170,7 +170,40 @@ export async function loadRota(year, token) {
     name: memberName(item),
   }));
 
-  return { year, hostSection, recordId, termId, config, sessions, members };
+  const sectionNames = await loadSectionNameMap();
+
+  return {
+    year,
+    hostSection,
+    recordId,
+    termId,
+    configFieldId: check.configFieldId,
+    config,
+    sessions,
+    members,
+    sectionNames,
+  };
+}
+
+/**
+ * Build a sectionId → display name map from cached sections, so sessions can
+ * show a real section name even when the plan config is missing or does not
+ * cover a section.
+ *
+ * @returns {Promise<Object>} Map of string section id to section name
+ */
+async function loadSectionNameMap() {
+  try {
+    const sections = (await databaseService.getSections()) || [];
+    return Object.fromEntries(
+      sections.map((section) => [String(section.sectionid), section.sectionname]),
+    );
+  } catch (error) {
+    logger.warn('Rota: section name map load failed', {
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+    return {};
+  }
 }
 
 /**
