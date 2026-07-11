@@ -161,7 +161,7 @@ function RotaSetupWizard() {
     const nextPlans = {};
     for (const section of participating) {
       const plan = plans[section.sid] ?? defaultPlan();
-      const withKids = { ...plan, k: plan.k ?? ypCounts[section.sid] ?? 0 };
+      const withKids = { ...plan, k: plan.k ?? ypCounts[section.sid] ?? null };
       try {
         const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
         const meetings = term?.currentTermId
@@ -203,7 +203,7 @@ function RotaSetupWizard() {
             act: plan.act,
             st: plan.st,
             en: plan.en,
-            k: plan.k ?? 0,
+            k: plan.k ?? ypCounts[section.sid] ?? 0,
             p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
           };
         }),
@@ -432,7 +432,7 @@ function RotaSetupWizard() {
                     <input
                       type="number"
                       min="0"
-                      value={plan.k ?? 0}
+                      value={plan.k ?? ypCounts[section.sid] ?? 0}
                       onChange={(event) => updatePlan(section.sid, { k: Math.max(0, Number(event.target.value) || 0) })}
                       className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
                       aria-label={`Expected young people for ${section.sname}`}
