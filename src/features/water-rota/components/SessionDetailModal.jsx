@@ -15,8 +15,8 @@ import AddPermitHolderModal from './AddPermitHolderModal.jsx';
 
 /**
  * Session detail: who's signed up, session notes, one-tap signup footer,
- * and — for plan editors — the edit form plus the "Not on water this week"
- * toggle.
+ * and — for plan editors — the edit form, add/remove permit-holder controls,
+ * and the "Not on water" / "Put on the water" toggles.
  *
  * @param {Object} props
  * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed)
@@ -118,7 +118,7 @@ function SessionDetailModal({
       await refresh();
       onClose();
     } catch (error) {
-      notifyError(`Couldn't put on the water: ${error.message}`);
+      notifyError(`Couldn't put on the water: ${error.message}`, error);
     } finally {
       setSaving(false);
     }
@@ -137,7 +137,7 @@ function SessionDetailModal({
       setAddingPermitHolder(false);
       await refresh();
     } catch (error) {
-      notifyError(`Couldn't add permit holder: ${error.message}`);
+      notifyError(`Couldn't add permit holder: ${error.message}`, error);
     } finally {
       setAssigning(false);
     }
@@ -153,7 +153,7 @@ function SessionDetailModal({
       notifySuccess('Removed from this session');
       await refresh();
     } catch (error) {
-      notifyError(`Couldn't remove: ${error.message}`);
+      notifyError(`Couldn't remove: ${error.message}`, error);
     } finally {
       setRemovingScoutid(null);
     }

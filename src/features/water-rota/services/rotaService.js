@@ -67,7 +67,7 @@ function withWriteLock(fn) {
  * @property {string} termId - Term id used for grid reads
  * @property {Object|null} config - LWW-winning plan config candidate ({v, at, by, cfg}), null before first config write
  * @property {Array<Object>} sessions - Decoded sessions ({fieldId, date, sectionId, meta, signups})
- * @property {Array<{scoutid: string, name: string}>} members - Host-section member rows
+ * @property {Array<{scoutid: string, name: string, photo_guid: string|null}>} members - Host-section member rows
  */
 
 /**

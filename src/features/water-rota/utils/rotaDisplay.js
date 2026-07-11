@@ -62,7 +62,7 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  * @property {string} notes - Session notes ('' when none)
  * @property {boolean} cancelled - Not on water this week
  * @property {boolean} hasMeta - False when showing config defaults only
- * @property {Array} confirmed - Confirmed signups ({scoutid, name, status, at})
+ * @property {Array} confirmed - Confirmed signups ({scoutid, name, status, at, photo_guid})
  * @property {Array} backups - Backup signups
  * @property {string} status - COVER_STATUS value
  */

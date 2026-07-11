@@ -254,6 +254,10 @@ describe('activateWaterSession', () => {
       date: '2026-07-14',
       sectionId: '49097',
     });
+
+    expect(
+      getFlexiStructure.mock.calls.some((call) => call[4] === true),
+    ).toBe(true);
   });
 
   it('throws when the column could not be created', async () => {
@@ -286,7 +290,7 @@ describe('activateWaterSession', () => {
         scoutid: 10,
         token: 'tok',
       }),
-    ).rejects.toThrow('Session column was not created');
+    ).rejects.toThrow(/could not be confirmed/);
     expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
 });

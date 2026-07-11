@@ -110,6 +110,56 @@ describe('SessionDetailModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('activates a config-only week that is ALSO cancelled (render-order regression)', async () => {
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession({ fieldId: null, hasMeta: false, cancelled: true })}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Put on the water'));
+
+    expect(await screen.findByLabelText('Activity')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Put on the water' })).toBeInTheDocument();
+    expect(screen.queryByText('Not on water this week.')).not.toBeInTheDocument();
+  });
+
+  it('lets a plan editor remove a confirmed signup', async () => {
+    const refresh = vi.fn(async () => undefined);
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession({ confirmed: [{ scoutid: '30', name: 'New Permit Holder' }] })}
+        refresh={refresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Remove New Permit Holder from this session'));
+
+    await waitFor(() => expect(assignSignup).toHaveBeenCalledTimes(1));
+    expect(assignSignup).toHaveBeenCalledWith({
+      rota: ROTA,
+      fieldId: 'f_5',
+      scoutid: '30',
+      status: null,
+      token: 'tok',
+    });
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('hides the remove control when not a plan editor', () => {
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        canEdit={false}
+        session={makeSession({ confirmed: [{ scoutid: '30', name: 'New Permit Holder' }] })}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Remove New Permit Holder from this session')).not.toBeInTheDocument();
+  });
+
   it('shows only an informational line when not a plan editor', () => {
     render(
       <SessionDetailModal

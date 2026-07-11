@@ -182,7 +182,7 @@ function RotaBoardPage() {
       }
       await refresh();
     } catch (error) {
-      notifyError(`Programme sync failed: ${error.message}`);
+      notifyError(`Programme sync failed: ${error.message}`, error);
     } finally {
       setSyncing(false);
     }

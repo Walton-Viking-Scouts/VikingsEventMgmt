@@ -9,7 +9,7 @@ import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
  *
  * @param {Object} props
  * @param {boolean} props.isOpen - Whether the modal is shown
- * @param {Array<{scoutid: string, name: string, photo_guid?: string}>} props.members - Host-section member rows
+ * @param {Array<{scoutid: string, name: string, photo_guid: string|null}>} props.members - Host-section member rows
  * @param {Array<string>} props.existingScoutids - Scoutids already signed up (confirmed or backup)
  * @param {Function} props.onPick - Called with the chosen scoutid
  * @param {Function} props.onClose - Dismiss without choosing

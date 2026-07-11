@@ -7,7 +7,7 @@ import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
  * a remove control that takes the person off this session.
  *
  * @param {Object} props
- * @param {{scoutid: string, name: string, photo_guid: string|undefined, at: string|null}} props.person - Signup entry
+ * @param {{scoutid: string, name: string, photo_guid: string|null, at: string|null}} props.person - Signup entry
  * @param {Function} [props.onRemove] - Called with the person's scoutid to remove them; omitting hides the control
  * @param {boolean} [props.removing] - A remove write is in flight
  * @returns {JSX.Element} List row

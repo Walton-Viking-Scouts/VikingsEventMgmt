@@ -223,7 +223,7 @@ export async function activateWaterSession({ rota, date, sectionId, fields, by, 
     (s) => s.fieldId && buildSessionColumnName(s.date, s.sectionId) === columnName,
   );
   if (!session) {
-    throw new Error('Session column was not created');
+    throw new Error('Session was created but could not be confirmed — reopen it and try again');
   }
 
   // meta.c:0 wins over the config's not-on-water override, so the week goes
