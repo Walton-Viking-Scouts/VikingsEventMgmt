@@ -49,6 +49,7 @@ function SessionDetailModal({
   const [confirmOffWater, setConfirmOffWater] = useState(false);
   const [addingPermitHolder, setAddingPermitHolder] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [removingScoutid, setRemovingScoutid] = useState(null);
 
   if (!session) {
     return null;
@@ -142,6 +143,22 @@ function SessionDetailModal({
     }
   };
 
+  const handleRemoveSignup = async (scoutid) => {
+    if (removingScoutid) {
+      return;
+    }
+    setRemovingScoutid(scoutid);
+    try {
+      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: null, token: getToken() });
+      notifySuccess('Removed from this session');
+      await refresh();
+    } catch (error) {
+      notifyError(`Couldn't remove: ${error.message}`);
+    } finally {
+      setRemovingScoutid(null);
+    }
+  };
+
   return (
     <Modal isOpen onClose={onClose} size="md">
       <Modal.Header>
@@ -194,7 +211,11 @@ function SessionDetailModal({
               )}
             </div>
             <div className="mt-4">
-              <SignupList session={session} />
+              <SignupList
+                session={session}
+                onRemove={canEdit ? handleRemoveSignup : undefined}
+                removingScoutid={removingScoutid}
+              />
             </div>
           </>
         )}

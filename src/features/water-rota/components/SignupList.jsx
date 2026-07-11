@@ -3,13 +3,16 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 
 /**
- * One signup row: avatar, name, relative signup time.
+ * One signup row: avatar, name, relative signup time, and — for plan editors —
+ * a remove control that takes the person off this session.
  *
  * @param {Object} props
  * @param {{scoutid: string, name: string, photo_guid: string|undefined, at: string|null}} props.person - Signup entry
+ * @param {Function} [props.onRemove] - Called with the person's scoutid to remove them; omitting hides the control
+ * @param {boolean} [props.removing] - A remove write is in flight
  * @returns {JSX.Element} List row
  */
-function SignupRow({ person }) {
+function SignupRow({ person, onRemove, removing = false }) {
   return (
     <li className="flex items-center gap-3 py-2">
       <MemberAvatar
@@ -22,6 +25,17 @@ function SignupRow({ person }) {
           {formatDistanceToNow(parseISO(person.at), { addSuffix: true })}
         </span>
       )}
+      {onRemove && (
+        <button
+          type="button"
+          disabled={removing}
+          onClick={() => onRemove(person.scoutid)}
+          aria-label={`Remove ${person.name} from this session`}
+          className="ml-1 h-6 w-6 rounded-full text-gray-400 hover:bg-gray-100 hover:text-scout-red disabled:opacity-50"
+        >
+          ×
+        </button>
+      )}
     </li>
   );
 }
@@ -31,9 +45,11 @@ function SignupRow({ person }) {
  *
  * @param {Object} props
  * @param {import('../utils/rotaDisplay.js').SessionView} props.session - Resolved session view
+ * @param {Function} [props.onRemove] - Plan-editor callback to remove a person (scoutid); omitting hides the controls
+ * @param {string|number|null} [props.removingScoutid] - The scoutid whose remove write is in flight
  * @returns {JSX.Element} Signup lists
  */
-function SignupList({ session }) {
+function SignupList({ session, onRemove, removingScoutid = null }) {
   const { confirmed, backups, needed } = session;
 
   return (
@@ -46,7 +62,12 @@ function SignupList({ session }) {
       ) : (
         <ul className="divide-y divide-gray-100">
           {confirmed.map((person) => (
-            <SignupRow key={person.scoutid} person={person} />
+            <SignupRow
+              key={person.scoutid}
+              person={person}
+              onRemove={onRemove}
+              removing={String(removingScoutid) === String(person.scoutid)}
+            />
           ))}
         </ul>
       )}
@@ -59,7 +80,12 @@ function SignupList({ session }) {
       ) : (
         <ul className="divide-y divide-gray-100">
           {backups.map((person) => (
-            <SignupRow key={person.scoutid} person={person} />
+            <SignupRow
+              key={person.scoutid}
+              person={person}
+              onRemove={onRemove}
+              removing={String(removingScoutid) === String(person.scoutid)}
+            />
           ))}
         </ul>
       )}

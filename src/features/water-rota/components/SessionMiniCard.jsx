@@ -36,18 +36,16 @@ function SessionMiniCard({ session, onSelect }) {
       type="button"
       data-testid={`minicard-${session.key}`}
       onClick={() => onSelect(session)}
-      className={`w-36 min-w-[9rem] rounded-lg border p-2.5 text-left ${coverStatusTintClass(status)} ${
+      className={`w-44 min-w-[11rem] rounded-lg border p-2.5 text-left ${coverStatusTintClass(status)} ${
         cancelled ? 'opacity-70' : ''
       }`}
     >
-      <span className="flex min-w-0 items-center gap-1">
-        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(sectionName)}`}>
-          {sectionName}
-        </span>
-        <span className="truncate text-xs text-gray-700">{activity || 'Activity not set'}</span>
+      <span className={`block truncate px-2 py-0.5 rounded-full text-xs font-semibold text-center ${sectionChipClass(sectionName)}`}>
+        {sectionName}
       </span>
+      <span className="mt-1 block truncate text-xs text-gray-600">{activity || 'Activity not set'}</span>
 
-      <span className="mt-1.5 block text-lg font-bold text-gray-900">{ratioLabel}</span>
+      <span className="mt-1 block text-lg font-bold text-gray-900">{ratioLabel}</span>
 
       {people.length > 0 && (
         <span className="mt-1.5 flex -space-x-2" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
