@@ -160,6 +160,8 @@ export async function loadRota(year, token) {
 
   const config = mergeLwwConfig(items.map((item) => item[check.configFieldId]));
 
+  const photoMap = await loadMemberPhotoMap(hostSection.sectionid);
+
   const sessions = check.sessionColumns.map((column) => {
     const { meta, signups } = mergeSessionColumn(
       items.map((item) => ({
@@ -168,7 +170,7 @@ export async function loadRota(year, token) {
         value: item[column.fieldId],
       })),
     );
-    return { ...column, meta, signups };
+    return { ...column, meta, signups: signups.map((person) => ({ ...person, photo_guid: photoMap.get(String(person.scoutid)) ?? null })) };
   });
 
   // Not-on-water programme weeks live in the config only (no signup column).
@@ -189,6 +191,7 @@ export async function loadRota(year, token) {
   const members = items.map((item) => ({
     scoutid: String(item.scoutid),
     name: memberName(item),
+    photo_guid: photoMap.get(String(item.scoutid)) ?? null,
   }));
 
   const sectionNames = await loadSectionNameMap();
@@ -228,6 +231,24 @@ async function loadSectionNameMap() {
 }
 
 /**
+ * Build a scoutid → photo_guid map for the host section's members from the
+ * cached member store, so signup avatars can render real OSM photos. Photos
+ * are cosmetic, so any failure degrades silently to an empty map (initials).
+ *
+ * @param {string|number} hostSectionId - Host section id (FlexiRecord rows live here)
+ * @returns {Promise<Map<string, string|null>>} scoutid (string) → photo_guid
+ */
+async function loadMemberPhotoMap(hostSectionId) {
+  try {
+    const members = (await databaseService.getMembers([Number(hostSectionId)])) || [];
+    return new Map(members.map((member) => [String(member.scoutid), member.photo_guid ?? null]));
+  } catch (error) {
+    logger.warn('Rota: member photo map load failed', { error: error.message }, LOG_CATEGORIES.ERROR);
+    return new Map();
+  }
+}
+
+/**
  * Write the caller's signup for one session into their own row.
  *
  * @param {Object} params
@@ -249,6 +270,25 @@ export async function writeSignup({ rota, fieldId, scoutid, status, token }) {
     token,
     mutate: (ownRaw) => encodeSignup(ownRaw, status, new Date().toISOString()),
   });
+}
+
+/**
+ * Assign another member's signup for a session (leader action). Same locked,
+ * read-merged own-cell write as writeSignup — writeOwnCell targets whatever
+ * scoutid it is given and encodeSignup preserves that member's existing cell
+ * metadata — just named for the "a leader adds a permit holder they know is
+ * coming" flow. The scoutid must be a member row in the host section.
+ *
+ * @param {Object} params
+ * @param {LoadedRota} params.rota - Loaded rota
+ * @param {string} params.fieldId - Session column field id (f_N)
+ * @param {string|number} params.scoutid - The assigned member's host-section row id
+ * @param {string|null} params.status - SIGNUP_STATUS.IN, SIGNUP_STATUS.BACKUP, or null to remove
+ * @param {string} params.token - OSM authentication token
+ * @returns {Promise<void>}
+ */
+export async function assignSignup({ rota, fieldId, scoutid, status, token }) {
+  return writeSignup({ rota, fieldId, scoutid, status, token });
 }
 
 /**

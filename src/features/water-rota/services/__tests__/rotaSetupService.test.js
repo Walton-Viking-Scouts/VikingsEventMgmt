@@ -22,6 +22,7 @@ vi.mock('../../../../shared/services/storage/database.js', () => ({
     getSections: vi.fn(),
     getFlexiData: vi.fn().mockResolvedValue(null),
     saveFlexiData: vi.fn(),
+    getMembers: vi.fn(),
   },
 }));
 
@@ -35,13 +36,16 @@ vi.mock('../programmeService.js', () => ({
 
 import { createOrCompleteFlexiRecord } from '../../../flexi-records/services/flexiRecordCreationService.js';
 import {
+  getFlexiRecords,
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
 } from '../../../../shared/services/api/api/index.js';
+import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import { fetchProgrammeMeetings } from '../programmeService.js';
 import {
+  activateWaterSession,
   createOrCompleteRota,
   diffSessions,
   syncRotaWithProgramme,
@@ -200,6 +204,90 @@ describe('syncRotaWithProgramme', () => {
 
   it('throws without a plan config', async () => {
     await expect(syncRotaWithProgramme({ rota: { ...rota, config: null }, token: 'tok' })).rejects.toThrow(/config/);
+  });
+});
+
+describe('activateWaterSession', () => {
+  const rota = { year: 2026, hostSection: HOST_SECTION, recordId: 777, termId: 'T1' };
+
+  beforeEach(() => {
+    databaseService.getSections.mockResolvedValue([HOST_SECTION]);
+    databaseService.getFlexiData.mockResolvedValue(null);
+    databaseService.saveFlexiData.mockResolvedValue(undefined);
+    databaseService.getMembers.mockResolvedValue([]);
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
+    getFlexiRecords.mockResolvedValue({ items: [{ name: 'Viking Water Rota 2026', extraid: 777 }] });
+    getFlexiStructure.mockResolvedValue({
+      config: JSON.stringify([
+        { id: 'f_1', name: 'RotaConfig' },
+        { id: 'f_2', name: 'S_20260714_49097' },
+      ]),
+    });
+    getSingleFlexiRecord.mockResolvedValue({
+      identifier: 'scoutid',
+      items: [{ scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: '', f_2: '' }],
+    });
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+  });
+
+  it('creates the column, writes cleared not-on-water meta, and returns the reloaded rota', async () => {
+    createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777 });
+
+    const result = await activateWaterSession({
+      rota,
+      date: '2026-07-14',
+      sectionId: '49097',
+      fields: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3 },
+      by: 'Simon Clark',
+      scoutid: 10,
+      token: 'tok',
+    });
+
+    const [, , , columnid, value] = updateFlexiRecord.mock.calls[0];
+    expect(columnid).toBe('f_2');
+    const written = JSON.parse(value);
+    expect(written.m.c).toBe(0);
+    expect(written.m.act).toBe('Kayaking');
+
+    expect(result.recordId).toBe(777);
+    expect(result.sessions.find((s) => s.fieldId === 'f_2')).toMatchObject({
+      date: '2026-07-14',
+      sectionId: '49097',
+    });
+  });
+
+  it('throws when the column could not be created', async () => {
+    createOrCompleteFlexiRecord.mockResolvedValue({ success: false, errors: [{ error: 'boom' }] });
+
+    await expect(
+      activateWaterSession({
+        rota,
+        date: '2026-07-14',
+        sectionId: '49097',
+        fields: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3 },
+        by: 'Simon Clark',
+        scoutid: 10,
+        token: 'tok',
+      }),
+    ).rejects.toThrow(/boom/);
+    expect(updateFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('throws when the reloaded rota has no matching session column', async () => {
+    createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777 });
+
+    await expect(
+      activateWaterSession({
+        rota,
+        date: '2026-07-21',
+        sectionId: '49097',
+        fields: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3 },
+        by: 'Simon Clark',
+        scoutid: 10,
+        token: 'tok',
+      }),
+    ).rejects.toThrow('Session column was not created');
+    expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
 });
 

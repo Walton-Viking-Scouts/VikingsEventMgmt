@@ -45,6 +45,11 @@ Config-only greyed weeks (`fieldId: null`) currently only offer "add via Edit pl
 - **Edit one section at a time**: a section selector (chips/tabs) at the top of Step 2; render only the active section's block (the `activeSectionSid`/`activeSection` scaffolding is already added — finish the render).
 Files: `components/setup/RotaSetupWizard.jsx` (Step-2 block ~lines 517-716), `components/SessionEditForm.jsx` (submitLabel).
 
+### 7. Section filter pills show the wrong state  ★ new report
+**Symptom (user):** the board auto-shows all sections, but the filter pills render *off/hollow*; to hide a section you have to tap it *on then off*.
+**Root cause:** `RotaBoardPage` seeds `sectionFilters` to `{}`. The visibility predicate treats a missing key as *visible* (`sectionFilters[id] !== false`), but the shared `SectionFilter` pill treats a missing key as *inactive* (`isActive = sectionFilters[sectionid]`, undefined→falsy) and toggles `!undefined → true` (still visible) then `!true → false` (hidden) — hence the on-then-off dance. `EventAttendance` avoids this by seeding every section to `true` explicitly (`allSectionsEnabled`, ~line 328).
+**Fix (local; do NOT touch `shared/components/ui/SectionFilter.jsx` — attendance depends on its current semantics):** in `RotaBoardPage`, seed `sectionFilters` to all-sections-`true` once `filterSections` is known, merging any persisted map, mirroring `EventAttendance`. This folds into the board redesign (item 1) — the rebuilt board must carry a working, correctly-lit filter (or drop pills for a cleaner section affordance if the day-row grid makes them redundant).
+
 ### 6. Open PR-review items still worth doing (from the #211–#218 review)
 - Config isn't replicated: it's written to one deterministic anchor row; if that member leaves the host section the plan can go null/stale. Consider also writing config to the editor's own row.
 - `discoverRotaRecord` can't tell "no rota" from "couldn't check" (offline/transient) → shows first-run "Set up the rota", risking a duplicate. Gate the first-run screen on `online`, or distinguish the states.

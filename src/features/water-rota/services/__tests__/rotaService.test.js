@@ -19,6 +19,7 @@ vi.mock('../../../../shared/services/storage/database.js', () => ({
     getSections: vi.fn(),
     getFlexiData: vi.fn(),
     saveFlexiData: vi.fn(),
+    getMembers: vi.fn(),
   },
 }));
 
@@ -41,6 +42,7 @@ import {
   prefillRegulars,
   writeSignup,
   writeSessionMeta,
+  assignSignup,
 } from '../rotaService.js';
 import { SIGNUP_STATUS } from '../rotaEncoding.js';
 
@@ -87,6 +89,7 @@ beforeEach(() => {
   databaseService.getSections.mockResolvedValue([OTHER_SECTION, HOST_SECTION]);
   databaseService.getFlexiData.mockResolvedValue(null);
   databaseService.saveFlexiData.mockResolvedValue(undefined);
+  databaseService.getMembers.mockResolvedValue([]);
   CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
 });
 
@@ -155,15 +158,43 @@ describe('loadRota', () => {
     });
     expect(rota.sessions[0].meta.act).toBe('Kayaking');
     expect(rota.sessions[0].signups).toEqual([
-      { scoutid: '10', name: 'Simon Clark', status: 'I', at: '2026-07-02T10:00:00Z' },
+      { scoutid: '10', name: 'Simon Clark', status: 'I', at: '2026-07-02T10:00:00Z', photo_guid: null },
     ]);
     expect(rota.members).toEqual([
-      { scoutid: '10', name: 'Simon Clark' },
-      { scoutid: '11', name: 'Alice Smith' },
+      { scoutid: '10', name: 'Simon Clark', photo_guid: null },
+      { scoutid: '11', name: 'Alice Smith', photo_guid: null },
     ]);
     expect(databaseService.saveFlexiData).toHaveBeenCalledWith(777, 900, 'T1', expect.any(Array));
     expect(rota.configFieldId).toBe('f_1');
     expect(rota.sectionNames).toEqual({ '900': 'Adults', '901': 'Cubs' });
+  });
+
+  it('enriches members and signups with photo_guid from getMembers', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      {
+        scoutid: 10,
+        firstname: 'Simon',
+        lastname: 'Clark',
+        f_1: CONFIG_CELL,
+        f_2: JSON.stringify({ s: 'I', sat: '2026-07-02T10:00:00Z', m: META }),
+      },
+      { scoutid: 11, firstname: 'Alice', lastname: 'Smith', f_1: '', f_2: '' },
+    ]));
+    databaseService.getMembers.mockResolvedValue([
+      { scoutid: 10, photo_guid: 'abc-123' },
+      { scoutid: 11, photo_guid: 'def-456' },
+    ]);
+
+    const rota = await loadRota(2026, TOKEN);
+
+    expect(databaseService.getMembers).toHaveBeenCalledWith([900]);
+    expect(rota.members).toEqual([
+      { scoutid: '10', name: 'Simon Clark', photo_guid: 'abc-123' },
+      { scoutid: '11', name: 'Alice Smith', photo_guid: 'def-456' },
+    ]);
+    expect(rota.sessions[0].signups).toEqual([
+      { scoutid: '10', name: 'Simon Clark', status: 'I', at: '2026-07-02T10:00:00Z', photo_guid: 'abc-123' },
+    ]);
   });
 
   it('synthesizes config-only sessions for not-on-water weeks (no column)', async () => {
@@ -306,6 +337,25 @@ describe('writeSignup', () => {
     ]);
 
     expect(order).toEqual(['fetch', 'update', 'fetch', 'update']);
+  });
+});
+
+describe('assignSignup', () => {
+  const rota = { hostSection: HOST_SECTION, recordId: 777, termId: 'T1' };
+
+  it('drives the own-cell write path for another member', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 11, firstname: 'Alice', lastname: 'Smith', f_2: '' },
+    ]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+    databaseService.getFlexiData.mockResolvedValue({ items: [{ scoutid: 11, f_2: '' }] });
+
+    await assignSignup({ rota, fieldId: 'f_2', scoutid: 11, status: SIGNUP_STATUS.IN, token: TOKEN });
+
+    expect(updateFlexiRecord).toHaveBeenCalledTimes(1);
+    const [sectionid, scoutid, recordId, columnid, value] = updateFlexiRecord.mock.calls[0];
+    expect([sectionid, scoutid, recordId, columnid]).toEqual([900, 11, 777, 'f_2']);
+    expect(JSON.parse(value).s).toBe('I');
   });
 });
 

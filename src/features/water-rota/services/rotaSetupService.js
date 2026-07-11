@@ -25,7 +25,7 @@ import {
   parseSessionColumnName,
 } from './rotaEncoding.js';
 import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
-import { loadRota, prefillRegulars, writeConfig } from './rotaService.js';
+import { loadRota, prefillRegulars, writeConfig, writeSessionMeta } from './rotaService.js';
 import { fetchProgrammeMeetings } from './programmeService.js';
 import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
 
@@ -183,6 +183,58 @@ export async function syncRotaWithProgramme({ rota, token }) {
   }
 
   return { added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length, orphaned, errors };
+}
+
+/**
+ * Put a not-on-water programme week onto the water from the board — without
+ * re-running the whole setup wizard. Creates the session's signup column (if
+ * it doesn't exist yet) and writes its metadata with the not-on-water flag
+ * cleared, so the greyed week becomes a live, signup-able session in place.
+ *
+ * @param {Object} params
+ * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota
+ * @param {string} params.date - Session date (yyyy-mm-dd)
+ * @param {string} params.sectionId - OSM section id
+ * @param {{act: string, st: string, en: string, k: number, p: number, n?: string}} params.fields - Session metadata
+ * @param {string} params.by - Editor display name
+ * @param {string|number} params.scoutid - The editor's own member row id
+ * @param {string} params.token - OSM authentication token
+ * @returns {Promise<import('./rotaService.js').LoadedRota>} The reloaded rota
+ * @throws {Error} When the column can't be created or its field id can't be found
+ */
+export async function activateWaterSession({ rota, date, sectionId, fields, by, scoutid, token }) {
+  const result = await createOrCompleteRota({
+    hostSection: rota.hostSection,
+    year: rota.year,
+    termId: rota.termId,
+    sessions: [{ date, sectionId }],
+    token,
+  });
+  if (!result.success) {
+    throw new Error(result.errors?.[0]?.error || 'Could not create the session');
+  }
+
+  const reloaded = await loadRota(rota.year, token);
+  const columnName = buildSessionColumnName(date, sectionId);
+  const session = (reloaded?.sessions ?? []).find(
+    (s) => s.fieldId && buildSessionColumnName(s.date, s.sectionId) === columnName,
+  );
+  if (!session) {
+    throw new Error('Session column was not created');
+  }
+
+  // meta.c:0 wins over the config's not-on-water override, so the week goes
+  // on the water without rewriting the whole plan config.
+  await writeSessionMeta({
+    rota: reloaded,
+    fieldId: session.fieldId,
+    scoutid,
+    by,
+    fields: { ...fields, c: 0 },
+    token,
+  });
+
+  return reloaded;
 }
 
 /**
