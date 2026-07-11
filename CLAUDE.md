@@ -152,7 +152,8 @@ git checkout main && git pull origin main  # Simply sync with merged changes
 ### Development Commands
 ```bash
 # Mobile App Development
-# *** DO NOT RUN DEV SERVER IN BACKGROUND DURING CLAUDE SESSIONS ***
+# Running the dev server in the background during a Claude session is fine
+# (e.g. for live QA); stop it when the session's verification is done.
 npm run dev              # Start dev server (https://localhost:3001)
 npm run lint            # ESLint checks
 npm run test:run        # Unit tests
