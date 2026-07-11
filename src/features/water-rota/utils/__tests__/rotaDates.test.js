@@ -5,6 +5,7 @@ import {
   expandWeeklySlot,
   generateSessionsFromProgramme,
   groupByHorizon,
+  groupSessionsByDay,
   startOfIsoWeek,
 } from '../rotaDates.js';
 
@@ -94,6 +95,33 @@ describe('bucketSessionsByWeek', () => {
     const weeks = bucketSessionsByWeek(sessions);
     expect(weeks.map((w) => w.weekStart)).toEqual(['2026-06-01', '2026-06-08']);
     expect(weeks[0].sessions.map((s) => s.date)).toEqual(['2026-06-02', '2026-06-05']);
+  });
+});
+
+describe('groupSessionsByDay', () => {
+  it('returns an empty array for no sessions', () => {
+    expect(groupSessionsByDay([])).toEqual([]);
+    expect(groupSessionsByDay(undefined)).toEqual([]);
+  });
+
+  it('groups multiple sections on the same day, keeping incoming order', () => {
+    const sessions = [
+      { date: '2026-06-02', sectionName: 'Cubs' },
+      { date: '2026-06-02', sectionName: 'Beavers' },
+    ];
+    const days = groupSessionsByDay(sessions);
+    expect(days).toHaveLength(1);
+    expect(days[0].date).toBe('2026-06-02');
+    expect(days[0].sessions.map((s) => s.sectionName)).toEqual(['Cubs', 'Beavers']);
+  });
+
+  it('sorts multiple days ascending', () => {
+    const sessions = [
+      { date: '2026-06-05', sectionName: 'Scouts' },
+      { date: '2026-06-02', sectionName: 'Cubs' },
+    ];
+    const days = groupSessionsByDay(sessions);
+    expect(days.map((d) => d.date)).toEqual(['2026-06-02', '2026-06-05']);
   });
 });
 

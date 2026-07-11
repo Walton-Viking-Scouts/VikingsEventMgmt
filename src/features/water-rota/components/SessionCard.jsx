@@ -120,7 +120,10 @@ function SessionCard({
                       person.status === 'B' ? 'ring-gray-400 ring-dashed' : 'ring-white'
                     }`}
                   >
-                    <MemberAvatar member={{ name: person.name }} size="sm" />
+                    <MemberAvatar
+                      member={{ scoutid: person.scoutid, photo_guid: person.photo_guid, name: person.name }}
+                      size="sm"
+                    />
                   </span>
                 ))}
                 {overflow > 0 && (

@@ -4,6 +4,7 @@ import {
   COVER_STATUS,
   coverStatus,
   coverStatusBgClass,
+  coverStatusTintClass,
   resolveAllSessions,
   resolveSessionView,
   sectionChipClass,
@@ -203,5 +204,13 @@ describe('style helpers', () => {
     expect(coverStatusBgClass(COVER_STATUS.AT_RISK)).toBe('bg-scout-orange');
     expect(coverStatusBgClass(COVER_STATUS.SHORT)).toBe('bg-scout-red');
     expect(coverStatusBgClass(COVER_STATUS.OFF)).toBe('bg-gray-300');
+  });
+
+  it('maps cover statuses to light card tints', () => {
+    expect(coverStatusTintClass(COVER_STATUS.COVERED)).toBe('border-green-300 bg-green-50');
+    expect(coverStatusTintClass(COVER_STATUS.AT_RISK)).toBe('border-amber-300 bg-amber-50');
+    expect(coverStatusTintClass(COVER_STATUS.SHORT)).toBe('border-red-300 bg-red-50');
+    expect(coverStatusTintClass(COVER_STATUS.OFF)).toBe('border-gray-200 bg-gray-100');
+    expect(coverStatusTintClass(COVER_STATUS.UNSET)).toBe('border-gray-200 bg-white');
   });
 });

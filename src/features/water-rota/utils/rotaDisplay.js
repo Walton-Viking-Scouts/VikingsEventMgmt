@@ -212,3 +212,26 @@ export function coverStatusBgClass(status) {
     return 'bg-gray-300';
   }
 }
+
+/**
+ * Tailwind border/background classes for a cover-status card tint — a light
+ * fill for the board's mini-cards, distinct from coverStatusBgClass's solid
+ * rail color.
+ *
+ * @param {string} status - COVER_STATUS value
+ * @returns {string} Border and background classes
+ */
+export function coverStatusTintClass(status) {
+  switch (status) {
+  case COVER_STATUS.COVERED:
+    return 'border-green-300 bg-green-50';
+  case COVER_STATUS.AT_RISK:
+    return 'border-amber-300 bg-amber-50';
+  case COVER_STATUS.SHORT:
+    return 'border-red-300 bg-red-50';
+  case COVER_STATUS.OFF:
+    return 'border-gray-200 bg-gray-100';
+  default:
+    return 'border-gray-200 bg-white';
+  }
+}

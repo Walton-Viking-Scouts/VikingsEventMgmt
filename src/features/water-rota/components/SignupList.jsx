@@ -6,13 +6,16 @@ import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
  * One signup row: avatar, name, relative signup time.
  *
  * @param {Object} props
- * @param {{scoutid: string, name: string, at: string|null}} props.person - Signup entry
+ * @param {{scoutid: string, name: string, photo_guid: string|undefined, at: string|null}} props.person - Signup entry
  * @returns {JSX.Element} List row
  */
 function SignupRow({ person }) {
   return (
     <li className="flex items-center gap-3 py-2">
-      <MemberAvatar member={{ name: person.name }} size="sm" />
+      <MemberAvatar
+        member={{ scoutid: person.scoutid, photo_guid: person.photo_guid, name: person.name }}
+        size="sm"
+      />
       <span className="flex-1 text-sm font-medium text-gray-800">{person.name}</span>
       {person.at && (
         <span className="text-xs text-gray-400">

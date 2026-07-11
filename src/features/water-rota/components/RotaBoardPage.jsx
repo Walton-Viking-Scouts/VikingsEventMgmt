@@ -12,14 +12,14 @@ import {
   resolveAllSessions,
   withdrawalNeedsConfirm,
 } from '../utils/rotaDisplay.js';
-import { bucketSessionsByWeek, startOfIsoWeek } from '../utils/rotaDates.js';
+import { bucketSessionsByWeek, groupSessionsByDay, startOfIsoWeek } from '../utils/rotaDates.js';
 import { useRotaPermissions } from '../hooks/useRotaPermissions.js';
 import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
-import SessionCard from './SessionCard.jsx';
+import SessionMiniCard from './SessionMiniCard.jsx';
 import TermOverviewStrip from './TermOverviewStrip.jsx';
 import IdentityPickerModal from './IdentityPickerModal.jsx';
 import SessionDetailModal from './SessionDetailModal.jsx';
@@ -82,6 +82,22 @@ function RotaBoardPage() {
       })),
     [rota],
   );
+
+  // filterSections only exists once the rota's config has loaded, and the
+  // shared SectionFilter renders a pill as "off" unless its section id has
+  // an explicit boolean — seed every current section to true (without
+  // discarding a user's explicit false) once it's known.
+  useEffect(() => {
+    if (filterSections.length === 0) {
+      return;
+    }
+    const allTrue = {};
+    for (const section of filterSections) {
+      allTrue[section.sectionid] = true;
+    }
+    const persisted = readStoredFilters();
+    setSectionFilters((current) => ({ ...allTrue, ...persisted, ...current }));
+  }, [filterSections]);
 
   const visibleSessions = useMemo(
     () => sessions.filter((session) => sectionFilters[session.sectionId] !== false),
@@ -342,17 +358,22 @@ function RotaBoardPage() {
                   <span className="ml-2 text-xs font-medium uppercase tracking-wide">this week</span>
                 )}
               </h2>
-              <div className="space-y-2">
-                {weekSessions.map((session) => (
-                  <SessionCard
-                    key={session.key}
-                    session={session}
-                    onSelect={() => setSelectedKey(session.key)}
-                    myStatus={identity ? myStatusFor(session, identity.scoutid) : null}
-                    onSignupChange={handleSignupChange}
-                    signupDisabled={!online || (!identity && !needsPicker)}
-                    signupPending={Boolean(session.fieldId) && pendingFieldId === session.fieldId}
-                  />
+              <div className="space-y-3">
+                {groupSessionsByDay(weekSessions).map(({ date, sessions: daySessions }) => (
+                  <div key={date}>
+                    <h3 className="pt-1 text-xs font-semibold text-gray-500">
+                      {format(parseISO(date), 'EEEE d MMM')}
+                    </h3>
+                    <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
+                      {daySessions.map((session) => (
+                        <SessionMiniCard
+                          key={session.key}
+                          session={session}
+                          onSelect={() => setSelectedKey(session.key)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>

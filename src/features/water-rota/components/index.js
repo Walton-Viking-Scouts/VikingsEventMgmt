@@ -5,6 +5,7 @@ export { default as RotaSetupWizard } from './setup/RotaSetupWizard.jsx';
 export { default as SessionCard } from './SessionCard.jsx';
 export { default as SessionDetailModal } from './SessionDetailModal.jsx';
 export { default as SessionEditForm } from './SessionEditForm.jsx';
+export { default as SessionMiniCard } from './SessionMiniCard.jsx';
 export { default as SignupButtons } from './SignupButtons.jsx';
 export { default as SignupList } from './SignupList.jsx';
 export { default as TermOverviewStrip } from './TermOverviewStrip.jsx';

@@ -1,0 +1,78 @@
+import React from 'react';
+import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
+import { COVER_STATUS, coverStatusTintClass, sectionChipClass } from '../utils/rotaDisplay.js';
+
+const MAX_AVATARS = 3;
+
+/**
+ * Compact tappable board tile for one session: section chip and activity,
+ * a prominent cover ratio, and an overlapping avatar cluster (backups get a
+ * dashed ring). Signup lives in the session detail modal, not here — tapping
+ * the card just opens it.
+ *
+ * @param {Object} props
+ * @param {import('../utils/rotaDisplay.js').SessionView} props.session - Resolved session view model
+ * @param {Function} props.onSelect - Called with the session when the tile is tapped
+ * @returns {JSX.Element} Mini card
+ */
+function SessionMiniCard({ session, onSelect }) {
+  const { sectionName, activity, needed, cancelled, hasMeta, confirmed, backups, status } = session;
+  const people = [...confirmed, ...backups];
+  const overflow = people.length - MAX_AVATARS;
+
+  let ratioLabel;
+  if (cancelled) {
+    ratioLabel = 'Not on water';
+  } else if (status === COVER_STATUS.UNSET && !hasMeta) {
+    ratioLabel = 'Set up';
+  } else if (needed === null) {
+    ratioLabel = '—';
+  } else {
+    ratioLabel = `${confirmed.length}/${needed}`;
+  }
+
+  return (
+    <button
+      type="button"
+      data-testid={`minicard-${session.key}`}
+      onClick={() => onSelect(session)}
+      className={`w-36 min-w-[9rem] rounded-lg border p-2.5 text-left ${coverStatusTintClass(status)} ${
+        cancelled ? 'opacity-70' : ''
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-1">
+        <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(sectionName)}`}>
+          {sectionName}
+        </span>
+        <span className="truncate text-xs text-gray-700">{activity || 'Activity not set'}</span>
+      </span>
+
+      <span className="mt-1.5 block text-lg font-bold text-gray-900">{ratioLabel}</span>
+
+      {people.length > 0 && (
+        <span className="mt-1.5 flex -space-x-2" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
+          {people.slice(0, MAX_AVATARS).map((person) => (
+            <span
+              key={person.scoutid}
+              className={`inline-block rounded-full ring-2 ${
+                person.status === 'B' ? 'ring-gray-400 ring-dashed' : 'ring-white'
+              }`}
+            >
+              <MemberAvatar
+                member={{ scoutid: person.scoutid, photo_guid: person.photo_guid, name: person.name }}
+                size="sm"
+              />
+            </span>
+          ))}
+          {overflow > 0 && (
+            <span className="h-8 w-8 rounded-full bg-gray-200 text-gray-700 text-xs font-medium flex items-center justify-center ring-2 ring-white">
+              +{overflow}
+            </span>
+          )}
+        </span>
+      )}
+    </button>
+  );
+}
+
+export default SessionMiniCard;

@@ -114,6 +114,28 @@ export function bucketSessionsByWeek(sessions) {
 }
 
 /**
+ * Group already-week-bucketed sessions into per-day sub-buckets, for the
+ * board's day-row grid.
+ *
+ * @param {Array} sessions - Sessions within one week
+ * @returns {Array<{date: string, sessions: Array}>} Days ascending by date, sessions keeping their incoming order
+ */
+export function groupSessionsByDay(sessions) {
+  const byDay = new Map();
+
+  for (const session of sessions ?? []) {
+    if (!byDay.has(session.date)) {
+      byDay.set(session.date, []);
+    }
+    byDay.get(session.date).push(session);
+  }
+
+  return [...byDay.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, daySessions]) => ({ date, sessions: daySessions }));
+}
+
+/**
  * Bucket a member's commitments into display horizons.
  *
  * @param {Array<{date: string}>} sessions - Sessions the member is committed to
