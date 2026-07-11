@@ -4,11 +4,14 @@ import Modal from '../../../shared/components/ui/Modal.jsx';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
-import { writeSessionMeta } from '../services/rotaService.js';
+import { assignSignup, writeSessionMeta } from '../services/rotaService.js';
+import { activateWaterSession } from '../services/rotaSetupService.js';
+import { SIGNUP_STATUS } from '../services/rotaEncoding.js';
 import { sectionChipClass } from '../utils/rotaDisplay.js';
 import SignupList from './SignupList.jsx';
 import SessionEditForm from './SessionEditForm.jsx';
 import SignupButtons from './SignupButtons.jsx';
+import AddPermitHolderModal from './AddPermitHolderModal.jsx';
 
 /**
  * Session detail: who's signed up, session notes, one-tap signup footer,
@@ -41,8 +44,11 @@ function SessionDetailModal({
   onClose,
 }) {
   const [editing, setEditing] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOffWater, setConfirmOffWater] = useState(false);
+  const [addingPermitHolder, setAddingPermitHolder] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   if (!session) {
     return null;
@@ -90,6 +96,52 @@ function SessionDetailModal({
       { successText: onWater ? 'Session restored' : 'Marked not on water' },
     );
 
+  const handleActivate = async (fields) => {
+    if (!identity) {
+      notifyError('Pick your name first so edits can be attributed to you.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await activateWaterSession({
+        rota,
+        date: session.date,
+        sectionId: session.sectionId,
+        fields,
+        by: identity.name,
+        scoutid: identity.scoutid,
+        token: getToken(),
+      });
+      notifySuccess('Session put on the water');
+      setActivating(false);
+      await refresh();
+      onClose();
+    } catch (error) {
+      notifyError(`Couldn't put on the water: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const existingScoutids = [...session.confirmed, ...session.backups].map((person) => person.scoutid);
+
+  const handleAddPermitHolder = async (scoutid) => {
+    if (assigning) {
+      return;
+    }
+    setAssigning(true);
+    try {
+      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: SIGNUP_STATUS.IN, token: getToken() });
+      notifySuccess('Permit holder added');
+      setAddingPermitHolder(false);
+      await refresh();
+    } catch (error) {
+      notifyError(`Couldn't add permit holder: ${error.message}`);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   return (
     <Modal isOpen onClose={onClose} size="md">
       <Modal.Header>
@@ -115,6 +167,14 @@ function SessionDetailModal({
             saving={saving}
             onSave={handleSave}
           />
+        ) : activating ? (
+          <SessionEditForm
+            session={session}
+            sectionYPCount={sectionYPCount}
+            saving={saving}
+            onSave={handleActivate}
+            submitLabel="Put on the water"
+          />
         ) : (
           <>
             <div className="text-sm text-gray-700">
@@ -139,32 +199,51 @@ function SessionDetailModal({
           </>
         )}
 
-        {canEdit && !editing && !session.fieldId && (
-          <p className="mt-5 text-xs text-gray-500">
-            This programme week isn&apos;t set up as a water session. Add it from the
-            board&apos;s &quot;Edit plan&quot; or &quot;Sync programme&quot;.
-          </p>
+        {!editing && !activating && !session.fieldId && (
+          <div className="mt-5">
+            <p className="text-xs text-gray-500">This programme week isn&apos;t on the water yet.</p>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setActivating(true)}
+                className="mt-2 w-full py-2 rounded-md bg-scout-blue text-white text-sm font-semibold hover:bg-scout-blue-dark"
+              >
+                Put on the water
+              </button>
+            )}
+          </div>
         )}
 
-        {canEdit && !editing && session.fieldId && (
-          <div className="mt-5 flex gap-2">
+        {canEdit && !editing && !activating && session.fieldId && (
+          <div className="mt-5 space-y-2">
             {!session.cancelled && (
               <button
                 type="button"
-                onClick={() => setEditing(true)}
-                className="flex-1 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:border-scout-blue hover:text-scout-blue"
+                onClick={() => setAddingPermitHolder(true)}
+                className="w-full py-2 rounded-md border border-scout-blue text-sm font-medium text-scout-blue hover:bg-scout-blue/5"
               >
-                Edit session
+                Add permit holder
               </button>
             )}
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => (session.cancelled ? setOnWater(true) : setConfirmOffWater(true))}
-              className="flex-1 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:border-scout-orange hover:text-scout-orange disabled:opacity-50"
-            >
-              {session.cancelled ? 'Back on the water' : 'Not on water this week'}
-            </button>
+            <div className="flex gap-2">
+              {!session.cancelled && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="flex-1 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:border-scout-blue hover:text-scout-blue"
+                >
+                  Edit session
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => (session.cancelled ? setOnWater(true) : setConfirmOffWater(true))}
+                className="flex-1 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:border-scout-orange hover:text-scout-orange disabled:opacity-50"
+              >
+                {session.cancelled ? 'Back on the water' : 'Not on water this week'}
+              </button>
+            </div>
           </div>
         )}
       </Modal.Body>
@@ -194,6 +273,14 @@ function SessionDetailModal({
           setOnWater(false);
         }}
         onCancel={() => setConfirmOffWater(false)}
+      />
+
+      <AddPermitHolderModal
+        isOpen={addingPermitHolder}
+        members={rota.members}
+        existingScoutids={existingScoutids}
+        onPick={handleAddPermitHolder}
+        onClose={() => setAddingPermitHolder(false)}
       />
     </Modal>
   );

@@ -82,6 +82,21 @@ describe('SessionEditForm', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it('renders a custom submit label', () => {
+    const onSave = vi.fn();
+    render(
+      <SessionEditForm
+        session={makeSession()}
+        sectionYPCount={30}
+        onSave={onSave}
+        submitLabel="Put on the water"
+      />,
+    );
+
+    expect(screen.getByText('Put on the water')).toBeInTheDocument();
+    expect(screen.queryByText('Save session')).not.toBeInTheDocument();
+  });
+
   it('never lets steppers go negative', () => {
     const onSave = vi.fn();
     render(

@@ -10,3 +10,4 @@ export { default as SignupButtons } from './SignupButtons.jsx';
 export { default as SignupList } from './SignupList.jsx';
 export { default as TermOverviewStrip } from './TermOverviewStrip.jsx';
 export { default as IdentityPickerModal } from './IdentityPickerModal.jsx';
+export { default as AddPermitHolderModal } from './AddPermitHolderModal.jsx';

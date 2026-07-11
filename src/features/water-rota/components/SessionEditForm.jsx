@@ -12,9 +12,10 @@ import { ACTIVITY_PRESETS } from '../services/rotaTemplates.js';
  * @param {number|null} props.sectionYPCount - Section's total Young People (kids default)
  * @param {boolean} [props.saving] - Disable inputs while a save is in flight
  * @param {Function} props.onSave - Called with {act, st, en, k, p, n} on submit
+ * @param {string} [props.submitLabel] - Submit button label when not saving
  * @returns {JSX.Element} Edit form
  */
-function SessionEditForm({ session, sectionYPCount, saving = false, onSave }) {
+function SessionEditForm({ session, sectionYPCount, saving = false, onSave, submitLabel = 'Save session' }) {
   const [activity, setActivity] = useState(session.activity ?? '');
   const [startTime, setStartTime] = useState(session.startTime ?? '18:30');
   const [endTime, setEndTime] = useState(session.endTime ?? '20:00');
@@ -175,7 +176,7 @@ function SessionEditForm({ session, sectionYPCount, saving = false, onSave }) {
         disabled={!valid || saving}
         className="w-full py-2.5 rounded-md bg-scout-blue text-white text-sm font-semibold hover:bg-scout-blue-dark disabled:opacity-50"
       >
-        {saving ? 'Saving…' : 'Save session'}
+        {saving ? 'Saving…' : submitLabel}
       </button>
     </form>
   );
