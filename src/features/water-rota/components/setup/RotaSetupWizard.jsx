@@ -382,15 +382,19 @@ function RotaSetupWizard() {
         token,
       });
 
-      // Pre-fill each section's regulars as confirmed signups on its water
-      // sessions. rota.sessions here are the column-backed water sessions
-      // (config with not-on-water weeks was written after this load).
+      // Pre-fill each section's regulars as confirmed signups — but only on
+      // sessions whose column was just created this run. Re-touching existing
+      // sessions would clobber people's withdrawals on a plan re-edit.
       const regularsBySection = Object.fromEntries(
         participating.map((section) => [section.sid, plans[section.sid]?.regulars ?? []]),
       );
+      const newlyAdded = new Set(result.addedFields ?? []);
+      const newSessions = rota.sessions.filter(
+        (session) => session.fieldId && newlyAdded.has(buildSessionColumnName(session.date, session.sectionId)),
+      );
       const hasRegulars = Object.values(regularsBySection).some((list) => list.length > 0);
-      if (hasRegulars) {
-        const { errors } = await prefillRegulars({ rota, regularsBySection, token });
+      if (hasRegulars && newSessions.length > 0) {
+        const { errors } = await prefillRegulars({ rota, regularsBySection, token, sessions: newSessions });
         if (errors.length > 0) {
           notifyError(`Rota saved, but ${errors.length} session${errors.length === 1 ? '' : 's'} couldn't be pre-filled with regulars — open them to add manually.`);
         }
