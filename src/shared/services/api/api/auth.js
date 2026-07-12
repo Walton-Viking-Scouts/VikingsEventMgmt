@@ -10,9 +10,14 @@ import databaseService from '../../storage/database.js';
 import { IndexedDBService } from '../../storage/indexedDBService.js';
 import logger, { LOG_CATEGORIES } from '../../utils/logger.js';
 
-// Startup data (user globals) barely changes; the TTL also dedupes the
-// multiple startup-data reads that happen during a single post-login sync.
-const STARTUP_DATA_CACHE_TTL = 30 * 60 * 1000;
+// Startup data (user globals) is stable, so the cache exists only as an
+// offline fallback — when online we always refetch so an empty or stale
+// entry (e.g. one written during an OSM block/deploy window) self-heals on
+// the next load instead of being trusted. The short TTL is purely a
+// dedupe window for the burst of startup-data reads fired within seconds of
+// each other during a single post-login sync; it must stay small enough that
+// a bad cached entry can never wedge identity resolution for long.
+const STARTUP_DATA_CACHE_TTL = 60 * 1000;
 
 /**
  * Retrieves user roles and section information from OSM API
