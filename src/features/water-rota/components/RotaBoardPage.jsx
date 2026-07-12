@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import SectionFilter from '../../../shared/components/ui/SectionFilter.jsx';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
@@ -19,6 +19,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
+import { copyToClipboard } from '../../../shared/utils/clipboard.js';
 import SessionMiniCard from './SessionMiniCard.jsx';
 import TermOverviewStrip from './TermOverviewStrip.jsx';
 import IdentityPickerModal from './IdentityPickerModal.jsx';
@@ -50,6 +51,7 @@ function readStoredFilters() {
  */
 function RotaBoardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { loading, rota, error, refresh, year } = useWaterRota();
   const identityState = useRotaIdentity(rota);
   const { identity, needsPicker, choose } = identityState;
@@ -60,10 +62,36 @@ function RotaBoardPage() {
   const [sectionFilters, setSectionFilters] = useState(readStoredFilters);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
-  const [selectedKey, setSelectedKey] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const weekRefs = useRef(new Map());
   const didAutoScroll = useRef(false);
+  const appliedUrlSection = useRef(false);
+
+  // The open session and the section filter are driven by the URL so the board
+  // is deep-linkable and shareable: ?session=<key> opens that session's modal,
+  // ?section=<id>[,<id>] narrows the board to those sections. selectedKey is
+  // derived from the URL so the phone back button closes the modal.
+  const sectionParam = searchParams.get('section');
+  const selectedKey = searchParams.get('session');
+
+  const openSession = (key) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('session', key);
+      return next;
+    });
+  };
+
+  const closeSession = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('session');
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   const sessions = useMemo(() => (rota ? resolveAllSessions(rota) : []), [rota]);
   const selectedSession = useMemo(
@@ -91,13 +119,26 @@ function RotaBoardPage() {
     if (filterSections.length === 0) {
       return;
     }
+    // A shared ?section= link narrows the board to those sections on first
+    // load (without persisting — it shouldn't overwrite the recipient's own
+    // saved filter). After that, normal seeding preserves their toggles.
+    if (!appliedUrlSection.current && sectionParam) {
+      appliedUrlSection.current = true;
+      const wanted = new Set(sectionParam.split(',').map((id) => id.trim()));
+      const only = {};
+      for (const section of filterSections) {
+        only[section.sectionid] = wanted.has(String(section.sectionid));
+      }
+      setSectionFilters(only);
+      return;
+    }
     const allTrue = {};
     for (const section of filterSections) {
       allTrue[section.sectionid] = true;
     }
     const persisted = readStoredFilters();
     setSectionFilters((current) => ({ ...allTrue, ...persisted, ...current }));
-  }, [filterSections]);
+  }, [filterSections, sectionParam]);
 
   const visibleSessions = useMemo(
     () => sessions.filter((session) => sectionFilters[session.sectionId] !== false),
@@ -193,6 +234,29 @@ function RotaBoardPage() {
     }
   };
 
+  const handleCopyBoardLink = async () => {
+    const visible = filterSections
+      .filter((section) => sectionFilters[section.sectionid] !== false)
+      .map((section) => section.sectionid);
+    const url = new URL('/water-rota', window.location.origin);
+    // Only pin sections when the board is narrowed — an all-sections link is
+    // just the plain board.
+    const narrowed = visible.length > 0 && visible.length < filterSections.length;
+    if (narrowed) {
+      url.searchParams.set('section', visible.join(','));
+    }
+    const ok = await copyToClipboard(url.toString());
+    if (ok) {
+      notifySuccess(
+        narrowed
+          ? 'Link to these sections copied — paste it into WhatsApp.'
+          : 'Board link copied — paste it into WhatsApp.',
+      );
+    } else {
+      notifyError('Couldn\'t copy the link — copy it from the address bar.');
+    }
+  };
+
   if (loading) {
     return <LoadingScreen message="Loading water rota..." />;
   }
@@ -259,6 +323,13 @@ function RotaBoardPage() {
               </button>
             </>
           )}
+          <button
+            type="button"
+            onClick={handleCopyBoardLink}
+            className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
+          >
+            Copy link
+          </button>
           <button
             type="button"
             onClick={refresh}
@@ -374,7 +445,7 @@ function RotaBoardPage() {
                         <SessionMiniCard
                           key={session.key}
                           session={session}
-                          onSelect={() => setSelectedKey(session.key)}
+                          onSelect={() => openSession(session.key)}
                         />
                       ))}
                     </div>
@@ -397,7 +468,7 @@ function RotaBoardPage() {
           signupPending={Boolean(selectedSession.fieldId) && pendingFieldId === selectedSession.fieldId}
           onSignupChange={handleSignupChange}
           refresh={refresh}
-          onClose={() => setSelectedKey(null)}
+          onClose={closeSession}
         />
       )}
 

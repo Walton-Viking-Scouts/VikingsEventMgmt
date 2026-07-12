@@ -4,6 +4,7 @@ import Modal from '../../../shared/components/ui/Modal.jsx';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
+import { copyToClipboard } from '../../../shared/utils/clipboard.js';
 import { assignSignup, writeSessionMeta } from '../services/rotaService.js';
 import { activateWaterSession } from '../services/rotaSetupService.js';
 import { SIGNUP_STATUS } from '../services/rotaEncoding.js';
@@ -159,6 +160,17 @@ function SessionDetailModal({
     }
   };
 
+  const handleCopyLink = async () => {
+    const url = new URL('/water-rota', window.location.origin);
+    url.searchParams.set('session', session.key);
+    const ok = await copyToClipboard(url.toString());
+    if (ok) {
+      notifySuccess('Session link copied — paste it into WhatsApp.');
+    } else {
+      notifyError('Couldn\'t copy the link — copy it from the address bar.');
+    }
+  };
+
   return (
     <Modal isOpen onClose={onClose} size="md">
       <Modal.Header>
@@ -173,6 +185,17 @@ function SessionDetailModal({
       </Modal.Header>
 
       <Modal.Body>
+        {!editing && !activating && (
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="text-xs font-medium text-scout-blue hover:text-scout-blue-dark"
+            >
+              Copy link
+            </button>
+          </div>
+        )}
         {activating ? (
           <SessionEditForm
             session={session}
