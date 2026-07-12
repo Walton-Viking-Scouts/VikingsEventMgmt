@@ -4,7 +4,7 @@ import Modal from '../../../shared/components/ui/Modal.jsx';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifySuccess } from '../../../shared/utils/notifications.js';
-import { copyToClipboard } from '../../../shared/utils/clipboard.js';
+import { copyToClipboard, shareOrigin } from '../../../shared/utils/clipboard.js';
 import { assignSignup, writeSessionMeta } from '../services/rotaService.js';
 import { activateWaterSession } from '../services/rotaSetupService.js';
 import { SIGNUP_STATUS } from '../services/rotaEncoding.js';
@@ -15,9 +15,10 @@ import SignupButtons from './SignupButtons.jsx';
 import AddPermitHolderModal from './AddPermitHolderModal.jsx';
 
 /**
- * Session detail: who's signed up, session notes, one-tap signup footer,
- * and — for plan editors — the edit form, add/remove permit-holder controls,
- * and the "Not on water" / "Put on the water" toggles.
+ * Session detail: who's signed up, session notes, a copy-link button to share
+ * the session, a one-tap signup footer, and — for plan editors — the edit form,
+ * add/remove permit-holder controls, and the "Not on water" / "Put on the
+ * water" toggles.
  *
  * @param {Object} props
  * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed)
@@ -161,7 +162,7 @@ function SessionDetailModal({
   };
 
   const handleCopyLink = async () => {
-    const url = new URL('/water-rota', window.location.origin);
+    const url = new URL('/water-rota', shareOrigin());
     url.searchParams.set('session', session.key);
     const ok = await copyToClipboard(url.toString());
     if (ok) {

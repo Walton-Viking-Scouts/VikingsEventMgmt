@@ -328,21 +328,34 @@ export function handleTokenExpiration() {
   return Promise.resolve();
 }
 
-// Store current page path for return after OAuth
+// Store current page path for return after OAuth. Must never throw: a
+// sessionStorage failure (Safari private mode, storage disabled/full) would
+// otherwise abort the login it precedes. Degrades to "no return path".
 export function storeReturnPath() {
   const currentPath = window.location.pathname + window.location.search + window.location.hash;
-  sessionStorage.setItem('oauth_return_path', currentPath);
-  logger.info('Stored return path for OAuth', { returnPath: currentPath }, LOG_CATEGORIES.AUTH);
+  try {
+    sessionStorage.setItem('oauth_return_path', currentPath);
+    logger.info('Stored return path for OAuth', { returnPath: currentPath }, LOG_CATEGORIES.AUTH);
+  } catch (error) {
+    logger.warn('Could not store OAuth return path — continuing login without it', {
+      error: error.message,
+    }, LOG_CATEGORIES.AUTH);
+  }
 }
 
-// Get stored return path and clear it
+// Get stored return path and clear it. Never throws — a storage failure just
+// yields the default landing path.
 export function getAndClearReturnPath() {
-  const returnPath = sessionStorage.getItem('oauth_return_path');
-  if (returnPath) {
-    sessionStorage.removeItem('oauth_return_path');
-    logger.info('Retrieved and cleared return path', { returnPath }, LOG_CATEGORIES.AUTH);
+  try {
+    const returnPath = sessionStorage.getItem('oauth_return_path');
+    if (returnPath) {
+      sessionStorage.removeItem('oauth_return_path');
+      logger.info('Retrieved and cleared return path', { returnPath }, LOG_CATEGORIES.AUTH);
+    }
+    return returnPath || '/';
+  } catch {
+    return '/';
   }
-  return returnPath || '/';
 }
 
 

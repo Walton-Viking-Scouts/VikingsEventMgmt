@@ -198,30 +198,33 @@ describe('syncRotaWithProgramme', () => {
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
-    expect(result).toEqual({ added: 0, orphaned: [], errors: [], uncheckedSections: [] });
+    expect(result).toEqual({ added: 0, orphaned: [], errors: [], uncheckedSections: [], failedSections: [] });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
 
-  it('does not orphan sessions of a section whose programme could not be read', async () => {
-    // The one section's programme fetch fails, so we cannot know what's on its
-    // programme — its existing sessions must NOT be reported as orphaned.
+  it('reports a section whose programme fetch fails as failed (not unchecked) and does not orphan it', async () => {
+    // A fetch error (e.g. expired token) is a real failure — its existing
+    // sessions must NOT be orphaned, and it must be distinguishable from the
+    // benign no-active-term case so the caller can raise an error.
     fetchProgrammeMeetings.mockRejectedValue(new Error('OSM 500'));
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
     expect(result.orphaned).toEqual([]);
-    expect(result.uncheckedSections).toEqual(['49097']);
+    expect(result.failedSections).toEqual(['49097']);
+    expect(result.uncheckedSections).toEqual([]);
     expect(result.added).toBe(0);
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
 
-  it('flags a section with no active term as unchecked, not orphaned', async () => {
+  it('flags a section with no active term as unchecked (not failed) and does not orphan it', async () => {
     CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: null });
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
     expect(result.orphaned).toEqual([]);
     expect(result.uncheckedSections).toEqual(['49097']);
+    expect(result.failedSections).toEqual([]);
   });
 
   it('throws without a plan config', async () => {

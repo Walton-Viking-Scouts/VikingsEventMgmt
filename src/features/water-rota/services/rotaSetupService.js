@@ -121,7 +121,10 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {Object} params
  * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota with config
  * @param {string} params.token - OSM authentication token
- * @returns {Promise<{added: number, orphaned: Array, errors: Array}>} Sync outcome
+ * @returns {Promise<{added: number, orphaned: Array, errors: Array, uncheckedSections: string[], failedSections: string[]}>}
+ *   Sync outcome. `uncheckedSections` = sections with no active term (benign,
+ *   nothing to sync); `failedSections` = sections whose programme fetch threw
+ *   (a real error, e.g. expired token) — both are excluded from `orphaned`.
  * @throws {Error} When the rota has no config to sync against
  */
 export async function syncRotaWithProgramme({ rota, token }) {
@@ -132,10 +135,13 @@ export async function syncRotaWithProgramme({ rota, token }) {
 
   const range = { start: cfg.start, end: cfg.end };
   const descriptors = [];
-  // Sections whose programme we could not read this run (no active term, or a
-  // fetch error). We must NOT treat their existing sessions as orphaned — we
-  // simply don't know what's on their programme, so leave them untouched.
+  // Sections we couldn't read this run. We must NOT treat their existing
+  // sessions as orphaned — we don't know their programme, so leave them
+  // untouched. Split by cause so the caller can tell a benign "no active term"
+  // apart from a real fetch failure (e.g. an expired token failing every
+  // section) and message accordingly.
   const unchecked = new Set();
+  const failed = new Set();
 
   for (const section of cfg.sections ?? []) {
     try {
@@ -147,12 +153,18 @@ export async function syncRotaWithProgramme({ rota, token }) {
       const meetings = await fetchProgrammeMeetings(section.sid, term.currentTermId, token);
       descriptors.push(...generateSessionsFromProgramme(meetings, section, range));
     } catch (error) {
-      unchecked.add(String(section.sid));
+      failed.add(String(section.sid));
       logger.warn('Programme sync: section fetch failed', {
         sectionId: section.sid,
         error: error.message,
       }, LOG_CATEGORIES.API);
     }
+  }
+
+  if (failed.size > 0) {
+    logger.error('Programme sync: could not read one or more sections\' programmes', {
+      failedSections: [...failed],
+    }, LOG_CATEGORIES.API);
   }
 
   const existingColumns = rota.sessions.map((session) => ({
@@ -161,9 +173,11 @@ export async function syncRotaWithProgramme({ rota, token }) {
     sectionId: session.sectionId,
   }));
   const { toAdd, orphaned: rawOrphaned } = diffSessions(existingColumns, descriptors);
-  // Drop orphans from sections we couldn't check — otherwise a transient fetch
-  // failure would flag every one of that section's valid sessions.
-  const orphaned = rawOrphaned.filter((column) => !unchecked.has(String(column.sectionId)));
+  // Drop orphans from any section we couldn't check (no term or fetch error) —
+  // otherwise a transient failure would flag every one of its valid sessions.
+  const orphaned = rawOrphaned.filter(
+    (column) => !unchecked.has(String(column.sectionId)) && !failed.has(String(column.sectionId)),
+  );
 
   let errors = [];
   if (toAdd.length > 0) {
@@ -202,6 +216,7 @@ export async function syncRotaWithProgramme({ rota, token }) {
     orphaned,
     errors,
     uncheckedSections: [...unchecked],
+    failedSections: [...failed],
   };
 }
 

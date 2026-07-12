@@ -19,7 +19,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
-import { copyToClipboard } from '../../../shared/utils/clipboard.js';
+import { copyToClipboard, shareOrigin } from '../../../shared/utils/clipboard.js';
 import SessionMiniCard from './SessionMiniCard.jsx';
 import TermOverviewStrip from './TermOverviewStrip.jsx';
 import IdentityPickerModal from './IdentityPickerModal.jsx';
@@ -125,12 +125,18 @@ function RotaBoardPage() {
     if (!appliedUrlSection.current && sectionParam) {
       appliedUrlSection.current = true;
       const wanted = new Set(sectionParam.split(',').map((id) => id.trim()));
-      const only = {};
-      for (const section of filterSections) {
-        only[section.sectionid] = wanted.has(String(section.sectionid));
+      const matches = filterSections.some((section) => wanted.has(String(section.sectionid)));
+      if (matches) {
+        const only = {};
+        for (const section of filterSections) {
+          only[section.sectionid] = wanted.has(String(section.sectionid));
+        }
+        setSectionFilters(only);
+        return;
       }
-      setSectionFilters(only);
-      return;
+      // A shared link naming a section this user can't see must not strand them
+      // on a blank board — fall through to normal all-sections seeding + explain.
+      notifyInfo('That shared section isn\'t available to you — showing all sections.');
     }
     const allTrue = {};
     for (const section of filterSections) {
@@ -208,10 +214,11 @@ function RotaBoardPage() {
   const handleSyncProgramme = async () => {
     setSyncing(true);
     try {
-      const { added, orphaned, errors, uncheckedSections = [] } = await syncRotaWithProgramme({ rota, token: getToken() });
+      const { added, orphaned, errors, uncheckedSections = [], failedSections = [] } =
+        await syncRotaWithProgramme({ rota, token: getToken() });
       if (errors.length > 0) {
         notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
-      } else if (added === 0 && orphaned.length === 0 && uncheckedSections.length === 0) {
+      } else if (added === 0 && orphaned.length === 0 && uncheckedSections.length === 0 && failedSections.length === 0) {
         notifyInfo('Rota already matches the programmes.');
       } else if (added > 0) {
         notifySuccess(`Added ${added} new session${added === 1 ? '' : 's'}.`);
@@ -221,9 +228,16 @@ function RotaBoardPage() {
           `${orphaned.length} session${orphaned.length === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
         );
       }
+      // A real fetch failure (e.g. an expired token) is an error, not the benign
+      // "no active term" case — surface it so the leader knows nothing synced.
+      if (failedSections.length > 0) {
+        notifyError(
+          `Couldn't reach OSM for ${failedSections.length} section${failedSections.length === 1 ? '' : 's'} — check you're still signed in and try again.`,
+        );
+      }
       if (uncheckedSections.length > 0) {
         notifyInfo(
-          `Couldn't read the programme for ${uncheckedSections.length} section${uncheckedSections.length === 1 ? '' : 's'} — their sessions were left unchanged.`,
+          `${uncheckedSections.length} section${uncheckedSections.length === 1 ? ' has' : 's have'} no active term — their sessions were left unchanged.`,
         );
       }
       await refresh();
@@ -238,7 +252,7 @@ function RotaBoardPage() {
     const visible = filterSections
       .filter((section) => sectionFilters[section.sectionid] !== false)
       .map((section) => section.sectionid);
-    const url = new URL('/water-rota', window.location.origin);
+    const url = new URL('/water-rota', shareOrigin());
     // Only pin sections when the board is narrowed — an all-sections link is
     // just the plain board.
     const narrowed = visible.length > 0 && visible.length < filterSections.length;
