@@ -38,6 +38,11 @@ export {
   getListOfMembers,
 } from './members.js';
 
+// Programme exports
+export {
+  getProgramme,
+} from './programme.js';
+
 // FlexiRecords exports
 export {
   getFlexiRecords,

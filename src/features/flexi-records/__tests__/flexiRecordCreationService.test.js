@@ -33,7 +33,7 @@ describe('createOrCompleteFlexiRecord', () => {
     createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 9001, name: template.name });
     addFlexiColumn.mockResolvedValue({ columnid: 'f_1', name: 'Some Field' });
     getFlexiRecordsList.mockResolvedValue({ items: [] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 
@@ -50,7 +50,7 @@ describe('createOrCompleteFlexiRecord', () => {
     createFlexiRecord.mockResolvedValueOnce({ extraid: 5555 });
     addFlexiColumn.mockResolvedValue({});
     getFlexiRecordsList.mockResolvedValue({ items: [] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 
@@ -63,7 +63,7 @@ describe('createOrCompleteFlexiRecord', () => {
     createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 1 });
     addFlexiColumn.mockResolvedValue({ error: 'Permission denied' });
     getFlexiRecordsList.mockResolvedValue({ items: [] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 
@@ -88,14 +88,14 @@ describe('createOrCompleteFlexiRecord', () => {
       items: [{ name: template.name, extraid: 7777 }],
     });
     getFlexiRecordStructure.mockResolvedValueOnce({
-      fieldMapping: {
-        f_1: { name: 'AssignedSection' },
-        f_2: { name: 'AssignedTerm' },
-      },
+      config: JSON.stringify([
+        { id: 'f_1', name: 'AssignedSection' },
+        { id: 'f_2', name: 'AssignedTerm' },
+      ]),
     });
     addFlexiColumn.mockResolvedValue({});
     getFlexiRecordsList.mockResolvedValue({ items: [{ name: template.name, extraid: 7777 }] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 
@@ -114,12 +114,10 @@ describe('createOrCompleteFlexiRecord', () => {
       items: [{ name: template.name, extraid: 5 }],
     });
     getFlexiRecordStructure.mockResolvedValueOnce({
-      fieldMapping: Object.fromEntries(
-        template.fields.map((name, idx) => [`f_${idx}`, { name }]),
-      ),
+      config: JSON.stringify(template.fields.map((name, idx) => ({ id: `f_${idx}`, name }))),
     });
     getFlexiRecordsList.mockResolvedValue({ items: [{ name: template.name, extraid: 5 }] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 
@@ -130,6 +128,23 @@ describe('createOrCompleteFlexiRecord', () => {
     expect(addFlexiColumn).not.toHaveBeenCalled();
   });
 
+  it('reads existing columns from OSM\'s real structure shape (config JSON), not a fieldMapping', async () => {
+    // Regression: getFlexiRecordStructure returns the raw OSM structure with a
+    // `config` JSON string of columns — no `fieldMapping`. Reading the wrong
+    // field meant existing columns were never detected, so every run re-added
+    // all template fields and duplicated columns.
+    getFlexiRecordsList.mockResolvedValueOnce({ items: [{ name: template.name, extraid: 42 }] });
+    getFlexiRecordStructure.mockResolvedValue({
+      config: JSON.stringify(template.fields.map((name, idx) => ({ id: `f_${idx}`, name }))),
+    });
+    getFlexiRecordsList.mockResolvedValue({ items: [{ name: template.name, extraid: 42 }] });
+
+    const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
+
+    expect(result.success).toBe(true);
+    expect(addFlexiColumn).not.toHaveBeenCalled(); // all fields already present → no duplicates
+  });
+
   it('records per-field errors when addFlexiColumn fails midway and returns partial success', async () => {
     getFlexiRecordsList.mockResolvedValueOnce({ items: [] });
     createFlexiRecord.mockResolvedValueOnce({ flexirecordid: 1 });
@@ -138,7 +153,7 @@ describe('createOrCompleteFlexiRecord', () => {
       .mockRejectedValueOnce(new Error('rate limited'))
       .mockResolvedValue({});
     getFlexiRecordsList.mockResolvedValue({ items: [] });
-    getFlexiRecordStructure.mockResolvedValue({ fieldMapping: {} });
+    getFlexiRecordStructure.mockResolvedValue({ config: '[]' });
 
     const result = await createOrCompleteFlexiRecord({ section, template, termId: 'T1', token: 'tok' });
 

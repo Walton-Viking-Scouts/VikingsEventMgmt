@@ -16,6 +16,7 @@ const SectionsPage = lazyWithRetry(() => import('../features/sections/components
 const PhotoConsentPage = lazyWithRetry(() => import('../features/sections/components').then(module => ({ default: module.PhotoConsentPage })));
 const YoungLeadersPage = lazyWithRetry(() => import('../features/young-leaders/components').then(module => ({ default: module.YoungLeadersPage })));
 const EventsRouter = lazyWithRetry(() => import('../features/events/components').then(module => ({ default: module.EventsRouter })));
+const WaterRotaRouter = lazyWithRetry(() => import('../features/water-rota/components').then(module => ({ default: module.WaterRotaRouter })));
 const DataClearPage = lazyWithRetry(() => import('../features/admin/components').then(module => ({ default: module.DataClearPage })));
 
 // Internal component that uses auth and notifications
@@ -94,6 +95,7 @@ function AppContent() {
               <Route path="/photo-consent" element={<PhotoConsentPage />} />
               <Route path="/young-leaders" element={<YoungLeadersPage />} />
               <Route path="/events/*" element={<EventsRouter />} />
+              <Route path="/water-rota/*" element={<WaterRotaRouter />} />
               <Route path="/clear" element={<DataClearPage />} />
 
               {/* Legacy route redirects */}
