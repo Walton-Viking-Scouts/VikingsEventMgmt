@@ -1,5 +1,20 @@
 # HANDOVER — Water Rota: outstanding work, redesign, and honest evaluation
 
+## UPDATE 2026-07-12 — redesign shipped this session (unpushed stack)
+Items 1–5 and 7 below are **done** (board day-row grid, photos, add/remove
+permit holder, put-on-water, wizard Step-2, filter fix), plus: sync no longer
+orphans unreadable sections, login now returns to the deep link after OAuth,
+and **shareable deep links** (`?section=<id>` / `?session=<key>`) with header +
+modal "Copy link" buttons. All live-verified against the real OSM rota; 850
+tests green. ~14 commits stacked on `feature/water-rota-regulars`, **not pushed**.
+
+**Parked follow-up (larger refactor, out of scope here):** post-login
+`loadAllDataAfterAuth` runs a full app sync before any page feels ready, so a
+shared deep link lands slow. Make post-login loading page-aware. Details in the
+`post-login-full-sync-refactor` memory. Scope with /spec, don't drive-by edit.
+
+---
+
 Self-contained handover for a fresh session. The Water Rota feature ships across PRs **#211–#218** (frontend `Walton-Viking-Scouts/VikingsEventMgmt`) + backend **#51** (`/get-programme-summary`, merged). A live rota exists in the user's OSM (Adults host, ~43 columns, regulars set for Tuesday Cubs, Tuesday Cubs needs 4). App root: `/Users/simon/vsCodeProjects/VikingEventMgmt/ios app` (note the space). Feature dir: `src/features/water-rota/`.
 
 ## Repo state — READ FIRST
