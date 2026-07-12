@@ -530,11 +530,14 @@ function useAuthLogic() {
     }
   }, [determineAuthState, consumeOAuthCallback]);
 
-  // Login function. Store the current path (incl. query) so the OAuth callback
-  // returns the user to where they started — e.g. a shared deep link opened
-  // logged-out — instead of dropping them on the default landing page.
+  // Login function.
+  // NOTE: primary login deliberately does NOT store a return path. Restoring it
+  // on the web callback runs a replaceState + popstate (consumeOAuthCallback,
+  // source==='url') that hangs the post-OAuth render on mobile Safari (the #169
+  // fragility) and made sign-in appear broken. Deep-link-return must use a
+  // mobile-Safari-safe restore (e.g. a hard navigation) before it's re-enabled.
   const login = useCallback(async () => {
-    const oauthUrl = generateOAuthUrl(true);
+    const oauthUrl = generateOAuthUrl();
     await loginNative(oauthUrl);
   }, []);
 
