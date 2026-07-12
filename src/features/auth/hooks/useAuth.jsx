@@ -8,7 +8,8 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import databaseService from '../../../shared/services/storage/database.js';
 import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
-import { notifyLoading, notifySuccess, notifyWarning, dismissToast } from '../../../shared/utils/notifications.js';
+import { notifyError, notifyLoading, notifySuccess, notifyWarning, dismissToast } from '../../../shared/utils/notifications.js';
+import { describeOAuthCallbackError } from '../utils/oauthCallbackError.js';
 import { getLoadingResultMessage } from '../../../shared/services/referenceData/referenceDataService.js';
 
 // Create Auth Context
@@ -341,12 +342,14 @@ function useAuthLogic() {
       let accessToken;
       let tokenType;
       let expiresIn;
+      let oauthError;
 
       try {
         urlParams = new URLSearchParams(window.location.search);
         accessToken = urlParams.get('access_token');
         tokenType = urlParams.get('token_type');
         expiresIn = urlParams.get('expires_in');
+        oauthError = urlParams.get('error');
 
         // Debug: Log all OAuth parameters we receive
         if (accessToken && import.meta.env.DEV) {
@@ -405,6 +408,25 @@ function useAuthLogic() {
         await consumeOAuthCallback({ accessToken, tokenType, expiresIn, source: 'url' });
         return;
       }
+
+      // The backend redirects here with ?error= when the OSM token exchange
+      // fails (commonly OSM returning an HTML block/error page). Surface it in
+      // plain English — previously it was silent — then scrub the params so a
+      // refresh doesn't re-show it.
+      if (oauthError) {
+        notifyError(describeOAuthCallbackError(oauthError));
+        logger.warn('OAuth callback returned an error', { oauthError }, LOG_CATEGORIES.AUTH);
+        try {
+          const cleaned = new URL(window.location);
+          cleaned.searchParams.delete('error');
+          cleaned.searchParams.delete('error_description');
+          cleaned.searchParams.delete('details');
+          window.history.replaceState({}, '', cleaned);
+        } catch {
+          // best-effort URL cleanup
+        }
+      }
+
       // Check if blocked first
       if (authService.isBlocked()) {
         setIsBlocked(true);
