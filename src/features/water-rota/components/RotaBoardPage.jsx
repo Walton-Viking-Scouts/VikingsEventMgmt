@@ -214,14 +214,16 @@ function RotaBoardPage() {
   const handleSyncProgramme = async () => {
     setSyncing(true);
     try {
-      const { added, orphaned, errors, uncheckedSections = [], failedSections = [] } =
-        await syncRotaWithProgramme({ rota, token: getToken() });
+      const { added, orphaned, errors, titlesUpdated = 0, uncheckedSections = [], failedSections = [] } =
+        await syncRotaWithProgramme({ rota, token: getToken(), scoutid: identity?.scoutid, by: identity?.name });
       if (errors.length > 0) {
         notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
-      } else if (added === 0 && orphaned.length === 0 && uncheckedSections.length === 0 && failedSections.length === 0) {
+      } else if (added === 0 && orphaned.length === 0 && titlesUpdated === 0 && uncheckedSections.length === 0 && failedSections.length === 0) {
         notifyInfo('Rota already matches the programmes.');
       } else if (added > 0) {
         notifySuccess(`Added ${added} new session${added === 1 ? '' : 's'}.`);
+      } else if (titlesUpdated > 0) {
+        notifySuccess(`Updated ${titlesUpdated} session name${titlesUpdated === 1 ? '' : 's'} from the programme.`);
       }
       if (orphaned.length > 0) {
         notifyInfo(

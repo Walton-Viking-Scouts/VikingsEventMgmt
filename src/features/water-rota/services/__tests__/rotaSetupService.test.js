@@ -198,8 +198,44 @@ describe('syncRotaWithProgramme', () => {
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
-    expect(result).toEqual({ added: 0, orphaned: [], errors: [], uncheckedSections: [], failedSections: [] });
+    expect(result).toEqual({ added: 0, orphaned: [], errors: [], titlesUpdated: 0, uncheckedSections: [], failedSections: [] });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('backfills programme titles onto matching sessions when given an editor identity', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+    getFlexiStructure.mockResolvedValue({
+      config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
+    });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
+
+    expect(result.added).toBe(0);
+    expect(result.titlesUpdated).toBe(2);
+    // One LWW config write carrying the real meeting titles for both sessions.
+    expect(updateFlexiRecord).toHaveBeenCalledTimes(1);
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.cfg.sessions).toEqual({
+      S_20260602_49097: { pt: 'Cubs Kayaking' },
+      S_20260609_49097: { pt: 'Cubs Canoe Trip' },
+    });
+  });
+
+  it('skips the title backfill (no config write) without an editor identity', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(result.titlesUpdated).toBe(0);
+    expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
 
   it('reports a section whose programme fetch fails as failed (not unchecked) and does not orphan it', async () => {

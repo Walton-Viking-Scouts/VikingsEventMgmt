@@ -32,7 +32,7 @@ function SessionCard({
   const {
     date,
     sectionName,
-    activity,
+    label,
     startTime,
     endTime,
     kids,
@@ -85,7 +85,7 @@ function SessionCard({
         {!cancelled && (
           <span className="mt-1 flex items-center gap-2">
             <span className="text-sm font-medium text-gray-800">
-              {activity || 'Activity not set'}
+              {label || 'Activity not set'}
             </span>
             {kids !== null && (
               <span className="text-xs text-gray-500">~{kids} YP</span>
