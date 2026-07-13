@@ -209,6 +209,24 @@ describe('resolveSessionView', () => {
     expect(view.programmeTitle).toBe('Beavers River Day');
     expect(view.label).toBe('Beavers River Day');
     expect(view.activity).toBe('Canoeing');
+    // Both values present and different → activity rides along as a tag.
+    expect(view.activityTag).toBe('Canoeing');
+  });
+
+  it('suppresses the activity tag when it has no title or would duplicate the label', () => {
+    // Activity only, no title → activity is the main label, so no tag.
+    const noTitle = resolveSessionView({ ...baseSession, meta: null, signups: [] }, CONFIG);
+    expect(noTitle.label).toBe('Kayaking');
+    expect(noTitle.activityTag).toBe('');
+
+    // Title equal to the activity → don't show it twice.
+    const dupe = {
+      ...CONFIG,
+      cfg: { ...CONFIG.cfg, sessions: { S_20260714_49097: { pt: 'Kayaking', act: 'Kayaking' } } },
+    };
+    const dupeView = resolveSessionView({ ...baseSession, meta: null, signups: [] }, dupe);
+    expect(dupeView.label).toBe('Kayaking');
+    expect(dupeView.activityTag).toBe('');
   });
 
   it('keeps the programme title on a not-on-water week (label = title, no water preset)', () => {

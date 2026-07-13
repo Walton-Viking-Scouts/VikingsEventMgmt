@@ -57,6 +57,7 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  * @property {string} activity - Water-activity preset (Kayaking/Canoeing/…); '' when unset or not on water
  * @property {string} programmeTitle - Programme meeting title captured from OSM ('' when none)
  * @property {string} label - Board label: programmeTitle, falling back to activity ('' when neither)
+ * @property {string} activityTag - Water activity shown as a tag beneath the title ('' when it would duplicate the title or there is no title)
  * @property {string} startTime - HH:mm
  * @property {string} endTime - HH:mm
  * @property {number|null} kids - Expected young people, null when unset
@@ -105,6 +106,11 @@ export function resolveSessionView(session, config, sectionNames = {}) {
   // is the honest label for a session — shown in preference to the guessed
   // water-activity preset (which was often wrong or empty).
   const programmeTitle = meta?.pt ?? override?.pt ?? '';
+  // When a session has both a programme title AND a water activity, the title
+  // leads and the activity rides alongside as a secondary tag. Suppressed when
+  // they'd duplicate, or when there is no title for a tag to sit under (then the
+  // activity is already the main label).
+  const activityTag = programmeTitle && activity && activity !== programmeTitle ? activity : '';
 
   const view = {
     fieldId: session.fieldId,
@@ -120,6 +126,9 @@ export function resolveSessionView(session, config, sectionNames = {}) {
     // title, falling back to the water-activity preset for rotas set up before
     // titles were captured ('' when neither exists).
     label: programmeTitle || activity,
+    // Secondary label: the water activity shown as a tag beneath the title
+    // ('' when it would duplicate the title or there is no title).
+    activityTag,
     startTime: meta?.st ?? override?.st ?? sectionDefaults?.st ?? '',
     endTime: meta?.en ?? override?.en ?? sectionDefaults?.en ?? '',
     kids: meta?.k ?? override?.k ?? sectionDefaults?.k ?? null,

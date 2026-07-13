@@ -33,6 +33,7 @@ function SessionCard({
     date,
     sectionName,
     label,
+    activityTag,
     startTime,
     endTime,
     kids,
@@ -87,6 +88,11 @@ function SessionCard({
             <span className="text-sm font-medium text-gray-800">
               {label || 'Activity not set'}
             </span>
+            {activityTag && (
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                {activityTag}
+              </span>
+            )}
             {kids !== null && (
               <span className="text-xs text-gray-500">~{kids} YP</span>
             )}

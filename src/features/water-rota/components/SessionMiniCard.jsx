@@ -16,7 +16,7 @@ const MAX_AVATARS = 3;
  * @returns {JSX.Element} Mini card
  */
 function SessionMiniCard({ session, onSelect }) {
-  const { sectionName, label, needed, cancelled, hasMeta, confirmed, backups, status } = session;
+  const { sectionName, label, activityTag, needed, cancelled, hasMeta, confirmed, backups, status } = session;
   const people = [...confirmed, ...backups];
   const overflow = people.length - MAX_AVATARS;
 
@@ -47,6 +47,11 @@ function SessionMiniCard({ session, onSelect }) {
         {sectionName}
       </span>
       <span className="mt-1 block truncate text-xs text-gray-600">{label || (cancelled ? ' ' : 'Activity not set')}</span>
+      {activityTag && (
+        <span className="mt-0.5 inline-block max-w-full truncate rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 align-top">
+          {activityTag}
+        </span>
+      )}
 
       <span className={`mt-1 block ${ratioMuted ? 'text-sm font-medium text-gray-400' : 'text-lg font-bold text-gray-900'}`}>
         {ratioLabel}
