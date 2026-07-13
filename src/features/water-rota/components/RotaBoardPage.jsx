@@ -214,16 +214,29 @@ function RotaBoardPage() {
   const handleSyncProgramme = async () => {
     setSyncing(true);
     try {
-      const { added, orphaned, errors, titlesUpdated = 0, uncheckedSections = [], failedSections = [] } =
-        await syncRotaWithProgramme({ rota, token: getToken(), scoutid: identity?.scoutid, by: identity?.name });
+      const {
+        added, orphaned, errors,
+        titlesUpdated = 0, titleWriteFailed = false, titlesSkippedNoIdentity = false,
+        uncheckedSections = [], failedSections = [],
+      } = await syncRotaWithProgramme({ rota, token: getToken(), scoutid: identity?.scoutid, by: identity?.name });
       if (errors.length > 0) {
         notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
-      } else if (added === 0 && orphaned.length === 0 && titlesUpdated === 0 && uncheckedSections.length === 0 && failedSections.length === 0) {
+      } else if (
+        added === 0 && orphaned.length === 0 && titlesUpdated === 0 &&
+        !titleWriteFailed && !titlesSkippedNoIdentity &&
+        uncheckedSections.length === 0 && failedSections.length === 0
+      ) {
         notifyInfo('Rota already matches the programmes.');
       } else if (added > 0) {
         notifySuccess(`Added ${added} new session${added === 1 ? '' : 's'}.`);
       } else if (titlesUpdated > 0) {
         notifySuccess(`Updated ${titlesUpdated} session name${titlesUpdated === 1 ? '' : 's'} from the programme.`);
+      }
+      // A failed or un-attributable title write must never read as success.
+      if (titleWriteFailed) {
+        notifyError('Couldn’t save updated session names — try syncing again.');
+      } else if (titlesSkippedNoIdentity) {
+        notifyInfo('Session names weren’t updated — pick who you are on the rota first.');
       }
       if (orphaned.length > 0) {
         notifyInfo(

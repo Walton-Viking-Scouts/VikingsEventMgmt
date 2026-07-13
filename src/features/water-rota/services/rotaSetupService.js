@@ -123,7 +123,7 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {string} params.token - OSM authentication token
  * @param {string|number} [params.scoutid] - Editor's host-section row id, to attribute the title backfill config write
  * @param {string} [params.by] - Editor display name for the title backfill config write
- * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, uncheckedSections: string[], failedSections: string[]}>}
+ * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, titleWriteFailed: boolean, titlesSkippedNoIdentity: boolean, uncheckedSections: string[], failedSections: string[]}>}
  *   Sync outcome. `uncheckedSections` = sections with no active term (benign,
  *   nothing to sync); `failedSections` = sections whose programme fetch threw
  *   (a real error, e.g. expired token) — both are excluded from `orphaned`.
@@ -215,25 +215,31 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
 
   // Backfill programme titles onto every session (existing + newly added) so
   // the board shows the real meeting name instead of a guessed water-activity
-  // preset. Only descriptors from sections we actually read this run are used,
-  // so a section we couldn't reach never loses its stored title. Needs the
-  // editor's identity to attribute the LWW config write; harmlessly skipped
-  // without it (titles then land on the next sync once identity resolves).
-  let titlesUpdated = 0;
-  if (scoutid && by) {
-    const nextSessions = { ...(cfg.sessions ?? {}) };
-    for (const descriptor of descriptors) {
-      if (!descriptor.title) {
-        continue;
-      }
-      const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
-      const existing = nextSessions[key] ?? {};
-      if (existing.pt !== descriptor.title) {
-        nextSessions[key] = { ...existing, pt: descriptor.title };
-        titlesUpdated += 1;
-      }
+  // preset. Compute the diff first, independent of identity, so we can tell
+  // "nothing to update" apart from "changes pending but no editor to attribute
+  // them to" — and preserve each session's existing config state (its
+  // not-on-water flag / activity override) by merging rather than replacing.
+  // Only descriptors from sections we actually read this run are considered, so
+  // a section we couldn't reach never loses its stored title.
+  const nextSessions = { ...(cfg.sessions ?? {}) };
+  let pendingTitles = 0;
+  for (const descriptor of descriptors) {
+    if (!descriptor.title) {
+      continue;
     }
-    if (titlesUpdated > 0) {
+    const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
+    const existing = nextSessions[key] ?? {};
+    if (existing.pt !== descriptor.title) {
+      nextSessions[key] = { ...existing, pt: descriptor.title };
+      pendingTitles += 1;
+    }
+  }
+
+  let titlesUpdated = 0;
+  let titleWriteFailed = false;
+  let titlesSkippedNoIdentity = false;
+  if (pendingTitles > 0) {
+    if (scoutid && by) {
       try {
         await writeRotaConfig({
           hostSection: rota.hostSection,
@@ -244,12 +250,22 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
           cfg: { ...cfg, sessions: nextSessions },
           token,
         });
+        titlesUpdated = pendingTitles;
       } catch (error) {
-        titlesUpdated = 0;
-        logger.warn('Programme sync: title backfill config write failed', {
+        // The write failed, so no titles were saved. Surface it (error, not a
+        // warning) instead of reporting a silent success — otherwise the board
+        // tells the leader the rota already matches when it does not.
+        titleWriteFailed = true;
+        logger.error('Programme sync: title backfill config write failed', {
           error: error.message,
-        }, LOG_CATEGORIES.API);
+          recordId: rota.recordId,
+        }, LOG_CATEGORIES.ERROR);
       }
+    } else {
+      // Editor identity never resolved (e.g. an admin who isn't a host-section
+      // member row): we can't attribute the config write. Flag it rather than
+      // fold silently into "already matches" — the board prompts the user.
+      titlesSkippedNoIdentity = true;
     }
   }
 
@@ -258,6 +274,8 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     orphaned,
     errors,
     titlesUpdated,
+    titleWriteFailed,
+    titlesSkippedNoIdentity,
     uncheckedSections: [...unchecked],
     failedSections: [...failed],
   };
