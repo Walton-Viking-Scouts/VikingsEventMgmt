@@ -8,6 +8,7 @@ import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js
 import databaseService from '../../../shared/services/storage/database.js';
 import IndexedDBService from '../../../shared/services/storage/indexedDBService.js';
 import dataLoadingService from '../../../shared/services/data/dataLoadingService.js';
+import { resetReferenceDataReady } from '../../../shared/services/data/referenceDataReady.js';
 import { notifyError, notifyLoading, notifySuccess, notifyWarning, dismissToast } from '../../../shared/utils/notifications.js';
 import { describeOAuthCallbackError } from '../utils/oauthCallbackError.js';
 import { getLoadingResultMessage } from '../../../shared/services/referenceData/referenceDataService.js';
@@ -566,6 +567,9 @@ function useAuthLogic() {
   // Logout function
   const logout = useCallback(async () => {
     await authService.logout();
+    // Clear the reference-ready signal so the next session's cold-cache
+    // loaders wait for a fresh reference load, not this session's stale flag.
+    resetReferenceDataReady();
     broadcastAuthSync();
     setIsAuthenticated(false);
     setUser(null);

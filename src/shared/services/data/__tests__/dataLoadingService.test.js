@@ -48,6 +48,12 @@ vi.mock('../eventDataLoader.js', () => ({
   },
 }));
 
+// Mock the reference-ready signal so we can assert the bootstrap fires it
+const mockMarkReferenceDataReady = vi.fn();
+vi.mock('../referenceDataReady.js', () => ({
+  markReferenceDataReady: () => mockMarkReferenceDataReady(),
+}));
+
 describe('DataLoadingService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -582,6 +588,52 @@ describe('DataLoadingService', () => {
       expect(result.success).toBe(true);
       expect(mockLoadEventsForSections).toHaveBeenCalledWith(largeUserRoles, 'test-token');
       expect(mockLoadFlexiRecordData).toHaveBeenCalledWith(largeUserRoles, 'test-token');
+    });
+  });
+
+  describe('reference-ready signal', () => {
+    it('fires markReferenceDataReady on reference success, before the heavy tail', async () => {
+      const callOrder = [];
+
+      mockLoadInitialReferenceData.mockImplementation(async () => {
+        callOrder.push('reference');
+        return {
+          success: true,
+          results: { userRoles: [{ sectionid: 1, name: 'Section 1' }] },
+          summary: 'Reference loaded',
+          hasErrors: false,
+          errors: [],
+        };
+      });
+      mockMarkReferenceDataReady.mockImplementation(() => callOrder.push('markReady'));
+      mockLoadEventsForSections.mockImplementation(async () => {
+        callOrder.push('events');
+        return { success: true, results: [], summary: '', hasErrors: false, errors: [] };
+      });
+      mockLoadFlexiRecordData.mockResolvedValue({
+        success: true, summary: '', hasErrors: false, errors: [],
+      });
+
+      await dataLoadingService.loadAllDataAfterAuth('test-token');
+
+      expect(mockMarkReferenceDataReady).toHaveBeenCalledTimes(1);
+      // Must be signalled after reference loads but before events/attendance/flexi
+      expect(callOrder.indexOf('markReady')).toBeGreaterThan(callOrder.indexOf('reference'));
+      expect(callOrder.indexOf('markReady')).toBeLessThan(callOrder.indexOf('events'));
+    });
+
+    it('does NOT fire markReferenceDataReady when reference loading fails', async () => {
+      mockLoadInitialReferenceData.mockResolvedValue({
+        success: false,
+        results: {},
+        summary: 'Reference failed',
+        hasErrors: true,
+        errors: [{ type: 'terms', message: 'boom' }],
+      });
+
+      await dataLoadingService.loadAllDataAfterAuth('test-token');
+
+      expect(mockMarkReferenceDataReady).not.toHaveBeenCalled();
     });
   });
 });

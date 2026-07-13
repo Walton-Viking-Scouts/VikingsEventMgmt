@@ -10,6 +10,7 @@
  */
 
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { markReferenceDataReady } from './referenceDataReady.js';
 
 class DataLoadingService {
   constructor() {
@@ -76,6 +77,10 @@ class DataLoadingService {
 
         if (results.reference.success) {
           totalSuccessCount++;
+          // Signal page-first loaders (e.g. the water rota) that cached
+          // sections/terms/members now exist, so they can render ahead of the
+          // heavy tail (events/attendance/flexi) that follows below.
+          markReferenceDataReady();
           logger.info('Reference data loaded successfully', {
             summary: results.reference.summary,
           }, LOG_CATEGORIES.DATA_SERVICE);
@@ -309,6 +314,28 @@ class DataLoadingService {
     } finally {
       this.isLoadingAll = false;
       this.loadAllPromise = null;
+    }
+  }
+
+  /**
+   * Resolves once any in-progress full data load has settled (success OR
+   * failure). Page-first loaders (e.g. the water rota) use this to recover
+   * from a bootstrap that finished without caching their data — the
+   * reference-ready signal only fires on success, so on a reference failure a
+   * cold-cache loader would otherwise wait forever. After this resolves the
+   * loader re-runs and falls through to its empty/error state.
+   *
+   * @returns {Promise<void>} Resolves when no full load is in progress
+   */
+  async whenAllDataSettled() {
+    const inFlight = this.loadAllPromise;
+    if (inFlight) {
+      try {
+        await inFlight;
+      } catch {
+        // The caller re-runs regardless; the load's own errors surface via its
+        // result/reporting, not here.
+      }
     }
   }
 

@@ -75,15 +75,16 @@ function withWriteLock(fn) {
  *
  * @param {number} year - Calendar year
  * @param {string} token - OSM authentication token
+ * @param {number} [priority=0] - Rate-limit queue priority for the flexi-list reads
  * @returns {Promise<{hostSection: Object, recordId: string|number}|null>} Discovery result, or null when no rota exists
  */
-export async function discoverRotaRecord(year, token) {
+export async function discoverRotaRecord(year, token, priority = 0) {
   const recordName = buildRotaRecordName(year);
   const sections = (await databaseService.getSections()) || [];
 
   for (const section of sections) {
     try {
-      const list = await getFlexiRecords(section.sectionid, token);
+      const list = await getFlexiRecords(section.sectionid, token, 'n', false, priority);
       const match = (list?.items || []).find((record) => record.name === recordName);
       if (match) {
         return { hostSection: section, recordId: match.extraid };
@@ -127,11 +128,13 @@ export async function resolveRotaTermId(hostSectionId) {
  * @param {string} token - OSM authentication token
  * @param {Object} [options]
  * @param {boolean} [options.forceRefresh=false] - Bypass the structure cache (use after adding a column)
+ * @param {number} [options.priority=0] - Rate-limit queue priority for this load's reads; raise
+ *   on a deep-link/landing load so the rota jumps ahead of the background post-login sync
  * @returns {Promise<LoadedRota|null>} Decoded rota, or null when none exists for the year
  * @throws {Error} When the record exists but its structure is invalid or unreadable
  */
-export async function loadRota(year, token, { forceRefresh = false } = {}) {
-  const discovery = await discoverRotaRecord(year, token);
+export async function loadRota(year, token, { forceRefresh = false, priority = 0 } = {}) {
+  const discovery = await discoverRotaRecord(year, token, priority);
   if (!discovery) {
     return null;
   }
@@ -142,14 +145,14 @@ export async function loadRota(year, token, { forceRefresh = false } = {}) {
     throw new Error('No active term found for the rota host section');
   }
 
-  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, forceRefresh);
+  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, forceRefresh, priority);
   const structure = decodeStructure(structureData);
   const check = validateWaterRotaStructure(structure);
   if (!check.isValid) {
     throw new Error(`Water rota record is invalid: ${check.errors.join('; ')}`);
   }
 
-  const grid = await getSingleFlexiRecord(recordId, hostSection.sectionid, termId, token);
+  const grid = await getSingleFlexiRecord(recordId, hostSection.sectionid, termId, token, priority);
   const items = Array.isArray(grid?.items) ? grid.items : [];
 
   try {

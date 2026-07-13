@@ -469,7 +469,7 @@ function RotaBoardPage() {
               {/* Every session that week tiles across the card — each section's
                   nights are separate tiles, filling the width instead of a
                   narrow per-day strip. */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {weekSessions.map((session) => (
                   <SessionMiniCard
                     key={session.key}
