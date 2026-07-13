@@ -112,8 +112,10 @@ function transformUserRolesData(data) {
 
 /**
  * Retrieves OSM startup data including user information and globals.
- * Cached for 30 minutes — the payload barely changes and several login-flow
- * callers read it in quick succession.
+ * Cached only briefly (60s) to dedupe the burst of startup-data reads fired
+ * within one post-login sync; otherwise refetched when online, so a stale or
+ * empty entry (e.g. one written during an OSM block) self-heals on the next
+ * load instead of being trusted.
  * @param {string} token - OSM authentication token
  * @returns {Promise<Object|null>} Startup data with user info and globals
  * @throws {Error} When request fails and no cached data available

@@ -13,6 +13,7 @@ import { loadRota, prefillRegulars } from '../../services/rotaService.js';
 import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle, looksLikeWaterSession } from '../../services/rotaTemplates.js';
 import { buildSessionColumnName, parseSessionColumnName } from '../../services/rotaEncoding.js';
 import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek } from '../../utils/rotaDates.js';
+import { buildSessionOverrides } from '../../utils/rotaSetupPlan.js';
 import { getCurrentUserName } from '../../hooks/useRotaIdentity.js';
 import { useSectionYPCounts } from '../../hooks/useSectionYPCounts.js';
 import { useSectionLeaders } from '../../hooks/useSectionLeaders.js';
@@ -67,50 +68,6 @@ function sessionsForSection(section, plan, range) {
     });
   }
   return expandWeeklySlot({ weekday: plan.slotWeekday, ...sectionCfg }, range).map((d) => ({ ...d, onWater: true }));
-}
-
-/**
- * Build the per-session config map from all generated descriptors: water
- * sessions carry activity/time overrides (only fields differing from the
- * section default); not-on-water weeks carry {c:1} so they show greyed
- * without needing a FlexiRecord column. Keyed by session column name.
- *
- * @param {Array} descriptors - All session descriptors (each with an onWater flag)
- * @param {Array<{sid: string, act: string, st: string, en: string}>} sectionDefaults - Config section defaults
- * @returns {Object} Map of column name to override object
- */
-function buildSessionOverrides(descriptors, sectionDefaults) {
-  const defaultsBySid = new Map(sectionDefaults.map((entry) => [String(entry.sid), entry]));
-  const overrides = {};
-  for (const descriptor of descriptors) {
-    const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
-    // The raw programme meeting title is the honest session label — store it on
-    // every session (on-water and not) so the board shows what the programme
-    // actually says instead of a guessed water-activity preset.
-    const title = descriptor.title || null;
-    if (descriptor.onWater === false) {
-      overrides[key] = title ? { c: 1, pt: title } : { c: 1 };
-      continue;
-    }
-    const base = defaultsBySid.get(String(descriptor.sectionId));
-    const override = {};
-    if (title) {
-      override.pt = title;
-    }
-    if (descriptor.activity && descriptor.activity !== base?.act) {
-      override.act = descriptor.activity;
-    }
-    if (descriptor.startTime && descriptor.startTime !== base?.st) {
-      override.st = descriptor.startTime;
-    }
-    if (descriptor.endTime && descriptor.endTime !== base?.en) {
-      override.en = descriptor.endTime;
-    }
-    if (Object.keys(override).length > 0) {
-      overrides[key] = override;
-    }
-  }
-  return overrides;
 }
 
 /**

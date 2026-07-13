@@ -198,7 +198,16 @@ describe('syncRotaWithProgramme', () => {
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
-    expect(result).toEqual({ added: 0, orphaned: [], errors: [], titlesUpdated: 0, uncheckedSections: [], failedSections: [] });
+    expect(result).toEqual({
+      added: 0,
+      orphaned: [],
+      errors: [],
+      titlesUpdated: 0,
+      titleWriteFailed: false,
+      titlesSkippedNoIdentity: false,
+      uncheckedSections: [],
+      failedSections: [],
+    });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
 
@@ -217,6 +226,7 @@ describe('syncRotaWithProgramme', () => {
 
     expect(result.added).toBe(0);
     expect(result.titlesUpdated).toBe(2);
+    expect(result.titleWriteFailed).toBe(false);
     // One LWW config write carrying the real meeting titles for both sessions.
     expect(updateFlexiRecord).toHaveBeenCalledTimes(1);
     const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
@@ -226,7 +236,73 @@ describe('syncRotaWithProgramme', () => {
     });
   });
 
-  it('skips the title backfill (no config write) without an editor identity', async () => {
+  it('preserves a session\'s existing config state (not-on-water flag) while adding its title', async () => {
+    const rotaWithState = {
+      ...rota,
+      config: { cfg: { ...rota.config.cfg, sessions: { S_20260609_49097: { c: 1 } } } },
+    };
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+    getFlexiStructure.mockResolvedValue({
+      config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
+    });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    const result = await syncRotaWithProgramme({ rota: rotaWithState, token: 'tok', scoutid: 900, by: 'Simon Clark' });
+
+    expect(result.titlesUpdated).toBe(2);
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    // The not-on-water flag survives the merge and the title is added.
+    expect(written.cfg.sessions.S_20260609_49097).toEqual({ c: 1, pt: 'Cubs Canoe Trip' });
+    expect(written.cfg.sessions.S_20260602_49097).toEqual({ pt: 'Cubs Kayaking' });
+  });
+
+  it('is a no-op when every matching session already carries the right title', async () => {
+    const rotaWithTitles = {
+      ...rota,
+      config: {
+        cfg: {
+          ...rota.config.cfg,
+          sessions: {
+            S_20260602_49097: { pt: 'Cubs Kayaking' },
+            S_20260609_49097: { pt: 'Cubs Canoe Trip' },
+          },
+        },
+      },
+    };
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+
+    const result = await syncRotaWithProgramme({ rota: rotaWithTitles, token: 'tok', scoutid: 900, by: 'Simon Clark' });
+
+    expect(result.titlesUpdated).toBe(0);
+    expect(result.titleWriteFailed).toBe(false);
+    expect(updateFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('reports titleWriteFailed (not a false success) when the config write throws', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+    getFlexiStructure.mockResolvedValue({
+      config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
+    });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    updateFlexiRecord.mockRejectedValue(new Error('OSM write rejected'));
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
+
+    expect(result.titleWriteFailed).toBe(true);
+    expect(result.titlesUpdated).toBe(0);
+  });
+
+  it('flags the backfill as skipped (no config write) without an editor identity', async () => {
     fetchProgrammeMeetings.mockResolvedValue([
       { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
       { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
@@ -234,6 +310,7 @@ describe('syncRotaWithProgramme', () => {
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
 
+    expect(result.titlesSkippedNoIdentity).toBe(true);
     expect(result.titlesUpdated).toBe(0);
     expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
