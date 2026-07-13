@@ -12,7 +12,7 @@ import {
   resolveAllSessions,
   withdrawalNeedsConfirm,
 } from '../utils/rotaDisplay.js';
-import { bucketSessionsByWeek, groupSessionsByDay, startOfIsoWeek } from '../utils/rotaDates.js';
+import { bucketSessionsByWeek, startOfIsoWeek } from '../utils/rotaDates.js';
 import { useRotaPermissions } from '../hooks/useRotaPermissions.js';
 import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
@@ -454,8 +454,11 @@ function RotaBoardPage() {
                 }
               }}
               aria-label={`Week of ${format(parseISO(weekStart), 'd MMMM yyyy')}`}
+              className={`rounded-xl border bg-white p-3 shadow-sm sm:p-4 ${
+                weekStart === currentWeekStart ? 'border-scout-blue/40' : 'border-gray-200'
+              }`}
             >
-              <h2 className={`text-sm font-semibold py-1.5 ${
+              <h2 className={`pb-2 text-sm font-semibold ${
                 weekStart === currentWeekStart ? 'text-scout-blue' : 'text-gray-500'
               }`}>
                 Week of {format(parseISO(weekStart), 'd MMMM')}
@@ -463,22 +466,16 @@ function RotaBoardPage() {
                   <span className="ml-2 text-xs font-medium uppercase tracking-wide">this week</span>
                 )}
               </h2>
-              <div className="space-y-3">
-                {groupSessionsByDay(weekSessions).map(({ date, sessions: daySessions }) => (
-                  <div key={date}>
-                    <h3 className="pt-1 text-xs font-semibold text-gray-500">
-                      {format(parseISO(date), 'EEEE d MMM')}
-                    </h3>
-                    <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
-                      {daySessions.map((session) => (
-                        <SessionMiniCard
-                          key={session.key}
-                          session={session}
-                          onSelect={() => openSession(session.key)}
-                        />
-                      ))}
-                    </div>
-                  </div>
+              {/* Every session that week tiles across the card — each section's
+                  nights are separate tiles, filling the width instead of a
+                  narrow per-day strip. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {weekSessions.map((session) => (
+                  <SessionMiniCard
+                    key={session.key}
+                    session={session}
+                    onSelect={() => openSession(session.key)}
+                  />
                 ))}
               </div>
             </section>
