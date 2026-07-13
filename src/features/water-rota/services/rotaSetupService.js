@@ -28,6 +28,7 @@ import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
 import { loadRota, prefillRegulars, writeConfig, writeSessionMeta } from './rotaService.js';
 import { fetchProgrammeMeetings } from './programmeService.js';
 import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
+import { mergeSectionConfig } from '../utils/rotaSetupPlan.js';
 
 /**
  * Create or complete the rota record for a year on the host section.
@@ -64,12 +65,13 @@ export async function createOrCompleteRota({ hostSection, year, termId, sessions
  * @param {string|number} params.termId - Term id
  * @param {string|number} params.scoutid - The editor's member row id in the host section
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - Full plan config ({start, end, termId?, sections})
+ * @param {Object} params.cfg - Plan config. A full config for the initial write, or one section's slice when mergeSections is set ({start, end, sections, sessions})
+ * @param {boolean} [params.mergeSections] - Merge `cfg`'s sections into the live shared config instead of replacing it, so a per-section setup never deletes other leaders' sections and the date range grows (union) to cover it
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  * @throws {Error} When the RotaConfig column cannot be found
  */
-export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, token }) {
+export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, token, mergeSections = false }) {
   const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, true);
   const configFieldId = findConfigFieldId(structureData);
   if (!configFieldId) {
@@ -81,7 +83,9 @@ export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, 
     configFieldId,
     scoutid,
     by,
-    cfg,
+    ...(mergeSections
+      ? { transformCfg: (live) => mergeSectionConfig(live, cfg) }
+      : { cfg }),
     token,
   });
 }

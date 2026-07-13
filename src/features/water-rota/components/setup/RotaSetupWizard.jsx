@@ -343,6 +343,10 @@ function RotaSetupWizard() {
         termId: rota.termId,
         scoutid: configRow.scoutid,
         by,
+        // Merge this run's sections into the shared config rather than
+        // replacing it — section leaders set up their own section, so a save
+        // must not delete the others. The rota-wide range grows to cover it.
+        mergeSections: true,
         cfg: {
           start: range.start,
           end: range.end,
