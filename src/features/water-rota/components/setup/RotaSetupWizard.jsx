@@ -8,6 +8,7 @@ import { notifyError, notifySuccess } from '../../../../shared/utils/notificatio
 import LoadingScreen from '../../../../shared/components/LoadingScreen.jsx';
 import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger.js';
 import { fetchProgrammeMeetings } from '../../services/programmeService.js';
+import { getTerms } from '../../../../shared/services/api/api/index.js';
 import { createOrCompleteRota, writeRotaConfig } from '../../services/rotaSetupService.js';
 import { loadRota, prefillRegulars } from '../../services/rotaService.js';
 import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle, looksLikeWaterSession } from '../../services/rotaTemplates.js';
@@ -88,6 +89,8 @@ function RotaSetupWizard() {
   const [hostSectionId, setHostSectionId] = useState(null);
   const [selectedIds, setSelectedIds] = useState({});
   const [range, setRange] = useState({ start: '', end: '' });
+  const [terms, setTerms] = useState(null);
+  const [selectedTermId, setSelectedTermId] = useState('');
   const [plans, setPlans] = useState({});
   const [loadingProgramme, setLoadingProgramme] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -202,31 +205,53 @@ function RotaSetupWizard() {
 
   const rangeSourceSid = participating[0]?.sid ?? hostSectionId;
 
+  // Load the range-source section's terms for the picker, and default the
+  // selection + week range to its current active term — the youth section's
+  // term is the real school term, unlike the Adults host term which often
+  // spans a full year. A seeded range (re-run of an existing rota) is kept.
   useEffect(() => {
     let cancelled = false;
-    async function defaultRange() {
-      if (!rangeSourceSid || range.start) {
+    async function loadTerms() {
+      if (!rangeSourceSid) {
         return;
       }
+      let list = [];
       try {
-        // Prefer a youth section's term: it's the real school term (~summer),
-        // whereas the Adults host term often spans a full year.
-        const term = await CurrentActiveTermsService.getCurrentActiveTerm(rangeSourceSid);
-        if (!cancelled && term?.startDate && term?.endDate) {
-          setRange({
-            start: term.startDate.slice(0, 10),
-            end: term.endDate.slice(0, 10),
-          });
-        }
+        const all = await getTerms(token);
+        list = (all?.[String(rangeSourceSid)] ?? [])
+          .filter((term) => term.startdate && term.enddate)
+          .sort((a, b) => a.startdate.localeCompare(b.startdate));
       } catch {
-        /* leave range for the leader to type */
+        /* offline or fetch failed — the leader can still type dates below */
+      }
+      if (cancelled) {
+        return;
+      }
+      setTerms(list);
+      if (selectedTermId || list.length === 0) {
+        return;
+      }
+      let current = null;
+      try {
+        current = await CurrentActiveTermsService.getCurrentActiveTerm(rangeSourceSid);
+      } catch {
+        /* no cached current term — fall back to the latest term */
+      }
+      const chosen = list.find((term) => String(term.termid) === String(current?.currentTermId))
+        ?? list[list.length - 1];
+      if (!cancelled && chosen) {
+        setSelectedTermId(String(chosen.termid));
+        if (!range.start) {
+          setRange({ start: chosen.startdate.slice(0, 10), end: chosen.enddate.slice(0, 10) });
+        }
       }
     }
-    defaultRange();
+    loadTerms();
     return () => {
       cancelled = true;
     };
-  }, [rangeSourceSid, range.start]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeSourceSid]);
 
   const participatingSids = useMemo(() => participating.map((section) => section.sid), [participating]);
   const { counts: ypCounts } = useSectionYPCounts(participatingSids);
@@ -453,6 +478,32 @@ function RotaSetupWizard() {
               })}
             </div>
           </div>
+
+          {terms && terms.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700" htmlFor="rota-term">Term</label>
+              <select
+                id="rota-term"
+                value={selectedTermId}
+                onChange={(event) => {
+                  const id = event.target.value;
+                  setSelectedTermId(id);
+                  const term = terms.find((entry) => String(entry.termid) === id);
+                  if (term) {
+                    setRange({ start: term.startdate.slice(0, 10), end: term.enddate.slice(0, 10) });
+                  }
+                }}
+                className="mt-1.5 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
+              >
+                {terms.map((term) => (
+                  <option key={term.termid} value={term.termid}>
+                    {term.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Picks the weeks below — fine-tune them if the rota runs a shorter span.</p>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <div className="flex-1">
