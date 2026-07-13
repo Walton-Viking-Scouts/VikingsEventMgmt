@@ -1,4 +1,5 @@
 import React from 'react';
+import { format, parseISO } from 'date-fns';
 import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import { COVER_STATUS, coverStatusTintClass, sectionChipClass } from '../utils/rotaDisplay.js';
 
@@ -16,7 +17,7 @@ const MAX_AVATARS = 3;
  * @returns {JSX.Element} Mini card
  */
 function SessionMiniCard({ session, onSelect }) {
-  const { sectionName, label, activityTag, needed, cancelled, hasMeta, confirmed, backups, status } = session;
+  const { sectionName, date, label, activityTag, needed, cancelled, hasMeta, confirmed, backups, status } = session;
   const people = [...confirmed, ...backups];
   const overflow = people.length - MAX_AVATARS;
 
@@ -39,12 +40,17 @@ function SessionMiniCard({ session, onSelect }) {
       type="button"
       data-testid={`minicard-${session.key}`}
       onClick={() => onSelect(session)}
-      className={`w-44 min-w-[11rem] rounded-lg border p-2.5 text-left ${coverStatusTintClass(status)} ${
+      className={`w-full rounded-lg border p-2.5 text-left ${coverStatusTintClass(status)} ${
         cancelled ? 'opacity-70' : ''
       }`}
     >
-      <span className={`block truncate px-2 py-0.5 rounded-full text-xs font-semibold text-center ${sectionChipClass(sectionName)}`}>
-        {sectionName}
+      <span className="flex items-center justify-between gap-1.5">
+        <span className={`truncate px-2 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(sectionName)}`}>
+          {sectionName}
+        </span>
+        <span className="shrink-0 text-[11px] font-medium text-gray-500">
+          {format(parseISO(date), 'EEE d MMM')}
+        </span>
       </span>
       <span className="mt-1 block truncate text-xs text-gray-600">{label || (cancelled ? ' ' : 'Activity not set')}</span>
       {activityTag && (
