@@ -20,15 +20,18 @@ const FLEXI_STRUCTURES_CACHE_TTL = 60 * 60 * 1000;
  * @param {string} token - OSM authentication token
  * @param {string} [archived='n'] - Include archived records ('y' or 'n')
  * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
+ * @param {number} [priority=0] - Rate-limit queue priority; raise so a user-facing
+ *   deep-link load jumps ahead of the background post-login sync
  * @returns {Promise<Object>} FlexiRecord list with items array
  * @throws {Error} When API request fails and no cached data available
  */
-export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false) {
+export async function getFlexiRecords(sectionId, token, archived = 'n', forceRefresh = false, priority = 0) {
   return osmRequest(
     'getFlexiRecords',
     `/get-flexi-records?sectionid=${encodeURIComponent(sectionId)}&archived=${encodeURIComponent(archived)}`,
     {
       token,
+      priority,
       forceRefresh,
       ttl: FLEXI_RECORDS_CACHE_TTL,
       cacheRead: () => databaseService.getFlexiLists(sectionId),
@@ -46,15 +49,18 @@ export async function getFlexiRecords(sectionId, token, archived = 'n', forceRef
  * @param {number|string} sectionid - OSM section identifier
  * @param {number|string} termid - OSM term identifier
  * @param {string} token - OSM authentication token
+ * @param {number} [priority=0] - Rate-limit queue priority; raise so a user-facing
+ *   deep-link load jumps ahead of the background post-login sync
  * @returns {Promise<Object>} FlexiRecord data with member values
  * @throws {Error} When API request fails or authentication fails
  */
-export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, token) {
+export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, token, priority = 0) {
   return osmRequest(
     'getSingleFlexiRecord',
     `/get-single-flexi-record?flexirecordid=${encodeURIComponent(flexirecordid)}&sectionid=${encodeURIComponent(sectionid)}&termid=${encodeURIComponent(termid)}`,
     {
       token,
+      priority,
       cacheRead: () => databaseService.getFlexiData(flexirecordid, sectionid, termid),
       emptyValue: { identifier: null, items: [] },
     },
@@ -68,15 +74,18 @@ export async function getSingleFlexiRecord(flexirecordid, sectionid, termid, tok
  * @param {number|string} termid - OSM term identifier
  * @param {string} token - OSM authentication token
  * @param {boolean} [forceRefresh=false] - Force refresh bypassing cache
+ * @param {number} [priority=0] - Rate-limit queue priority; raise so a user-facing
+ *   deep-link load jumps ahead of the background post-login sync
  * @returns {Promise<Object|null>} Structure definition with field mappings or null
  * @throws {Error} When API request fails
  */
-export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false) {
+export async function getFlexiStructure(extraid, sectionid, termid, token, forceRefresh = false, priority = 0) {
   return osmRequest(
     'getFlexiStructure',
     `/get-flexi-structure?flexirecordid=${encodeURIComponent(extraid)}&sectionid=${encodeURIComponent(sectionid)}&termid=${encodeURIComponent(termid)}`,
     {
       token,
+      priority,
       forceRefresh,
       ttl: FLEXI_STRUCTURES_CACHE_TTL,
       cacheRead: () => databaseService.getFlexiStructure(extraid),

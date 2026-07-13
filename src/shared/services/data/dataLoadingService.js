@@ -10,6 +10,7 @@
  */
 
 import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+import { markReferenceDataReady } from './referenceDataReady.js';
 
 class DataLoadingService {
   constructor() {
@@ -76,6 +77,10 @@ class DataLoadingService {
 
         if (results.reference.success) {
           totalSuccessCount++;
+          // Signal page-first loaders (e.g. the water rota) that cached
+          // sections/terms/members now exist, so they can render ahead of the
+          // heavy tail (events/attendance/flexi) that follows below.
+          markReferenceDataReady();
           logger.info('Reference data loaded successfully', {
             summary: results.reference.summary,
           }, LOG_CATEGORIES.DATA_SERVICE);
