@@ -6,7 +6,74 @@
  * @module rotaSetupPlan
  */
 
-import { buildSessionColumnName } from '../services/rotaEncoding.js';
+import { buildSessionColumnName, parseSessionColumnName } from '../services/rotaEncoding.js';
+
+/**
+ * Earlier of two yyyy-mm-dd date strings, ignoring null/undefined.
+ * @param {string|null|undefined} a
+ * @param {string|null|undefined} b
+ * @returns {string|undefined}
+ */
+function earlier(a, b) {
+  if (!a) return b || undefined;
+  if (!b) return a;
+  return a <= b ? a : b;
+}
+
+/**
+ * Later of two yyyy-mm-dd date strings, ignoring null/undefined.
+ * @param {string|null|undefined} a
+ * @param {string|null|undefined} b
+ * @returns {string|undefined}
+ */
+function later(a, b) {
+  if (!a) return b || undefined;
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+/**
+ * Merge one setup run's sections into the shared rota config without disturbing
+ * the sections it didn't touch. Section leaders set up their own section, so a
+ * save must NEVER replace the whole config (which would delete every other
+ * leader's section). Only the sections in `patch` are rewritten; the rota-wide
+ * date range grows to cover the patch (union), so each section extends it.
+ *
+ * @param {Object|null|undefined} base - Live shared config ({start,end,sections,sessions})
+ * @param {{sections?: Array<{sid: string}>, sessions?: Object, start?: string, end?: string}} patch - This run's data
+ * @returns {Object} Merged config
+ */
+export function mergeSectionConfig(base, patch) {
+  const baseCfg = base ?? {};
+  const p = patch ?? {};
+  const touched = new Set((p.sections ?? []).map((s) => String(s.sid)));
+
+  // Sections: keep untouched sections, replace/add the touched ones.
+  const sections = [
+    ...(baseCfg.sections ?? []).filter((s) => !touched.has(String(s.sid))),
+    ...(p.sections ?? []),
+  ];
+
+  // Sessions: drop the touched sections' old overrides (this run redefines
+  // them), keep every other section's, then add this run's.
+  const sessions = {};
+  for (const [col, override] of Object.entries(baseCfg.sessions ?? {})) {
+    const parsed = parseSessionColumnName(col);
+    if (parsed && touched.has(String(parsed.sectionId))) {
+      continue;
+    }
+    sessions[col] = override;
+  }
+  Object.assign(sessions, p.sessions ?? {});
+
+  return {
+    ...baseCfg,
+    start: earlier(baseCfg.start, p.start),
+    end: later(baseCfg.end, p.end),
+    sections,
+    sessions,
+  };
+}
 
 /**
  * Build the per-session config map from all generated descriptors: water

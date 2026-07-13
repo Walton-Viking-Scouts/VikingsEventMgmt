@@ -336,11 +336,12 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, tok
  * @param {string} params.configFieldId - RotaConfig column field id (f_N)
  * @param {string|number} params.scoutid - The editor's member row id
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - Full plan config ({start, end, termId?, sections})
+ * @param {Object} params.cfg - Full plan config ({start, end, termId?, sections}); ignored when transformCfg is given
+ * @param {(liveCfg: Object) => Object} [params.transformCfg] - When set, derive the config to write from the live winner read inside the lock (used to merge one section's setup into the shared config without clobbering others), instead of replacing with `cfg`
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  */
-export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, token }) {
+export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, transformCfg, token }) {
   await writeOwnCell({
     rota,
     fieldId: configFieldId,
@@ -348,11 +349,12 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, token
     token,
     mutate: (_ownRaw, items) => {
       const winner = mergeLwwConfig(items.map((item) => item[configFieldId]));
+      const nextCfg = transformCfg ? transformCfg(winner?.cfg ?? {}) : cfg;
       return encodeConfig({
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
         by,
-        cfg,
+        cfg: nextCfg,
       });
     },
   });
