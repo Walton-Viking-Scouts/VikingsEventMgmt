@@ -221,6 +221,11 @@ function SessionDetailModal({
             <div className="text-sm text-gray-700">
               <p className="font-medium text-gray-900">
                 {session.label || 'Activity not set'}
+                {session.activityTag && (
+                  <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                    {session.activityTag}
+                  </span>
+                )}
                 {session.startTime && (
                   <span className="ml-2 font-normal text-gray-500">
                     {session.startTime}–{session.endTime}

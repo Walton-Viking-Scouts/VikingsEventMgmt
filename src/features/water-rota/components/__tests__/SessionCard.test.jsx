@@ -14,6 +14,7 @@ function makeSession(overrides = {}) {
     activity: 'Kayaking',
     programmeTitle: '',
     label: 'Kayaking',
+    activityTag: '',
     startTime: '18:15',
     endTime: '19:30',
     kids: 24,
@@ -42,6 +43,13 @@ describe('SessionCard', () => {
     expect(screen.getByText('~24 YP')).toBeInTheDocument();
     expect(screen.getByText('of 3 permit holders', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('· 1 backup', { exact: false })).toBeInTheDocument();
+  });
+
+  it('shows the programme title as the label and the activity as a secondary tag', () => {
+    render(<SessionCard session={makeSession({ label: 'Bell boats', activity: 'Kayaking', activityTag: 'Kayaking', programmeTitle: 'Bell boats' })} />);
+
+    expect(screen.getByText('Bell boats')).toBeInTheDocument();
+    expect(screen.getByText('Kayaking')).toBeInTheDocument();
   });
 
   it('renders the not-on-water state without cover details', () => {
