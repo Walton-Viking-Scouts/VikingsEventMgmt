@@ -15,10 +15,28 @@ import { ACTIVITY_PRESETS } from '../services/rotaTemplates.js';
  * @param {string} [props.submitLabel] - Submit button label when not saving
  * @returns {JSX.Element} Edit form
  */
+/**
+ * Coerce a stored time to a clean 24h "HH:mm" that both the <input type="time">
+ * and the save-validation accept. Tolerates a stray space, a seconds suffix, or
+ * a single-digit hour; anything unparseable returns null so the caller applies
+ * its own default. Without this, a session whose time was stored slightly off
+ * (e.g. "12:30:00") would lock the edit form with a permanently-greyed Save.
+ *
+ * @param {*} value - Stored time value
+ * @returns {string|null} "HH:mm", or null when absent/unparseable
+ */
+function toClockValue(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value.trim());
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
+}
+
 function SessionEditForm({ session, sectionYPCount, saving = false, onSave, submitLabel = 'Save session' }) {
   const [activity, setActivity] = useState(session.activity ?? '');
-  const [startTime, setStartTime] = useState(session.startTime ?? '18:30');
-  const [endTime, setEndTime] = useState(session.endTime ?? '20:00');
+  const [startTime, setStartTime] = useState(toClockValue(session.startTime) ?? '18:30');
+  const [endTime, setEndTime] = useState(toClockValue(session.endTime) ?? '20:00');
   const [kids, setKids] = useState(session.kids ?? sectionYPCount ?? 0);
   const [needed, setNeeded] = useState(session.needed ?? 0);
   const [notes, setNotes] = useState(session.notes ?? '');

@@ -82,6 +82,26 @@ describe('SessionEditForm', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it('normalizes a malformed stored time so Save is not locked out', () => {
+    const onSave = vi.fn();
+    // A session whose times were stored with a seconds suffix would fail the
+    // HH:mm save check and grey out Save even with an activity — regression.
+    render(
+      <SessionEditForm
+        session={makeSession({ startTime: '12:30:00', endTime: '14:00:00' })}
+        sectionYPCount={30}
+        onSave={onSave}
+      />,
+    );
+
+    // Activity is already set; Save must work despite the odd stored times.
+    fireEvent.click(screen.getByText('Save session'));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].st).toBe('12:30');
+    expect(onSave.mock.calls[0][0].en).toBe('14:00');
+  });
+
   it('renders a custom submit label', () => {
     const onSave = vi.fn();
     render(
