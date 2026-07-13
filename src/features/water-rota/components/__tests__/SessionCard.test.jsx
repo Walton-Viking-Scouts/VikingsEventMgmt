@@ -12,6 +12,8 @@ function makeSession(overrides = {}) {
     sectionId: '49097',
     sectionName: 'Cubs',
     activity: 'Kayaking',
+    programmeTitle: '',
+    label: 'Kayaking',
     startTime: '18:15',
     endTime: '19:30',
     kids: 24,

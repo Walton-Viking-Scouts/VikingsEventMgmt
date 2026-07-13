@@ -121,13 +121,15 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {Object} params
  * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota with config
  * @param {string} params.token - OSM authentication token
- * @returns {Promise<{added: number, orphaned: Array, errors: Array, uncheckedSections: string[], failedSections: string[]}>}
+ * @param {string|number} [params.scoutid] - Editor's host-section row id, to attribute the title backfill config write
+ * @param {string} [params.by] - Editor display name for the title backfill config write
+ * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, uncheckedSections: string[], failedSections: string[]}>}
  *   Sync outcome. `uncheckedSections` = sections with no active term (benign,
  *   nothing to sync); `failedSections` = sections whose programme fetch threw
  *   (a real error, e.g. expired token) — both are excluded from `orphaned`.
  * @throws {Error} When the rota has no config to sync against
  */
-export async function syncRotaWithProgramme({ rota, token }) {
+export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
   const cfg = rota?.config?.cfg;
   if (!cfg) {
     throw new Error('The rota has no plan config yet — run setup first');
@@ -211,10 +213,51 @@ export async function syncRotaWithProgramme({ rota, token }) {
     }, LOG_CATEGORIES.API);
   }
 
+  // Backfill programme titles onto every session (existing + newly added) so
+  // the board shows the real meeting name instead of a guessed water-activity
+  // preset. Only descriptors from sections we actually read this run are used,
+  // so a section we couldn't reach never loses its stored title. Needs the
+  // editor's identity to attribute the LWW config write; harmlessly skipped
+  // without it (titles then land on the next sync once identity resolves).
+  let titlesUpdated = 0;
+  if (scoutid && by) {
+    const nextSessions = { ...(cfg.sessions ?? {}) };
+    for (const descriptor of descriptors) {
+      if (!descriptor.title) {
+        continue;
+      }
+      const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
+      const existing = nextSessions[key] ?? {};
+      if (existing.pt !== descriptor.title) {
+        nextSessions[key] = { ...existing, pt: descriptor.title };
+        titlesUpdated += 1;
+      }
+    }
+    if (titlesUpdated > 0) {
+      try {
+        await writeRotaConfig({
+          hostSection: rota.hostSection,
+          recordId: rota.recordId,
+          termId: rota.termId,
+          scoutid,
+          by,
+          cfg: { ...cfg, sessions: nextSessions },
+          token,
+        });
+      } catch (error) {
+        titlesUpdated = 0;
+        logger.warn('Programme sync: title backfill config write failed', {
+          error: error.message,
+        }, LOG_CATEGORIES.API);
+      }
+    }
+  }
+
   return {
     added: toAdd.length - errors.filter((entry) => entry.field !== '_meta').length,
     orphaned,
     errors,
+    titlesUpdated,
     uncheckedSections: [...unchecked],
     failedSections: [...failed],
   };

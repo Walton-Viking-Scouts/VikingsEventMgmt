@@ -180,6 +180,63 @@ describe('resolveSessionView', () => {
     expect(view.key).toBe('S_20260714_49097');
     expect(view.fieldId).toBeNull();
   });
+
+  it('does NOT label a not-on-water week with the section default activity', () => {
+    // Regression (Thu Squirrels): a dry config-only week ({c:1}) inherited the
+    // section's default water activity and wrongly showed "Kayaking".
+    const configOff = {
+      ...CONFIG,
+      cfg: { ...CONFIG.cfg, sessions: { S_20260714_49097: { c: 1 } } },
+    };
+    const view = resolveSessionView(
+      { fieldId: null, date: '2026-07-14', sectionId: '49097', meta: null, signups: [] },
+      configOff,
+    );
+    expect(view.cancelled).toBe(true);
+    expect(view.activity).toBe('');
+    expect(view.label).toBe('');
+  });
+
+  it('shows the programme title as the label, above the water-activity preset', () => {
+    const configWithTitle = {
+      ...CONFIG,
+      cfg: {
+        ...CONFIG.cfg,
+        sessions: { S_20260714_49097: { pt: 'Beavers River Day', act: 'Canoeing' } },
+      },
+    };
+    const view = resolveSessionView({ ...baseSession, meta: null, signups: [] }, configWithTitle);
+    expect(view.programmeTitle).toBe('Beavers River Day');
+    expect(view.label).toBe('Beavers River Day');
+    expect(view.activity).toBe('Canoeing');
+  });
+
+  it('keeps the programme title on a not-on-water week (label = title, no water preset)', () => {
+    const configOff = {
+      ...CONFIG,
+      cfg: { ...CONFIG.cfg, sessions: { S_20260714_49097: { c: 1, pt: 'Squirrels Craft Night' } } },
+    };
+    const view = resolveSessionView(
+      { fieldId: null, date: '2026-07-14', sectionId: '49097', meta: null, signups: [] },
+      configOff,
+    );
+    expect(view.cancelled).toBe(true);
+    expect(view.label).toBe('Squirrels Craft Night');
+    expect(view.activity).toBe('');
+  });
+
+  it('leaves the label empty for an on-water week with no title and no activity', () => {
+    // Regression (Wed Beavers): the title guess missed and the section default
+    // was empty, so the board showed "Activity not set". Capturing the title
+    // (above) is the fix; here we pin that label is '' without one.
+    const configNoAct = {
+      ...CONFIG,
+      cfg: { ...CONFIG.cfg, sections: [{ ...CONFIG.cfg.sections[0], act: '' }] },
+    };
+    const view = resolveSessionView({ ...baseSession, meta: null, signups: [] }, configNoAct);
+    expect(view.cancelled).toBe(false);
+    expect(view.label).toBe('');
+  });
 });
 
 describe('resolveAllSessions', () => {

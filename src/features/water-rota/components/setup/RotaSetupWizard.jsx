@@ -84,12 +84,19 @@ function buildSessionOverrides(descriptors, sectionDefaults) {
   const overrides = {};
   for (const descriptor of descriptors) {
     const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
+    // The raw programme meeting title is the honest session label — store it on
+    // every session (on-water and not) so the board shows what the programme
+    // actually says instead of a guessed water-activity preset.
+    const title = descriptor.title || null;
     if (descriptor.onWater === false) {
-      overrides[key] = { c: 1 };
+      overrides[key] = title ? { c: 1, pt: title } : { c: 1 };
       continue;
     }
     const base = defaultsBySid.get(String(descriptor.sectionId));
     const override = {};
+    if (title) {
+      override.pt = title;
+    }
     if (descriptor.activity && descriptor.activity !== base?.act) {
       override.act = descriptor.activity;
     }

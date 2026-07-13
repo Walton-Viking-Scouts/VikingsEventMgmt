@@ -54,7 +54,9 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  * @property {string} date - yyyy-mm-dd
  * @property {string} sectionId - OSM section id
  * @property {string} sectionName - Display section name
- * @property {string} activity - Activity name
+ * @property {string} activity - Water-activity preset (Kayaking/Canoeing/…); '' when unset or not on water
+ * @property {string} programmeTitle - Programme meeting title captured from OSM ('' when none)
+ * @property {string} label - Board label: programmeTitle, falling back to activity ('' when neither)
  * @property {string} startTime - HH:mm
  * @property {string} endTime - HH:mm
  * @property {number|null} kids - Expected young people, null when unset
@@ -91,6 +93,19 @@ export function resolveSessionView(session, config, sectionNames = {}) {
   const confirmed = session.signups.filter((signup) => signup.status === SIGNUP_STATUS.IN);
   const backups = session.signups.filter((signup) => signup.status === SIGNUP_STATUS.BACKUP);
 
+  const cancelled = (meta?.c ?? override?.c ?? 0) === 1;
+  // Water-activity preset (Kayaking/Canoeing/…): kept for the edit form and
+  // permit context. A not-on-water week must NOT inherit the section's default
+  // water activity — that fall-through is what wrongly labelled a dry week
+  // "Kayaking". Only on-water weeks borrow the section default.
+  const activity = cancelled
+    ? (meta?.act ?? override?.act ?? '')
+    : (meta?.act ?? override?.act ?? sectionDefaults?.act ?? '');
+  // The programme meeting title, captured at setup and refreshed on sync. This
+  // is the honest label for a session — shown in preference to the guessed
+  // water-activity preset (which was often wrong or empty).
+  const programmeTitle = meta?.pt ?? override?.pt ?? '';
+
   const view = {
     fieldId: session.fieldId,
     // Stable identity for React keys and selection — session columns share it
@@ -99,13 +114,18 @@ export function resolveSessionView(session, config, sectionNames = {}) {
     date: session.date,
     sectionId: session.sectionId,
     sectionName: sectionDefaults?.sname ?? sectionNames[String(session.sectionId)] ?? `Section ${session.sectionId}`,
-    activity: meta?.act ?? override?.act ?? sectionDefaults?.act ?? '',
+    activity,
+    programmeTitle,
+    // What the board displays for "what is this session": the real programme
+    // title, falling back to the water-activity preset for rotas set up before
+    // titles were captured ('' when neither exists).
+    label: programmeTitle || activity,
     startTime: meta?.st ?? override?.st ?? sectionDefaults?.st ?? '',
     endTime: meta?.en ?? override?.en ?? sectionDefaults?.en ?? '',
     kids: meta?.k ?? override?.k ?? sectionDefaults?.k ?? null,
     needed: meta?.p ?? override?.p ?? sectionDefaults?.p ?? null,
     notes: meta?.n ?? '',
-    cancelled: (meta?.c ?? override?.c ?? 0) === 1,
+    cancelled,
     hasMeta: Boolean(meta),
     confirmed,
     backups,
