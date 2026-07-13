@@ -15,6 +15,8 @@
  * @module referenceDataReady
  */
 
+import logger, { LOG_CATEGORIES } from '../utils/logger.js';
+
 let ready = false;
 const listeners = new Set();
 
@@ -28,9 +30,9 @@ export function isReferenceDataReady() {
 }
 
 /**
- * Mark reference data as ready and notify every subscriber. Idempotent — safe
- * to call again on refresh paths; each call re-notifies so late-mounted
- * loaders still get nudged.
+ * Mark reference data as ready and notify every subscriber. Setting the ready
+ * flag is idempotent; each call also re-notifies subscribers (a repeated side
+ * effect on purpose) so late-mounted or refresh-path loaders still get nudged.
  *
  * @returns {void}
  */
@@ -39,8 +41,13 @@ export function markReferenceDataReady() {
   for (const listener of listeners) {
     try {
       listener();
-    } catch {
-      // A misbehaving subscriber must not stop the others being notified.
+    } catch (error) {
+      // A misbehaving subscriber must not stop the others being notified, but
+      // a consistently throwing one would silently break the fast-path re-run,
+      // so surface it.
+      logger.warn('referenceDataReady subscriber threw', {
+        error: error?.message,
+      }, LOG_CATEGORIES.ERROR);
     }
   }
 }

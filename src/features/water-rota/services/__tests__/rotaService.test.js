@@ -169,6 +169,30 @@ describe('loadRota', () => {
     expect(rota.sectionNames).toEqual({ '900': 'Adults', '901': 'Cubs' });
   });
 
+  it('threads the priority option into every flexi read (deep-link fast path)', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
+    ]));
+
+    await loadRota(2026, TOKEN, { priority: 5 });
+
+    expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 5);
+    expect(getFlexiStructure).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, false, 5);
+    expect(getSingleFlexiRecord).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, 5);
+  });
+
+  it('defaults the read priority to 0 when the option is omitted', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
+    ]));
+
+    await loadRota(2026, TOKEN);
+
+    expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 0);
+    expect(getFlexiStructure).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, false, 0);
+    expect(getSingleFlexiRecord).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, 0);
+  });
+
   it('enriches members and signups with photo_guid from getMembers', async () => {
     getSingleFlexiRecord.mockResolvedValue(gridWith([
       {
