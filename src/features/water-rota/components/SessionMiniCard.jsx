@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import { COVER_STATUS, coverStatusTintClass, sectionChipClass } from '../utils/rotaDisplay.js';
 
-const MAX_AVATARS = 3;
+const MAX_AVATARS = 4;
 
 /**
  * Compact tappable board tile for one session: section chip and activity,
@@ -19,7 +19,10 @@ const MAX_AVATARS = 3;
 function SessionMiniCard({ session, onSelect }) {
   const { sectionName, date, label, activityTag, needed, cancelled, hasMeta, confirmed, backups, status } = session;
   const people = [...confirmed, ...backups];
-  const overflow = people.length - MAX_AVATARS;
+  // A "+1" chip would occupy the exact slot the hidden avatar needs, so one
+  // extra person is shown outright; the chip only appears from "+2" up.
+  const visibleCount = people.length === MAX_AVATARS + 1 ? people.length : MAX_AVATARS;
+  const overflow = people.length - visibleCount;
 
   let ratioLabel;
   if (cancelled) {
@@ -65,7 +68,7 @@ function SessionMiniCard({ session, onSelect }) {
 
       {people.length > 0 && (
         <span className="mt-1.5 flex -space-x-3" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
-          {people.slice(0, MAX_AVATARS).map((person) => (
+          {people.slice(0, visibleCount).map((person) => (
             <span
               key={person.scoutid}
               className={`inline-block rounded-full ring-2 ${
