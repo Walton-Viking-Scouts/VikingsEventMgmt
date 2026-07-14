@@ -16,7 +16,6 @@ import { createOrCompleteFlexiRecord } from '../../flexi-records/services/flexiR
 import {
   getFlexiStructure,
 } from '../../../shared/services/api/api/index.js';
-import { CurrentActiveTermsService } from '../../../shared/services/storage/currentActiveTermsService.js';
 import { parseFlexiStructure } from '../../../shared/utils/flexiRecordTransforms.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import {
@@ -24,32 +23,28 @@ import {
   buildSessionColumnName,
   parseSessionColumnName,
 } from './rotaEncoding.js';
-import { ROTA_CREATE_OPTIONS, ROTA_RECORD_NAME_PREFIX } from './rotaTemplates.js';
+import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
 import { loadRota, prefillRegulars, writeConfig, writeSessionMeta } from './rotaService.js';
 import { fetchProgrammeMeetings } from './programmeService.js';
 import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
 
 /**
- * Create or complete the rota record for a year on the host section.
- *
- * STOPGAP (pre-WP3): the per-section-record model's `buildRotaRecordName`
- * needs a record identity ({sectionName, seasonBucket, sectionId, termId},
- * PRD §2.1) that this whole-year, multi-section function has no way to
- * supply, so this still names the record with the plain year-based literal
- * rather than the new builder. WP3 replaces this whole function with the
- * per-section create flow (PRD §4.2).
+ * Create or complete a planning section's rota record on the host section.
+ * Record identity is fully name-derived (PRD §2.1) — `hostTermId` is a mere
+ * API/cache parameter for the creation orchestrator's structure reads, never
+ * part of the record's identity or name.
  *
  * @param {Object} params
  * @param {Object} params.hostSection - Host section ({sectionid, sectionname, section})
- * @param {number} params.year - Calendar year the rota covers
- * @param {string|number} params.termId - Term id for structure reads
+ * @param {string|number} params.hostTermId - Host section's resolved read-context term id (structure reads only)
+ * @param {{sectionId: string|number, sectionName: string, termId: string|number, seasonBucket: string}} params.record - Planning section's record identity (PRD §2.1)
  * @param {import('../utils/rotaDates.js').SessionDescriptor[]} params.sessions - Sessions to create columns for
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<import('../../flexi-records/services/flexiRecordCreationService.js').CreationResult>} Per-column result; success=false with errors on partial failure (safe to re-run)
  */
-export async function createOrCompleteRota({ hostSection, year, termId, sessions, token }) {
+export async function createOrCompleteRota({ hostSection, hostTermId, record, sessions, token }) {
   const template = {
-    name: `${ROTA_RECORD_NAME_PREFIX} ${year}`,
+    name: buildRotaRecordName(record),
     fields: [
       ROTA_CONFIG_COLUMN,
       ...sessions.map((session) => buildSessionColumnName(session.date, session.sectionId)),
@@ -57,7 +52,7 @@ export async function createOrCompleteRota({ hostSection, year, termId, sessions
     createOptions: ROTA_CREATE_OPTIONS,
   };
 
-  return createOrCompleteFlexiRecord({ section: hostSection, template, termId, token });
+  return createOrCompleteFlexiRecord({ section: hostSection, template, termId: hostTermId, token });
 }
 
 /**
@@ -121,16 +116,13 @@ export function diffSessions(existingColumns, descriptors) {
 }
 
 /**
- * Sync an existing rota with its (single) section's programme: appends
- * columns for newly added meeting dates and reports sessions whose programme
- * meeting has vanished (candidates to mark not-on-water — never deleted,
- * since OSM has no column delete).
- *
- * STOPGAP (pre-WP3): still resolves the section's *current active* term via
- * {@link CurrentActiveTermsService} rather than the record's own planning
- * `termId` (PRD §4.4) — LoadedRota doesn't thread a planning termid through
- * this call site yet. `uncheckedSections`/`failedSections` are single-section
- * results (0 or 1 entries), kept as arrays for now to minimize caller churn.
+ * Sync an existing rota record with its (single) planning section's
+ * programme: appends columns for newly added meeting dates and reports
+ * sessions whose programme meeting has vanished (candidates to mark
+ * not-on-water — never deleted, since OSM has no column delete). Fetches the
+ * programme under the record's own planning `termId` (PRD §4.4) — never the
+ * section's current active term, which may differ from the term the plan was
+ * built for.
  *
  * @param {Object} params
  * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota with config
@@ -138,9 +130,11 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {string|number} [params.scoutid] - Editor's host-section row id, to attribute the title backfill config write
  * @param {string} [params.by] - Editor display name for the title backfill config write
  * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, titleWriteFailed: boolean, titlesSkippedNoIdentity: boolean, uncheckedSections: string[], failedSections: string[]}>}
- *   Sync outcome. `uncheckedSections` = no active term found (benign, nothing
- *   to sync); `failedSections` = the programme fetch threw (a real error,
- *   e.g. expired token) — both are excluded from `orphaned`.
+ *   Sync outcome for this single record. `uncheckedSections` is always empty
+ *   (the planning term is always known — it's the record's own identity, not
+ *   a "current active term" lookup); `failedSections` holds the section id
+ *   when the programme fetch threw (e.g. an expired token) — excluded from
+ *   `orphaned` either way, kept as arrays for caller compatibility.
  * @throws {Error} When the rota has no config to sync against
  */
 export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
@@ -150,34 +144,17 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
   }
 
   const range = { start: cfg.start, end: cfg.end };
-  const descriptors = [];
-  // Set when the section's programme couldn't be read this run. We must NOT
-  // treat its existing sessions as orphaned — we don't know its programme, so
-  // leave them untouched. Split by cause so the caller can tell a benign "no
-  // active term" apart from a real fetch failure (e.g. an expired token) and
-  // message accordingly.
-  const unchecked = new Set();
-  const failed = new Set();
+  let descriptors = [];
+  let failed = false;
 
   try {
-    const term = await CurrentActiveTermsService.getCurrentActiveTerm(cfg.sid);
-    if (!term?.currentTermId) {
-      unchecked.add(String(cfg.sid));
-    } else {
-      const meetings = await fetchProgrammeMeetings(cfg.sid, term.currentTermId, token);
-      descriptors.push(...generateSessionsFromProgramme(meetings, cfg, range));
-    }
+    const meetings = await fetchProgrammeMeetings(cfg.sid, rota.planningTermId, token);
+    descriptors = generateSessionsFromProgramme(meetings, cfg, range);
   } catch (error) {
-    failed.add(String(cfg.sid));
-    logger.warn('Programme sync: section fetch failed', {
+    failed = true;
+    logger.error('Programme sync: section fetch failed', {
       sectionId: cfg.sid,
       error: error.message,
-    }, LOG_CATEGORIES.API);
-  }
-
-  if (failed.size > 0) {
-    logger.error('Programme sync: could not read one or more sections\' programmes', {
-      failedSections: [...failed],
     }, LOG_CATEGORIES.API);
   }
 
@@ -187,18 +164,16 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     sectionId: session.sectionId,
   }));
   const { toAdd, orphaned: rawOrphaned } = diffSessions(existingColumns, descriptors);
-  // Drop orphans from any section we couldn't check (no term or fetch error) —
-  // otherwise a transient failure would flag every one of its valid sessions.
-  const orphaned = rawOrphaned.filter(
-    (column) => !unchecked.has(String(column.sectionId)) && !failed.has(String(column.sectionId)),
-  );
+  // A failed fetch means we don't know this run's programme — don't flag its
+  // existing sessions as orphaned.
+  const orphaned = failed ? [] : rawOrphaned;
 
   let errors = [];
   if (toAdd.length > 0) {
     const result = await createOrCompleteRota({
       hostSection: rota.hostSection,
-      year: rota.year,
-      termId: rota.termId,
+      hostTermId: rota.termId,
+      record: recordIdentityFromRota(rota),
       sessions: toAdd,
       token,
     });
@@ -286,8 +261,8 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     titlesUpdated,
     titleWriteFailed,
     titlesSkippedNoIdentity,
-    uncheckedSections: [...unchecked],
-    failedSections: [...failed],
+    uncheckedSections: [],
+    failedSections: failed ? [String(cfg.sid)] : [],
   };
 }
 
@@ -311,8 +286,8 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
 export async function activateWaterSession({ rota, date, sectionId, fields, by, scoutid, token }) {
   const result = await createOrCompleteRota({
     hostSection: rota.hostSection,
-    year: rota.year,
-    termId: rota.termId,
+    hostTermId: rota.termId,
+    record: recordIdentityFromRota(rota),
     sessions: [{ date, sectionId }],
     token,
   });
@@ -358,6 +333,26 @@ function descriptorFromRota(rota) {
     recordId: rota.recordId,
     hostSection: rota.hostSection,
     sectionId: rota.sectionId,
+    termId: rota.planningTermId,
+    seasonBucket: rota.seasonBucket,
+  };
+}
+
+/**
+ * Rebuild a record identity ({@link buildRotaRecordName}'s input) from an
+ * already-loaded rota, so `createOrCompleteRota` reconstructs the exact same
+ * name as the record was originally created with (required for its
+ * find-by-name idempotency). The section name is read from the record's own
+ * config first — the value the record was actually named with — falling back
+ * to the cached section name map for a record with no config yet.
+ *
+ * @param {import('./rotaService.js').LoadedRota} rota - Loaded rota
+ * @returns {{sectionId: string, sectionName: string, termId: string, seasonBucket: string}} Record identity
+ */
+function recordIdentityFromRota(rota) {
+  return {
+    sectionId: rota.sectionId,
+    sectionName: rota.config?.cfg?.sname ?? rota.sectionNames?.[rota.sectionId] ?? rota.sectionId,
     termId: rota.planningTermId,
     seasonBucket: rota.seasonBucket,
   };

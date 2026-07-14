@@ -131,7 +131,16 @@ export async function discoverRotaRecords(token, priority = 0) {
   const byIdentity = new Map();
 
   for (const section of scan) {
-    const list = await getFlexiRecords(section.sectionid, token, 'n', false, priority);
+    let list;
+    try {
+      list = await getFlexiRecords(section.sectionid, token, 'n', false, priority);
+    } catch (error) {
+      logger.warn('Rota: flexi-list read failed for a section during discovery', {
+        sectionId: section.sectionid,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      continue;
+    }
     for (const item of list?.items || []) {
       const parsed = parseRotaRecordName(item.name);
       if (!parsed) {

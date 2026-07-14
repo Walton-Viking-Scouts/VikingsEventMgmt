@@ -172,6 +172,25 @@ describe('discoverRotaRecords', () => {
     await discoverRotaRecords(TOKEN, 5);
     expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 5);
   });
+
+  it('skips a section whose flexi-list read fails during the scan fallback, instead of failing discovery entirely', async () => {
+    const otherSection = { sectionid: 902, sectionname: 'Scouts', section: 'scouts' };
+    databaseService.getSections.mockResolvedValue([OTHER_SECTION, otherSection]);
+    getFlexiRecords.mockImplementation(async (sectionId) => {
+      if (sectionId === OTHER_SECTION.sectionid) {
+        throw new Error('OSM 500');
+      }
+      return { items: [{ name: 'Viking Water Rota Scouts Summer 2026 [902.924956]', extraid: 55 }] };
+    });
+
+    const result = await discoverRotaRecords(TOKEN);
+
+    expect(getFlexiRecords).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([{
+      sectionName: 'Scouts', seasonBucket: 'Summer 2026', sectionId: '902', termId: '924956',
+      recordId: 55, hostSection: otherSection,
+    }]);
+  });
 });
 
 describe('loadRota', () => {
