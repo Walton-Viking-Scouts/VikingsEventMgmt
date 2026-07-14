@@ -21,7 +21,7 @@ vi.mock('../../../../shared/utils/notifications.js', () => ({
 }));
 
 import SessionDetailModal from '../SessionDetailModal.jsx';
-import { assignSignup } from '../../services/rotaService.js';
+import { assignSignup, writeSessionMeta } from '../../services/rotaService.js';
 import { activateWaterSession } from '../../services/rotaSetupService.js';
 import { notifyError, notifySuccess } from '../../../../shared/utils/notifications.js';
 import { SIGNUP_STATUS } from '../../services/rotaEncoding.js';
@@ -207,6 +207,64 @@ describe('SessionDetailModal', () => {
     });
     expect(notifySuccess).toHaveBeenCalledWith('Permit holder added');
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('saves only the fields the editor actually changed (dirty-field patch)', async () => {
+    const refresh = vi.fn(async () => undefined);
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession()}
+        refresh={refresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '19:00' } });
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith({
+      rota: RECORD,
+      fieldId: 'f_5',
+      scoutid: IDENTITY.scoutid,
+      by: IDENTITY.name,
+      metaPatch: { st: '19:00' },
+      token: 'tok',
+    });
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('skips the write entirely when the editor saves without changing anything', async () => {
+    const refresh = vi.fn(async () => undefined);
+    const onClose = vi.fn();
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession()}
+        refresh={refresh}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(writeSessionMeta).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('marking not on water patches only the cancelled flag, so a concurrent edit to other fields survives', async () => {
+    render(<SessionDetailModal {...baseProps} session={makeSession()} />);
+
+    fireEvent.click(screen.getByText('Not on water this week'));
+    fireEvent.click(screen.getByRole('button', { name: 'Not on water' }));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith(expect.objectContaining({
+      metaPatch: { c: 1 },
+    }));
   });
 
   it('blocks putting on the water without a picked identity', async () => {

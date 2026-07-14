@@ -113,6 +113,17 @@ describe('useWaterRota', () => {
     expect(result.current.seasonBucket).toBe('Summer 2025');
   });
 
+  it('falls back to the resolved default bucket when the requested season bucket does not exist (stale/invalid ?season=)', async () => {
+    discoverRotaRecords.mockResolvedValue([{ seasonBucket: 'Summer 2026' }]);
+    loadRotaGroup.mockResolvedValue(GROUP);
+
+    const { result } = renderHook(() => useWaterRota('Nonexistent Bucket 1999'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(loadRotaGroup).toHaveBeenCalledWith('Summer 2026', 'test-token', { priority: 5 });
+    expect(result.current.seasonBucket).toBe('Summer 2026');
+  });
+
   it('shows an empty board (not loading) when reference is ready but no rota exists anywhere', async () => {
     markReferenceDataReady();
     discoverRotaRecords.mockResolvedValue([]);

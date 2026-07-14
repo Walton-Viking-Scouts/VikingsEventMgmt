@@ -116,7 +116,13 @@ export function useWaterRota(seasonBucket) {
         return;
       }
       const buckets = uniqueSeasonBuckets(descriptors);
-      const activeBucket = seasonBucket || defaultSeasonBucket(buckets);
+      // A well-formed but non-existent bucket (e.g. a stale shared link)
+      // must not stick — fall back to the resolved default once buckets are
+      // known. While discovery hasn't populated buckets yet (cold-cache
+      // deep link), keep the requested bucket so that path still works.
+      const activeBucket = buckets.length === 0
+        ? seasonBucket
+        : (seasonBucket && buckets.includes(seasonBucket) ? seasonBucket : defaultSeasonBucket(buckets));
       const rota = activeBucket
         ? await loadRotaGroup(activeBucket, token, { priority: DEEP_LINK_PRIORITY })
         : null;

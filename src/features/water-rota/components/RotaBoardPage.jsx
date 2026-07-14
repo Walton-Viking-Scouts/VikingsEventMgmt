@@ -92,6 +92,24 @@ function RotaBoardPage() {
     }, { replace: true });
   }, [seasonParam, seasonBucket, setSearchParams]);
 
+  // A stale/invalid ?season= (e.g. an old shared link naming a bucket that no
+  // longer exists) is silently replaced by useWaterRota's fallback bucket —
+  // clamp the URL to match once buckets are known, so the season <select>
+  // never holds a value with no matching option.
+  useEffect(() => {
+    if (!seasonParam || buckets.length === 0 || !seasonBucket || seasonParam === seasonBucket) {
+      return;
+    }
+    if (buckets.includes(seasonParam)) {
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('season', seasonBucket);
+      return next;
+    }, { replace: true });
+  }, [seasonParam, seasonBucket, buckets, setSearchParams]);
+
   const handleSeasonChange = (event) => {
     const value = event.target.value;
     appliedUrlSeason.current = true;

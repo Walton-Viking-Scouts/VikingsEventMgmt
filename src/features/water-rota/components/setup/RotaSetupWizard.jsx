@@ -129,14 +129,20 @@ function RotaSetupWizard() {
       }
       setSections(cached);
       setDescriptors(discovered);
+      const host = findHostSection(cached);
+      // A hand-crafted ?section= naming the host (Adults) or a waiting-list
+      // section must not pre-select an invalid planning section — only a
+      // real youth section is eligible, same filter as the default below.
       const requestedSectionId = searchParams.get('section');
       const requested = requestedSectionId
-        && cached.find((section) => String(section.sectionid) === requestedSectionId);
+        && cached.find((section) =>
+          String(section.sectionid) === requestedSectionId
+          && (!host || section.sectionid !== host.sectionid)
+          && !isWaitingList(section));
       if (requested) {
         setSectionId(String(requested.sectionid));
         return;
       }
-      const host = findHostSection(cached);
       const firstYouth = cached.find(
         (section) => (!host || section.sectionid !== host.sectionid) && !isWaitingList(section),
       );
@@ -398,6 +404,10 @@ function RotaSetupWizard() {
           end: range.end,
           sessions: buildSessionOverrides(allSessions, [sectionDefault]),
         },
+        // Re-running setup is an intentional full-plan replace — a patch
+        // merge would leave stale session overrides (e.g. a week no longer
+        // excluded) behind in the live sessions map.
+        replace: true,
         token,
       });
 

@@ -178,6 +178,8 @@ describe('RotaSetupWizard — single-section create', () => {
         scoutid: '100',
         by: 'Test Leader',
         cfg: expect.objectContaining({ sid: String(YOUTH_SECTION.sectionid), sname: 'Scouts', start: '2026-04-01', end: '2026-08-31' }),
+        // Re-running setup is an intentional full-plan replace, not a patch.
+        replace: true,
       }),
     );
 
@@ -217,6 +219,23 @@ describe('RotaSetupWizard — single-section create', () => {
 
   it('falls back to the default section when ?section= names a section the leader can\'t see', async () => {
     renderWizard(['/water-rota/setup?section=999999']);
+
+    await waitFor(() => expect(screen.getByLabelText('Section').value).toBe(String(YOUTH_SECTION.sectionid)));
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-49097'));
+  });
+
+  it('falls back to the default section when ?section= names the Adults host section', async () => {
+    renderWizard([`/water-rota/setup?section=${HOST_SECTION.sectionid}`]);
+
+    await waitFor(() => expect(screen.getByLabelText('Section').value).toBe(String(YOUTH_SECTION.sectionid)));
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-49097'));
+  });
+
+  it('falls back to the default section when ?section= names a waiting-list section', async () => {
+    const waitingList = { sectionid: 55555, sectionname: 'Scouts Waiting List', section: 'scouts' };
+    databaseService.getSections.mockResolvedValue([HOST_SECTION, waitingList, YOUTH_SECTION]);
+
+    renderWizard([`/water-rota/setup?section=${waitingList.sectionid}`]);
 
     await waitFor(() => expect(screen.getByLabelText('Section').value).toBe(String(YOUTH_SECTION.sectionid)));
     await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-49097'));

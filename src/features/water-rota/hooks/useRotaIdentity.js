@@ -12,7 +12,7 @@
  * @module useRotaIdentity
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { safeGetSessionItem } from '../../../shared/utils/storageUtils.js';
 import { IndexedDBService } from '../../../shared/services/storage/indexedDBService.js';
 
@@ -58,6 +58,11 @@ function identityStorageKey(hostSectionId) {
  */
 export function useRotaIdentity(rotaGroup) {
   const [state, setState] = useState({ identity: null, needsPicker: false, resolving: true });
+  // Sticky across a refresh: once the user explicitly clears their identity,
+  // a concurrent refresh() landing before they re-pick must not auto-select
+  // a unique name match out from under the open picker. An explicit choose()
+  // is the only thing that clears it.
+  const explicitlyClearedRef = useRef(false);
 
   const members = useMemo(() => rotaGroup?.members ?? [], [rotaGroup]);
   const hostSectionId = rotaGroup?.hostSection?.sectionid;
@@ -76,6 +81,13 @@ export function useRotaIdentity(rotaGroup) {
       if (stored) {
         if (!cancelled) {
           setState({ identity: stored, needsPicker: false, resolving: false });
+        }
+        return;
+      }
+
+      if (explicitlyClearedRef.current) {
+        if (!cancelled) {
+          setState({ identity: null, needsPicker: true, resolving: false });
         }
         return;
       }
@@ -107,6 +119,7 @@ export function useRotaIdentity(rotaGroup) {
       if (!member || !hostSectionId) {
         return;
       }
+      explicitlyClearedRef.current = false;
       localStorage.setItem(identityStorageKey(hostSectionId), member.scoutid);
       setState({ identity: member, needsPicker: false, resolving: false });
     },
@@ -114,6 +127,7 @@ export function useRotaIdentity(rotaGroup) {
   );
 
   const clear = useCallback(() => {
+    explicitlyClearedRef.current = true;
     if (hostSectionId) {
       localStorage.removeItem(identityStorageKey(hostSectionId));
     }

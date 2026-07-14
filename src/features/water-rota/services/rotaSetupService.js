@@ -67,12 +67,13 @@ export async function createOrCompleteRota({ hostSection, hostTermId, record, se
  * @param {string|number} params.termId - Term id
  * @param {string|number} params.scoutid - The editor's member row id in the host section
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - This record's plan config
+ * @param {Object} params.cfg - The full plan config (`replace: true`) or just the changed keys (patch mode)
+ * @param {boolean} [params.replace=false] - Full replace instead of a merge patch (see {@link writeConfig})
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  * @throws {Error} When the RotaConfig column cannot be found
  */
-export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, token }) {
+export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, replace = false, token }) {
   const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, true);
   const configFieldId = findConfigFieldId(structureData);
   if (!configFieldId) {
@@ -85,6 +86,7 @@ export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, 
     scoutid,
     by,
     cfg,
+    replace,
     token,
   });
 }
@@ -205,17 +207,20 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
   // them to" — and preserve each session's existing config state (its
   // not-on-water flag / activity override) by merging rather than replacing.
   // Only descriptors from sections we actually read this run are considered, so
-  // a section we couldn't reach never loses its stored title.
-  const nextSessions = { ...(cfg.sessions ?? {}) };
+  // a section we couldn't reach never loses its stored title. The patch below
+  // carries ONLY the added/updated session overrides (not the whole sessions
+  // map) — writeConfig's patch mode merges it key-wise onto the live winner's
+  // sessions, so a concurrent regulars/date edit to this record survives.
+  const sessionPatch = {};
   let pendingTitles = 0;
   for (const descriptor of descriptors) {
     if (!descriptor.title) {
       continue;
     }
     const key = buildSessionColumnName(descriptor.date, descriptor.sectionId);
-    const existing = nextSessions[key] ?? {};
+    const existing = (cfg.sessions ?? {})[key] ?? {};
     if (existing.pt !== descriptor.title) {
-      nextSessions[key] = { ...existing, pt: descriptor.title };
+      sessionPatch[key] = { ...existing, pt: descriptor.title };
       pendingTitles += 1;
     }
   }
@@ -232,7 +237,7 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
           termId: rota.termId,
           scoutid,
           by,
-          cfg: { ...cfg, sessions: nextSessions },
+          cfg: { sessions: sessionPatch },
           token,
         });
         titlesUpdated = pendingTitles;
@@ -314,7 +319,7 @@ export async function activateWaterSession({ rota, date, sectionId, fields, by, 
     fieldId: session.fieldId,
     scoutid,
     by,
-    fields: { ...fields, c: 0 },
+    metaPatch: { ...fields, c: 0 },
     token,
   });
 

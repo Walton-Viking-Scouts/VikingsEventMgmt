@@ -139,6 +139,12 @@ export async function discoverRotaRecords(token, priority = 0) {
         sectionId: section.sectionid,
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
+      if (hostSection) {
+        // Host-only scan: a failed read here means we genuinely don't know
+        // whether rota records exist — surface the error instead of
+        // silently reporting "no rota", which would invite a duplicate setup.
+        throw error;
+      }
       continue;
     }
     for (const item of list?.items || []) {
@@ -423,19 +429,31 @@ export async function assignSignup({ rota, fieldId, scoutid, status, token }) {
 }
 
 /**
- * Write a session-metadata update into the editor's own row, bumping the
- * LWW version above the current column winner read live inside the lock.
+ * Base metadata used as the merge target when a session has no prior
+ * metadata candidate at all (a brand-new column) — matches the defaults
+ * SessionEditForm/SessionDetailModal show for an unedited session.
+ * @type {{act: string, st: string, en: string, k: number, p: number, c: 0}}
+ */
+const SESSION_META_DEFAULTS = { act: 'On the water', st: '18:30', en: '20:00', k: 0, p: 0, c: 0 };
+
+/**
+ * Write a session-metadata patch into the editor's own row, merging it onto
+ * the live column winner read fresh inside the lock (falling back to
+ * {@link SESSION_META_DEFAULTS} when no winner exists yet) and bumping the
+ * LWW version above it. Only the fields present in `metaPatch` are changed —
+ * a concurrent co-leader's edit to any field the caller didn't touch
+ * survives (PRD §5.4 freshness constraint).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
  * @param {string} params.fieldId - Session column field id (f_N)
  * @param {string|number} params.scoutid - The editor's member row id
  * @param {string} params.by - Editor display name for the audit trail
- * @param {{act: string, st: string, en: string, k: number, p: number, n?: string, c: 0|1}} params.fields - Full metadata fields
+ * @param {{act?: string, st?: string, en?: string, k?: number, p?: number, n?: string, c?: 0|1}} params.metaPatch - Only the fields the caller intends to change
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  */
-export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, token }) {
+export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, token }) {
   await writeOwnCell({
     rota,
     fieldId,
@@ -446,7 +464,8 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, tok
         items.map((item) => ({ scoutid: item.scoutid, name: '', value: item[fieldId] })),
       );
       const meta = {
-        ...fields,
+        ...(winner ?? SESSION_META_DEFAULTS),
+        ...metaPatch,
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
         by,
@@ -459,18 +478,25 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, tok
 /**
  * Write a whole-plan config candidate into the editor's own RotaConfig cell,
  * bumping the LWW version above the current winner read live inside the
- * lock. A plain replace — a single-section record has nothing to merge.
+ * lock.
+ *
+ * Two modes: `replace: true` is an intentional full-plan replace (the setup
+ * wizard re-running with a fresh plan); the default patch mode shallow-merges
+ * `cfg`'s keys onto the live winner's cfg, with `sessions` merged key-wise
+ * (winner.cfg.sessions ⊕ cfg.sessions) so a concurrent edit to a field or
+ * session override the caller didn't touch survives (PRD §5.4).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
  * @param {string} params.configFieldId - RotaConfig column field id (f_N)
  * @param {string|number} params.scoutid - The editor's member row id
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - This record's plan config ({sid, sname, act, st, en, ...})
+ * @param {Object} params.cfg - The full plan config (`replace: true`) or just the changed keys (patch mode)
+ * @param {boolean} [params.replace=false] - Full replace instead of a merge patch
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  */
-export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, token }) {
+export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, replace = false, token }) {
   await writeOwnCell({
     rota,
     fieldId: configFieldId,
@@ -478,14 +504,31 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, token
     token,
     mutate: (_ownRaw, items) => {
       const winner = mergeLwwConfig(items.map((item) => item[configFieldId]));
+      const nextCfg = replace ? cfg : mergeConfigPatch(winner?.cfg, cfg);
       return encodeConfig({
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
         by,
-        cfg,
+        cfg: nextCfg,
       });
     },
   });
+}
+
+/**
+ * Shallow-merge a config patch onto the live winner's cfg, merging `sessions`
+ * key-wise rather than replacing the whole map.
+ *
+ * @param {Object|undefined} winnerCfg - The live LWW winner's cfg (undefined when none)
+ * @param {Object} patch - The caller's changed keys
+ * @returns {Object} Merged cfg
+ */
+function mergeConfigPatch(winnerCfg, patch) {
+  const merged = { ...(winnerCfg ?? {}), ...patch };
+  if (patch.sessions || winnerCfg?.sessions) {
+    merged.sessions = { ...(winnerCfg?.sessions ?? {}), ...(patch.sessions ?? {}) };
+  }
+  return merged;
 }
 
 /**

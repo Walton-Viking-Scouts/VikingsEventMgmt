@@ -15,6 +15,26 @@ import SignupButtons from './SignupButtons.jsx';
 import AddPermitHolderModal from './AddPermitHolderModal.jsx';
 
 /**
+ * Only the keys of `next` whose value actually differs from `base` — so a
+ * save only carries the fields the editor actually touched, letting a
+ * concurrent co-leader's edit to any other field survive the live-winner
+ * merge in writeSessionMeta.
+ *
+ * @param {Object} next - Fields as submitted by the form
+ * @param {Object} base - The values the form opened with
+ * @returns {Object} Patch of only the changed keys
+ */
+function diffFields(next, base) {
+  const patch = {};
+  for (const [key, value] of Object.entries(next)) {
+    if (value !== base[key]) {
+      patch[key] = value;
+    }
+  }
+  return patch;
+}
+
+/**
  * Session detail: who's signed up, session notes, a copy-link button to share
  * the session, a one-tap signup footer, and — for plan editors — the edit form,
  * add/remove permit-holder controls, and the "Not on water" / "Put on the
@@ -62,6 +82,15 @@ function SessionDetailModal({
       notifyError('Pick your name first so edits can be attributed to you.');
       return;
     }
+    // Only send the fields the editor actually changed from what the form
+    // opened with — a full-object write would silently discard a concurrent
+    // co-leader's edit to any field left untouched here.
+    const metaPatch = diffFields(fields, currentFields);
+    if (Object.keys(metaPatch).length === 0) {
+      setEditing(false);
+      onClose();
+      return;
+    }
     setSaving(true);
     try {
       await writeSessionMeta({
@@ -69,7 +98,7 @@ function SessionDetailModal({
         fieldId: session.fieldId,
         scoutid: identity.scoutid,
         by: identity.name,
-        fields,
+        metaPatch,
         token: getToken(),
       });
       notifySuccess(successText ?? 'Session updated');
@@ -89,7 +118,8 @@ function SessionDetailModal({
     en: session.endTime || '20:00',
     k: session.kids ?? sectionYPCount ?? 0,
     p: session.needed ?? 0,
-    n: session.notes,
+    n: session.notes ?? '',
+    c: session.cancelled ? 1 : 0,
   };
 
   const handleSave = (fields) => saveMeta({ ...fields, c: session.cancelled ? 1 : 0 });

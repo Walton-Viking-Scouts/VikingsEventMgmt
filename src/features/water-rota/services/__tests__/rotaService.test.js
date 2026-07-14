@@ -45,6 +45,7 @@ import {
   loadRota,
   loadRotaGroup,
   prefillRegulars,
+  writeConfig,
   writeSessionMeta,
   writeSignup,
 } from '../rotaService.js';
@@ -171,6 +172,12 @@ describe('discoverRotaRecords', () => {
     getFlexiRecords.mockResolvedValue({ items: [] });
     await discoverRotaRecords(TOKEN, 5);
     expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 5);
+  });
+
+  it('rethrows when the host-only scan\'s single flexi-list read fails, instead of silently reporting no rota', async () => {
+    getFlexiRecords.mockRejectedValue(new Error('OSM 500'));
+
+    await expect(discoverRotaRecords(TOKEN)).rejects.toThrow(/OSM 500/);
   });
 
   it('skips a section whose flexi-list read fails during the scan fallback, instead of failing discovery entirely', async () => {
@@ -615,7 +622,7 @@ describe('writeSessionMeta', () => {
       fieldId: 'f_2',
       scoutid: 10,
       by: 'Simon Clark',
-      fields: { act: 'Rafting', st: '18:00', en: '19:15', k: 20, p: 2, c: 0 },
+      metaPatch: { act: 'Rafting', st: '18:00', en: '19:15', k: 20, p: 2, c: 0 },
       token: TOKEN,
     });
 
@@ -625,6 +632,98 @@ describe('writeSessionMeta', () => {
     expect(written.m.by).toBe('Simon Clark');
     expect(written.s).toBe('B');
     expect(written.sat).toBe('2026-07-01T08:00:00Z');
+  });
+
+  it('merges only the patched fields onto the live winner, so a concurrent co-leader\'s edit to an untouched field survives', async () => {
+    // The caller loaded v5 with act:'Kayaking'; by the time this write's lock
+    // turn comes, a co-leader has already landed v6 with act:'Canoeing'. The
+    // caller only meant to change the start time.
+    const rivalWinner = JSON.stringify({
+      m: { ...META, v: 6, act: 'Canoeing', by: 'Rival Leader' },
+    });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, f_2: '' },
+      { scoutid: 11, f_2: rivalWinner },
+    ]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeSessionMeta({
+      rota,
+      fieldId: 'f_2',
+      scoutid: 10,
+      by: 'Simon Clark',
+      metaPatch: { st: '19:00' },
+      token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.m.v).toBe(7);
+    expect(written.m.act).toBe('Canoeing');
+    expect(written.m.st).toBe('19:00');
+    expect(written.m.by).toBe('Simon Clark');
+  });
+});
+
+describe('writeConfig', () => {
+  const rota = { hostSection: HOST_SECTION, recordId: 777, termId: 'T1' };
+  const baseCfg = {
+    sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
+    start: '2026-06-01', end: '2026-08-31', regulars: ['10'],
+  };
+
+  it('replace mode fully replaces the winner\'s cfg', async () => {
+    const winnerCell = JSON.stringify({ v: 3, at: '2026-06-01T09:00:00Z', by: 'Old', cfg: baseCfg });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_1: winnerCell }]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    const replacement = { sid: '49097', sname: 'Cubs', act: 'Rafting', st: '18:00', en: '19:00' };
+    await writeConfig({
+      rota, configFieldId: 'f_1', scoutid: 10, by: 'Simon Clark', cfg: replacement, replace: true, token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.v).toBe(4);
+    expect(written.cfg).toEqual(replacement);
+  });
+
+  it('patch mode shallow-merges the caller\'s changed keys onto the live winner, preserving fields the caller did not touch', async () => {
+    const winnerCell = JSON.stringify({ v: 3, at: '2026-06-01T09:00:00Z', by: 'Old', cfg: baseCfg });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_1: winnerCell }]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeConfig({
+      rota, configFieldId: 'f_1', scoutid: 10, by: 'Simon Clark', cfg: { act: 'Canoeing' }, token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.v).toBe(4);
+    expect(written.cfg.act).toBe('Canoeing');
+    // Untouched fields (including a concurrent editor's regulars change)
+    // survive the merge instead of being wiped by a stale-base replace.
+    expect(written.cfg.regulars).toEqual(['10']);
+    expect(written.cfg.sid).toBe('49097');
+  });
+
+  it('patch mode merges sessions key-wise (winner.sessions ⊕ patch.sessions)', async () => {
+    const winnerCfg = { ...baseCfg, sessions: { S_20260602_49097: { c: 1 } } };
+    const winnerCell = JSON.stringify({ v: 3, at: '2026-06-01T09:00:00Z', by: 'Old', cfg: winnerCfg });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_1: winnerCell }]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeConfig({
+      rota,
+      configFieldId: 'f_1',
+      scoutid: 10,
+      by: 'Simon Clark',
+      cfg: { sessions: { S_20260609_49097: { pt: 'New title' } } },
+      token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.cfg.sessions).toEqual({
+      S_20260602_49097: { c: 1 },
+      S_20260609_49097: { pt: 'New title' },
+    });
   });
 });
 
