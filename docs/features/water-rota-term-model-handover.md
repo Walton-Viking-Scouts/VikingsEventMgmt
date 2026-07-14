@@ -1,5 +1,12 @@
 # Handover — Water Rota term-model rework
 
+> **⚠️ SUPERSEDED 2026-07-14.** Live-OSM review found terms are per-section (no group-wide
+> term; Adults has year-terms only), which breaks this doc's shared-record-per-term model.
+> The revised design — **one record per (section, its own term), all hosted in Adults,
+> single RotaConfig column per record, season-bucket board picker** — lives in
+> `water-rota-term-model-prd.md`. Decisions below stand EXCEPT #1 (shared per-term record)
+> and #4 (per-section config columns), both replaced by per-section records.
+
 **Status:** Decisions locked, not started. Next session's work.
 **Created:** 2026-07-13 · **Companion:** `water-rota-review.md` (as-built PRD, gap analysis, full red-team — read it first).
 **Type:** Storage-model + workflow rework of the Water Session Permit Rota. Clean rebuild, **no back-compat, no migration**.
