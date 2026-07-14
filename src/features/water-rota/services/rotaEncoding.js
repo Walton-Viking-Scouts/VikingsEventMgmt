@@ -4,13 +4,14 @@
  * Layout: one FlexiRecord per (planning section, that section's own term),
  * all hosted in the Adults section. Rows are host-section members. A permit
  * holder only ever writes their own row's signup cell, so signups never
- * conflict across users (setup/regular pre-fill is the one exception — the
- * organiser writes other members' cells once, up front). Two column kinds:
+ * conflict across users (setup/regular pre-fill and a leader's assignSignup
+ * are the two exceptions — the organiser/leader writes another member's cell
+ * directly). Two column kinds:
  *
- * - "RotaConfig": one section's whole-plan config JSON. Written to a single
- *   deterministic anchor row (the lowest-scoutid host member), not the
- *   editor's own row; readers take the last-writer-wins (LWW) winner across
- *   all rows by (v, at).
+ * - "RotaConfig": one section's whole-plan config JSON. The row it's written
+ *   to is caller-designated — setup passes a deterministic member row, and
+ *   programme sync's title backfill passes the editor's own row; readers
+ *   take the last-writer-wins (LWW) winner across all rows by (v, at).
  * - "S_<yyyymmdd>_<sectionid>": one column per session. A cell holds the row
  *   member's signup (s/sat) plus an optional session-metadata candidate (m);
  *   readers take the LWW winner of m across the column.
@@ -244,7 +245,9 @@ export function encodeSessionMeta(existingRaw, meta) {
 }
 
 /**
- * Encode a whole-plan config candidate for the editor's own RotaConfig cell.
+ * Encode a whole-plan config candidate. Pure encode — the caller selects
+ * which row's RotaConfig cell to store it in (setup passes a deterministic
+ * row; sync passes the editor's own row).
  *
  * @param {Object} candidate - Full candidate ({v, at, by, cfg})
  * @returns {string} New raw cell value

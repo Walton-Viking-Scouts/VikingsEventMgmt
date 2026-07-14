@@ -29,7 +29,7 @@ function successMessage(status) {
  * the group), not its field id — field ids like "f_1" repeat across records,
  * so two same-fieldId sessions in different records must not cross-trigger
  * pending state. Each write routes to the session's own owning record
- * ({@link import('../services/rotaService.js').SessionView.record}) rather
+ * ({@link import('../utils/rotaDisplay.js').SessionView.record}) rather
  * than the group.
  *
  * @param {import('../services/rotaService.js').RotaGroup|null} rota - Loaded rota group

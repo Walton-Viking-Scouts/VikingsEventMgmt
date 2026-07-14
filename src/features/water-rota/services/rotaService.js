@@ -5,11 +5,12 @@
  * the rota writes (signup, session metadata, plan config, and regular
  * pre-fill).
  *
- * Write discipline (PRD §5.4 freshness constraint): the per-user writes
- * (signup, session metadata) re-fetch the live grid, merge into a single
- * target row's cell (the caller's own row for signup/meta; a deterministic
- * anchor row for config — see writeConfig), send one updateFlexiRecord, then
- * patch the local cache optimistically. These are serialized through a
+ * Write discipline (never overwrite state you haven't just read — the live
+ * grid is re-fetched inside the write lock): the per-user writes (signup,
+ * session metadata, config) re-fetch the live grid, merge into a single
+ * target row's cell (the caller's own row for signup/meta; whatever row the
+ * caller passes in for config — see writeConfig), send one updateFlexiRecord,
+ * then patch the local cache optimistically. These are serialized through a
  * module-level promise-chain lock so two in-flight writes cannot interleave
  * their read-merge-write cycles. prefillRegulars is a setup-time bulk write
  * that targets other members' rows (organiser-only, cells empty), throttled
@@ -103,8 +104,7 @@ function withWriteLock(fn) {
  */
 
 /**
- * Find the Adults section that hosts every rota record, by name — the same
- * heuristic the setup wizard already uses as a default (PRD §3.1).
+ * Find the Adults section that hosts every rota record, by name (PRD §3.1).
  *
  * @param {Array<Object>} sections - Cached sections ({sectionid, sectionname, section, ...})
  * @returns {Object|null} The host section, or null when none looks like Adults
@@ -129,6 +129,8 @@ export async function discoverRotaRecords(token, priority = 0) {
   const hostSection = findHostSection(sections);
   const scan = hostSection ? [hostSection] : sections;
   const byIdentity = new Map();
+  let scanFailures = 0;
+  let lastScanError = null;
 
   for (const section of scan) {
     let list;
@@ -145,6 +147,8 @@ export async function discoverRotaRecords(token, priority = 0) {
         // silently reporting "no rota", which would invite a duplicate setup.
         throw error;
       }
+      scanFailures += 1;
+      lastScanError = error;
       continue;
     }
     for (const item of list?.items || []) {
@@ -160,6 +164,13 @@ export async function discoverRotaRecords(token, priority = 0) {
         byIdentity.set(key, { ...parsed, recordId: item.extraid, hostSection: section });
       }
     }
+  }
+
+  // Fallback scan: same "don't lie about no rota" discipline as the
+  // host-only path above — if every section we tried failed, we don't
+  // actually know whether rota records exist.
+  if (!hostSection && scan.length > 0 && scanFailures === scan.length) {
+    throw lastScanError;
   }
 
   return [...byIdentity.values()];
@@ -437,12 +448,43 @@ export async function assignSignup({ rota, fieldId, scoutid, status, token }) {
 const SESSION_META_DEFAULTS = { act: 'On the water', st: '18:30', en: '20:00', k: 0, p: 0, c: 0 };
 
 /**
+ * Fields writeSessionMeta will pick out of a caller-supplied `base` (its
+ * other properties, e.g. a full SessionView's `label`/`status`/`confirmed`,
+ * are irrelevant to the stored metadata and ignored).
+ * @type {string[]}
+ */
+const SESSION_META_BASE_FIELDS = ['act', 'st', 'en', 'k', 'p', 'n', 'c'];
+
+/**
+ * Build a complete merge base from the caller's resolved effective session
+ * values (see writeSessionMeta's `base` param), filling any field the caller
+ * didn't supply from {@link SESSION_META_DEFAULTS} so the result always
+ * satisfies the session-metadata schema.
+ *
+ * @param {Object|null|undefined} base - Caller-resolved effective session values
+ * @returns {Object} Complete merge base
+ */
+function resolveSessionMetaBase(base) {
+  if (!base) {
+    return SESSION_META_DEFAULTS;
+  }
+  const picked = {};
+  for (const field of SESSION_META_BASE_FIELDS) {
+    if (base[field] !== undefined) {
+      picked[field] = base[field];
+    }
+  }
+  return { ...SESSION_META_DEFAULTS, ...picked };
+}
+
+/**
  * Write a session-metadata patch into the editor's own row, merging it onto
- * the live column winner read fresh inside the lock (falling back to
- * {@link SESSION_META_DEFAULTS} when no winner exists yet) and bumping the
- * LWW version above it. Only the fields present in `metaPatch` are changed —
- * a concurrent co-leader's edit to any field the caller didn't touch
- * survives (PRD §5.4 freshness constraint).
+ * the live column winner read fresh inside the lock (falling back to the
+ * caller-supplied `base` — the caller's resolved effective values for a
+ * virgin column — and finally to {@link SESSION_META_DEFAULTS} when neither
+ * exists) and bumping the LWW version above it. Only the fields present in
+ * `metaPatch` are changed — a concurrent co-leader's edit to any field the
+ * caller didn't touch survives (never overwrite state you haven't just read).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
@@ -450,10 +492,11 @@ const SESSION_META_DEFAULTS = { act: 'On the water', st: '18:30', en: '20:00', k
  * @param {string|number} params.scoutid - The editor's member row id
  * @param {string} params.by - Editor display name for the audit trail
  * @param {{act?: string, st?: string, en?: string, k?: number, p?: number, n?: string, c?: 0|1}} params.metaPatch - Only the fields the caller intends to change
+ * @param {Object} [params.base] - Caller-resolved effective session values (e.g. a SessionView) used as the merge base when this column has no live metadata winner yet — prevents a notes-only edit from silently flipping activity/times/permits-needed to {@link SESSION_META_DEFAULTS}
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  */
-export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, token }) {
+export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, token, base }) {
   await writeOwnCell({
     rota,
     fieldId,
@@ -464,7 +507,7 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, 
         items.map((item) => ({ scoutid: item.scoutid, name: '', value: item[fieldId] })),
       );
       const meta = {
-        ...(winner ?? SESSION_META_DEFAULTS),
+        ...(winner ?? resolveSessionMetaBase(base)),
         ...metaPatch,
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
@@ -476,25 +519,29 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, 
 }
 
 /**
- * Write a whole-plan config candidate into the editor's own RotaConfig cell,
+ * Write a whole-plan config candidate into the given RotaConfig cell,
  * bumping the LWW version above the current winner read live inside the
- * lock.
+ * lock. The row it's written to is caller-designated (setup passes a
+ * deterministic member row; sync's title backfill passes the editor's own
+ * row) — writeConfig itself has no row-selection logic.
  *
  * Two modes: `replace: true` is an intentional full-plan replace (the setup
  * wizard re-running with a fresh plan); the default patch mode shallow-merges
  * `cfg`'s keys onto the live winner's cfg, with `sessions` merged key-wise
  * (winner.cfg.sessions ⊕ cfg.sessions) so a concurrent edit to a field or
- * session override the caller didn't touch survives (PRD §5.4).
+ * session override the caller didn't touch survives (never overwrite state
+ * you haven't just read).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
  * @param {string} params.configFieldId - RotaConfig column field id (f_N)
- * @param {string|number} params.scoutid - The editor's member row id
+ * @param {string|number} params.scoutid - The member row to store this candidate in (setup passes a deterministic row; sync passes the editor's own row)
  * @param {string} params.by - Editor display name
  * @param {Object} params.cfg - The full plan config (`replace: true`) or just the changed keys (patch mode)
  * @param {boolean} [params.replace=false] - Full replace instead of a merge patch
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
+ * @throws {Error} In patch mode, when no live config candidate exists yet (nothing to patch — run setup first)
  */
 export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, replace = false, token }) {
   await writeOwnCell({
@@ -504,6 +551,9 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, repla
     token,
     mutate: (_ownRaw, items) => {
       const winner = mergeLwwConfig(items.map((item) => item[configFieldId]));
+      if (!replace && !winner) {
+        throw new Error('Cannot patch rota config: no existing config found — run setup first');
+      }
       const nextCfg = replace ? cfg : mergeConfigPatch(winner?.cfg, cfg);
       return encodeConfig({
         v: (winner?.v ?? 0) + 1,
@@ -584,6 +634,11 @@ export async function prefillRegulars({ rota, regularsBySection, token, sessions
       );
       const failure = detectWriteFailure(response);
       if (failure) {
+        logger.error('Rota: regular pre-fill failed for a session', {
+          fieldId: session.fieldId,
+          sectionId: session.sectionId,
+          error: failure,
+        }, LOG_CATEGORIES.API);
         errors.push({ fieldId: session.fieldId, error: failure });
       } else {
         filled += 1;

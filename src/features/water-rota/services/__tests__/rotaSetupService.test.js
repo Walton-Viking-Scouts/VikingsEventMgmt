@@ -15,6 +15,7 @@ vi.mock('../../../../shared/services/api/api/index.js', () => ({
   getFlexiStructure: vi.fn(),
   getSingleFlexiRecord: vi.fn(),
   updateFlexiRecord: vi.fn(),
+  multiUpdateFlexiRecord: vi.fn(),
 }));
 
 vi.mock('../../../../shared/services/storage/database.js', () => ({
@@ -39,6 +40,7 @@ import {
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
+  multiUpdateFlexiRecord,
 } from '../../../../shared/services/api/api/index.js';
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
@@ -124,6 +126,9 @@ describe('writeRotaConfig', () => {
       scoutid: 10,
       by: 'Simon Clark',
       cfg,
+      // Matches RotaSetupWizard's real call: an initial write against a
+      // fresh grid (no live winner yet) must be a replace, not a patch.
+      replace: true,
       token: 'tok',
     });
 
@@ -203,6 +208,64 @@ describe('syncRotaWithProgramme', () => {
     expect(template.fields).toEqual(['RotaConfig', 'S_20260616_49097']);
   });
 
+  describe('regular pre-fill on sync', () => {
+    // rotaService.js is NOT mocked in this file — loadRota/prefillRegulars run
+    // for real against the mocked API/storage layer below, so a new session
+    // needs a fully decodable structure + grid for the post-create reload.
+    const rotaWithRegulars = {
+      ...rota,
+      config: { cfg: { ...rota.config.cfg, regulars: ['10'] } },
+    };
+    const liveConfigCell = JSON.stringify({
+      v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rotaWithRegulars.config.cfg,
+    });
+
+    beforeEach(() => {
+      createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777, errors: [] });
+      CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'HT1' });
+      getFlexiStructure.mockResolvedValue({
+        config: JSON.stringify([
+          { id: 'f_9', name: 'RotaConfig' },
+          { id: 'f_2', name: 'S_20260602_49097' },
+          { id: 'f_3', name: 'S_20260609_49097' },
+          { id: 'f_4', name: 'S_20260616_49097' },
+        ]),
+      });
+      getSingleFlexiRecord.mockResolvedValue({
+        items: [{ scoutid: 900, firstname: 'Host', lastname: 'Member', f_9: liveConfigCell, f_2: '', f_3: '', f_4: '' }],
+      });
+      fetchProgrammeMeetings.mockResolvedValue([
+        { date: '2026-06-02', startTime: null, endTime: null, title: null },
+        { date: '2026-06-09', startTime: null, endTime: null, title: null },
+        { date: '2026-06-16', startTime: null, endTime: null, title: null },
+      ]);
+    });
+
+    it('pre-fills regulars onto the newly added session ONLY, and reloads with forceRefresh:true', async () => {
+      multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+
+      const result = await syncRotaWithProgramme({ rota: rotaWithRegulars, token: 'tok' });
+
+      expect(result.added).toBe(1);
+      expect(result.prefillErrors).toEqual([]);
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
+      // f_2/f_3 (existing sessions) must never be re-touched by sync's prefill
+      // — only the newly added f_4 (06-16).
+      expect(multiUpdateFlexiRecord.mock.calls[0][3]).toBe('f_4');
+      expect(
+        getFlexiStructure.mock.calls.some((call) => call[4] === true),
+      ).toBe(true);
+    });
+
+    it('surfaces regular pre-fill failures in the result\'s prefillErrors field', async () => {
+      multiUpdateFlexiRecord.mockResolvedValue({ ok: false, message: 'denied' });
+
+      const result = await syncRotaWithProgramme({ rota: rotaWithRegulars, token: 'tok' });
+
+      expect(result.prefillErrors).toEqual([{ fieldId: 'f_4', error: 'denied' }]);
+    });
+  });
+
   it('does nothing when the rota already matches', async () => {
     fetchProgrammeMeetings.mockResolvedValue([
       { date: '2026-06-02', startTime: null, endTime: null, title: null },
@@ -220,6 +283,7 @@ describe('syncRotaWithProgramme', () => {
       titlesSkippedNoIdentity: false,
       uncheckedSections: [],
       failedSections: [],
+      prefillErrors: [],
     });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
@@ -311,11 +375,17 @@ describe('syncRotaWithProgramme', () => {
     getFlexiStructure.mockResolvedValue({
       config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
     });
-    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    // Patch mode merges onto the LIVE winner re-fetched inside the lock, so
+    // this needs a real live config cell (see the sibling test above) —
+    // otherwise the write dies before updateFlexiRecord is ever called and
+    // this test's rejection would be dead code.
+    const liveConfigCell = JSON.stringify({ v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rota.config.cfg });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: liveConfigCell }] });
     updateFlexiRecord.mockRejectedValue(new Error('OSM write rejected'));
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
 
+    expect(updateFlexiRecord).toHaveBeenCalledTimes(1);
     expect(result.titleWriteFailed).toBe(true);
     expect(result.titlesUpdated).toBe(0);
   });

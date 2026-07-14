@@ -50,8 +50,9 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  * Render-ready session view model.
  *
  * @typedef {Object} SessionView
- * @property {string} fieldId - Session column field id
+ * @property {string|null} fieldId - Session column field id; null for a config-only not-on-water session with no signup column
  * @property {import('../services/rotaService.js').LoadedRota|undefined} record - Owning record, when resolved from a rota group
+ * @property {string} key - Session column name; stable identity (React keys, pending state, ?session= deep link)
  * @property {string} date - yyyy-mm-dd
  * @property {string} sectionId - OSM section id
  * @property {string} sectionName - Display section name
@@ -76,7 +77,7 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  * candidate survives (e.g. the writer left the host section), the session
  * self-heals from the config's per-section defaults.
  *
- * @param {{fieldId: string, date: string, sectionId: string, meta: Object|null, signups: Array}} session - Decoded session from loadRota
+ * @param {{fieldId: string|null, date: string, sectionId: string, meta: Object|null, signups: Array}} session - Decoded session from loadRota
  * @param {Object|null} config - LWW-winning config candidate ({cfg}) or null
  * @param {Object} [sectionNames] - Fallback map of sectionId to name (from cached sections)
  * @returns {SessionView} Render-ready view model
@@ -158,9 +159,9 @@ export function resolveSessionView(session, config, sectionNames = {}) {
 }
 
 /**
- * Resolve every session in a loaded rota, sorted by date.
+ * Resolve every session in a loaded rota group, sorted by date.
  *
- * @param {import('../services/rotaService.js').LoadedRota} rota - Loaded rota
+ * @param {import('../services/rotaService.js').RotaGroup} rota - Loaded rota group
  * @returns {SessionView[]} View models sorted by date then section
  */
 export function resolveAllSessions(rota) {

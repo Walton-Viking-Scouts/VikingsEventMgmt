@@ -198,6 +198,15 @@ describe('discoverRotaRecords', () => {
       recordId: 55, hostSection: otherSection,
     }]);
   });
+
+  it('rethrows when every section fails during the scan fallback, instead of silently reporting no rota', async () => {
+    const otherSection = { sectionid: 902, sectionname: 'Scouts', section: 'scouts' };
+    databaseService.getSections.mockResolvedValue([OTHER_SECTION, otherSection]);
+    getFlexiRecords.mockRejectedValue(new Error('OSM 500'));
+
+    await expect(discoverRotaRecords(TOKEN)).rejects.toThrow(/OSM 500/);
+    expect(getFlexiRecords).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('loadRota', () => {
@@ -662,6 +671,76 @@ describe('writeSessionMeta', () => {
     expect(written.m.st).toBe('19:00');
     expect(written.m.by).toBe('Simon Clark');
   });
+
+  it('falls back to the caller-supplied base when the column is virgin (no live winner), preserving the base fields the patch does not touch', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_2: '' }]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeSessionMeta({
+      rota,
+      fieldId: 'f_2',
+      scoutid: 10,
+      by: 'Simon Clark',
+      metaPatch: { n: 'note' },
+      base: { act: 'Rafting', st: '18:00', en: '19:00', k: 10, p: 2 },
+      token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.m.v).toBe(1);
+    expect(written.m.act).toBe('Rafting');
+    expect(written.m.st).toBe('18:00');
+    expect(written.m.en).toBe('19:00');
+    expect(written.m.k).toBe(10);
+    expect(written.m.p).toBe(2);
+    expect(written.m.n).toBe('note');
+  });
+
+  it('falls back to SESSION_META_DEFAULTS when the column is virgin and no base is supplied (pinned prior behaviour)', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_2: '' }]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeSessionMeta({
+      rota,
+      fieldId: 'f_2',
+      scoutid: 10,
+      by: 'Simon Clark',
+      metaPatch: { n: 'note' },
+      token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.m.v).toBe(1);
+    expect(written.m.act).toBe('On the water');
+    expect(written.m.st).toBe('18:30');
+    expect(written.m.en).toBe('20:00');
+    expect(written.m.k).toBe(0);
+    expect(written.m.p).toBe(0);
+    expect(written.m.n).toBe('note');
+  });
+
+  it('ignores the base when a live winner already exists — the winner still wins', async () => {
+    const rivalWinner = JSON.stringify({ m: { ...META, v: 4, act: 'Canoeing' } });
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, f_2: '' },
+      { scoutid: 11, f_2: rivalWinner },
+    ]));
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    await writeSessionMeta({
+      rota,
+      fieldId: 'f_2',
+      scoutid: 10,
+      by: 'Simon Clark',
+      metaPatch: { n: 'note' },
+      base: { act: 'Rafting', st: '18:00', en: '19:00', k: 10, p: 2 },
+      token: TOKEN,
+    });
+
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.m.v).toBe(5);
+    expect(written.m.act).toBe('Canoeing');
+  });
 });
 
 describe('writeConfig', () => {
@@ -724,6 +803,17 @@ describe('writeConfig', () => {
       S_20260602_49097: { c: 1 },
       S_20260609_49097: { pt: 'New title' },
     });
+  });
+
+  it('throws a clear error in patch mode when there is no live config candidate to patch, instead of a cryptic schema error', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([{ scoutid: 10, f_1: '' }]));
+
+    await expect(
+      writeConfig({
+        rota, configFieldId: 'f_1', scoutid: 10, by: 'Simon Clark', cfg: { act: 'Canoeing' }, token: TOKEN,
+      }),
+    ).rejects.toThrow(/no existing config found/);
+    expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 /**
- * Water Rota setup: creates (or completes) the yearly rota FlexiRecord with
- * one column per planned session, writes the initial plan config, and diffs
+ * Water Rota setup: creates (or completes) a planning section's per-term
+ * rota FlexiRecord with one column per planned session, writes the initial
+ * plan config, and diffs
  * an existing rota against freshly generated sessions for programme sync.
  *
  * Creation is resumable and idempotent — it reuses the flexi-records
@@ -65,7 +66,7 @@ export async function createOrCompleteRota({ hostSection, hostTermId, record, se
  * @param {Object} params.hostSection - Host section
  * @param {string|number} params.recordId - FlexiRecord id from creation
  * @param {string|number} params.termId - Term id
- * @param {string|number} params.scoutid - The editor's member row id in the host section
+ * @param {string|number} params.scoutid - The member row to store this candidate in (setup passes a deterministic row; sync passes the editor's own row)
  * @param {string} params.by - Editor display name
  * @param {Object} params.cfg - The full plan config (`replace: true`) or just the changed keys (patch mode)
  * @param {boolean} [params.replace=false] - Full replace instead of a merge patch (see {@link writeConfig})
@@ -131,12 +132,15 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {string} params.token - OSM authentication token
  * @param {string|number} [params.scoutid] - Editor's host-section row id, to attribute the title backfill config write
  * @param {string} [params.by] - Editor display name for the title backfill config write
- * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, titleWriteFailed: boolean, titlesSkippedNoIdentity: boolean, uncheckedSections: string[], failedSections: string[]}>}
+ * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, titleWriteFailed: boolean, titlesSkippedNoIdentity: boolean, uncheckedSections: string[], failedSections: string[], prefillErrors: Array<{fieldId: string, error: string}>}>}
  *   Sync outcome for this single record. `uncheckedSections` is always empty
  *   (the planning term is always known — it's the record's own identity, not
  *   a "current active term" lookup); `failedSections` holds the section id
  *   when the programme fetch threw (e.g. an expired token) — excluded from
  *   `orphaned` either way, kept as arrays for caller compatibility.
+ *   `prefillErrors` carries any regular pre-fill failures on newly added
+ *   sessions (empty when no new sessions needed pre-filling, or all
+ *   succeeded).
  * @throws {Error} When the rota has no config to sync against
  */
 export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
@@ -171,6 +175,7 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
   const orphaned = failed ? [] : rawOrphaned;
 
   let errors = [];
+  let prefillErrors = [];
   if (toAdd.length > 0) {
     const result = await createOrCompleteRota({
       hostSection: rota.hostSection,
@@ -185,12 +190,16 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     // re-touch existing sessions, which would undo people's withdrawals.
     const regularsBySection = { [String(cfg.sid)]: cfg.regulars ?? [] };
     if (Object.values(regularsBySection).some((list) => list.length > 0)) {
-      const reloaded = await loadRota(descriptorFromRota(rota), token);
+      // Bypass the structure cache — otherwise the just-added columns come
+      // back as config-only (fieldId null) and the prefill below silently
+      // skips them (mirrors activateWaterSession's same guard).
+      const reloaded = await loadRota(descriptorFromRota(rota), token, { forceRefresh: true });
       const addedNames = new Set(toAdd.map((d) => buildSessionColumnName(d.date, d.sectionId)));
       const newSessions = (reloaded?.sessions ?? []).filter(
         (session) => session.fieldId && addedNames.has(buildSessionColumnName(session.date, session.sectionId)),
       );
-      await prefillRegulars({ rota: reloaded, regularsBySection, token, sessions: newSessions });
+      const prefillResult = await prefillRegulars({ rota: reloaded, regularsBySection, token, sessions: newSessions });
+      prefillErrors = prefillResult.errors ?? [];
     }
   }
 
@@ -266,6 +275,7 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     titlesUpdated,
     titleWriteFailed,
     titlesSkippedNoIdentity,
+    prefillErrors,
     uncheckedSections: [],
     failedSections: failed ? [String(cfg.sid)] : [],
   };

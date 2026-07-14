@@ -20,8 +20,8 @@ design.
   edit form (activity presets, times, expected-kids defaulting to the section YP total,
   permit-holders-needed, notes) and a restorable "Not on water this week" toggle.
 - `/water-rota/me` — **My week**: the user's commitments bucketed this week / next week /
-  later, aggregated across every record in the selected season, with inline withdraw
-  (confirm dialog when leaving a session short).
+  later, aggregated across every record in the default (current) season, with inline
+  withdraw (confirm dialog when leaving a session short).
 - `/water-rota/setup` — per-section wizard: section + its own term (host section
   auto-detected, read-only) → programme review for that section only, with on-water
   checkboxes (weekly-slot fallback) → preview + resumable creation + initial config
@@ -62,10 +62,13 @@ components consume the same shape as before the rework.
 Rows are host-section members. Two column kinds per record:
 
 - `RotaConfig` — a single-section plan config JSON (date range, one section's defaults —
-  `sid`/`sname`/`act`/`st`/`en`/`k`/`p`/`regulars`, plus per-session overrides). Each plan
-  editor writes the full config to **their own row**; readers take the last-writer-wins
-  winner across rows by `(v, at)`. There is nothing to merge across sections — a record
-  covers exactly one section, so no config-merge step exists.
+  `sid`/`sname`/`act`/`st`/`en`/`k`/`p`/`regulars`, plus per-session overrides). Two write
+  modes: setup does a full replace into a **deterministic member row** (so re-running setup
+  always finds the same candidate to seed from); programme sync's title backfill
+  shallow-merges just the changed keys onto the live winner, written into **the editor's
+  own row**. Readers take the last-writer-wins winner across rows by `(v, at)`. There is
+  nothing to merge across sections — a record covers exactly one section, so no
+  cross-section config-merge step exists.
 - `S_<yyyymmdd>_<sectionid>` — one column per session. Column name is the session
   identity (immutable, matching OSM's lack of column rename/delete); the sectionid stays
   in the key so session keys never collide when the board aggregates records from
@@ -74,9 +77,12 @@ Rows are host-section members. Two column kinds per record:
   expected kids `k`, permits needed `p`, notes `n`, not-on-water flag `c`), merged LWW
   across the column.
 
-Key property: **each user only ever writes their own row**, so signups can never
-conflict across users; only metadata needs LWW resolution. Encoding/merging lives in
-`src/features/water-rota/services/rotaEncoding.js` (pure, clock-free, zod-validated).
+Key property: **each user only ever writes their own row** for signups, so signups can
+never conflict across users; only metadata needs LWW resolution. Two exceptions write
+another member's row directly: setup/regular pre-fill (organiser-only, cells empty) and a
+leader's `assignSignup` (adding a permit holder they know is coming). Encoding/merging
+lives in `src/features/water-rota/services/rotaEncoding.js` (pure, clock-free,
+zod-validated).
 
 Sessions are generated from each section's OSM programme meetings (dates + times), with
 a manual weekly-slot fallback for sections whose programme is empty
