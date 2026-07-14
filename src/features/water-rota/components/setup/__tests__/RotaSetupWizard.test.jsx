@@ -53,8 +53,10 @@ vi.mock('../../../hooks/useSectionYPCounts.js', () => ({
   useSectionYPCounts: () => ({ counts: {}, loading: false }),
 }));
 
+const leaderState = vi.hoisted(() => ({ candidates: {} }));
+
 vi.mock('../../../hooks/useSectionLeaders.js', () => ({
-  useSectionLeaders: () => ({ candidates: {}, loading: false }),
+  useSectionLeaders: () => ({ candidates: leaderState.candidates, loading: false }),
 }));
 
 import databaseService from '../../../../../shared/services/storage/database.js';
@@ -80,6 +82,7 @@ function renderWizard(initialEntries = ['/water-rota/setup']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  leaderState.candidates = {};
   databaseService.getSections.mockResolvedValue([HOST_SECTION, YOUTH_SECTION]);
   findHostSection.mockImplementation((sections) => sections.find((s) => s.sectionid === HOST_SECTION.sectionid) ?? null);
   discoverRotaRecords.mockResolvedValue([]);
@@ -184,6 +187,50 @@ describe('RotaSetupWizard — single-section create', () => {
     );
 
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Water rota saved'));
+  });
+
+  it('drops the previous section\'s regulars and plan when the planning section changes', async () => {
+    databaseService.getSections.mockResolvedValue([HOST_SECTION, YOUTH_SECTION, OTHER_YOUTH_SECTION]);
+    getTerms.mockResolvedValue({
+      [String(YOUTH_SECTION.sectionid)]: [
+        { termid: 'T-49097', name: 'Summer 2026', startdate: '2026-04-01', enddate: '2026-08-31' },
+      ],
+      [String(OTHER_YOUTH_SECTION.sectionid)]: [
+        { termid: 'T-23456', name: 'Summer 2026', startdate: '2026-04-06', enddate: '2026-08-24' },
+      ],
+    });
+    CurrentActiveTermsService.getCurrentActiveTerm.mockImplementation(async (sectionId) => {
+      if (String(sectionId) === String(YOUTH_SECTION.sectionid)) {
+        return { currentTermId: 'T-49097' };
+      }
+      if (String(sectionId) === String(OTHER_YOUTH_SECTION.sectionid)) {
+        return { currentTermId: 'T-23456' };
+      }
+      if (String(sectionId) === String(HOST_SECTION.sectionid)) {
+        return { currentTermId: 'HOST-T1' };
+      }
+      return null;
+    });
+    leaderState.candidates = {
+      [String(YOUTH_SECTION.sectionid)]: [{ scoutid: '300', name: 'Reg Leader' }],
+      [String(OTHER_YOUTH_SECTION.sectionid)]: [{ scoutid: '300', name: 'Reg Leader' }],
+    };
+
+    renderWizard();
+
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-49097'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next: review programme' }));
+    const toggle = await screen.findByRole('button', { name: /Reg Leader/ });
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: /Reg Leader/ }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.change(screen.getByLabelText('Section'), { target: { value: String(OTHER_YOUTH_SECTION.sectionid) } });
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-23456'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next: review programme' }));
+
+    const freshToggle = await screen.findByRole('button', { name: /Reg Leader/ });
+    expect(freshToggle.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('pre-selects the section named in ?section= (as set by the board\'s "Edit plan" link)', async () => {

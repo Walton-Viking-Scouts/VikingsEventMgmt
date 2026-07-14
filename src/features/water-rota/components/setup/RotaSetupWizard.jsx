@@ -339,6 +339,20 @@ function RotaSetupWizard() {
     setPlan((previous) => ({ ...previous, ...patch }));
   };
 
+  /**
+   * Switch the planning section, discarding the previous section's plan
+   * (regulars, activity, times, expected YP, programme picks) so nothing
+   * leaks between per-section setup runs, and re-allowing the seed-from-
+   * existing-config pass for the newly chosen section.
+   *
+   * @param {string} nextSectionId - The newly selected planning section id
+   */
+  const handleSectionChange = (nextSectionId) => {
+    setSectionId(nextSectionId);
+    setPlan(defaultPlan());
+    seededKeyRef.current = null;
+  };
+
   const handleCreate = async () => {
     setCreating(true);
     setCreationErrors([]);
@@ -490,7 +504,7 @@ function RotaSetupWizard() {
             <select
               id="rota-section"
               value={sectionId ?? ''}
-              onChange={(event) => setSectionId(event.target.value)}
+              onChange={(event) => handleSectionChange(event.target.value)}
               className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
             >
               <option value="" disabled>Choose a section…</option>
