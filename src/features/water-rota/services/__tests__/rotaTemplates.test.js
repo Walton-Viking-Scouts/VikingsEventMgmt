@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { guessActivityFromTitle, looksLikeWaterSession } from '../rotaTemplates.js';
+import {
+  buildRotaRecordName,
+  guessActivityFromTitle,
+  looksLikeWaterSession,
+  parseRotaRecordName,
+  seasonBucketForRange,
+} from '../rotaTemplates.js';
 
 describe('guessActivityFromTitle', () => {
   it('matches preset names inside meeting titles', () => {
@@ -75,5 +81,74 @@ describe('looksLikeWaterSession', () => {
     expect(looksLikeWaterSession('')).toBe(false);
     expect(looksLikeWaterSession(null)).toBe(false);
     expect(looksLikeWaterSession(undefined)).toBe(false);
+  });
+});
+
+describe('buildRotaRecordName / parseRotaRecordName', () => {
+  it('round-trips a record identity', () => {
+    const identity = { sectionName: 'Scouts', seasonBucket: 'Summer 2026', sectionId: '49097', termId: '924956' };
+    const name = buildRotaRecordName(identity);
+    expect(name).toBe('Viking Water Rota Scouts Summer 2026 [49097.924956]');
+    expect(parseRotaRecordName(name)).toEqual(identity);
+  });
+
+  it('round-trips section names with spaces and digits', () => {
+    const identity = { sectionName: '1st Walton Scouts', seasonBucket: 'Autumn 2026', sectionId: '49099', termId: '900001' };
+    expect(parseRotaRecordName(buildRotaRecordName(identity))).toEqual(identity);
+  });
+
+  it('extracts both ids and the season bucket from the two-part bracket', () => {
+    const parsed = parseRotaRecordName('Viking Water Rota Adults Spring 2027 [11107.901823]');
+    expect(parsed).toEqual({ sectionName: 'Adults', seasonBucket: 'Spring 2027', sectionId: '11107', termId: '901823' });
+  });
+
+  it('returns null for the retired year-model name', () => {
+    expect(parseRotaRecordName('Viking Water Rota 2026')).toBeNull();
+  });
+
+  it('returns null for the retired three-part-bracket shape', () => {
+    expect(parseRotaRecordName('Viking Water Rota Scouts Summer 2026 [49097.924956.1]')).toBeNull();
+  });
+
+  it('returns null for junk input', () => {
+    expect(parseRotaRecordName('Viking Event Mgmt')).toBeNull();
+    expect(parseRotaRecordName('')).toBeNull();
+    expect(parseRotaRecordName(null)).toBeNull();
+    expect(parseRotaRecordName(undefined)).toBeNull();
+  });
+});
+
+describe('seasonBucketForRange', () => {
+  it('buckets all eight live Summer-2026 term variants to "Summer 2026"', () => {
+    const ranges = [
+      ['2026-04-01', '2026-07-17'],
+      ['2026-04-01', '2026-07-24'],
+      ['2026-04-02', '2026-07-24'],
+      ['2026-04-06', '2026-08-31'],
+      ['2026-04-07', '2026-08-31'],
+      ['2026-04-08', '2026-08-31'],
+      ['2026-04-12', '2026-08-31'],
+      ['2026-04-01', '2026-08-31'],
+    ];
+    for (const [start, end] of ranges) {
+      expect(seasonBucketForRange(start, end), `${start}..${end}`).toBe('Summer 2026');
+    }
+  });
+
+  it('buckets a Jan-Mar term to Spring', () => {
+    expect(seasonBucketForRange('2026-01-06', '2026-03-27')).toBe('Spring 2026');
+  });
+
+  it('buckets a Sep-Dec term to Autumn', () => {
+    expect(seasonBucketForRange('2026-09-01', '2026-12-18')).toBe('Autumn 2026');
+  });
+
+  it('buckets a Dec-Feb straddling term to Spring of the later year', () => {
+    expect(seasonBucketForRange('2025-12-01', '2026-02-15')).toBe('Spring 2026');
+  });
+
+  it('is UTC-deterministic regardless of the runner\'s local timezone', () => {
+    // Midnight-ISO boundaries would flip a day in a non-UTC-aware implementation.
+    expect(seasonBucketForRange('2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')).toBe('Spring 2026');
   });
 });

@@ -1,18 +1,21 @@
 /**
- * Water Rota data service: discovers the yearly rota FlexiRecord across the
- * user's sections, loads and decodes it, and performs the rota writes
- * (signup, session metadata, plan config, and regular pre-fill).
+ * Water Rota data service: discovers the per-(planning section, planning
+ * term) rota FlexiRecords hosted in the Adults section, loads and decodes
+ * them (individually or aggregated into a season-bucket group), and performs
+ * the rota writes (signup, session metadata, plan config, and regular
+ * pre-fill).
  *
- * Write discipline (PRD §5.4 freshness constraint): the per-user writes
- * (signup, session metadata) re-fetch the live grid, merge into a single
- * target row's cell (the caller's own row for signup/meta; a deterministic
- * anchor row for config — see writeConfig), send one updateFlexiRecord, then
- * patch the local cache optimistically. These are serialized through a
+ * Write discipline (never overwrite state you haven't just read — the live
+ * grid is re-fetched inside the write lock): the per-user writes (signup,
+ * session metadata, config) re-fetch the live grid, merge into a single
+ * target row's cell (the caller's own row for signup/meta; whatever row the
+ * caller passes in for config — see writeConfig), send one updateFlexiRecord,
+ * then patch the local cache optimistically. These are serialized through a
  * module-level promise-chain lock so two in-flight writes cannot interleave
  * their read-merge-write cycles. prefillRegulars is a setup-time bulk write
- * that targets other members' rows (organiser-only, cells empty). Rota writes
- * are online-only — offline attempts throw WRITE_UNAVAILABLE from the API
- * layer.
+ * that targets other members' rows (organiser-only, cells empty), throttled
+ * between calls to stay under OSM's rate limit. Rota writes are online-only —
+ * offline attempts throw WRITE_UNAVAILABLE from the API layer.
  *
  * @module rotaService
  */
@@ -39,7 +42,7 @@ import {
   mergeSessionColumn,
   parseSessionColumnName,
 } from './rotaEncoding.js';
-import { buildRotaRecordName } from './rotaTemplates.js';
+import { parseRotaRecordName } from './rotaTemplates.js';
 import { validateWaterRotaStructure } from './vikingWaterRotaValidation.js';
 
 let writeLock = Promise.resolve();
@@ -58,55 +61,130 @@ function withWriteLock(fn) {
 }
 
 /**
- * A loaded, decoded rota.
+ * A rota record's discovered identity, parsed from its FlexiRecord name
+ * (PRD §2.1) plus where it lives.
+ *
+ * @typedef {Object} RotaDescriptor
+ * @property {string} sectionName - Planning section's display name
+ * @property {string} seasonBucket - Deterministic season label, e.g. "Summer 2026"
+ * @property {string} sectionId - Planning section id
+ * @property {string} termId - Planning section's own term id the plan was built from
+ * @property {string|number} recordId - FlexiRecord id (extraid)
+ * @property {Object} hostSection - The Adults section the record is hosted in
+ */
+
+/**
+ * A loaded, decoded rota record for one planning section.
  *
  * @typedef {Object} LoadedRota
- * @property {number} year - Rota calendar year
- * @property {Object} hostSection - Section the record lives in ({sectionid, sectionname, section, ...})
  * @property {string|number} recordId - FlexiRecord id (extraid)
- * @property {string} termId - Term id used for grid reads
+ * @property {Object} hostSection - Section the record lives in ({sectionid, sectionname, section, ...})
+ * @property {string} termId - Host section's read-context term id, resolved at load time (PRD §3.3)
+ * @property {string} sectionId - Planning section id (from the record's identity)
+ * @property {string} planningTermId - Planning section's own term id (from the record's identity)
+ * @property {string} seasonBucket - Deterministic season label (from the record's identity)
+ * @property {string} configFieldId - RotaConfig column field id (f_N)
  * @property {Object|null} config - LWW-winning plan config candidate ({v, at, by, cfg}), null before first config write
  * @property {Array<Object>} sessions - Decoded sessions ({fieldId, date, sectionId, meta, signups})
  * @property {Array<{scoutid: string, name: string, photo_guid: string|null}>} members - Host-section member rows
+ * @property {Object} sectionNames - Map of section id to display name
  */
 
 /**
- * Find the rota FlexiRecord for a year by scanning the user's sections.
+ * A season bucket's aggregated view across every planning section's record.
  *
- * @param {number} year - Calendar year
- * @param {string} token - OSM authentication token
- * @param {number} [priority=0] - Rate-limit queue priority for the flexi-list reads
- * @returns {Promise<{hostSection: Object, recordId: string|number}|null>} Discovery result, or null when no rota exists
+ * @typedef {Object} RotaGroup
+ * @property {string} seasonBucket - The bucket loaded, e.g. "Summer 2026"
+ * @property {Object|null} hostSection - Shared Adults section (from any record)
+ * @property {LoadedRota[]} records - Every loaded record in the bucket
+ * @property {Object|null} config - Assembled group config (see {@link assembleGroupConfig})
+ * @property {Array<Object>} sessions - Union of every record's sessions, each with a `record` back-reference
+ * @property {Array<Object>} members - Adults roster (same rows in every record — taken from the first)
+ * @property {Object} sectionNames - Map of section id to display name (from the first record)
  */
-export async function discoverRotaRecord(year, token, priority = 0) {
-  const recordName = buildRotaRecordName(year);
-  const sections = (await databaseService.getSections()) || [];
 
-  for (const section of sections) {
-    try {
-      const list = await getFlexiRecords(section.sectionid, token, 'n', false, priority);
-      const match = (list?.items || []).find((record) => record.name === recordName);
-      if (match) {
-        return { hostSection: section, recordId: match.extraid };
-      }
-    } catch (error) {
-      logger.warn('Rota discovery: flexi list read failed for section', {
-        sectionId: section.sectionid,
-        error: error.message,
-      }, LOG_CATEGORIES.API);
-    }
-  }
-
-  return null;
+/**
+ * Find the Adults section that hosts every rota record, by name (PRD §3.1).
+ *
+ * @param {Array<Object>} sections - Cached sections ({sectionid, sectionname, section, ...})
+ * @returns {Object|null} The host section, or null when none looks like Adults
+ */
+export function findHostSection(sections) {
+  return (sections ?? []).find((s) =>
+    `${s.section ?? ''} ${s.sectionname ?? ''}`.toLowerCase().includes('adult')) ?? null;
 }
 
 /**
- * Resolve the term id to use for rota grid reads on the host section.
+ * Discover every rota record via a single flexi-list read on the Adults host
+ * section (falling back to scanning every cached section when no Adults
+ * section is visible). Record identity is parsed entirely from each item's
+ * name (PRD §2.1) — no term resolution is involved in discovery.
+ *
+ * @param {string} token - OSM authentication token
+ * @param {number} [priority=0] - Rate-limit queue priority for the flexi-list read(s)
+ * @returns {Promise<RotaDescriptor[]>} Every discovered rota record, deduped by (sectionId, termId)
+ */
+export async function discoverRotaRecords(token, priority = 0) {
+  const sections = (await databaseService.getSections()) || [];
+  const hostSection = findHostSection(sections);
+  const scan = hostSection ? [hostSection] : sections;
+  const byIdentity = new Map();
+  let scanFailures = 0;
+  let lastScanError = null;
+
+  for (const section of scan) {
+    let list;
+    try {
+      list = await getFlexiRecords(section.sectionid, token, 'n', false, priority);
+    } catch (error) {
+      logger.warn('Rota: flexi-list read failed for a section during discovery', {
+        sectionId: section.sectionid,
+        error: error.message,
+      }, LOG_CATEGORIES.ERROR);
+      if (hostSection) {
+        // Host-only scan: a failed read here means we genuinely don't know
+        // whether rota records exist — surface the error instead of
+        // silently reporting "no rota", which would invite a duplicate setup.
+        throw error;
+      }
+      scanFailures += 1;
+      lastScanError = error;
+      continue;
+    }
+    for (const item of list?.items || []) {
+      const parsed = parseRotaRecordName(item.name);
+      if (!parsed) {
+        continue;
+      }
+      const key = `${parsed.sectionId}.${parsed.termId}`;
+      const existing = byIdentity.get(key);
+      // Numeric lowest-extraid dedupe for accidental same-name duplicates
+      // (extraids "9" vs "10" must pick "9" — a string compare would not).
+      if (!existing || Number(item.extraid) < Number(existing.recordId)) {
+        byIdentity.set(key, { ...parsed, recordId: item.extraid, hostSection: section });
+      }
+    }
+  }
+
+  // Fallback scan: same "don't lie about no rota" discipline as the
+  // host-only path above — if every section we tried failed, we don't
+  // actually know whether rota records exist.
+  if (!hostSection && scan.length > 0 && scanFailures === scan.length) {
+    throw lastScanError;
+  }
+
+  return [...byIdentity.values()];
+}
+
+/**
+ * Resolve the host section's current-active-term id for rota grid reads,
+ * fresh on every load (PRD §3.3). Record identity never depends on this
+ * value — only the API/cache reads within a load do.
  *
  * @param {string|number} hostSectionId - Host section id
  * @returns {Promise<string|null>} Current active term id, or null when unknown
  */
-export async function resolveRotaTermId(hostSectionId) {
+async function resolveHostReadTermId(hostSectionId) {
   try {
     const term = await CurrentActiveTermsService.getCurrentActiveTerm(hostSectionId);
     return term?.currentTermId ?? null;
@@ -120,43 +198,38 @@ export async function resolveRotaTermId(hostSectionId) {
 }
 
 /**
- * Load and decode the rota for a year: discovery, structure validation,
- * LWW config merge, and per-session column merges. Persists the fetched
- * grid to the flexi cache so the board renders offline afterwards.
+ * Load and decode one rota record: structure validation, LWW config merge,
+ * and per-session column merges. Persists the fetched grid to the flexi
+ * cache so the board renders offline afterwards.
  *
- * @param {number} year - Calendar year
+ * @param {RotaDescriptor} descriptor - Record identity from {@link discoverRotaRecords}
  * @param {string} token - OSM authentication token
  * @param {Object} [options]
  * @param {boolean} [options.forceRefresh=false] - Bypass the structure cache (use after adding a column)
  * @param {number} [options.priority=0] - Rate-limit queue priority for this load's reads; raise
  *   on a deep-link/landing load so the rota jumps ahead of the background post-login sync
- * @returns {Promise<LoadedRota|null>} Decoded rota, or null when none exists for the year
- * @throws {Error} When the record exists but its structure is invalid or unreadable
+ * @returns {Promise<LoadedRota>} Decoded rota record
+ * @throws {Error} When the host section has no cached current active term, or the record's structure is invalid or unreadable
  */
-export async function loadRota(year, token, { forceRefresh = false, priority = 0 } = {}) {
-  const discovery = await discoverRotaRecord(year, token, priority);
-  if (!discovery) {
-    return null;
-  }
-
-  const { hostSection, recordId } = discovery;
-  const termId = await resolveRotaTermId(hostSection.sectionid);
-  if (!termId) {
+export async function loadRota(descriptor, token, { forceRefresh = false, priority = 0 } = {}) {
+  const { recordId, hostSection } = descriptor;
+  const hostTermId = await resolveHostReadTermId(hostSection.sectionid);
+  if (!hostTermId) {
     throw new Error('No active term found for the rota host section');
   }
 
-  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, forceRefresh, priority);
+  const structureData = await getFlexiStructure(recordId, hostSection.sectionid, hostTermId, token, forceRefresh, priority);
   const structure = decodeStructure(structureData);
   const check = validateWaterRotaStructure(structure);
   if (!check.isValid) {
     throw new Error(`Water rota record is invalid: ${check.errors.join('; ')}`);
   }
 
-  const grid = await getSingleFlexiRecord(recordId, hostSection.sectionid, termId, token, priority);
+  const grid = await getSingleFlexiRecord(recordId, hostSection.sectionid, hostTermId, token, priority);
   const items = Array.isArray(grid?.items) ? grid.items : [];
 
   try {
-    await databaseService.saveFlexiData(recordId, hostSection.sectionid, termId, items);
+    await databaseService.saveFlexiData(recordId, hostSection.sectionid, hostTermId, items);
   } catch (error) {
     logger.warn('Rota: caching grid for offline use failed', {
       error: error.message,
@@ -202,16 +275,86 @@ export async function loadRota(year, token, { forceRefresh = false, priority = 0
   const sectionNames = await loadSectionNameMap();
 
   return {
-    year,
-    hostSection,
     recordId,
-    termId,
+    hostSection,
+    termId: hostTermId,
+    sectionId: descriptor.sectionId,
+    planningTermId: descriptor.termId,
+    seasonBucket: descriptor.seasonBucket,
     configFieldId: check.configFieldId,
     config,
     sessions,
     members,
     sectionNames,
   };
+}
+
+/**
+ * Assemble the board's group-wide config shape from every loaded record's
+ * single-section config (PRD §2.5) — sections[] plus a merged sessions{} map
+ * (session column names never collide across records, since the sectionid
+ * stays in the key) and the union of every record's date range.
+ *
+ * @param {LoadedRota[]} records - Loaded records (each `.config` may be null)
+ * @returns {{cfg: {start: string|undefined, end: string|undefined, sections: Array, sessions: Object}}|null}
+ *   Assembled config, or null when no record has config yet
+ */
+export function assembleGroupConfig(records) {
+  const sections = [];
+  const sessions = {};
+  let start, end;
+  for (const record of records) {
+    const c = record.config?.cfg;
+    if (!c) continue;
+    sections.push({ sid: c.sid, sname: c.sname, act: c.act, st: c.st, en: c.en,
+      k: c.k, p: c.p, regulars: c.regulars ?? [] });
+    Object.assign(sessions, c.sessions ?? {});
+    start = !start || (c.start && c.start < start) ? (c.start ?? start) : start;
+    end = !end || (c.end && c.end > end) ? (c.end ?? end) : end;
+  }
+  return sections.length ? { cfg: { start, end, sections, sessions } } : null;
+}
+
+/**
+ * Assemble a season bucket's aggregated group view from its loaded records.
+ * Every session carries a `record` back-reference so writes route to the
+ * record that owns it (PRD §5.2–5.3).
+ *
+ * @param {string} seasonBucket - The bucket assembled, e.g. "Summer 2026"
+ * @param {LoadedRota[]} records - Loaded records in the bucket
+ * @returns {RotaGroup} Assembled group
+ */
+export function assembleRotaGroup(seasonBucket, records) {
+  return {
+    seasonBucket,
+    hostSection: records[0]?.hostSection ?? null,
+    records,
+    config: assembleGroupConfig(records),
+    sessions: records.flatMap((record) => record.sessions.map((session) => ({ ...session, record }))),
+    members: records[0]?.members ?? [],
+    sectionNames: records[0]?.sectionNames ?? {},
+  };
+}
+
+/**
+ * Discover and load every rota record in a season bucket, aggregated into
+ * the board's group view.
+ *
+ * @param {string} seasonBucket - Season bucket to load, e.g. "Summer 2026"
+ * @param {string} token - OSM authentication token
+ * @param {Object} [options]
+ * @param {boolean} [options.forceRefresh=false] - Bypass the structure cache on every record load
+ * @param {number} [options.priority=0] - Rate-limit queue priority for every read in this load
+ * @returns {Promise<RotaGroup|null>} Assembled group, or null when the bucket has no records
+ */
+export async function loadRotaGroup(seasonBucket, token, { forceRefresh = false, priority = 0 } = {}) {
+  const descriptors = (await discoverRotaRecords(token, priority))
+    .filter((d) => !seasonBucket || d.seasonBucket === seasonBucket);
+  if (descriptors.length === 0) {
+    return null;
+  }
+  const records = await Promise.all(descriptors.map((d) => loadRota(d, token, { forceRefresh, priority })));
+  return assembleRotaGroup(seasonBucket, records.filter(Boolean));
 }
 
 /**
@@ -297,19 +440,63 @@ export async function assignSignup({ rota, fieldId, scoutid, status, token }) {
 }
 
 /**
- * Write a session-metadata update into the editor's own row, bumping the
- * LWW version above the current column winner read live inside the lock.
+ * Base metadata used as the merge target when a session has no prior
+ * metadata candidate at all (a brand-new column) — matches the defaults
+ * SessionEditForm/SessionDetailModal show for an unedited session.
+ * @type {{act: string, st: string, en: string, k: number, p: number, c: 0}}
+ */
+const SESSION_META_DEFAULTS = { act: 'On the water', st: '18:30', en: '20:00', k: 0, p: 0, c: 0 };
+
+/**
+ * Fields writeSessionMeta will pick out of a caller-supplied `base` (its
+ * other properties, e.g. a full SessionView's `label`/`status`/`confirmed`,
+ * are irrelevant to the stored metadata and ignored).
+ * @type {string[]}
+ */
+const SESSION_META_BASE_FIELDS = ['act', 'st', 'en', 'k', 'p', 'n', 'c'];
+
+/**
+ * Build a complete merge base from the caller's resolved effective session
+ * values (see writeSessionMeta's `base` param), filling any field the caller
+ * didn't supply from {@link SESSION_META_DEFAULTS} so the result always
+ * satisfies the session-metadata schema.
+ *
+ * @param {Object|null|undefined} base - Caller-resolved effective session values
+ * @returns {Object} Complete merge base
+ */
+function resolveSessionMetaBase(base) {
+  if (!base) {
+    return SESSION_META_DEFAULTS;
+  }
+  const picked = {};
+  for (const field of SESSION_META_BASE_FIELDS) {
+    if (base[field] !== undefined) {
+      picked[field] = base[field];
+    }
+  }
+  return { ...SESSION_META_DEFAULTS, ...picked };
+}
+
+/**
+ * Write a session-metadata patch into the editor's own row, merging it onto
+ * the live column winner read fresh inside the lock (falling back to the
+ * caller-supplied `base` — the caller's resolved effective values for a
+ * virgin column — and finally to {@link SESSION_META_DEFAULTS} when neither
+ * exists) and bumping the LWW version above it. Only the fields present in
+ * `metaPatch` are changed — a concurrent co-leader's edit to any field the
+ * caller didn't touch survives (never overwrite state you haven't just read).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
  * @param {string} params.fieldId - Session column field id (f_N)
  * @param {string|number} params.scoutid - The editor's member row id
  * @param {string} params.by - Editor display name for the audit trail
- * @param {{act: string, st: string, en: string, k: number, p: number, n?: string, c: 0|1}} params.fields - Full metadata fields
+ * @param {{act?: string, st?: string, en?: string, k?: number, p?: number, n?: string, c?: 0|1}} params.metaPatch - Only the fields the caller intends to change
+ * @param {Object} [params.base] - Caller-resolved effective session values (e.g. a SessionView) used as the merge base when this column has no live metadata winner yet — prevents a notes-only edit from silently flipping activity/times/permits-needed to {@link SESSION_META_DEFAULTS}
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  */
-export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, token }) {
+export async function writeSessionMeta({ rota, fieldId, scoutid, by, metaPatch, token, base }) {
   await writeOwnCell({
     rota,
     fieldId,
@@ -320,7 +507,8 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, tok
         items.map((item) => ({ scoutid: item.scoutid, name: '', value: item[fieldId] })),
       );
       const meta = {
-        ...fields,
+        ...(winner ?? resolveSessionMetaBase(base)),
+        ...metaPatch,
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
         by,
@@ -331,20 +519,31 @@ export async function writeSessionMeta({ rota, fieldId, scoutid, by, fields, tok
 }
 
 /**
- * Write a whole-plan config candidate into the editor's own RotaConfig cell,
- * bumping the LWW version above the current winner read live inside the lock.
+ * Write a whole-plan config candidate into the given RotaConfig cell,
+ * bumping the LWW version above the current winner read live inside the
+ * lock. The row it's written to is caller-designated (setup passes a
+ * deterministic member row; sync's title backfill passes the editor's own
+ * row) — writeConfig itself has no row-selection logic.
+ *
+ * Two modes: `replace: true` is an intentional full-plan replace (the setup
+ * wizard re-running with a fresh plan); the default patch mode shallow-merges
+ * `cfg`'s keys onto the live winner's cfg, with `sessions` merged key-wise
+ * (winner.cfg.sessions ⊕ cfg.sessions) so a concurrent edit to a field or
+ * session override the caller didn't touch survives (never overwrite state
+ * you haven't just read).
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota
  * @param {string} params.configFieldId - RotaConfig column field id (f_N)
- * @param {string|number} params.scoutid - The editor's member row id
+ * @param {string|number} params.scoutid - The member row to store this candidate in (setup passes a deterministic row; sync passes the editor's own row)
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - Full plan config ({start, end, termId?, sections}); ignored when transformCfg is given
- * @param {(liveCfg: Object) => Object} [params.transformCfg] - When set, derive the config to write from the live winner read inside the lock (used to merge one section's setup into the shared config without clobbering others), instead of replacing with `cfg`
+ * @param {Object} params.cfg - The full plan config (`replace: true`) or just the changed keys (patch mode)
+ * @param {boolean} [params.replace=false] - Full replace instead of a merge patch
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
+ * @throws {Error} In patch mode, when no live config candidate exists yet (nothing to patch — run setup first)
  */
-export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, transformCfg, token }) {
+export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, replace = false, token }) {
   await writeOwnCell({
     rota,
     fieldId: configFieldId,
@@ -352,7 +551,10 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, trans
     token,
     mutate: (_ownRaw, items) => {
       const winner = mergeLwwConfig(items.map((item) => item[configFieldId]));
-      const nextCfg = transformCfg ? transformCfg(winner?.cfg ?? {}) : cfg;
+      if (!replace && !winner) {
+        throw new Error('Cannot patch rota config: no existing config found — run setup first');
+      }
+      const nextCfg = replace ? cfg : mergeConfigPatch(winner?.cfg, cfg);
       return encodeConfig({
         v: (winner?.v ?? 0) + 1,
         at: new Date().toISOString(),
@@ -364,12 +566,37 @@ export async function writeConfig({ rota, configFieldId, scoutid, by, cfg, trans
 }
 
 /**
+ * Shallow-merge a config patch onto the live winner's cfg, merging `sessions`
+ * key-wise rather than replacing the whole map.
+ *
+ * @param {Object|undefined} winnerCfg - The live LWW winner's cfg (undefined when none)
+ * @param {Object} patch - The caller's changed keys
+ * @returns {Object} Merged cfg
+ */
+function mergeConfigPatch(winnerCfg, patch) {
+  const merged = { ...(winnerCfg ?? {}), ...patch };
+  if (patch.sessions || winnerCfg?.sessions) {
+    merged.sessions = { ...(winnerCfg?.sessions ?? {}), ...(patch.sessions ?? {}) };
+  }
+  return merged;
+}
+
+/**
+ * Fixed delay between successive prefillRegulars multi-update calls, on top
+ * of the underlying rate-limit queue — cheap insurance against a burst of
+ * back-to-back writes during setup (PRD §4.3).
+ * @type {number}
+ */
+const PREFILL_THROTTLE_MS = 300;
+
+/**
  * Pre-fill a section's regular permit holders as confirmed signups on its
  * water sessions. Setup-time bulk write: one multiUpdateFlexiRecord per
- * session sets every regular's cell to a confirmed signup. Targets other
- * members' rows (organiser-only, run when cells are empty), so it does NOT go
- * through the own-cell write lock. Confirmed-by-default: gaps on a session
- * then represent the extra permit holders still needed.
+ * session (throttled between calls) sets every regular's cell to a confirmed
+ * signup. Targets other members' rows (organiser-only, run when cells are
+ * empty), so it does NOT go through the own-cell write lock. Confirmed-by-
+ * default: gaps on a session then represent the extra permit holders still
+ * needed.
  *
  * @param {Object} params
  * @param {LoadedRota} params.rota - Loaded rota (host section, record, term)
@@ -385,12 +612,17 @@ export async function prefillRegulars({ rota, regularsBySection, token, sessions
 
   let filled = 0;
   const errors = [];
+  let calls = 0;
 
   for (const session of targetSessions) {
     const scouts = regularsBySection[String(session.sectionId)] ?? [];
     if (scouts.length === 0) {
       continue;
     }
+    if (calls > 0) {
+      await new Promise((resolve) => setTimeout(resolve, PREFILL_THROTTLE_MS));
+    }
+    calls += 1;
     try {
       const response = await multiUpdateFlexiRecord(
         rota.hostSection.sectionid,
@@ -402,6 +634,11 @@ export async function prefillRegulars({ rota, regularsBySection, token, sessions
       );
       const failure = detectWriteFailure(response);
       if (failure) {
+        logger.error('Rota: regular pre-fill failed for a session', {
+          fieldId: session.fieldId,
+          sectionId: session.sectionId,
+          error: failure,
+        }, LOG_CATEGORIES.API);
         errors.push({ fieldId: session.fieldId, error: failure });
       } else {
         filled += 1;

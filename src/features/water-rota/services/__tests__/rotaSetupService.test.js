@@ -15,6 +15,7 @@ vi.mock('../../../../shared/services/api/api/index.js', () => ({
   getFlexiStructure: vi.fn(),
   getSingleFlexiRecord: vi.fn(),
   updateFlexiRecord: vi.fn(),
+  multiUpdateFlexiRecord: vi.fn(),
 }));
 
 vi.mock('../../../../shared/services/storage/database.js', () => ({
@@ -36,10 +37,10 @@ vi.mock('../programmeService.js', () => ({
 
 import { createOrCompleteFlexiRecord } from '../../../flexi-records/services/flexiRecordCreationService.js';
 import {
-  getFlexiRecords,
   getFlexiStructure,
   getSingleFlexiRecord,
   updateFlexiRecord,
+  multiUpdateFlexiRecord,
 } from '../../../../shared/services/api/api/index.js';
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
@@ -54,9 +55,10 @@ import {
 
 const HOST_SECTION = { sectionid: 900, sectionname: 'Adults', section: 'adults' };
 
+const RECORD = { sectionId: '49097', sectionName: 'Cubs', termId: '924956', seasonBucket: 'Summer 2026' };
+
 const SESSIONS = [
   { date: '2026-06-02', sectionId: '49097', sectionName: 'Cubs', startTime: '18:15', endTime: '19:30', activity: 'Kayaking', title: null },
-  { date: '2026-06-05', sectionId: '49099', sectionName: 'Scouts', startTime: '19:00', endTime: '20:30', activity: 'Bell boats', title: null },
 ];
 
 beforeEach(() => {
@@ -64,13 +66,13 @@ beforeEach(() => {
 });
 
 describe('createOrCompleteRota', () => {
-  it('builds a template with the config column plus one column per session', async () => {
+  it('builds a template with the config column plus one column per session, under the per-section record name', async () => {
     createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777 });
 
     const result = await createOrCompleteRota({
       hostSection: HOST_SECTION,
-      year: 2026,
-      termId: 'T1',
+      hostTermId: 'HT1',
+      record: RECORD,
       sessions: SESSIONS,
       token: 'tok',
     });
@@ -78,19 +80,21 @@ describe('createOrCompleteRota', () => {
     expect(result.flexirecordid).toBe(777);
     const { section, template, termId } = createOrCompleteFlexiRecord.mock.calls[0][0];
     expect(section).toBe(HOST_SECTION);
-    expect(termId).toBe('T1');
-    expect(template.name).toBe('Viking Water Rota 2026');
-    expect(template.fields).toEqual(['RotaConfig', 'S_20260602_49097', 'S_20260605_49099']);
+    // hostTermId drives the creation orchestrator's structure reads only —
+    // it is never part of the record's name/identity.
+    expect(termId).toBe('HT1');
+    expect(template.name).toBe('Viking Water Rota Cubs Summer 2026 [49097.924956]');
+    expect(template.fields).toEqual(['RotaConfig', 'S_20260602_49097']);
   });
 
   it('surfaces partial failure results untouched so callers can retry', async () => {
-    const partial = { success: false, flexirecordid: 777, errors: [{ field: 'S_20260605_49099', error: 'boom' }] };
+    const partial = { success: false, flexirecordid: 777, errors: [{ field: 'S_20260602_49097', error: 'boom' }] };
     createOrCompleteFlexiRecord.mockResolvedValue(partial);
 
     const result = await createOrCompleteRota({
       hostSection: HOST_SECTION,
-      year: 2026,
-      termId: 'T1',
+      hostTermId: 'HT1',
+      record: RECORD,
       sessions: SESSIONS,
       token: 'tok',
     });
@@ -110,9 +114,9 @@ describe('writeRotaConfig', () => {
     updateFlexiRecord.mockResolvedValue({ ok: true });
 
     const cfg = {
+      sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
       start: '2026-06-01',
       end: '2026-08-31',
-      sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
     };
 
     await writeRotaConfig({
@@ -122,6 +126,9 @@ describe('writeRotaConfig', () => {
       scoutid: 10,
       by: 'Simon Clark',
       cfg,
+      // Matches RotaSetupWizard's real call: an initial write against a
+      // fresh grid (no live winner yet) must be a replace, not a patch.
+      replace: true,
       token: 'tok',
     });
 
@@ -145,7 +152,7 @@ describe('writeRotaConfig', () => {
         termId: 'T1',
         scoutid: 10,
         by: 'Simon Clark',
-        cfg: { start: '2026-06-01', end: '2026-08-31', sections: [] },
+        cfg: { sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' },
         token: 'tok',
       }),
     ).rejects.toThrow(/RotaConfig column not found/);
@@ -154,15 +161,17 @@ describe('writeRotaConfig', () => {
 
 describe('syncRotaWithProgramme', () => {
   const rota = {
-    year: 2026,
     hostSection: HOST_SECTION,
     recordId: 777,
-    termId: 'T1',
+    termId: 'HT1',
+    sectionId: '49097',
+    planningTermId: '924956',
+    seasonBucket: 'Summer 2026',
     config: {
       cfg: {
+        sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
         start: '2026-06-01',
         end: '2026-08-31',
-        sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
       },
     },
     sessions: [
@@ -171,8 +180,13 @@ describe('syncRotaWithProgramme', () => {
     ],
   };
 
-  beforeEach(() => {
-    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
+  it('fetches the programme under the record\'s own planning termId (not the section\'s current active term)', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([]);
+
+    await syncRotaWithProgramme({ rota, token: 'tok' });
+
+    expect(fetchProgrammeMeetings).toHaveBeenCalledWith('49097', '924956', 'tok');
+    expect(CurrentActiveTermsService.getCurrentActiveTerm).not.toHaveBeenCalled();
   });
 
   it('appends columns for new meetings and reports vanished ones', async () => {
@@ -186,8 +200,70 @@ describe('syncRotaWithProgramme', () => {
 
     expect(result.added).toBe(1);
     expect(result.orphaned.map((column) => column.date)).toEqual(['2026-06-09']);
-    const { template } = createOrCompleteFlexiRecord.mock.calls[0][0];
+    const { template, termId } = createOrCompleteFlexiRecord.mock.calls[0][0];
+    // hostTermId (rota.termId), not the planning termId, drives the creation
+    // orchestrator's structure reads.
+    expect(termId).toBe('HT1');
+    expect(template.name).toBe('Viking Water Rota Cubs Summer 2026 [49097.924956]');
     expect(template.fields).toEqual(['RotaConfig', 'S_20260616_49097']);
+  });
+
+  describe('regular pre-fill on sync', () => {
+    // rotaService.js is NOT mocked in this file — loadRota/prefillRegulars run
+    // for real against the mocked API/storage layer below, so a new session
+    // needs a fully decodable structure + grid for the post-create reload.
+    const rotaWithRegulars = {
+      ...rota,
+      config: { cfg: { ...rota.config.cfg, regulars: ['10'] } },
+    };
+    const liveConfigCell = JSON.stringify({
+      v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rotaWithRegulars.config.cfg,
+    });
+
+    beforeEach(() => {
+      createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777, errors: [] });
+      CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'HT1' });
+      getFlexiStructure.mockResolvedValue({
+        config: JSON.stringify([
+          { id: 'f_9', name: 'RotaConfig' },
+          { id: 'f_2', name: 'S_20260602_49097' },
+          { id: 'f_3', name: 'S_20260609_49097' },
+          { id: 'f_4', name: 'S_20260616_49097' },
+        ]),
+      });
+      getSingleFlexiRecord.mockResolvedValue({
+        items: [{ scoutid: 900, firstname: 'Host', lastname: 'Member', f_9: liveConfigCell, f_2: '', f_3: '', f_4: '' }],
+      });
+      fetchProgrammeMeetings.mockResolvedValue([
+        { date: '2026-06-02', startTime: null, endTime: null, title: null },
+        { date: '2026-06-09', startTime: null, endTime: null, title: null },
+        { date: '2026-06-16', startTime: null, endTime: null, title: null },
+      ]);
+    });
+
+    it('pre-fills regulars onto the newly added session ONLY, and reloads with forceRefresh:true', async () => {
+      multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+
+      const result = await syncRotaWithProgramme({ rota: rotaWithRegulars, token: 'tok' });
+
+      expect(result.added).toBe(1);
+      expect(result.prefillErrors).toEqual([]);
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
+      // f_2/f_3 (existing sessions) must never be re-touched by sync's prefill
+      // — only the newly added f_4 (06-16).
+      expect(multiUpdateFlexiRecord.mock.calls[0][3]).toBe('f_4');
+      expect(
+        getFlexiStructure.mock.calls.some((call) => call[4] === true),
+      ).toBe(true);
+    });
+
+    it('surfaces regular pre-fill failures in the result\'s prefillErrors field', async () => {
+      multiUpdateFlexiRecord.mockResolvedValue({ ok: false, message: 'denied' });
+
+      const result = await syncRotaWithProgramme({ rota: rotaWithRegulars, token: 'tok' });
+
+      expect(result.prefillErrors).toEqual([{ fieldId: 'f_4', error: 'denied' }]);
+    });
   });
 
   it('does nothing when the rota already matches', async () => {
@@ -207,6 +283,7 @@ describe('syncRotaWithProgramme', () => {
       titlesSkippedNoIdentity: false,
       uncheckedSections: [],
       failedSections: [],
+      prefillErrors: [],
     });
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
@@ -219,7 +296,11 @@ describe('syncRotaWithProgramme', () => {
     getFlexiStructure.mockResolvedValue({
       config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
     });
-    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    // Patch mode merges onto the LIVE winner re-fetched inside the lock — a
+    // record that already has a plan config (guaranteed by syncRotaWithProgramme's
+    // own guard above) has a real config cell here, not an empty one.
+    const liveConfigCell = JSON.stringify({ v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rota.config.cfg });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: liveConfigCell }] });
     updateFlexiRecord.mockResolvedValue({ ok: true });
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
@@ -248,7 +329,8 @@ describe('syncRotaWithProgramme', () => {
     getFlexiStructure.mockResolvedValue({
       config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
     });
-    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    const liveConfigCell = JSON.stringify({ v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rotaWithState.config.cfg });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: liveConfigCell }] });
     updateFlexiRecord.mockResolvedValue({ ok: true });
 
     const result = await syncRotaWithProgramme({ rota: rotaWithState, token: 'tok', scoutid: 900, by: 'Simon Clark' });
@@ -293,11 +375,17 @@ describe('syncRotaWithProgramme', () => {
     getFlexiStructure.mockResolvedValue({
       config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
     });
-    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: '' }] });
+    // Patch mode merges onto the LIVE winner re-fetched inside the lock, so
+    // this needs a real live config cell (see the sibling test above) —
+    // otherwise the write dies before updateFlexiRecord is ever called and
+    // this test's rejection would be dead code.
+    const liveConfigCell = JSON.stringify({ v: 1, at: '2026-06-01T09:00:00Z', by: 'Setup', cfg: rota.config.cfg });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: liveConfigCell }] });
     updateFlexiRecord.mockRejectedValue(new Error('OSM write rejected'));
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
 
+    expect(updateFlexiRecord).toHaveBeenCalledTimes(1);
     expect(result.titleWriteFailed).toBe(true);
     expect(result.titlesUpdated).toBe(0);
   });
@@ -315,10 +403,39 @@ describe('syncRotaWithProgramme', () => {
     expect(updateFlexiRecord).not.toHaveBeenCalled();
   });
 
-  it('reports a section whose programme fetch fails as failed (not unchecked) and does not orphan it', async () => {
+  it('patch mode preserves a concurrent edit to the live cfg (regulars) while adding the title patch', async () => {
+    fetchProgrammeMeetings.mockResolvedValue([
+      { date: '2026-06-02', startTime: null, endTime: null, title: 'Cubs Kayaking' },
+      { date: '2026-06-09', startTime: null, endTime: null, title: 'Cubs Canoe Trip' },
+    ]);
+    getFlexiStructure.mockResolvedValue({
+      config: JSON.stringify([{ id: 'f_9', name: 'RotaConfig' }]),
+    });
+    // A concurrent editor (e.g. changed regulars) already landed a newer
+    // RotaConfig candidate on the live grid, after `rota` (used here to
+    // compute the title patch) was loaded — the sync write must not clobber it.
+    const liveWinnerCell = JSON.stringify({
+      v: 3, at: '2026-07-01T09:00:00Z', by: 'Other Leader',
+      cfg: { ...rota.config.cfg, regulars: ['77'] },
+    });
+    getSingleFlexiRecord.mockResolvedValue({ items: [{ scoutid: 900, f_9: liveWinnerCell }] });
+    updateFlexiRecord.mockResolvedValue({ ok: true });
+
+    const result = await syncRotaWithProgramme({ rota, token: 'tok', scoutid: 900, by: 'Simon Clark' });
+
+    expect(result.titlesUpdated).toBe(2);
+    const written = JSON.parse(updateFlexiRecord.mock.calls[0][4]);
+    expect(written.v).toBe(4);
+    expect(written.cfg.regulars).toEqual(['77']);
+    expect(written.cfg.sessions).toEqual({
+      S_20260602_49097: { pt: 'Cubs Kayaking' },
+      S_20260609_49097: { pt: 'Cubs Canoe Trip' },
+    });
+  });
+
+  it('reports a failed programme fetch as a failed section and does not orphan its existing sessions', async () => {
     // A fetch error (e.g. expired token) is a real failure — its existing
-    // sessions must NOT be orphaned, and it must be distinguishable from the
-    // benign no-active-term case so the caller can raise an error.
+    // sessions must NOT be orphaned.
     fetchProgrammeMeetings.mockRejectedValue(new Error('OSM 500'));
 
     const result = await syncRotaWithProgramme({ rota, token: 'tok' });
@@ -330,31 +447,30 @@ describe('syncRotaWithProgramme', () => {
     expect(createOrCompleteFlexiRecord).not.toHaveBeenCalled();
   });
 
-  it('flags a section with no active term as unchecked (not failed) and does not orphan it', async () => {
-    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: null });
-
-    const result = await syncRotaWithProgramme({ rota, token: 'tok' });
-
-    expect(result.orphaned).toEqual([]);
-    expect(result.uncheckedSections).toEqual(['49097']);
-    expect(result.failedSections).toEqual([]);
-  });
-
   it('throws without a plan config', async () => {
     await expect(syncRotaWithProgramme({ rota: { ...rota, config: null }, token: 'tok' })).rejects.toThrow(/config/);
   });
 });
 
 describe('activateWaterSession', () => {
-  const rota = { year: 2026, hostSection: HOST_SECTION, recordId: 777, termId: 'T1' };
+  const rota = {
+    hostSection: HOST_SECTION,
+    recordId: 777,
+    termId: 'HT1',
+    sectionId: '49097',
+    planningTermId: '924956',
+    seasonBucket: 'Summer 2026',
+    config: {
+      cfg: { sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' },
+    },
+  };
 
   beforeEach(() => {
     databaseService.getSections.mockResolvedValue([HOST_SECTION]);
     databaseService.getFlexiData.mockResolvedValue(null);
     databaseService.saveFlexiData.mockResolvedValue(undefined);
     databaseService.getMembers.mockResolvedValue([]);
-    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
-    getFlexiRecords.mockResolvedValue({ items: [{ name: 'Viking Water Rota 2026', extraid: 777 }] });
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'HT1' });
     getFlexiStructure.mockResolvedValue({
       config: JSON.stringify([
         { id: 'f_1', name: 'RotaConfig' },
@@ -380,6 +496,10 @@ describe('activateWaterSession', () => {
       scoutid: 10,
       token: 'tok',
     });
+
+    const { template, termId } = createOrCompleteFlexiRecord.mock.calls[0][0];
+    expect(termId).toBe('HT1');
+    expect(template.name).toBe('Viking Water Rota Cubs Summer 2026 [49097.924956]');
 
     const [, , , columnid, value] = updateFlexiRecord.mock.calls[0];
     expect(columnid).toBe('f_2');
@@ -430,6 +550,23 @@ describe('activateWaterSession', () => {
       }),
     ).rejects.toThrow(/could not be confirmed/);
     expect(updateFlexiRecord).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the cached section name when the rota has no config yet', async () => {
+    createOrCompleteFlexiRecord.mockResolvedValue({ success: true, flexirecordid: 777 });
+
+    await activateWaterSession({
+      rota: { ...rota, config: null, sectionNames: { '49097': 'Cubs' } },
+      date: '2026-07-14',
+      sectionId: '49097',
+      fields: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3 },
+      by: 'Simon Clark',
+      scoutid: 10,
+      token: 'tok',
+    });
+
+    const { template } = createOrCompleteFlexiRecord.mock.calls[0][0];
+    expect(template.name).toBe('Viking Water Rota Cubs Summer 2026 [49097.924956]');
   });
 });
 

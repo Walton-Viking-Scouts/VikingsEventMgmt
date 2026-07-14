@@ -31,8 +31,8 @@ const BUCKET_LABELS = [
 function MyCommitmentsPage() {
   const { loading, rota, error, refresh } = useWaterRota();
   const identityState = useRotaIdentity(rota);
-  const { identity, needsPicker, choose } = identityState;
-  const { setSignup, pendingFieldId } = useRotaSignup(rota, identity, refresh);
+  const { identity, needsPicker, choose, clear } = identityState;
+  const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
@@ -53,13 +53,18 @@ function MyCommitmentsPage() {
 
   const upcomingSoon = buckets.thisWeek.length + buckets.nextWeek.length;
 
+  const handleChangeIdentity = () => {
+    clear();
+    setPickerOpen(true);
+  };
+
   const handleSignupChange = (session, newStatus) => {
     const currentStatus = myStatusFor(session, identity.scoutid);
     if (withdrawalNeedsConfirm(session, currentStatus, newStatus)) {
       setConfirmChange({ session, newStatus });
       return;
     }
-    setSignup(session.fieldId, newStatus);
+    setSignup(session, newStatus);
   };
 
   if (loading) {
@@ -112,8 +117,17 @@ function MyCommitmentsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-4">
-      <h1 className="text-lg font-semibold text-gray-900">My sessions</h1>
+    <div className="max-w-3xl lg:max-w-6xl mx-auto px-4 py-4">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold text-gray-900">My sessions</h1>
+        <button
+          type="button"
+          onClick={handleChangeIdentity}
+          className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
+        >
+          Change who I am
+        </button>
+      </div>
       <p className="mt-1 text-sm text-gray-600">
         {upcomingSoon === 0
           ? 'Nothing in the next two weeks.'
@@ -145,7 +159,7 @@ function MyCommitmentsPage() {
                       session={session}
                       myStatus={myStatusFor(session, identity.scoutid)}
                       onSignupChange={handleSignupChange}
-                      signupPending={Boolean(session.fieldId) && pendingFieldId === session.fieldId}
+                      signupPending={Boolean(session.fieldId) && pendingKey === session.key}
                     />
                   ))}
                 </div>
@@ -167,7 +181,7 @@ function MyCommitmentsPage() {
         cancelText="Stay signed up"
         confirmVariant="warning"
         onConfirm={() => {
-          setSignup(confirmChange.session.fieldId, confirmChange.newStatus);
+          setSignup(confirmChange.session, confirmChange.newStatus);
           setConfirmChange(null);
         }}
         onCancel={() => setConfirmChange(null)}

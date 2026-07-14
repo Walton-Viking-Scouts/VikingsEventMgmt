@@ -21,12 +21,20 @@ vi.mock('../../../../shared/utils/notifications.js', () => ({
 }));
 
 import SessionDetailModal from '../SessionDetailModal.jsx';
-import { assignSignup } from '../../services/rotaService.js';
+import { assignSignup, writeSessionMeta } from '../../services/rotaService.js';
 import { activateWaterSession } from '../../services/rotaSetupService.js';
 import { notifyError, notifySuccess } from '../../../../shared/utils/notifications.js';
 import { SIGNUP_STATUS } from '../../services/rotaEncoding.js';
 
 const IDENTITY = { scoutid: '10', name: 'Simon Clark' };
+
+// The session's owning record (rotaService.assembleRotaGroup's `record`
+// back-reference) — every write call site routes to this, not the group.
+const RECORD = {
+  hostSection: { sectionid: '1' },
+  recordId: 'record-49097',
+  termId: 'term-1',
+};
 
 function makeSession(overrides = {}) {
   return {
@@ -44,14 +52,16 @@ function makeSession(overrides = {}) {
     hasMeta: true,
     confirmed: [],
     backups: [],
+    record: RECORD,
     ...overrides,
   };
 }
 
+// The rota group prop: SessionDetailModal only reads it for the shared
+// member roster (AddPermitHolderModal) — writes route via session.record.
 const ROTA = {
   hostSection: { sectionid: '1' },
-  year: 2026,
-  termId: 'term-1',
+  seasonBucket: 'Summer 2026',
   members: [
     { scoutid: '10', name: 'Simon Clark' },
     { scoutid: '30', name: 'New Permit Holder' },
@@ -96,7 +106,7 @@ describe('SessionDetailModal', () => {
 
     expect(activateWaterSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        rota: ROTA,
+        rota: RECORD,
         date: '2026-07-14',
         sectionId: '49097',
         by: IDENTITY.name,
@@ -139,7 +149,7 @@ describe('SessionDetailModal', () => {
 
     await waitFor(() => expect(assignSignup).toHaveBeenCalledTimes(1));
     expect(assignSignup).toHaveBeenCalledWith({
-      rota: ROTA,
+      rota: RECORD,
       fieldId: 'f_5',
       scoutid: '30',
       status: null,
@@ -189,7 +199,7 @@ describe('SessionDetailModal', () => {
     await waitFor(() => expect(assignSignup).toHaveBeenCalledTimes(1));
 
     expect(assignSignup).toHaveBeenCalledWith({
-      rota: ROTA,
+      rota: RECORD,
       fieldId: 'f_5',
       scoutid: '30',
       status: SIGNUP_STATUS.IN,
@@ -197,6 +207,88 @@ describe('SessionDetailModal', () => {
     });
     expect(notifySuccess).toHaveBeenCalledWith('Permit holder added');
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('saves only the fields the editor actually changed (dirty-field patch)', async () => {
+    const refresh = vi.fn(async () => undefined);
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession()}
+        refresh={refresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '19:00' } });
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith({
+      rota: RECORD,
+      fieldId: 'f_5',
+      scoutid: IDENTITY.scoutid,
+      by: IDENTITY.name,
+      metaPatch: { st: '19:00' },
+      token: 'tok',
+      base: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3, n: '', c: 0 },
+    });
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('passes the session\'s config-derived values as the merge base on a notes-only edit (virgin column)', async () => {
+    const refresh = vi.fn(async () => undefined);
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        // hasMeta: false — activity/times/kids/needed here come from the
+        // section's config defaults, not from any saved meta.
+        session={makeSession({ hasMeta: false, activity: 'Sailing', startTime: '17:00', endTime: '18:30', kids: 12, needed: 2 })}
+        refresh={refresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Bring lifejackets' } });
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith(expect.objectContaining({
+      metaPatch: { n: 'Bring lifejackets' },
+      base: { act: 'Sailing', st: '17:00', en: '18:30', k: 12, p: 2, n: '', c: 0 },
+    }));
+  });
+
+  it('skips the write entirely when the editor saves without changing anything', async () => {
+    const refresh = vi.fn(async () => undefined);
+    const onClose = vi.fn();
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        session={makeSession()}
+        refresh={refresh}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(writeSessionMeta).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('marking not on water patches only the cancelled flag, so a concurrent edit to other fields survives', async () => {
+    render(<SessionDetailModal {...baseProps} session={makeSession()} />);
+
+    fireEvent.click(screen.getByText('Not on water this week'));
+    fireEvent.click(screen.getByRole('button', { name: 'Not on water' }));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith(expect.objectContaining({
+      metaPatch: { c: 1 },
+    }));
   });
 
   it('blocks putting on the water without a picked identity', async () => {

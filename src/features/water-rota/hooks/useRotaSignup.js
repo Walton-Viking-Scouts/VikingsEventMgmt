@@ -24,26 +24,32 @@ function successMessage(status) {
 }
 
 /**
- * Perform signup changes against a loaded rota.
+ * Perform signup changes against a loaded rota group. Pending state is keyed
+ * on the session's column-name key (globally unique across every record in
+ * the group), not its field id — field ids like "f_1" repeat across records,
+ * so two same-fieldId sessions in different records must not cross-trigger
+ * pending state. Each write routes to the session's own owning record
+ * ({@link import('../utils/rotaDisplay.js').SessionView.record}) rather
+ * than the group.
  *
- * @param {import('../services/rotaService.js').LoadedRota|null} rota - Loaded rota
+ * @param {import('../services/rotaService.js').RotaGroup|null} rota - Loaded rota group
  * @param {{scoutid: string}|null} identity - Resolved member identity
  * @param {Function} refresh - Re-load the rota after a successful write
- * @returns {{setSignup: Function, pendingFieldId: string|null}} Signup API
+ * @returns {{setSignup: Function, pendingKey: string|null}} Signup API
  */
 export function useRotaSignup(rota, identity, refresh) {
-  const [pendingFieldId, setPendingFieldId] = useState(null);
+  const [pendingKey, setPendingKey] = useState(null);
 
   const setSignup = useCallback(
-    async (fieldId, status) => {
-      if (!rota || !identity) {
+    async (session, status) => {
+      if (!rota || !identity || !session) {
         return;
       }
-      setPendingFieldId(fieldId);
+      setPendingKey(session.key);
       try {
         await writeSignup({
-          rota,
-          fieldId,
+          rota: session.record,
+          fieldId: session.fieldId,
           scoutid: identity.scoutid,
           status,
           token: getToken(),
@@ -57,11 +63,11 @@ export function useRotaSignup(rota, identity, refresh) {
           notifyError(`Signup failed: ${error.message}`);
         }
       } finally {
-        setPendingFieldId(null);
+        setPendingKey(null);
       }
     },
     [rota, identity, refresh],
   );
 
-  return { setSignup, pendingFieldId };
+  return { setSignup, pendingKey };
 }

@@ -15,14 +15,34 @@ import SignupButtons from './SignupButtons.jsx';
 import AddPermitHolderModal from './AddPermitHolderModal.jsx';
 
 /**
+ * Only the keys of `next` whose value actually differs from `base` — so a
+ * save only carries the fields the editor actually touched, letting a
+ * concurrent co-leader's edit to any other field survive the live-winner
+ * merge in writeSessionMeta.
+ *
+ * @param {Object} next - Fields as submitted by the form
+ * @param {Object} base - The values the form opened with
+ * @returns {Object} Patch of only the changed keys
+ */
+function diffFields(next, base) {
+  const patch = {};
+  for (const [key, value] of Object.entries(next)) {
+    if (value !== base[key]) {
+      patch[key] = value;
+    }
+  }
+  return patch;
+}
+
+/**
  * Session detail: who's signed up, session notes, a copy-link button to share
  * the session, a one-tap signup footer, and — for plan editors — the edit form,
  * add/remove permit-holder controls, and the "Not on water" / "Put on the
  * water" toggles.
  *
  * @param {Object} props
- * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed)
- * @param {import('../services/rotaService.js').LoadedRota} props.rota - Loaded rota
+ * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed); writes route to `session.record`, its owning record
+ * @param {import('../services/rotaService.js').RotaGroup} props.rota - Loaded rota group (used here only for the shared member roster)
  * @param {{scoutid: string, name: string}|null} props.identity - Resolved identity (required for edits/signups)
  * @param {boolean} props.canEdit - Offer plan-editing UI
  * @param {number|null} props.sectionYPCount - Section YP total for the kids default
@@ -62,15 +82,29 @@ function SessionDetailModal({
       notifyError('Pick your name first so edits can be attributed to you.');
       return;
     }
+    // Only send the fields the editor actually changed from what the form
+    // opened with — a full-object write would silently discard a concurrent
+    // co-leader's edit to any field left untouched here.
+    const metaPatch = diffFields(fields, currentFields);
+    if (Object.keys(metaPatch).length === 0) {
+      setEditing(false);
+      onClose();
+      return;
+    }
     setSaving(true);
     try {
       await writeSessionMeta({
-        rota,
+        rota: session.record,
         fieldId: session.fieldId,
         scoutid: identity.scoutid,
         by: identity.name,
-        fields,
+        metaPatch,
         token: getToken(),
+        // Resolved effective values (config-derived when the column has no
+        // meta yet) — the merge base for a virgin column, so a first write
+        // (e.g. notes-only) doesn't reset activity/times/permits to global
+        // defaults.
+        base: currentFields,
       });
       notifySuccess(successText ?? 'Session updated');
       setEditing(false);
@@ -89,7 +123,8 @@ function SessionDetailModal({
     en: session.endTime || '20:00',
     k: session.kids ?? sectionYPCount ?? 0,
     p: session.needed ?? 0,
-    n: session.notes,
+    n: session.notes ?? '',
+    c: session.cancelled ? 1 : 0,
   };
 
   const handleSave = (fields) => saveMeta({ ...fields, c: session.cancelled ? 1 : 0 });
@@ -107,7 +142,7 @@ function SessionDetailModal({
     setSaving(true);
     try {
       await activateWaterSession({
-        rota,
+        rota: session.record,
         date: session.date,
         sectionId: session.sectionId,
         fields,
@@ -134,7 +169,7 @@ function SessionDetailModal({
     }
     setAssigning(true);
     try {
-      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: SIGNUP_STATUS.IN, token: getToken() });
+      await assignSignup({ rota: session.record, fieldId: session.fieldId, scoutid, status: SIGNUP_STATUS.IN, token: getToken() });
       notifySuccess('Permit holder added');
       setAddingPermitHolder(false);
       await refresh();
@@ -151,7 +186,7 @@ function SessionDetailModal({
     }
     setRemovingScoutid(scoutid);
     try {
-      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: null, token: getToken() });
+      await assignSignup({ rota: session.record, fieldId: session.fieldId, scoutid, status: null, token: getToken() });
       notifySuccess('Removed from this session');
       await refresh();
     } catch (error) {

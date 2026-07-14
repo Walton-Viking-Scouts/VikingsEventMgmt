@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateWaterRotaStructure } from '../vikingWaterRotaValidation.js';
-import { parseRotaRecordYear, buildRotaRecordName } from '../rotaTemplates.js';
 
 describe('validateWaterRotaStructure', () => {
   it('accepts a structure with RotaConfig and session columns, ignoring strays', () => {
@@ -35,17 +34,5 @@ describe('validateWaterRotaStructure', () => {
   it('fails safely on a missing structure', () => {
     expect(validateWaterRotaStructure(null).isValid).toBe(false);
     expect(validateWaterRotaStructure({}).isValid).toBe(false);
-  });
-});
-
-describe('rota record naming', () => {
-  it('round-trips the year', () => {
-    expect(parseRotaRecordYear(buildRotaRecordName(2026))).toBe(2026);
-  });
-
-  it('rejects other record names', () => {
-    expect(parseRotaRecordYear('Viking Event Mgmt')).toBeNull();
-    expect(parseRotaRecordYear('Viking Water Rota')).toBeNull();
-    expect(parseRotaRecordYear(null)).toBeNull();
   });
 });

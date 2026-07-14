@@ -1,15 +1,17 @@
 /**
  * Pure encoding/decoding for the Water Rota FlexiRecord.
  *
- * Layout: one FlexiRecord per year in a host section. Rows are host-section
- * members. A permit holder only ever writes their own row's signup cell, so
- * signups never conflict across users (setup/regular pre-fill is the one
- * exception — the organiser writes other members' cells once, up front). Two
- * column kinds:
+ * Layout: one FlexiRecord per (planning section, that section's own term),
+ * all hosted in the Adults section. Rows are host-section members. A permit
+ * holder only ever writes their own row's signup cell, so signups never
+ * conflict across users (setup/regular pre-fill and a leader's assignSignup
+ * are the two exceptions — the organiser/leader writes another member's cell
+ * directly). Two column kinds:
  *
- * - "RotaConfig": whole-plan config JSON. Written to a single deterministic
- *   anchor row (the lowest-scoutid host member), not the editor's own row;
- *   readers take the last-writer-wins (LWW) winner across all rows by (v, at).
+ * - "RotaConfig": one section's whole-plan config JSON. The row it's written
+ *   to is caller-designated — setup passes a deterministic member row, and
+ *   programme sync's title backfill passes the editor's own row; readers
+ *   take the last-writer-wins (LWW) winner across all rows by (v, at).
  * - "S_<yyyymmdd>_<sectionid>": one column per session. A cell holds the row
  *   member's signup (s/sat) plus an optional session-metadata candidate (m);
  *   readers take the LWW winner of m across the column.
@@ -38,21 +40,6 @@ const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const isoInstantSchema = z.string().min(1);
 
-const sectionDefaultsSchema = z
-  .object({
-    sid: z.string().min(1),
-    sname: z.string(),
-    act: z.string(),
-    st: timeSchema,
-    en: timeSchema,
-    k: z.number().int().nonnegative().optional(),
-    p: z.number().int().nonnegative().optional(),
-    // Scoutids of the section's regular permit holders — pre-filled as
-    // confirmed signups on every on-water session for the section.
-    regulars: z.array(z.string()).optional(),
-  })
-  .passthrough();
-
 const sessionOverrideSchema = z
   .object({
     act: z.string().optional(),
@@ -72,12 +59,22 @@ const rotaConfigSchema = z
     v: z.number().int().nonnegative(),
     at: isoInstantSchema,
     by: z.string(),
+    // One section's whole plan — a single-section record has nothing to
+    // merge, so this replaces the old cfg.sections[] array.
     cfg: z
       .object({
-        start: isoDateSchema,
-        end: isoDateSchema,
-        termId: z.string().optional(),
-        sections: z.array(sectionDefaultsSchema),
+        sid: z.string().min(1),
+        sname: z.string(),
+        act: z.string(),
+        st: timeSchema,
+        en: timeSchema,
+        k: z.number().int().nonnegative().optional(),
+        p: z.number().int().nonnegative().optional(),
+        // Scoutids of the section's regular permit holders — pre-filled as
+        // confirmed signups on every on-water session for the section.
+        regulars: z.array(z.string()).optional(),
+        start: isoDateSchema.optional(),
+        end: isoDateSchema.optional(),
         sessions: z.record(z.string(), sessionOverrideSchema).optional(),
       })
       .passthrough(),
@@ -248,7 +245,9 @@ export function encodeSessionMeta(existingRaw, meta) {
 }
 
 /**
- * Encode a whole-plan config candidate for the editor's own RotaConfig cell.
+ * Encode a whole-plan config candidate. Pure encode — the caller selects
+ * which row's RotaConfig cell to store it in (setup passes a deterministic
+ * row; sync passes the editor's own row).
  *
  * @param {Object} candidate - Full candidate ({v, at, by, cfg})
  * @returns {string} New raw cell value

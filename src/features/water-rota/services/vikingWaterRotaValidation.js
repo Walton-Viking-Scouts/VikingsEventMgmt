@@ -1,5 +1,7 @@
 /**
- * Structure validation for a "Viking Water Rota <year>" FlexiRecord.
+ * Structure validation for a "Viking Water Rota <SectionName> <SeasonBucket>
+ * [<sectionid>.<termid>]" FlexiRecord (one per planning section's own term,
+ * hosted in the Adults section).
  *
  * Pure sibling of vikingEventMgmtValidation: it takes an already-fetched
  * structure (fieldMapping) rather than fetching, because rota discovery and

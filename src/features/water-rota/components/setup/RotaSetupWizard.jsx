@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
@@ -10,8 +10,8 @@ import logger, { LOG_CATEGORIES } from '../../../../shared/services/utils/logger
 import { fetchProgrammeMeetings } from '../../services/programmeService.js';
 import { getTerms } from '../../../../shared/services/api/api/index.js';
 import { createOrCompleteRota, writeRotaConfig } from '../../services/rotaSetupService.js';
-import { loadRota, prefillRegulars } from '../../services/rotaService.js';
-import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle, looksLikeWaterSession } from '../../services/rotaTemplates.js';
+import { discoverRotaRecords, findHostSection, loadRota, prefillRegulars } from '../../services/rotaService.js';
+import { ACTIVITY_PRESETS, DEFAULT_PERMIT_HOLDERS, DEFAULT_SESSION_TIMES, guessActivityFromTitle, looksLikeWaterSession, seasonBucketForRange } from '../../services/rotaTemplates.js';
 import { buildSessionColumnName, parseSessionColumnName } from '../../services/rotaEncoding.js';
 import { expandWeeklySlot, generateSessionsFromProgramme, bucketSessionsByWeek } from '../../utils/rotaDates.js';
 import { buildSessionOverrides } from '../../utils/rotaSetupPlan.js';
@@ -25,7 +25,7 @@ const WEEKDAYS = [
 ];
 
 /**
- * Default per-section plan used until the leader adjusts it.
+ * Default plan used until the leader adjusts it.
  *
  * @returns {Object} Plan defaults
  */
@@ -45,16 +45,16 @@ function defaultPlan() {
 }
 
 /**
- * Build session descriptors for one section from its plan: programme
- * meetings (minus unticked ones) when the programme has any, otherwise the
- * weekly slot fallback.
+ * Build session descriptors for the planning section from its plan:
+ * programme meetings (minus unticked ones) when the programme has any,
+ * otherwise the weekly slot fallback.
  *
  * @param {Object} section - {sid, sname}
- * @param {Object} plan - Per-section plan state
+ * @param {Object} plan - Plan state
  * @param {{start: string, end: string}} range - Rota date range
  * @returns {Array} Session descriptors
  */
-function sessionsForSection(section, plan, range) {
+function sessionsForPlan(section, plan, range) {
   const sectionCfg = { sid: section.sid, sname: section.sname, act: plan.act, st: plan.st, en: plan.en };
   if (plan.meetings && plan.meetings.length > 0) {
     // Every programme meeting becomes a session; onWater (checkbox) decides
@@ -72,168 +72,168 @@ function sessionsForSection(section, plan, range) {
 }
 
 /**
- * Three-step wizard creating the yearly rota record: (1) host section,
- * participating sections, and date range; (2) programme review with
- * on-water checkboxes per meeting (weekly-slot fallback for sections with
- * an empty programme); (3) preview and resumable creation, followed by the
- * initial plan-config write attributed to the resolved identity.
+ * Waiting-list sections never plan their own rota (no programme to build one
+ * from) — detected by name/type matching /waiting/i. The Adults host section
+ * is excluded separately by each call site (comparing against
+ * findHostSection's id), not by this check.
+ *
+ * @param {Object} section - Cached section
+ * @returns {boolean} True when the section looks like a waiting list
+ */
+function isWaitingList(section) {
+  return /waiting/i.test(`${section.section ?? ''} ${section.sectiontype ?? ''} ${section.sectionname ?? ''}`);
+}
+
+/**
+ * Three-step wizard creating (or completing) ONE planning section's own rota
+ * record, hosted in the Adults section: (1) section + its own term + date
+ * range; (2) programme review for that section only, with on-water
+ * checkboxes per meeting (weekly-slot fallback for an empty programme); (3)
+ * preview and resumable creation, followed by the plan-config write and
+ * regular pre-fill. Re-running against a section/term that already has a
+ * record seeds the wizard from its existing config. A `?section=<sectionid>`
+ * query param (as set by the board's "Edit plan" link) pre-selects that
+ * section on load when it's one of the leader's cached sections; otherwise
+ * the usual first-youth-section default applies.
  *
  * @returns {JSX.Element} Setup wizard page
  */
 function RotaSetupWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const token = getToken();
 
   const [step, setStep] = useState(1);
   const [sections, setSections] = useState(null);
-  const [hostSectionId, setHostSectionId] = useState(null);
-  const [selectedIds, setSelectedIds] = useState({});
+  const [descriptors, setDescriptors] = useState([]);
+  const [sectionId, setSectionId] = useState(null);
   const [range, setRange] = useState({ start: '', end: '' });
   const [terms, setTerms] = useState(null);
+  const [termsError, setTermsError] = useState(null);
+  const [termsRetryCount, setTermsRetryCount] = useState(0);
   const [selectedTermId, setSelectedTermId] = useState('');
-  const [plans, setPlans] = useState({});
+  const [plan, setPlan] = useState(defaultPlan());
   const [loadingProgramme, setLoadingProgramme] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creationErrors, setCreationErrors] = useState([]);
-  const [activeSectionSid, setActiveSectionSid] = useState(null);
-  const seededFromConfig = useRef(false);
+  const [initError, setInitError] = useState(null);
+  const [initAttempt, setInitAttempt] = useState(0);
+  const [seedError, setSeedError] = useState(null);
+  const [seedRetryCount, setSeedRetryCount] = useState(0);
+  const seededKeyRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     async function init() {
-      const cached = (await databaseService.getSections()) || [];
-      if (cancelled) {
-        return;
+      setInitError(null);
+      try {
+        const cached = (await databaseService.getSections()) || [];
+        const discovered = await discoverRotaRecords(token);
+        if (cancelled) {
+          return;
+        }
+        setSections(cached);
+        setDescriptors(discovered);
+        const host = findHostSection(cached);
+        // A hand-crafted ?section= naming the host (Adults) or a waiting-list
+        // section must not pre-select an invalid planning section — only a
+        // real youth section is eligible, same filter as the default below.
+        const requestedSectionId = searchParams.get('section');
+        const requested = requestedSectionId
+          && cached.find((section) =>
+            String(section.sectionid) === requestedSectionId
+            && (!host || section.sectionid !== host.sectionid)
+            && !isWaitingList(section));
+        if (requested) {
+          setSectionId(String(requested.sectionid));
+          return;
+        }
+        const firstYouth = cached.find(
+          (section) => (!host || section.sectionid !== host.sectionid) && !isWaitingList(section),
+        );
+        if (firstYouth) {
+          setSectionId(String(firstYouth.sectionid));
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        // Either read (sections or the existing-rota discovery) can fail —
+        // both leave the wizard unable to proceed safely: a swallowed
+        // discovery failure would read as "no existing rota" and a later
+        // save would overwrite the section's real config with defaults.
+        logger.error('Setup: failed to load sections or existing rota records', {
+          error: error.message,
+        }, LOG_CATEGORIES.APP);
+        setInitError(error.message || 'Something went wrong loading setup data');
       }
-      setSections(cached);
-      const isWaitingList = (section) =>
-        /waiting/i.test(`${section.section ?? ''} ${section.sectiontype ?? ''} ${section.sectionname ?? ''}`);
-      const isAdults = (section) =>
-        `${section.section ?? ''} ${section.sectionname ?? ''}`.toLowerCase().includes('adult');
-
-      const adults = cached.find(isAdults);
-      if (adults) {
-        setHostSectionId(String(adults.sectionid));
-      }
-      // Auto-select the youth sections that actually run programmes — not the
-      // Adults host, and not waiting lists (which have no meetings and would
-      // otherwise generate a full year of weekly-slot sessions).
-      const youthSections = cached.filter(
-        (section) => !isAdults(section) && !isWaitingList(section),
-      );
-      setSelectedIds(Object.fromEntries(youthSections.map((section) => [String(section.sectionid), true])));
     }
     init();
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initAttempt]);
 
-  // On "Edit plan", seed the wizard from the existing rota so prior choices
-  // (regulars, section defaults, date range, not-on-water weeks) are not lost.
-  useEffect(() => {
-    let cancelled = false;
-    async function seedFromExisting() {
-      if (!sections || seededFromConfig.current) {
-        return;
-      }
-      try {
-        const existing = await loadRota(new Date().getFullYear(), token);
-        const cfg = existing?.config?.cfg;
-        if (cancelled || !cfg || !Array.isArray(cfg.sections) || cfg.sections.length === 0) {
-          return;
-        }
-        seededFromConfig.current = true;
+  const hostSection = useMemo(() => findHostSection(sections ?? []), [sections]);
 
-        if (existing.hostSection) {
-          setHostSectionId(String(existing.hostSection.sectionid));
-        }
-        if (cfg.start && cfg.end) {
-          setRange({ start: cfg.start.slice(0, 10), end: cfg.end.slice(0, 10) });
-        }
-        setSelectedIds(Object.fromEntries(cfg.sections.map((s) => [String(s.sid), true])));
-
-        // Reconstruct which meeting dates were marked not-on-water (config
-        // holds those as {c:1}); on-water weeks were columns, not in config.
-        const offBySection = {};
-        for (const [colName, override] of Object.entries(cfg.sessions ?? {})) {
-          if (override?.c === 1) {
-            const parsed = parseSessionColumnName(colName);
-            if (parsed) {
-              (offBySection[parsed.sectionId] ??= {})[parsed.date] = true;
-            }
-          }
-        }
-
-        setPlans(Object.fromEntries(cfg.sections.map((s) => [
-          String(s.sid),
-          {
-            ...defaultPlan(),
-            act: s.act ?? ACTIVITY_PRESETS[0],
-            st: s.st ?? DEFAULT_SESSION_TIMES.start,
-            en: s.en ?? DEFAULT_SESSION_TIMES.end,
-            k: s.k ?? null,
-            p: s.p ?? DEFAULT_PERMIT_HOLDERS,
-            regulars: Array.isArray(s.regulars) ? s.regulars : [],
-            excluded: offBySection[String(s.sid)] ?? {},
-          },
-        ])));
-      } catch (error) {
-        logger.warn('Setup: no existing rota to seed from', {
-          error: error.message,
-        }, LOG_CATEGORIES.APP);
-      }
+  const section = useMemo(() => {
+    if (!sectionId || !sections) {
+      return null;
     }
-    seedFromExisting();
-    return () => {
-      cancelled = true;
-    };
-  }, [sections]);
+    const found = sections.find((s) => String(s.sectionid) === sectionId);
+    return found ? { sid: sectionId, sname: found.sectionname } : null;
+  }, [sectionId, sections]);
 
-  const hostSection = useMemo(
-    () => (sections ?? []).find((section) => String(section.sectionid) === hostSectionId) ?? null,
-    [sections, hostSectionId],
+  const existingDescriptor = useMemo(
+    () => descriptors.find((d) => d.sectionId === sectionId && d.termId === selectedTermId) ?? null,
+    [descriptors, sectionId, selectedTermId],
   );
 
-  const participating = useMemo(
-    () =>
-      (sections ?? [])
-        .filter((section) => selectedIds[String(section.sectionid)])
-        .map((section) => ({ sid: String(section.sectionid), sname: section.sectionname })),
-    [sections, selectedIds],
-  );
-
-  const rangeSourceSid = participating[0]?.sid ?? hostSectionId;
-
-  // Load the range-source section's terms for the picker, and default the
-  // selection + week range to its current active term — the youth section's
-  // term is the real school term, unlike the Adults host term which often
-  // spans a full year. A seeded range (re-run of an existing rota) is kept.
+  // Load the planning section's own terms, defaulting the selection + range
+  // to its current active term. Switching sections re-picks from scratch.
+  // Terms are mandatory under the term model (a record's identity pins a
+  // term), so a fetch failure here must be visible and retryable rather than
+  // silently leaving "Next: review programme" disabled with no explanation.
   useEffect(() => {
     let cancelled = false;
-    async function loadTerms() {
-      if (!rangeSourceSid) {
+    async function loadTermsForSection() {
+      if (!sectionId) {
         return;
       }
+      setSelectedTermId('');
+      setRange({ start: '', end: '' });
+      setTerms(null);
+      setTermsError(null);
+      seededKeyRef.current = null;
       let list = [];
       try {
         const all = await getTerms(token);
-        list = (all?.[String(rangeSourceSid)] ?? [])
+        list = (all?.[sectionId] ?? [])
           .filter((term) => term.startdate && term.enddate)
           .sort((a, b) => a.startdate.localeCompare(b.startdate));
-      } catch {
-        /* offline or fetch failed — the leader can still type dates below */
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        logger.error('Setup: failed to load terms for section', {
+          sectionId,
+          error: error.message,
+        }, LOG_CATEGORIES.APP);
+        setTerms([]);
+        setTermsError(error.message || 'Could not load terms');
+        return;
       }
       if (cancelled) {
         return;
       }
       setTerms(list);
-      if (selectedTermId || list.length === 0) {
+      if (list.length === 0) {
         return;
       }
       let current = null;
       try {
-        current = await CurrentActiveTermsService.getCurrentActiveTerm(rangeSourceSid);
+        current = await CurrentActiveTermsService.getCurrentActiveTerm(sectionId);
       } catch {
         /* no cached current term — fall back to the latest term */
       }
@@ -241,88 +241,204 @@ function RotaSetupWizard() {
         ?? list[list.length - 1];
       if (!cancelled && chosen) {
         setSelectedTermId(String(chosen.termid));
-        if (!range.start) {
-          setRange({ start: chosen.startdate.slice(0, 10), end: chosen.enddate.slice(0, 10) });
-        }
+        setRange({ start: chosen.startdate.slice(0, 10), end: chosen.enddate.slice(0, 10) });
       }
     }
-    loadTerms();
+    loadTermsForSection();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeSourceSid]);
+  }, [sectionId, termsRetryCount]);
 
-  const participatingSids = useMemo(() => participating.map((section) => section.sid), [participating]);
-  const { counts: ypCounts } = useSectionYPCounts(participatingSids);
-  const { candidates: leaderCandidates } = useSectionLeaders(participatingSids, hostSectionId);
+  // Re-edit: seed the wizard from the existing record's config when the
+  // chosen (section, term) already has one, so prior choices aren't lost.
+  // This effect only ever runs when a record already exists, so any failure
+  // here is a real load failure, not "no existing rota" — proceeding to
+  // create() on defaultPlan() would write replace:true defaults over the
+  // section's real plan, so the create path stays blocked until it succeeds.
+  useEffect(() => {
+    let cancelled = false;
+    async function seedFromExisting() {
+      if (!existingDescriptor) {
+        setSeedError(null);
+        return;
+      }
+      const seedKey = `${existingDescriptor.sectionId}.${existingDescriptor.termId}`;
+      if (seededKeyRef.current === seedKey) {
+        return;
+      }
+      setSeedError(null);
+      try {
+        const existing = await loadRota(existingDescriptor, token);
+        const cfg = existing?.config?.cfg;
+        if (cancelled) {
+          return;
+        }
+        seededKeyRef.current = seedKey;
+        if (!cfg) {
+          return;
+        }
+        if (cfg.start && cfg.end) {
+          setRange({ start: cfg.start.slice(0, 10), end: cfg.end.slice(0, 10) });
+        }
+        // Reconstruct which meeting dates were marked not-on-water (config
+        // holds those as {c:1}); on-water weeks were columns, not in config.
+        const excluded = {};
+        for (const [colName, override] of Object.entries(cfg.sessions ?? {})) {
+          if (override?.c === 1) {
+            const parsed = parseSessionColumnName(colName);
+            if (parsed) {
+              excluded[parsed.date] = true;
+            }
+          }
+        }
+        setPlan((previous) => ({
+          ...previous,
+          act: cfg.act ?? previous.act,
+          st: cfg.st ?? previous.st,
+          en: cfg.en ?? previous.en,
+          k: cfg.k ?? previous.k,
+          p: cfg.p ?? previous.p,
+          regulars: Array.isArray(cfg.regulars) ? cfg.regulars : previous.regulars,
+          excluded,
+        }));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        logger.error('Setup: failed to load existing rota to seed the wizard', {
+          sectionId: existingDescriptor.sectionId,
+          termId: existingDescriptor.termId,
+          error: error.message,
+        }, LOG_CATEGORIES.APP);
+        notifyError('Couldn\'t load this section\'s existing plan — retry before editing');
+        setSeedError(error.message || 'Could not load the existing plan');
+      }
+    }
+    seedFromExisting();
+    return () => {
+      cancelled = true;
+    };
+  }, [existingDescriptor, token, seedRetryCount]);
 
-  const activeSid = participating.some((s) => s.sid === activeSectionSid)
-    ? activeSectionSid
-    : participating[0]?.sid ?? null;
-  const activeSection = participating.find((s) => s.sid === activeSid) ?? null;
+  const { counts: ypCounts } = useSectionYPCounts(sectionId ? [sectionId] : []);
+  const { candidates: leaderCandidates } = useSectionLeaders(
+    sectionId ? [sectionId] : [],
+    hostSection?.sectionid ?? null,
+  );
+  const ypCount = sectionId ? ypCounts[sectionId] : undefined;
+  const regularCandidates = sectionId ? leaderCandidates[sectionId] ?? [] : [];
 
   const allSessions = useMemo(
-    () =>
-      participating.flatMap((section) =>
-        plans[section.sid] ? sessionsForSection(section, plans[section.sid], range) : [],
-      ),
-    [participating, plans, range],
+    // section can resolve a render before the term-loading effect populates
+    // range (both setSectionId and the term fetch fire off the same init
+    // effect), so guard against computing sessions off an empty date range —
+    // expandWeeklySlot/generateSessionsFromProgramme throw on invalid dates.
+    () => (section && range.start && range.end ? sessionsForPlan(section, plan, range) : []),
+    [section, plan, range],
   );
   // Only water sessions get signup columns; not-on-water weeks live in config.
   const waterSessions = useMemo(() => allSessions.filter((s) => s.onWater !== false), [allSessions]);
 
-  const year = range.start ? Number(range.start.slice(0, 4)) : new Date().getFullYear();
+  const hasProgramme = plan.meetings && plan.meetings.length > 0;
+  const visibleMeetings = (plan.meetings ?? []).filter(
+    (meeting) => meeting.date >= range.start && meeting.date <= range.end,
+  );
+
+  const seasonBucket = range.start && range.end ? seasonBucketForRange(range.start, range.end) : null;
 
   const startProgrammeReview = async () => {
     setLoadingProgramme(true);
-    const nextPlans = {};
-    for (const section of participating) {
-      const plan = plans[section.sid] ?? defaultPlan();
-      const withKids = { ...plan, k: plan.k ?? ypCounts[section.sid] ?? null };
-      try {
-        const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
-        const meetings = term?.currentTermId
-          ? await fetchProgrammeMeetings(section.sid, term.currentTermId, token)
-          : [];
-        // Pre-select only the water nights: most programme meetings are not
-        // on the water, so default non-water meetings to excluded rather than
-        // making the leader untick ~10 of 14. On re-edit, the config's saved
-        // not-on-water dates (seeded into plan.excluded) win over the heuristic.
-        const heuristicExcluded = Object.fromEntries(
-          meetings
-            .filter((meeting) => !looksLikeWaterSession(meeting.title))
-            .map((meeting) => [meeting.date, true]),
-        );
-        const excluded = seededFromConfig.current
-          ? { ...heuristicExcluded, ...(plan.excluded ?? {}) }
-          : heuristicExcluded;
-        nextPlans[section.sid] = { ...withKids, meetings, excluded };
-      } catch (error) {
-        logger.warn('Programme fetch failed during setup', {
-          sectionId: section.sid,
-          error: error.message,
-        }, LOG_CATEGORIES.API);
-        nextPlans[section.sid] = { ...withKids, meetings: [] };
-      }
+    try {
+      // Fetch the programme under the exact term chosen in step 1 — the
+      // record's own planning term, not a fresh "current active term" lookup.
+      const meetings = selectedTermId
+        ? await fetchProgrammeMeetings(sectionId, selectedTermId, token)
+        : [];
+      // Pre-select only the water nights: most programme meetings are not on
+      // the water, so default non-water meetings to excluded rather than
+      // making the leader untick most of them. On re-edit, the config's saved
+      // not-on-water dates (seeded into plan.excluded) win over the heuristic.
+      const heuristicExcluded = Object.fromEntries(
+        meetings
+          .filter((meeting) => !looksLikeWaterSession(meeting.title))
+          .map((meeting) => [meeting.date, true]),
+      );
+      const excluded = existingDescriptor
+        ? { ...heuristicExcluded, ...(plan.excluded ?? {}) }
+        : heuristicExcluded;
+      setPlan((previous) => ({ ...previous, k: previous.k ?? ypCount ?? null, meetings, excluded }));
+      setStep(2);
+    } catch (error) {
+      // A fetch failure is not the same as a genuinely-empty programme: it
+      // must not fall through to the "no programme — using a weekly slot"
+      // fallback, since that shapes an immutable record (OSM has no column
+      // delete) from data that was never actually read.
+      logger.error('Programme fetch failed during setup', {
+        sectionId,
+        error: error.message,
+      }, LOG_CATEGORIES.API);
+      notifyError('Couldn\'t read the programme — try again');
+    } finally {
+      setLoadingProgramme(false);
     }
-    setPlans(nextPlans);
-    setLoadingProgramme(false);
-    setStep(2);
   };
 
-  const updatePlan = (sid, patch) => {
-    setPlans((previous) => ({ ...previous, [sid]: { ...previous[sid], ...patch } }));
+  const updatePlan = (patch) => {
+    setPlan((previous) => ({ ...previous, ...patch }));
+  };
+
+  /**
+   * Switch the planning section, discarding the previous section's plan
+   * (regulars, activity, times, expected YP, programme picks) so nothing
+   * leaks between per-section setup runs, and re-allowing the seed-from-
+   * existing-config pass for the newly chosen section.
+   *
+   * @param {string} nextSectionId - The newly selected planning section id
+   */
+  const handleSectionChange = (nextSectionId) => {
+    setSectionId(nextSectionId);
+    setPlan(defaultPlan());
+    seededKeyRef.current = null;
   };
 
   const handleCreate = async () => {
+    if (seedError) {
+      // Defense in depth alongside the disabled Create button below: the
+      // existing plan failed to load, so defaultPlan() is not the section's
+      // real config and must never be written with replace:true.
+      setCreationErrors([{ field: '_meta', error: 'Couldn\'t load this section\'s existing plan — retry before creating' }]);
+      return;
+    }
     setCreating(true);
     setCreationErrors([]);
     try {
+      const hostTerm = await CurrentActiveTermsService.getCurrentActiveTerm(hostSection.sectionid);
+      const hostTermId = hostTerm?.currentTermId;
+      if (!hostTermId) {
+        setCreationErrors([{ field: '_meta', error: 'No active term found for the host section' }]);
+        return;
+      }
+
+      // On re-edit, the record's identity must match the ORIGINAL record's
+      // name (sectionName/seasonBucket parsed from it by the descriptor) —
+      // sourcing them from the live section/range instead would build a
+      // different name if the section was renamed in OSM or the date range
+      // was nudged across a season boundary, missing createOrCompleteRota's
+      // exact-name match and creating a duplicate orphan record.
+      const record = existingDescriptor
+        ? {
+          sectionId: section.sid,
+          sectionName: existingDescriptor.sectionName,
+          termId: selectedTermId,
+          seasonBucket: existingDescriptor.seasonBucket,
+        }
+        : { sectionId: section.sid, sectionName: section.sname, termId: selectedTermId, seasonBucket };
       const result = await createOrCompleteRota({
         hostSection,
-        year,
-        termId: (await CurrentActiveTermsService.getCurrentActiveTerm(hostSectionId))?.currentTermId,
+        hostTermId,
+        record,
         sessions: waterSessions,
         token,
       });
@@ -332,7 +448,8 @@ function RotaSetupWizard() {
         return;
       }
 
-      const rota = await loadRota(year, token);
+      const descriptor = { recordId: result.flexirecordid, hostSection, ...record };
+      const rota = await loadRota(descriptor, token, { forceRefresh: true });
       if (!rota) {
         setCreationErrors([{ field: '_meta', error: 'Record created but could not be re-loaded' }]);
         return;
@@ -349,51 +466,49 @@ function RotaSetupWizard() {
       }
 
       const by = (await getCurrentUserName()) ?? 'Setup';
-      const sectionDefaults = participating.map((section) => {
-        const plan = plans[section.sid];
-        return {
-          sid: section.sid,
-          sname: section.sname,
-          act: plan.act,
-          st: plan.st,
-          en: plan.en,
-          k: plan.k ?? ypCounts[section.sid] ?? 0,
-          p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
-          regulars: plan.regulars ?? [],
-        };
-      });
+      const sectionDefault = {
+        sid: section.sid,
+        sname: section.sname,
+        act: plan.act,
+        st: plan.st,
+        en: plan.en,
+        k: plan.k ?? ypCount ?? 0,
+        p: plan.p ?? DEFAULT_PERMIT_HOLDERS,
+        regulars: plan.regulars ?? [],
+      };
       await writeRotaConfig({
         hostSection,
-        recordId: result.flexirecordid,
+        recordId: rota.recordId,
         termId: rota.termId,
         scoutid: configRow.scoutid,
         by,
-        // Merge this run's sections into the shared config rather than
-        // replacing it — section leaders set up their own section, so a save
-        // must not delete the others. The rota-wide range grows to cover it.
-        mergeSections: true,
         cfg: {
+          ...sectionDefault,
           start: range.start,
           end: range.end,
-          sections: sectionDefaults,
-          sessions: buildSessionOverrides(allSessions, sectionDefaults),
+          sessions: buildSessionOverrides(allSessions, [sectionDefault]),
         },
+        // Re-running setup is an intentional full-plan replace — a patch
+        // merge would leave stale session overrides (e.g. a week no longer
+        // excluded) behind in the live sessions map.
+        replace: true,
         token,
       });
 
-      // Pre-fill each section's regulars as confirmed signups — but only on
+      // Pre-fill the section's regulars as confirmed signups — but only on
       // sessions whose column was just created this run. Re-touching existing
       // sessions would clobber people's withdrawals on a plan re-edit.
-      const regularsBySection = Object.fromEntries(
-        participating.map((section) => [section.sid, plans[section.sid]?.regulars ?? []]),
-      );
       const newlyAdded = new Set(result.addedFields ?? []);
       const newSessions = rota.sessions.filter(
-        (session) => session.fieldId && newlyAdded.has(buildSessionColumnName(session.date, session.sectionId)),
+        (s) => s.fieldId && newlyAdded.has(buildSessionColumnName(s.date, s.sectionId)),
       );
-      const hasRegulars = Object.values(regularsBySection).some((list) => list.length > 0);
-      if (hasRegulars && newSessions.length > 0) {
-        const { errors } = await prefillRegulars({ rota, regularsBySection, token, sessions: newSessions });
+      if ((plan.regulars ?? []).length > 0 && newSessions.length > 0) {
+        const { errors } = await prefillRegulars({
+          rota,
+          regularsBySection: { [section.sid]: plan.regulars ?? [] },
+          token,
+          sessions: newSessions,
+        });
         if (errors.length > 0) {
           notifyError(`Rota saved, but ${errors.length} session${errors.length === 1 ? '' : 's'} couldn't be pre-filled with regulars — open them to add manually.`);
         }
@@ -409,8 +524,38 @@ function RotaSetupWizard() {
     }
   };
 
+  if (initError) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-5">
+        <h1 className="text-lg font-semibold text-gray-900">Set up the water rota</h1>
+        <p className="mt-3 rounded-lg border border-scout-red bg-scout-red/5 p-3 text-sm text-scout-red">
+          Couldn&apos;t load setup data — {initError}
+        </p>
+        <button
+          type="button"
+          onClick={() => setInitAttempt((n) => n + 1)}
+          className="mt-3 px-4 py-2 rounded-md bg-scout-blue text-white text-sm font-medium hover:bg-scout-blue-dark"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!sections) {
     return <LoadingScreen message="Loading sections..." />;
+  }
+
+  if (!hostSection) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-5">
+        <h1 className="text-lg font-semibold text-gray-900">Set up the water rota</h1>
+        <p className="mt-3 rounded-lg border border-scout-red bg-scout-red/5 p-3 text-sm text-scout-red">
+          No Adults section was found. The rota needs an Adults section to host the roster every permit
+          holder signs up from — ask an admin to check your section access.
+        </p>
+      </div>
+    );
   }
 
   const stepBadge = (n, label) => (
@@ -436,72 +581,88 @@ function RotaSetupWizard() {
           <div>
             <label className="block text-sm font-medium text-gray-700">Host section</label>
             <p className="text-xs text-gray-500">
-              The rota lives in this section — pick one all your permit holders belong to
-              (usually Adults).
+              Every rota record lives here so any permit holder can sign up for any section&apos;s sessions.
             </p>
-            <select
-              value={hostSectionId ?? ''}
-              onChange={(event) => setHostSectionId(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
-              aria-label="Host section"
-            >
-              <option value="" disabled>Choose a section…</option>
-              {sections.map((section) => (
-                <option key={section.sectionid} value={String(section.sectionid)}>
-                  {section.sectionname}
-                </option>
-              ))}
-            </select>
+            <p className="mt-2 text-sm font-medium text-gray-900">{hostSection.sectionname}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Sections going on the water</label>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {sections.map((section) => {
-                const sid = String(section.sectionid);
-                const active = Boolean(selectedIds[sid]);
-                return (
-                  <button
-                    key={sid}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setSelectedIds((previous) => ({ ...previous, [sid]: !previous[sid] }))}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                      active
-                        ? sectionChipClass(section.sectionname) + ' border-transparent'
-                        : 'bg-white border-gray-300 text-gray-500'
-                    }`}
-                  >
-                    {section.sectionname}
-                  </button>
-                );
-              })}
-            </div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="rota-section">Section</label>
+            <p className="text-xs text-gray-500">Sets up (or completes) this section&apos;s own rota record only.</p>
+            <select
+              id="rota-section"
+              value={sectionId ?? ''}
+              onChange={(event) => handleSectionChange(event.target.value)}
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
+            >
+              <option value="" disabled>Choose a section…</option>
+              {sections.map((s) => (
+                <option key={s.sectionid} value={String(s.sectionid)}>
+                  {s.sectionname}
+                </option>
+              ))}
+            </select>
+            {existingDescriptor && !seedError && (
+              <p className="mt-1.5 text-xs text-scout-blue">
+                This section already has a rota for this term — continuing will edit it.
+              </p>
+            )}
+            {seedError && (
+              <div className="mt-1.5 rounded-md border border-scout-red bg-scout-red/5 p-2 text-xs text-scout-red">
+                <p>Couldn&apos;t load this section&apos;s existing plan — retry before editing.</p>
+                <button
+                  type="button"
+                  onClick={() => setSeedRetryCount((n) => n + 1)}
+                  className="mt-1 font-medium underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
 
-          {terms && terms.length > 0 && (
+          {sectionId && terms !== null && (
             <div>
               <label className="block text-sm font-medium text-gray-700" htmlFor="rota-term">Term</label>
-              <select
-                id="rota-term"
-                value={selectedTermId}
-                onChange={(event) => {
-                  const id = event.target.value;
-                  setSelectedTermId(id);
-                  const term = terms.find((entry) => String(entry.termid) === id);
-                  if (term) {
-                    setRange({ start: term.startdate.slice(0, 10), end: term.enddate.slice(0, 10) });
-                  }
-                }}
-                className="mt-1.5 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
-              >
-                {terms.map((term) => (
-                  <option key={term.termid} value={term.termid}>
-                    {term.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500">Picks the weeks below — fine-tune them if the rota runs a shorter span.</p>
+              {termsError ? (
+                <div className="mt-1.5 rounded-md border border-scout-red bg-scout-red/5 p-2 text-xs text-scout-red">
+                  <p>Couldn&apos;t load terms for this section — {termsError}</p>
+                  <button
+                    type="button"
+                    onClick={() => setTermsRetryCount((n) => n + 1)}
+                    className="mt-1 font-medium underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : terms.length === 0 ? (
+                <p className="mt-1.5 text-xs text-gray-500">
+                  This section has no terms set up in OSM yet — add one there before setting up its rota.
+                </p>
+              ) : (
+                <>
+                  <select
+                    id="rota-term"
+                    value={selectedTermId}
+                    onChange={(event) => {
+                      const id = event.target.value;
+                      setSelectedTermId(id);
+                      const term = terms.find((entry) => String(entry.termid) === id);
+                      if (term) {
+                        setRange({ start: term.startdate.slice(0, 10), end: term.enddate.slice(0, 10) });
+                      }
+                    }}
+                    className="mt-1.5 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
+                  >
+                    {terms.map((term) => (
+                      <option key={term.termid} value={term.termid}>
+                        {term.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Picks the weeks below — fine-tune them if the rota runs a shorter span.</p>
+                </>
+              )}
             </div>
           )}
 
@@ -530,238 +691,207 @@ function RotaSetupWizard() {
 
           <button
             type="button"
-            disabled={!hostSection || participating.length === 0 || !range.start || !range.end || range.end < range.start || loadingProgramme}
+            disabled={!section || !selectedTermId || !range.start || !range.end || range.end < range.start || loadingProgramme}
             onClick={startProgrammeReview}
             className="w-full py-2.5 rounded-md bg-scout-blue text-white text-sm font-semibold hover:bg-scout-blue-dark disabled:opacity-50"
           >
-            {loadingProgramme ? 'Reading programmes…' : 'Next: review programmes'}
+            {loadingProgramme ? 'Reading programme…' : 'Next: review programme'}
           </button>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 2 && section && (
         <div className="mt-5 space-y-6">
-          <div className="flex flex-wrap gap-1.5">
-            {participating.map((section) => {
-              const active = section.sid === activeSid;
-              return (
-                <button
-                  key={section.sid}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setActiveSectionSid(section.sid)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                    active
-                      ? sectionChipClass(section.sname) + ' border-transparent'
-                      : 'bg-white border-gray-300 text-gray-500'
-                  }`}
+          <section className="rounded-lg border border-gray-200 p-4">
+            <h2 className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(section.sname)}`}>
+                {section.sname}
+              </span>
+              <span className="text-xs text-gray-500">
+                {hasProgramme
+                  ? `${visibleMeetings.filter((m) => !plan.excluded[m.date]).length} water night${
+                    visibleMeetings.filter((m) => !plan.excluded[m.date]).length === 1 ? '' : 's'
+                  } selected of ${visibleMeetings.length} programme meetings`
+                  : 'No programme found — using a weekly slot'}
+              </span>
+            </h2>
+            {hasProgramme && (
+              <p className="mt-1 text-xs text-gray-400">
+                Water nights are auto-picked from the meeting name; tick or untick any.
+                Times aren&apos;t in the OSM programme, so the section time below is used.
+              </p>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600">Default activity</label>
+                <select
+                  value={plan.act}
+                  onChange={(event) => updatePlan({ act: event.target.value })}
+                  className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
                 >
-                  {section.sname}
-                </button>
-              );
-            })}
-          </div>
+                  {ACTIVITY_PRESETS.map((preset) => (
+                    <option key={preset} value={preset}>{preset}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600">Start</label>
+                <input
+                  type="time"
+                  value={plan.st}
+                  onChange={(event) => updatePlan({ st: event.target.value })}
+                  className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600">End</label>
+                <input
+                  type="time"
+                  value={plan.en}
+                  onChange={(event) => updatePlan({ en: event.target.value })}
+                  className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                />
+              </div>
+              {!hasProgramme && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Evening</label>
+                  <select
+                    value={plan.slotWeekday}
+                    onChange={(event) => updatePlan({ slotWeekday: Number(event.target.value) })}
+                    className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                  >
+                    {WEEKDAYS.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600">Expected YP</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={plan.k ?? ypCount ?? 0}
+                  onChange={(event) => updatePlan({ k: Math.max(0, Number(event.target.value) || 0) })}
+                  className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                  aria-label={`Expected young people for ${section.sname}`}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600">Permit holders</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={plan.p}
+                  onChange={(event) => updatePlan({ p: Math.max(0, Number(event.target.value) || 0) })}
+                  className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+                  aria-label={`Permit holders needed for ${section.sname}`}
+                />
+              </div>
+            </div>
 
-          {activeSection && plans[activeSection.sid] && (() => {
-            const section = activeSection;
-            const plan = plans[section.sid];
-            const hasProgramme = plan.meetings && plan.meetings.length > 0;
-            const visibleMeetings = (plan.meetings ?? []).filter(
-              (meeting) => meeting.date >= range.start && meeting.date <= range.end,
-            );
-            return (
-              <section key={section.sid} className="rounded-lg border border-gray-200 p-4">
-                <h2 className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sectionChipClass(section.sname)}`}>
-                    {section.sname}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {hasProgramme
-                      ? `${visibleMeetings.filter((m) => !plan.excluded[m.date]).length} water night${
-                        visibleMeetings.filter((m) => !plan.excluded[m.date]).length === 1 ? '' : 's'
-                      } selected of ${visibleMeetings.length} programme meetings`
-                      : 'No programme found — using a weekly slot'}
-                  </span>
-                </h2>
-                {hasProgramme && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Water nights are auto-picked from the meeting name; tick or untick any.
-                    Times aren&apos;t in the OSM programme, so the section time below is used.
-                  </p>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Default activity</label>
-                    <select
-                      value={plan.act}
-                      onChange={(event) => updatePlan(section.sid, { act: event.target.value })}
-                      className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
-                    >
-                      {ACTIVITY_PRESETS.map((preset) => (
-                        <option key={preset} value={preset}>{preset}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Start</label>
-                    <input
-                      type="time"
-                      value={plan.st}
-                      onChange={(event) => updatePlan(section.sid, { st: event.target.value })}
-                      className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">End</label>
-                    <input
-                      type="time"
-                      value={plan.en}
-                      onChange={(event) => updatePlan(section.sid, { en: event.target.value })}
-                      className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
-                    />
-                  </div>
-                  {!hasProgramme && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">Evening</label>
-                      <select
-                        value={plan.slotWeekday}
-                        onChange={(event) => updatePlan(section.sid, { slotWeekday: Number(event.target.value) })}
-                        className="mt-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-gray-600">
+                Regular permit holders
+                <span className="ml-1 font-normal text-gray-400">
+                  (pre-filled as confirmed on every session; gaps = extras you still need)
+                </span>
+              </label>
+              {regularCandidates.length === 0 ? (
+                <p className="mt-1 text-xs text-gray-400 italic">
+                  No leaders found in both {section.sname} and the host section.
+                </p>
+              ) : (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {regularCandidates.map((candidate) => {
+                    const on = (plan.regulars ?? []).includes(candidate.scoutid);
+                    return (
+                      <button
+                        key={candidate.scoutid}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          updatePlan({
+                            regulars: on
+                              ? (plan.regulars ?? []).filter((id) => id !== candidate.scoutid)
+                              : [...(plan.regulars ?? []), candidate.scoutid],
+                          })
+                        }
+                        className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                          on
+                            ? 'bg-scout-blue border-scout-blue text-white'
+                            : 'bg-white border-gray-300 text-gray-700 hover:border-scout-blue'
+                        }`}
                       >
-                        {WEEKDAYS.map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
+                        {on ? '✓ ' : ''}{candidate.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {hasProgramme && (
+              <ul className="mt-3 divide-y divide-gray-100">
+                {visibleMeetings.map((meeting) => {
+                  const included = !plan.excluded[meeting.date];
+                  const activity = plan.meetingActivity?.[meeting.date]
+                    ?? guessActivityFromTitle(meeting.title)
+                    ?? plan.act;
+                  const isCustomActivity = !ACTIVITY_PRESETS.includes(activity);
+                  return (
+                    <li key={meeting.date} className="flex items-center gap-3 py-2">
+                      <input
+                        type="checkbox"
+                        id={`meeting-${meeting.date}`}
+                        checked={included}
+                        onChange={(event) =>
+                          updatePlan({
+                            excluded: { ...plan.excluded, [meeting.date]: !event.target.checked },
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-scout-blue focus:ring-scout-blue"
+                      />
+                      <label
+                        htmlFor={`meeting-${meeting.date}`}
+                        className="min-w-0 flex-1 text-sm text-gray-700"
+                      >
+                        <span className="flex items-baseline gap-2 whitespace-nowrap">
+                          <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
+                          {meeting.startTime && (
+                            <span className="text-gray-500">
+                              {meeting.startTime}
+                              {meeting.endTime ? `–${meeting.endTime}` : ''}
+                            </span>
+                          )}
+                        </span>
+                        {meeting.title && (
+                          <span className="block text-xs text-gray-500 truncate">{meeting.title}</span>
+                        )}
+                      </label>
+                      <select
+                        value={activity}
+                        disabled={!included}
+                        onChange={(event) =>
+                          updatePlan({
+                            meetingActivity: { ...plan.meetingActivity, [meeting.date]: event.target.value },
+                          })
+                        }
+                        className="ml-auto w-36 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-scout-blue focus:outline-none disabled:opacity-40"
+                        aria-label={`Activity for ${format(parseISO(meeting.date), 'd MMM')}`}
+                      >
+                        {isCustomActivity && <option value={activity}>{activity}</option>}
+                        {ACTIVITY_PRESETS.map((preset) => (
+                          <option key={preset} value={preset}>{preset}</option>
                         ))}
                       </select>
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Expected YP</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={plan.k ?? ypCounts[section.sid] ?? 0}
-                      onChange={(event) => updatePlan(section.sid, { k: Math.max(0, Number(event.target.value) || 0) })}
-                      className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
-                      aria-label={`Expected young people for ${section.sname}`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Permit holders</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={plan.p}
-                      onChange={(event) => updatePlan(section.sid, { p: Math.max(0, Number(event.target.value) || 0) })}
-                      className="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-scout-blue focus:outline-none"
-                      aria-label={`Permit holders needed for ${section.sname}`}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-gray-600">
-                    Regular permit holders
-                    <span className="ml-1 font-normal text-gray-400">
-                      (pre-filled as confirmed on every session; gaps = extras you still need)
-                    </span>
-                  </label>
-                  {(leaderCandidates[section.sid] ?? []).length === 0 ? (
-                    <p className="mt-1 text-xs text-gray-400 italic">
-                      No leaders found in both {section.sname} and the host section.
-                    </p>
-                  ) : (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {(leaderCandidates[section.sid] ?? []).map((candidate) => {
-                        const on = (plan.regulars ?? []).includes(candidate.scoutid);
-                        return (
-                          <button
-                            key={candidate.scoutid}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() =>
-                              updatePlan(section.sid, {
-                                regulars: on
-                                  ? (plan.regulars ?? []).filter((id) => id !== candidate.scoutid)
-                                  : [...(plan.regulars ?? []), candidate.scoutid],
-                              })
-                            }
-                            className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                              on
-                                ? 'bg-scout-blue border-scout-blue text-white'
-                                : 'bg-white border-gray-300 text-gray-700 hover:border-scout-blue'
-                            }`}
-                          >
-                            {on ? '✓ ' : ''}{candidate.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {hasProgramme && (
-                  <ul className="mt-3 divide-y divide-gray-100">
-                    {visibleMeetings.map((meeting) => {
-                      const included = !plan.excluded[meeting.date];
-                      const activity = plan.meetingActivity?.[meeting.date]
-                        ?? guessActivityFromTitle(meeting.title)
-                        ?? plan.act;
-                      const isCustomActivity = !ACTIVITY_PRESETS.includes(activity);
-                      return (
-                        <li key={meeting.date} className="flex items-center gap-3 py-2">
-                          <input
-                            type="checkbox"
-                            id={`meeting-${section.sid}-${meeting.date}`}
-                            checked={included}
-                            onChange={(event) =>
-                              updatePlan(section.sid, {
-                                excluded: { ...plan.excluded, [meeting.date]: !event.target.checked },
-                              })
-                            }
-                            className="h-4 w-4 rounded border-gray-300 text-scout-blue focus:ring-scout-blue"
-                          />
-                          <label
-                            htmlFor={`meeting-${section.sid}-${meeting.date}`}
-                            className="min-w-0 flex-1 text-sm text-gray-700"
-                          >
-                            <span className="flex items-baseline gap-2 whitespace-nowrap">
-                              <span className="font-medium">{format(parseISO(meeting.date), 'EEE d MMM')}</span>
-                              {meeting.startTime && (
-                                <span className="text-gray-500">
-                                  {meeting.startTime}
-                                  {meeting.endTime ? `–${meeting.endTime}` : ''}
-                                </span>
-                              )}
-                            </span>
-                            {meeting.title && (
-                              <span className="block text-xs text-gray-500 truncate">{meeting.title}</span>
-                            )}
-                          </label>
-                          <select
-                            value={activity}
-                            disabled={!included}
-                            onChange={(event) =>
-                              updatePlan(section.sid, {
-                                meetingActivity: { ...plan.meetingActivity, [meeting.date]: event.target.value },
-                              })
-                            }
-                            className="ml-auto w-36 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-scout-blue focus:outline-none disabled:opacity-40"
-                            aria-label={`Activity for ${format(parseISO(meeting.date), 'd MMM')}`}
-                          >
-                            {isCustomActivity && <option value={activity}>{activity}</option>}
-                            {ACTIVITY_PRESETS.map((preset) => (
-                              <option key={preset} value={preset}>{preset}</option>
-                            ))}
-                          </select>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            );
-          })()}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
           <div className="flex gap-3">
             <button
@@ -783,13 +913,12 @@ function RotaSetupWizard() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && section && (
         <div className="mt-5 space-y-5">
           <p className="text-sm text-gray-700">
             This creates <span className="font-semibold">{waterSessions.length} water session{waterSessions.length === 1 ? '' : 's'}</span> permit holders can sign up to, across{' '}
-            <span className="font-semibold">{bucketSessionsByWeek(waterSessions).length} weeks</span> in{' '}
-            <span className="font-semibold">{hostSection?.sectionname}</span>&apos;s{' '}
-            <span className="font-mono text-xs">Viking Water Rota {year}</span> record.
+            <span className="font-semibold">{bucketSessionsByWeek(waterSessions).length} weeks</span> for{' '}
+            <span className="font-semibold">{section.sname}</span>&apos;s <span className="font-semibold">{seasonBucket}</span> rota.
             {allSessions.length > waterSessions.length && (
               <> The other <span className="font-semibold">{allSessions.length - waterSessions.length}</span> programme
               weeks show as not-on-water. Sessions can be edited later, but signup columns can&apos;t be deleted.</>
@@ -801,7 +930,7 @@ function RotaSetupWizard() {
               <li key={weekStart} className="px-3 py-2">
                 <span className="font-medium text-gray-700">Week of {format(parseISO(weekStart), 'd MMM')}</span>
                 <span className="ml-2 text-gray-500">
-                  {weekSessions.map((session) => `${session.sectionName} ${format(parseISO(session.date), 'EEE')}`).join(' · ')}
+                  {weekSessions.map((s) => format(parseISO(s.date), 'EEE')).join(' · ')}
                 </span>
               </li>
             ))}
@@ -820,6 +949,21 @@ function RotaSetupWizard() {
             </div>
           )}
 
+          {seedError && (
+            <div className="rounded-lg border border-scout-red bg-scout-red/5 p-3 text-sm">
+              <p className="font-medium text-scout-red">
+                Couldn&apos;t load this section&apos;s existing plan — creating is blocked until that succeeds.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSeedRetryCount((n) => n + 1)}
+                className="mt-1 text-xs font-medium text-scout-red underline"
+              >
+                Retry loading the existing plan
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               type="button"
@@ -831,7 +975,7 @@ function RotaSetupWizard() {
             </button>
             <button
               type="button"
-              disabled={creating}
+              disabled={creating || Boolean(seedError)}
               onClick={handleCreate}
               className="flex-1 py-2.5 rounded-md bg-scout-blue text-white text-sm font-semibold hover:bg-scout-blue-dark disabled:opacity-50"
             >

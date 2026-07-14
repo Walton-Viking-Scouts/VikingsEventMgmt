@@ -18,6 +18,7 @@ import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import { copyToClipboard, shareOrigin } from '../../../shared/utils/clipboard.js';
 import SessionMiniCard from './SessionMiniCard.jsx';
@@ -42,20 +43,21 @@ function readStoredFilters() {
 }
 
 /**
- * The rota board: term overview strip plus a week-bucketed session list
- * with one-tap signups and a session detail/edit modal. Auto-scrolls to
- * the current week on load. Renders empty/error/first-run states when
- * there is no rota for the year.
+ * The rota board: season picker, term overview strip, and a week-bucketed
+ * session list with one-tap signups and a session detail/edit modal.
+ * Auto-scrolls to the current week on load. Renders empty/error/first-run
+ * states when there is no rota for the season bucket.
  *
  * @returns {JSX.Element} Board page
  */
 function RotaBoardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { loading, rota, error, refresh, year } = useWaterRota();
+  const seasonParam = searchParams.get('season');
+  const { loading, rota, error, refresh, seasonBucket, buckets } = useWaterRota(seasonParam || undefined);
   const identityState = useRotaIdentity(rota);
-  const { identity, needsPicker, choose } = identityState;
-  const { setSignup, pendingFieldId } = useRotaSignup(rota, identity, refresh);
+  const { identity, needsPicker, choose, clear } = identityState;
+  const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
   const { canEdit } = useRotaPermissions(rota);
 
   const online = useOnlineStatus();
@@ -66,13 +68,59 @@ function RotaBoardPage() {
   const weekRefs = useRef(new Map());
   const didAutoScroll = useRef(false);
   const appliedUrlSection = useRef(false);
+  const appliedUrlSeason = useRef(false);
 
   // The open session and the section filter are driven by the URL so the board
   // is deep-linkable and shareable: ?session=<key> opens that session's modal,
-  // ?section=<id>[,<id>] narrows the board to those sections. selectedKey is
-  // derived from the URL so the phone back button closes the modal.
+  // ?section=<id>[,<id>] narrows the board to those sections, ?season=<bucket>
+  // pins the season. selectedKey is derived from the URL so the phone back
+  // button closes the modal.
   const sectionParam = searchParams.get('section');
   const selectedKey = searchParams.get('session');
+
+  // A season-less link pins the resolved default once discovery settles, so a
+  // shared board link keeps showing the same season even after it stops being
+  // the default.
+  useEffect(() => {
+    if (appliedUrlSeason.current || seasonParam || !seasonBucket) {
+      return;
+    }
+    appliedUrlSeason.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('season', seasonBucket);
+      return next;
+    }, { replace: true });
+  }, [seasonParam, seasonBucket, setSearchParams]);
+
+  // A stale/invalid ?season= (e.g. an old shared link naming a bucket that no
+  // longer exists) is silently replaced by useWaterRota's fallback bucket —
+  // clamp the URL to match once buckets are known, so the season <select>
+  // never holds a value with no matching option.
+  useEffect(() => {
+    if (!seasonParam || buckets.length === 0 || !seasonBucket || seasonParam === seasonBucket) {
+      return;
+    }
+    if (buckets.includes(seasonParam)) {
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('season', seasonBucket);
+      return next;
+    }, { replace: true });
+  }, [seasonParam, seasonBucket, buckets, setSearchParams]);
+
+  const handleSeasonChange = (event) => {
+    const value = event.target.value;
+    appliedUrlSeason.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('season', value);
+      next.delete('session');
+      return next;
+    });
+  };
 
   const openSession = (key) => {
     setSearchParams((prev) => {
@@ -198,6 +246,11 @@ function RotaBoardPage() {
     weekRefs.current.get(weekStart)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handleChangeIdentity = () => {
+    clear();
+    setPickerOpen(true);
+  };
+
   const handleSignupChange = (session, newStatus) => {
     if (!identity) {
       setPickerOpen(true);
@@ -208,23 +261,57 @@ function RotaBoardPage() {
       setConfirmChange({ session, newStatus });
       return;
     }
-    setSignup(session.fieldId, newStatus);
+    setSignup(session, newStatus);
   };
 
   const handleSyncProgramme = async () => {
     setSyncing(true);
     try {
-      const {
-        added, orphaned, errors,
-        titlesUpdated = 0, titleWriteFailed = false, titlesSkippedNoIdentity = false,
-        uncheckedSections = [], failedSections = [],
-      } = await syncRotaWithProgramme({ rota, token: getToken(), scoutid: identity?.scoutid, by: identity?.name });
-      if (errors.length > 0) {
-        notifyError(`Sync finished with ${errors.length} error${errors.length === 1 ? '' : 's'} — try again to finish.`);
+      const token = getToken();
+      let added = 0;
+      let orphaned = 0;
+      let titlesUpdated = 0;
+      let titleWriteFailed = false;
+      let titlesSkippedNoIdentity = false;
+      let prefillErrorsCount = 0;
+      const uncheckedSections = [];
+      const failedSections = [];
+      const sectionSyncErrors = [];
+
+      // One record per planning section — sync each in turn so failures stay
+      // scoped to that section instead of aborting the whole bucket.
+      for (const record of rota.records ?? []) {
+        const sectionLabel = record.config?.cfg?.sname ?? record.sectionNames?.[record.sectionId] ?? record.sectionId;
+        try {
+          const result = await syncRotaWithProgramme({ rota: record, token, scoutid: identity?.scoutid, by: identity?.name });
+          added += result.added;
+          orphaned += result.orphaned.length;
+          titlesUpdated += result.titlesUpdated;
+          titleWriteFailed = titleWriteFailed || result.titleWriteFailed;
+          titlesSkippedNoIdentity = titlesSkippedNoIdentity || result.titlesSkippedNoIdentity;
+          prefillErrorsCount += result.prefillErrors?.length ?? 0;
+          uncheckedSections.push(...result.uncheckedSections);
+          failedSections.push(...result.failedSections);
+          if (result.errors.length > 0) {
+            sectionSyncErrors.push({ sectionLabel, errors: result.errors });
+          }
+        } catch (error) {
+          logger.error('Programme sync: section failed', {
+            sectionId: record.sectionId,
+            error: error.message,
+          }, LOG_CATEGORIES.API);
+          sectionSyncErrors.push({ sectionLabel, errors: [{ error: error.message }] });
+        }
+      }
+
+      if (sectionSyncErrors.length > 0) {
+        const names = sectionSyncErrors.map((entry) => entry.sectionLabel).join(', ');
+        notifyError(`Sync finished with errors for ${names} — try again to finish.`);
       } else if (
-        added === 0 && orphaned.length === 0 && titlesUpdated === 0 &&
+        added === 0 && orphaned === 0 && titlesUpdated === 0 &&
         !titleWriteFailed && !titlesSkippedNoIdentity &&
-        uncheckedSections.length === 0 && failedSections.length === 0
+        uncheckedSections.length === 0 && failedSections.length === 0 &&
+        prefillErrorsCount === 0
       ) {
         notifyInfo('Rota already matches the programmes.');
       } else if (added > 0) {
@@ -238,9 +325,16 @@ function RotaBoardPage() {
       } else if (titlesSkippedNoIdentity) {
         notifyInfo('Session names weren’t updated — pick who you are on the rota first.');
       }
-      if (orphaned.length > 0) {
+      if (orphaned > 0) {
         notifyInfo(
-          `${orphaned.length} session${orphaned.length === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
+          `${orphaned} session${orphaned === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
+        );
+      }
+      // A pre-fill write failure on a newly added session must not read as
+      // sync success — the session exists but its regulars weren't added.
+      if (prefillErrorsCount > 0) {
+        notifyInfo(
+          `Regulars couldn't be pre-filled for ${prefillErrorsCount} session${prefillErrorsCount === 1 ? '' : 's'} — open them to add manually.`,
         );
       }
       // A real fetch failure (e.g. an expired token) is an error, not the benign
@@ -286,6 +380,27 @@ function RotaBoardPage() {
     }
   };
 
+  // Only buckets with at least one record appear (PRD §3.4) — offered
+  // whenever there's a real choice, in both the empty and loaded states, so a
+  // season with no rota yet doesn't strand the user away from one that has.
+  const seasonPicker = buckets.length > 1 && (
+    <select
+      value={seasonParam || seasonBucket || ''}
+      onChange={handleSeasonChange}
+      aria-label="Season"
+      className="text-sm border border-gray-300 rounded-md px-2 py-1 text-gray-700 bg-white"
+    >
+      {buckets.map((bucket) => (
+        <option key={bucket} value={bucket}>{bucket}</option>
+      ))}
+    </select>
+  );
+
+  // Edit/setup links from the board only carry an unambiguous single-section
+  // context — otherwise the wizard falls back to its own default.
+  const soleSectionId = filterSections.length === 1 ? filterSections[0].sectionid : null;
+  const setupPath = soleSectionId ? `/water-rota/setup?section=${soleSectionId}` : '/water-rota/setup';
+
   if (loading) {
     return <LoadingScreen message="Loading water rota..." />;
   }
@@ -309,9 +424,10 @@ function RotaBoardPage() {
   if (!rota) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        {seasonPicker && <div className="mb-4 flex justify-center">{seasonPicker}</div>}
         <div className="text-5xl" aria-hidden="true">🛶</div>
         <h2 className="mt-4 text-lg font-semibold text-gray-900">
-          No water rota for {year} yet
+          {seasonBucket ? `No water rota for ${seasonBucket} yet` : 'No water rota set up yet'}
         </h2>
         <p className="mt-2 text-sm text-gray-500">
           Set up this summer&apos;s on-water sessions from each section&apos;s programme, then
@@ -329,15 +445,18 @@ function RotaBoardPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-4">
+    <div className="max-w-3xl lg:max-w-6xl mx-auto px-4 py-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold text-gray-900">Water Rota {year}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-gray-900">Water Rota {rota.seasonBucket}</h1>
+          {seasonPicker}
+        </div>
         <div className="flex items-center gap-4">
           {canEdit && online && (
             <>
               <button
                 type="button"
-                onClick={() => navigate('/water-rota/setup')}
+                onClick={() => navigate(setupPath)}
                 className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
               >
                 Edit plan
@@ -369,6 +488,20 @@ function RotaBoardPage() {
         </div>
       </div>
 
+      {identity && (
+        <div className="mt-1.5 text-xs text-gray-500">
+          Signed in as <span className="font-medium text-gray-700">{identity.name}</span>
+          {' · '}
+          <button
+            type="button"
+            onClick={handleChangeIdentity}
+            className="text-scout-blue hover:text-scout-blue-dark font-medium"
+          >
+            Change
+          </button>
+        </div>
+      )}
+
       {!online && (
         <div className="mt-3 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
           You&apos;re offline — showing the last loaded rota. Signups need a connection.
@@ -385,7 +518,7 @@ function RotaBoardPage() {
           {canEdit ? (
             <button
               type="button"
-              onClick={() => navigate('/water-rota/setup')}
+              onClick={() => navigate(setupPath)}
               className="mt-2 px-4 py-1.5 rounded-md bg-scout-orange text-white text-sm font-semibold hover:opacity-90"
             >
               Finish setup
@@ -469,7 +602,7 @@ function RotaBoardPage() {
               {/* Every session that week tiles across the card — each section's
                   nights are separate tiles, filling the width instead of a
                   narrow per-day strip. */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {weekSessions.map((session) => (
                   <SessionMiniCard
                     key={session.key}
@@ -491,7 +624,7 @@ function RotaBoardPage() {
           canEdit={canEdit}
           sectionYPCount={ypCounts[selectedSession.sectionId] ?? null}
           myStatus={identity ? myStatusFor(selectedSession, identity.scoutid) : null}
-          signupPending={Boolean(selectedSession.fieldId) && pendingFieldId === selectedSession.fieldId}
+          signupPending={Boolean(selectedSession.fieldId) && pendingKey === selectedSession.key}
           onSignupChange={handleSignupChange}
           refresh={refresh}
           onClose={closeSession}
@@ -520,7 +653,7 @@ function RotaBoardPage() {
         cancelText="Stay signed up"
         confirmVariant="warning"
         onConfirm={() => {
-          setSignup(confirmChange.session.fieldId, confirmChange.newStatus);
+          setSignup(confirmChange.session, confirmChange.newStatus);
           setConfirmChange(null);
         }}
         onCancel={() => setConfirmChange(null)}
