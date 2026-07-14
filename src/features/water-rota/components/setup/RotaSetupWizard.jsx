@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import { getToken } from '../../../../shared/services/auth/tokenService.js';
@@ -89,12 +89,16 @@ function isWaitingList(section) {
  * checkboxes per meeting (weekly-slot fallback for an empty programme); (3)
  * preview and resumable creation, followed by the plan-config write and
  * regular pre-fill. Re-running against a section/term that already has a
- * record seeds the wizard from its existing config.
+ * record seeds the wizard from its existing config. A `?section=<sectionid>`
+ * query param (as set by the board's "Edit plan" link) pre-selects that
+ * section on load when it's one of the leader's cached sections; otherwise
+ * the usual first-youth-section default applies.
  *
  * @returns {JSX.Element} Setup wizard page
  */
 function RotaSetupWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const token = getToken();
 
   const [step, setStep] = useState(1);
@@ -125,6 +129,13 @@ function RotaSetupWizard() {
       }
       setSections(cached);
       setDescriptors(discovered);
+      const requestedSectionId = searchParams.get('section');
+      const requested = requestedSectionId
+        && cached.find((section) => String(section.sectionid) === requestedSectionId);
+      if (requested) {
+        setSectionId(String(requested.sectionid));
+        return;
+      }
       const host = findHostSection(cached);
       const firstYouth = cached.find(
         (section) => (!host || section.sectionid !== host.sectionid) && !isWaitingList(section),

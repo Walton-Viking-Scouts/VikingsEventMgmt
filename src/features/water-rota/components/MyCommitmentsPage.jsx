@@ -30,13 +30,8 @@ const BUCKET_LABELS = [
  */
 function MyCommitmentsPage() {
   const { loading, rota, error, refresh } = useWaterRota();
-  // useRotaIdentity resolves once per host section (WP5 will formalize this);
-  // the group has no top-level recordId, so shim one from the shared host
-  // section id — the same value WP5's per-host-section storage key will use.
-  const identityState = useRotaIdentity(
-    rota ? { recordId: rota.hostSection?.sectionid ?? null, members: rota.members } : null,
-  );
-  const { identity, needsPicker, choose } = identityState;
+  const identityState = useRotaIdentity(rota);
+  const { identity, needsPicker, choose, clear } = identityState;
   const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -57,6 +52,11 @@ function MyCommitmentsPage() {
   );
 
   const upcomingSoon = buckets.thisWeek.length + buckets.nextWeek.length;
+
+  const handleChangeIdentity = () => {
+    clear();
+    setPickerOpen(true);
+  };
 
   const handleSignupChange = (session, newStatus) => {
     const currentStatus = myStatusFor(session, identity.scoutid);
@@ -118,7 +118,16 @@ function MyCommitmentsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4">
-      <h1 className="text-lg font-semibold text-gray-900">My sessions</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold text-gray-900">My sessions</h1>
+        <button
+          type="button"
+          onClick={handleChangeIdentity}
+          className="text-sm text-scout-blue hover:text-scout-blue-dark font-medium"
+        >
+          Change who I am
+        </button>
+      </div>
       <p className="mt-1 text-sm text-gray-600">
         {upcomingSoon === 0
           ? 'Nothing in the next two weeks.'

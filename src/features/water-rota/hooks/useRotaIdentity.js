@@ -2,10 +2,12 @@
  * Resolves which host-section member row belongs to the current user, so
  * signups write to the right row.
  *
- * Resolution order: a previously confirmed choice (persisted per record) →
- * unique full-name match against the rota members → otherwise the caller
- * shows the identity picker. The chosen identity is stored per record id,
- * so a new year's rota re-resolves.
+ * Resolution order: a previously confirmed choice (persisted per host
+ * section) → unique full-name match against the rota members → otherwise
+ * the caller shows the identity picker. Every rota record hosted in the same
+ * Adults section shares one roster, so the choice is stored once per host
+ * section rather than once per record — a leader isn't re-prompted for
+ * every planning section's record in the season bucket.
  *
  * @module useRotaIdentity
  */
@@ -39,37 +41,37 @@ export async function getCurrentUserName() {
 }
 
 /**
- * Storage key for the confirmed identity on one rota record.
+ * Storage key for the confirmed identity on one host section's roster.
  *
- * @param {string|number} recordId - FlexiRecord id
+ * @param {string|number} hostSectionId - Host (Adults) section id
  * @returns {string} localStorage key
  */
-function identityStorageKey(recordId) {
-  return `viking_rota_identity_${recordId}`;
+function identityStorageKey(hostSectionId) {
+  return `viking_rota_identity_${hostSectionId}`;
 }
 
 /**
  * Resolve the current user's member row in the rota host section.
  *
- * @param {import('../services/rotaService.js').LoadedRota|null} rota - Loaded rota (null while loading)
+ * @param {import('../services/rotaService.js').RotaGroup|null} rotaGroup - Loaded rota group (null while loading)
  * @returns {{identity: {scoutid: string, name: string}|null, needsPicker: boolean, resolving: boolean, choose: Function, clear: Function}} Identity state
  */
-export function useRotaIdentity(rota) {
+export function useRotaIdentity(rotaGroup) {
   const [state, setState] = useState({ identity: null, needsPicker: false, resolving: true });
 
-  const members = useMemo(() => rota?.members ?? [], [rota]);
-  const recordId = rota?.recordId;
+  const members = useMemo(() => rotaGroup?.members ?? [], [rotaGroup]);
+  const hostSectionId = rotaGroup?.hostSection?.sectionid;
 
   useEffect(() => {
     let cancelled = false;
 
     async function resolve() {
-      if (!recordId || members.length === 0) {
-        setState({ identity: null, needsPicker: false, resolving: !recordId });
+      if (!hostSectionId || members.length === 0) {
+        setState({ identity: null, needsPicker: false, resolving: !hostSectionId });
         return;
       }
 
-      const storedId = localStorage.getItem(identityStorageKey(recordId));
+      const storedId = localStorage.getItem(identityStorageKey(hostSectionId));
       const stored = members.find((member) => member.scoutid === storedId);
       if (stored) {
         if (!cancelled) {
@@ -85,7 +87,7 @@ export function useRotaIdentity(rota) {
 
       if (!cancelled) {
         if (matches.length === 1) {
-          localStorage.setItem(identityStorageKey(recordId), matches[0].scoutid);
+          localStorage.setItem(identityStorageKey(hostSectionId), matches[0].scoutid);
           setState({ identity: matches[0], needsPicker: false, resolving: false });
         } else {
           setState({ identity: null, needsPicker: true, resolving: false });
@@ -97,26 +99,26 @@ export function useRotaIdentity(rota) {
     return () => {
       cancelled = true;
     };
-  }, [recordId, members]);
+  }, [hostSectionId, members]);
 
   const choose = useCallback(
     (scoutid) => {
       const member = members.find((entry) => entry.scoutid === String(scoutid));
-      if (!member || !recordId) {
+      if (!member || !hostSectionId) {
         return;
       }
-      localStorage.setItem(identityStorageKey(recordId), member.scoutid);
+      localStorage.setItem(identityStorageKey(hostSectionId), member.scoutid);
       setState({ identity: member, needsPicker: false, resolving: false });
     },
-    [members, recordId],
+    [members, hostSectionId],
   );
 
   const clear = useCallback(() => {
-    if (recordId) {
-      localStorage.removeItem(identityStorageKey(recordId));
+    if (hostSectionId) {
+      localStorage.removeItem(identityStorageKey(hostSectionId));
     }
     setState({ identity: null, needsPicker: true, resolving: false });
-  }, [recordId]);
+  }, [hostSectionId]);
 
   return { ...state, choose, clear };
 }

@@ -54,13 +54,8 @@ function RotaBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const seasonParam = searchParams.get('season');
   const { loading, rota, error, refresh, seasonBucket, buckets } = useWaterRota(seasonParam || undefined);
-  // useRotaIdentity resolves once per host section (WP5 will formalize this);
-  // the group has no top-level recordId, so shim one from the shared host
-  // section id — the same value WP5's per-host-section storage key will use.
-  const identityState = useRotaIdentity(
-    rota ? { recordId: rota.hostSection?.sectionid ?? null, members: rota.members } : null,
-  );
-  const { identity, needsPicker, choose } = identityState;
+  const identityState = useRotaIdentity(rota);
+  const { identity, needsPicker, choose, clear } = identityState;
   const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
   const { canEdit } = useRotaPermissions(rota);
 
@@ -230,6 +225,11 @@ function RotaBoardPage() {
       return;
     }
     weekRefs.current.get(weekStart)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleChangeIdentity = () => {
+    clear();
+    setPickerOpen(true);
   };
 
   const handleSignupChange = (session, newStatus) => {
@@ -454,6 +454,20 @@ function RotaBoardPage() {
           </button>
         </div>
       </div>
+
+      {identity && (
+        <div className="mt-1.5 text-xs text-gray-500">
+          Signed in as <span className="font-medium text-gray-700">{identity.name}</span>
+          {' · '}
+          <button
+            type="button"
+            onClick={handleChangeIdentity}
+            className="text-scout-blue hover:text-scout-blue-dark font-medium"
+          >
+            Change
+          </button>
+        </div>
+      )}
 
       {!online && (
         <div className="mt-3 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">

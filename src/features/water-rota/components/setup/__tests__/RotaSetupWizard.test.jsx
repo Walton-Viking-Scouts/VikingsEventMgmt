@@ -68,10 +68,11 @@ import RotaSetupWizard from '../RotaSetupWizard.jsx';
 
 const HOST_SECTION = { sectionid: 11107, sectionname: 'Adults', section: 'adults' };
 const YOUTH_SECTION = { sectionid: 49097, sectionname: 'Scouts', section: 'scouts' };
+const OTHER_YOUTH_SECTION = { sectionid: 23456, sectionname: 'Cubs', section: 'cubs' };
 
-function renderWizard() {
+function renderWizard(initialEntries = ['/water-rota/setup']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <RotaSetupWizard />
     </MemoryRouter>,
   );
@@ -181,5 +182,43 @@ describe('RotaSetupWizard — single-section create', () => {
     );
 
     await waitFor(() => expect(notifySuccess).toHaveBeenCalledWith('Water rota saved'));
+  });
+
+  it('pre-selects the section named in ?section= (as set by the board\'s "Edit plan" link)', async () => {
+    databaseService.getSections.mockResolvedValue([HOST_SECTION, YOUTH_SECTION, OTHER_YOUTH_SECTION]);
+    getTerms.mockResolvedValue({
+      [String(YOUTH_SECTION.sectionid)]: [
+        { termid: 'T-49097', name: 'Summer 2026', startdate: '2026-04-01', enddate: '2026-08-31' },
+      ],
+      [String(OTHER_YOUTH_SECTION.sectionid)]: [
+        { termid: 'T-23456', name: 'Summer 2026', startdate: '2026-04-06', enddate: '2026-08-24' },
+      ],
+    });
+    CurrentActiveTermsService.getCurrentActiveTerm.mockImplementation(async (sectionId) => {
+      if (String(sectionId) === String(YOUTH_SECTION.sectionid)) {
+        return { currentTermId: 'T-49097' };
+      }
+      if (String(sectionId) === String(OTHER_YOUTH_SECTION.sectionid)) {
+        return { currentTermId: 'T-23456' };
+      }
+      if (String(sectionId) === String(HOST_SECTION.sectionid)) {
+        return { currentTermId: 'HOST-T1' };
+      }
+      return null;
+    });
+
+    renderWizard([`/water-rota/setup?section=${OTHER_YOUTH_SECTION.sectionid}`]);
+
+    await waitFor(() => expect(screen.getByLabelText('Section').value).toBe(String(OTHER_YOUTH_SECTION.sectionid)));
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-23456'));
+    expect(screen.getByLabelText('First week').value).toBe('2026-04-06');
+    expect(screen.getByLabelText('Last week').value).toBe('2026-08-24');
+  });
+
+  it('falls back to the default section when ?section= names a section the leader can\'t see', async () => {
+    renderWizard(['/water-rota/setup?section=999999']);
+
+    await waitFor(() => expect(screen.getByLabelText('Section').value).toBe(String(YOUTH_SECTION.sectionid)));
+    await waitFor(() => expect(screen.getByLabelText('Term').value).toBe('T-49097'));
   });
 });
