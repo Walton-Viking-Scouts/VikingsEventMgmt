@@ -37,18 +37,31 @@ import {
 import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import {
-  discoverRotaRecord,
-  loadRota,
-  prefillRegulars,
-  writeSignup,
-  writeSessionMeta,
+  assembleGroupConfig,
+  assembleRotaGroup,
   assignSignup,
+  discoverRotaRecords,
+  findHostSection,
+  loadRota,
+  loadRotaGroup,
+  prefillRegulars,
+  writeSessionMeta,
+  writeSignup,
 } from '../rotaService.js';
 import { SIGNUP_STATUS } from '../rotaEncoding.js';
 
 const HOST_SECTION = { sectionid: 900, sectionname: 'Adults', section: 'adults' };
 const OTHER_SECTION = { sectionid: 901, sectionname: 'Cubs', section: 'cubs' };
 const TOKEN = 'tok';
+
+const DESCRIPTOR = {
+  sectionName: 'Cubs',
+  seasonBucket: 'Summer 2026',
+  sectionId: '49097',
+  termId: '924956',
+  recordId: 777,
+  hostSection: HOST_SECTION,
+};
 
 const STRUCTURE = {
   config: JSON.stringify([
@@ -93,43 +106,76 @@ beforeEach(() => {
   CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({ currentTermId: 'T1' });
 });
 
-describe('discoverRotaRecord', () => {
-  it('finds the rota record across the user sections', async () => {
-    getFlexiRecords.mockImplementation(async (sectionId) =>
-      sectionId === HOST_SECTION.sectionid
-        ? { items: [{ name: 'Viking Water Rota 2026', extraid: 777 }] }
-        : { items: [{ name: 'Viking Event Mgmt', extraid: 1 }] },
-    );
-
-    const result = await discoverRotaRecord(2026, TOKEN);
-    expect(result).toEqual({ hostSection: HOST_SECTION, recordId: 777 });
+describe('findHostSection', () => {
+  it('finds the Adults section by name', () => {
+    expect(findHostSection([OTHER_SECTION, HOST_SECTION])).toBe(HOST_SECTION);
   });
 
-  it('returns null when no section has the record', async () => {
-    getFlexiRecords.mockResolvedValue({ items: [] });
-    expect(await discoverRotaRecord(2026, TOKEN)).toBeNull();
+  it('returns null when no section looks like Adults', () => {
+    expect(findHostSection([OTHER_SECTION])).toBeNull();
+    expect(findHostSection([])).toBeNull();
+    expect(findHostSection(undefined)).toBeNull();
   });
+});
 
-  it('skips sections whose flexi list read fails', async () => {
-    getFlexiRecords.mockImplementation(async (sectionId) => {
-      if (sectionId === OTHER_SECTION.sectionid) {
-        throw new Error('boom');
-      }
-      return { items: [{ name: 'Viking Water Rota 2026', extraid: 777 }] };
+describe('discoverRotaRecords', () => {
+  it('makes ONE getFlexiRecords call on the host section when Adults exists', async () => {
+    getFlexiRecords.mockResolvedValue({
+      items: [{ name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 777 }],
     });
 
-    const result = await discoverRotaRecord(2026, TOKEN);
-    expect(result?.recordId).toBe(777);
+    const result = await discoverRotaRecords(TOKEN);
+
+    expect(getFlexiRecords).toHaveBeenCalledTimes(1);
+    expect(getFlexiRecords).toHaveBeenCalledWith(HOST_SECTION.sectionid, TOKEN, 'n', false, 0);
+    expect(result).toEqual([{
+      sectionName: 'Cubs', seasonBucket: 'Summer 2026', sectionId: '49097', termId: '924956',
+      recordId: 777, hostSection: HOST_SECTION,
+    }]);
+  });
+
+  it('falls back to scanning every section when no Adults section is visible', async () => {
+    databaseService.getSections.mockResolvedValue([OTHER_SECTION]);
+    getFlexiRecords.mockResolvedValue({
+      items: [{ name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 777 }],
+    });
+
+    const result = await discoverRotaRecords(TOKEN);
+
+    expect(getFlexiRecords).toHaveBeenCalledWith(OTHER_SECTION.sectionid, TOKEN, 'n', false, 0);
+    expect(result).toHaveLength(1);
+  });
+
+  it('ignores non-rota names', async () => {
+    getFlexiRecords.mockResolvedValue({
+      items: [{ name: 'Viking Event Mgmt', extraid: 1 }, { name: 'Viking Water Rota 2026', extraid: 2 }],
+    });
+
+    expect(await discoverRotaRecords(TOKEN)).toEqual([]);
+  });
+
+  it('dedupes same-identity duplicates by NUMERIC lowest extraid', async () => {
+    getFlexiRecords.mockResolvedValue({
+      items: [
+        { name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 10 },
+        { name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 9 },
+      ],
+    });
+
+    const result = await discoverRotaRecords(TOKEN);
+    expect(result).toHaveLength(1);
+    expect(result[0].recordId).toBe(9);
+  });
+
+  it('threads priority into the flexi-list read', async () => {
+    getFlexiRecords.mockResolvedValue({ items: [] });
+    await discoverRotaRecords(TOKEN, 5);
+    expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 5);
   });
 });
 
 describe('loadRota', () => {
   beforeEach(() => {
-    getFlexiRecords.mockImplementation(async (sectionId) =>
-      sectionId === HOST_SECTION.sectionid
-        ? { items: [{ name: 'Viking Water Rota 2026', extraid: 777 }] }
-        : { items: [] },
-    );
     getFlexiStructure.mockResolvedValue(STRUCTURE);
   });
 
@@ -145,10 +191,13 @@ describe('loadRota', () => {
       { scoutid: 11, firstname: 'Alice', lastname: 'Smith', f_1: '', f_2: '' },
     ]));
 
-    const rota = await loadRota(2026, TOKEN);
+    const rota = await loadRota(DESCRIPTOR, TOKEN);
 
     expect(rota.recordId).toBe(777);
     expect(rota.termId).toBe('T1');
+    expect(rota.sectionId).toBe('49097');
+    expect(rota.planningTermId).toBe('924956');
+    expect(rota.seasonBucket).toBe('Summer 2026');
     expect(rota.config.cfg.start).toBe('2026-06-01');
     expect(rota.sessions).toHaveLength(1);
     expect(rota.sessions[0]).toMatchObject({
@@ -169,14 +218,32 @@ describe('loadRota', () => {
     expect(rota.sectionNames).toEqual({ '900': 'Adults', '901': 'Cubs' });
   });
 
+  it('resolves the host read-termid once and threads it consistently into every read/cache call', async () => {
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
+    ]));
+
+    await loadRota(DESCRIPTOR, TOKEN);
+
+    expect(CurrentActiveTermsService.getCurrentActiveTerm).toHaveBeenCalledWith(HOST_SECTION.sectionid);
+    expect(getFlexiStructure).toHaveBeenCalledWith(777, 900, 'T1', TOKEN, false, 0);
+    expect(getSingleFlexiRecord).toHaveBeenCalledWith(777, 900, 'T1', TOKEN, 0);
+    expect(databaseService.saveFlexiData).toHaveBeenCalledWith(777, 900, 'T1', expect.any(Array));
+  });
+
+  it('errors cleanly when no host term is cached', async () => {
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue(null);
+    await expect(loadRota(DESCRIPTOR, TOKEN)).rejects.toThrow(/No active term/);
+    expect(getFlexiStructure).not.toHaveBeenCalled();
+  });
+
   it('threads the priority option into every flexi read (deep-link fast path)', async () => {
     getSingleFlexiRecord.mockResolvedValue(gridWith([
       { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
     ]));
 
-    await loadRota(2026, TOKEN, { priority: 5 });
+    await loadRota(DESCRIPTOR, TOKEN, { priority: 5 });
 
-    expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 5);
     expect(getFlexiStructure).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, false, 5);
     expect(getSingleFlexiRecord).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, 5);
   });
@@ -186,9 +253,8 @@ describe('loadRota', () => {
       { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
     ]));
 
-    await loadRota(2026, TOKEN);
+    await loadRota(DESCRIPTOR, TOKEN);
 
-    expect(getFlexiRecords).toHaveBeenCalledWith(expect.anything(), TOKEN, 'n', false, 0);
     expect(getFlexiStructure).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, false, 0);
     expect(getSingleFlexiRecord).toHaveBeenLastCalledWith(777, 900, 'T1', TOKEN, 0);
   });
@@ -209,7 +275,7 @@ describe('loadRota', () => {
       { scoutid: 11, photo_guid: 'def-456' },
     ]);
 
-    const rota = await loadRota(2026, TOKEN);
+    const rota = await loadRota(DESCRIPTOR, TOKEN);
 
     expect(databaseService.getMembers).toHaveBeenCalledWith([900]);
     expect(rota.members).toEqual([
@@ -234,7 +300,7 @@ describe('loadRota', () => {
       { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: configWithOff, f_2: '' },
     ]));
 
-    const rota = await loadRota(2026, TOKEN);
+    const rota = await loadRota(DESCRIPTOR, TOKEN);
     // f_2 column session (14 Jul) + config-only not-on-water session (21 Jul)
     expect(rota.sessions).toHaveLength(2);
     const configOnly = rota.sessions.find((s) => s.fieldId === null);
@@ -247,15 +313,10 @@ describe('loadRota', () => {
       { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: '', f_2: JSON.stringify({ s: 'I', sat: '2026-07-02T10:00:00Z' }) },
     ]));
 
-    const rota = await loadRota(2026, TOKEN);
+    const rota = await loadRota(DESCRIPTOR, TOKEN);
     expect(rota.config).toBeNull();
     expect(rota.sessions[0].signups).toHaveLength(1);
     expect(rota.configFieldId).toBe('f_1');
-  });
-
-  it('returns null when no rota record exists', async () => {
-    getFlexiRecords.mockResolvedValue({ items: [] });
-    expect(await loadRota(2026, TOKEN)).toBeNull();
   });
 
   it('throws when the record structure is missing RotaConfig', async () => {
@@ -264,7 +325,112 @@ describe('loadRota', () => {
     });
     getSingleFlexiRecord.mockResolvedValue(gridWith([]));
 
-    await expect(loadRota(2026, TOKEN)).rejects.toThrow(/RotaConfig/);
+    await expect(loadRota(DESCRIPTOR, TOKEN)).rejects.toThrow(/RotaConfig/);
+  });
+});
+
+describe('assembleGroupConfig', () => {
+  it('aggregates N records into sections[] and a merged sessions{} map', () => {
+    const records = [
+      { config: { cfg: { sid: '10', sname: 'Beavers', act: 'Kayaking', st: '18:00', en: '19:00', start: '2026-06-01', end: '2026-07-31', sessions: { S_20260603_10: { pt: 'x' } } } } },
+      { config: { cfg: { sid: '20', sname: 'Cubs', act: 'Canoeing', st: '18:15', en: '19:30', start: '2026-05-15', end: '2026-08-31', sessions: { S_20260605_20: { pt: 'y' } } } } },
+    ];
+
+    const assembled = assembleGroupConfig(records);
+    expect(assembled.cfg.sections).toEqual([
+      { sid: '10', sname: 'Beavers', act: 'Kayaking', st: '18:00', en: '19:00', k: undefined, p: undefined, regulars: [] },
+      { sid: '20', sname: 'Cubs', act: 'Canoeing', st: '18:15', en: '19:30', k: undefined, p: undefined, regulars: [] },
+    ]);
+    expect(assembled.cfg.sessions).toEqual({ S_20260603_10: { pt: 'x' }, S_20260605_20: { pt: 'y' } });
+    expect(assembled.cfg.start).toBe('2026-05-15');
+    expect(assembled.cfg.end).toBe('2026-08-31');
+  });
+
+  it('skips configless records', () => {
+    const records = [
+      { config: null },
+      { config: { cfg: { sid: '20', sname: 'Cubs', act: 'Canoeing', st: '18:15', en: '19:30' } } },
+    ];
+    expect(assembleGroupConfig(records).cfg.sections).toHaveLength(1);
+  });
+
+  it('returns null when every record is configless', () => {
+    expect(assembleGroupConfig([{ config: null }, { config: null }])).toBeNull();
+  });
+});
+
+describe('assembleRotaGroup', () => {
+  it('gives every aggregated session a record back-reference and takes members from the first record', () => {
+    const recordA = {
+      hostSection: HOST_SECTION,
+      config: { cfg: { sid: '10', sname: 'Beavers', act: 'Kayaking', st: '18:00', en: '19:00' } },
+      sessions: [{ fieldId: 'f_2', date: '2026-06-03', sectionId: '10' }],
+      members: [{ scoutid: '1', name: 'A' }],
+      sectionNames: { 10: 'Beavers' },
+    };
+    const recordB = {
+      hostSection: HOST_SECTION,
+      config: null,
+      sessions: [{ fieldId: 'f_3', date: '2026-06-05', sectionId: '20' }],
+      members: [{ scoutid: '1', name: 'A' }],
+      sectionNames: { 10: 'Beavers', 20: 'Cubs' },
+    };
+
+    const group = assembleRotaGroup('Summer 2026', [recordA, recordB]);
+    expect(group.seasonBucket).toBe('Summer 2026');
+    expect(group.hostSection).toBe(HOST_SECTION);
+    expect(group.records).toEqual([recordA, recordB]);
+    expect(group.sessions).toEqual([
+      { fieldId: 'f_2', date: '2026-06-03', sectionId: '10', record: recordA },
+      { fieldId: 'f_3', date: '2026-06-05', sectionId: '20', record: recordB },
+    ]);
+    expect(group.members).toEqual([{ scoutid: '1', name: 'A' }]);
+    expect(group.config.cfg.sections).toHaveLength(1);
+  });
+});
+
+describe('loadRotaGroup', () => {
+  beforeEach(() => {
+    getFlexiStructure.mockResolvedValue(STRUCTURE);
+    getSingleFlexiRecord.mockResolvedValue(gridWith([
+      { scoutid: 10, firstname: 'Simon', lastname: 'Clark', f_1: CONFIG_CELL, f_2: '' },
+    ]));
+  });
+
+  it('filters discovered records by season bucket and aggregates them', async () => {
+    getFlexiRecords.mockResolvedValue({
+      items: [
+        { name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 777 },
+        { name: 'Viking Water Rota Scouts Autumn 2026 [49099.900001]', extraid: 778 },
+      ],
+    });
+
+    const group = await loadRotaGroup('Summer 2026', TOKEN);
+    expect(group.seasonBucket).toBe('Summer 2026');
+    expect(group.records).toHaveLength(1);
+    expect(group.records[0].recordId).toBe(777);
+  });
+
+  it('returns null when the bucket has no records', async () => {
+    getFlexiRecords.mockResolvedValue({ items: [] });
+    expect(await loadRotaGroup('Summer 2026', TOKEN)).toBeNull();
+  });
+
+  it('fails the whole group load when a single record read fails', async () => {
+    getFlexiRecords.mockResolvedValue({
+      items: [
+        { name: 'Viking Water Rota Cubs Summer 2026 [49097.924956]', extraid: 777 },
+        { name: 'Viking Water Rota Scouts Summer 2026 [49099.900001]', extraid: 778 },
+      ],
+    });
+    getFlexiStructure.mockImplementation(async (recordId) => {
+      if (recordId === 778) {
+        throw new Error('boom');
+      }
+      return STRUCTURE;
+    });
+
+    await expect(loadRotaGroup('Summer 2026', TOKEN)).rejects.toThrow(/boom/);
   });
 });
 
@@ -361,6 +527,36 @@ describe('writeSignup', () => {
     ]);
 
     expect(order).toEqual(['fetch', 'update', 'fetch', 'update']);
+  });
+
+  it('routes a write to the session\'s owning record and the lock still serializes across records', async () => {
+    // Aggregated sessions carry a `record` back-reference (assembleRotaGroup);
+    // callers pass session.record as the `rota` argument so the write lands
+    // on the record that actually owns the column.
+    const recordA = { hostSection: HOST_SECTION, recordId: 777, termId: 'T1' };
+    const recordB = { hostSection: HOST_SECTION, recordId: 888, termId: 'T1' };
+    const sessionA = { fieldId: 'f_2', record: recordA };
+    const sessionB = { fieldId: 'f_2', record: recordB };
+
+    const order = [];
+    getSingleFlexiRecord.mockImplementation(async (recordId) => {
+      order.push(`fetch-${recordId}`);
+      return gridWith([{ scoutid: 10, f_2: '' }]);
+    });
+    updateFlexiRecord.mockImplementation(async (_sectionid, _scoutid, recordId) => {
+      order.push(`update-${recordId}`);
+      return { ok: true };
+    });
+
+    await Promise.all([
+      writeSignup({ rota: sessionA.record, fieldId: sessionA.fieldId, scoutid: 10, status: SIGNUP_STATUS.IN, token: TOKEN }),
+      writeSignup({ rota: sessionB.record, fieldId: sessionB.fieldId, scoutid: 10, status: SIGNUP_STATUS.IN, token: TOKEN }),
+    ]);
+
+    expect(updateFlexiRecord.mock.calls.map((call) => call[2])).toEqual(expect.arrayContaining([777, 888]));
+    // The module-level lock is per-module, not per-record — it serializes
+    // even though the two writes target different records.
+    expect(order).toEqual(['fetch-777', 'update-777', 'fetch-888', 'update-888']);
   });
 });
 
@@ -480,5 +676,34 @@ describe('prefillRegulars', () => {
     });
     expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
     expect(multiUpdateFlexiRecord.mock.calls[0][3]).toBe('f_9');
+  });
+
+  it('throttles 300ms between successive multi-update calls', async () => {
+    vi.useFakeTimers();
+    try {
+      multiUpdateFlexiRecord.mockResolvedValue({ ok: true });
+      const promise = prefillRegulars({
+        rota,
+        regularsBySection: { '49097': ['10', '11'], '49099': ['12'] },
+        token: TOKEN,
+      });
+
+      // First call fires without any throttle delay.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
+
+      // Second call is held back until the 300ms throttle elapses.
+      await vi.advanceTimersByTimeAsync(299);
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(300);
+      const result = await promise;
+      expect(multiUpdateFlexiRecord).toHaveBeenCalledTimes(3);
+      expect(result.filled).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -208,7 +208,7 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     // re-touch existing sessions, which would undo people's withdrawals.
     const regularsBySection = { [String(cfg.sid)]: cfg.regulars ?? [] };
     if (Object.values(regularsBySection).some((list) => list.length > 0)) {
-      const reloaded = await loadRota(rota.year, token);
+      const reloaded = await loadRota(descriptorFromRota(rota), token);
       const addedNames = new Set(toAdd.map((d) => buildSessionColumnName(d.date, d.sectionId)));
       const newSessions = (reloaded?.sessions ?? []).filter(
         (session) => session.fieldId && addedNames.has(buildSessionColumnName(session.date, session.sectionId)),
@@ -323,7 +323,7 @@ export async function activateWaterSession({ rota, date, sectionId, fields, by, 
   // The column was just added, so bypass the cached structure — otherwise the
   // new session comes back as config-only (fieldId null) and the meta write
   // that puts it on the water is silently skipped.
-  const reloaded = await loadRota(rota.year, token, { forceRefresh: true });
+  const reloaded = await loadRota(descriptorFromRota(rota), token, { forceRefresh: true });
   const columnName = buildSessionColumnName(date, sectionId);
   const session = (reloaded?.sessions ?? []).find(
     (s) => s.fieldId && buildSessionColumnName(s.date, s.sectionId) === columnName,
@@ -344,6 +344,23 @@ export async function activateWaterSession({ rota, date, sectionId, fields, by, 
   });
 
   return reloaded;
+}
+
+/**
+ * Rebuild a {@link import('./rotaService.js').RotaDescriptor} from an
+ * already-loaded rota, so a reload doesn't need to re-run discovery.
+ *
+ * @param {import('./rotaService.js').LoadedRota} rota - Loaded rota
+ * @returns {Object} Descriptor accepted by rotaService's loadRota
+ */
+function descriptorFromRota(rota) {
+  return {
+    recordId: rota.recordId,
+    hostSection: rota.hostSection,
+    sectionId: rota.sectionId,
+    termId: rota.planningTermId,
+    seasonBucket: rota.seasonBucket,
+  };
 }
 
 /**
