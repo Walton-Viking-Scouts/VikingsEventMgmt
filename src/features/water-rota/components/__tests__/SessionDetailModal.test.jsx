@@ -28,6 +28,14 @@ import { SIGNUP_STATUS } from '../../services/rotaEncoding.js';
 
 const IDENTITY = { scoutid: '10', name: 'Simon Clark' };
 
+// The session's owning record (rotaService.assembleRotaGroup's `record`
+// back-reference) — every write call site routes to this, not the group.
+const RECORD = {
+  hostSection: { sectionid: '1' },
+  recordId: 'record-49097',
+  termId: 'term-1',
+};
+
 function makeSession(overrides = {}) {
   return {
     fieldId: 'f_5',
@@ -44,14 +52,16 @@ function makeSession(overrides = {}) {
     hasMeta: true,
     confirmed: [],
     backups: [],
+    record: RECORD,
     ...overrides,
   };
 }
 
+// The rota group prop: SessionDetailModal only reads it for the shared
+// member roster (AddPermitHolderModal) — writes route via session.record.
 const ROTA = {
   hostSection: { sectionid: '1' },
-  year: 2026,
-  termId: 'term-1',
+  seasonBucket: 'Summer 2026',
   members: [
     { scoutid: '10', name: 'Simon Clark' },
     { scoutid: '30', name: 'New Permit Holder' },
@@ -96,7 +106,7 @@ describe('SessionDetailModal', () => {
 
     expect(activateWaterSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        rota: ROTA,
+        rota: RECORD,
         date: '2026-07-14',
         sectionId: '49097',
         by: IDENTITY.name,
@@ -139,7 +149,7 @@ describe('SessionDetailModal', () => {
 
     await waitFor(() => expect(assignSignup).toHaveBeenCalledTimes(1));
     expect(assignSignup).toHaveBeenCalledWith({
-      rota: ROTA,
+      rota: RECORD,
       fieldId: 'f_5',
       scoutid: '30',
       status: null,
@@ -189,7 +199,7 @@ describe('SessionDetailModal', () => {
     await waitFor(() => expect(assignSignup).toHaveBeenCalledTimes(1));
 
     expect(assignSignup).toHaveBeenCalledWith({
-      rota: ROTA,
+      rota: RECORD,
       fieldId: 'f_5',
       scoutid: '30',
       status: SIGNUP_STATUS.IN,

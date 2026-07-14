@@ -269,7 +269,11 @@ function RotaSetupWizard() {
   const regularCandidates = sectionId ? leaderCandidates[sectionId] ?? [] : [];
 
   const allSessions = useMemo(
-    () => (section ? sessionsForPlan(section, plan, range) : []),
+    // section can resolve a render before the term-loading effect populates
+    // range (both setSectionId and the term fetch fire off the same init
+    // effect), so guard against computing sessions off an empty date range —
+    // expandWeeklySlot/generateSessionsFromProgramme throw on invalid dates.
+    () => (section && range.start && range.end ? sessionsForPlan(section, plan, range) : []),
     [section, plan, range],
   );
   // Only water sessions get signup columns; not-on-water weeks live in config.

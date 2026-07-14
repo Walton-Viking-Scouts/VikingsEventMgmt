@@ -21,8 +21,8 @@ import AddPermitHolderModal from './AddPermitHolderModal.jsx';
  * water" toggles.
  *
  * @param {Object} props
- * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed)
- * @param {import('../services/rotaService.js').LoadedRota} props.rota - Loaded rota
+ * @param {import('../utils/rotaDisplay.js').SessionView|null} props.session - Session to show (null = closed); writes route to `session.record`, its owning record
+ * @param {import('../services/rotaService.js').RotaGroup} props.rota - Loaded rota group (used here only for the shared member roster)
  * @param {{scoutid: string, name: string}|null} props.identity - Resolved identity (required for edits/signups)
  * @param {boolean} props.canEdit - Offer plan-editing UI
  * @param {number|null} props.sectionYPCount - Section YP total for the kids default
@@ -65,7 +65,7 @@ function SessionDetailModal({
     setSaving(true);
     try {
       await writeSessionMeta({
-        rota,
+        rota: session.record,
         fieldId: session.fieldId,
         scoutid: identity.scoutid,
         by: identity.name,
@@ -107,7 +107,7 @@ function SessionDetailModal({
     setSaving(true);
     try {
       await activateWaterSession({
-        rota,
+        rota: session.record,
         date: session.date,
         sectionId: session.sectionId,
         fields,
@@ -134,7 +134,7 @@ function SessionDetailModal({
     }
     setAssigning(true);
     try {
-      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: SIGNUP_STATUS.IN, token: getToken() });
+      await assignSignup({ rota: session.record, fieldId: session.fieldId, scoutid, status: SIGNUP_STATUS.IN, token: getToken() });
       notifySuccess('Permit holder added');
       setAddingPermitHolder(false);
       await refresh();
@@ -151,7 +151,7 @@ function SessionDetailModal({
     }
     setRemovingScoutid(scoutid);
     try {
-      await assignSignup({ rota, fieldId: session.fieldId, scoutid, status: null, token: getToken() });
+      await assignSignup({ rota: session.record, fieldId: session.fieldId, scoutid, status: null, token: getToken() });
       notifySuccess('Removed from this session');
       await refresh();
     } catch (error) {

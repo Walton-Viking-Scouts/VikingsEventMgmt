@@ -51,6 +51,7 @@ export function coverStatus({ confirmedCount, backupCount, needed, cancelled }) 
  *
  * @typedef {Object} SessionView
  * @property {string} fieldId - Session column field id
+ * @property {import('../services/rotaService.js').LoadedRota|undefined} record - Owning record, when resolved from a rota group
  * @property {string} date - yyyy-mm-dd
  * @property {string} sectionId - OSM section id
  * @property {string} sectionName - Display section name
@@ -114,6 +115,12 @@ export function resolveSessionView(session, config, sectionNames = {}) {
 
   const view = {
     fieldId: session.fieldId,
+    // Owning record — carried through from a group-aggregated session
+    // (rotaService.assembleRotaGroup) so signup/meta writes route to the
+    // record that owns this session, not the whole group. Undefined for a
+    // single-record (non-aggregated) rota, which is fine since callers only
+    // read it when write-routing a group.
+    record: session.record,
     // Stable identity for React keys and selection — session columns share it
     // with config-only (not-on-water) sessions that have no fieldId.
     key: columnName,

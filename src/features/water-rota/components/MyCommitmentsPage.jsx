@@ -30,9 +30,14 @@ const BUCKET_LABELS = [
  */
 function MyCommitmentsPage() {
   const { loading, rota, error, refresh } = useWaterRota();
-  const identityState = useRotaIdentity(rota);
+  // useRotaIdentity resolves once per host section (WP5 will formalize this);
+  // the group has no top-level recordId, so shim one from the shared host
+  // section id — the same value WP5's per-host-section storage key will use.
+  const identityState = useRotaIdentity(
+    rota ? { recordId: rota.hostSection?.sectionid ?? null, members: rota.members } : null,
+  );
   const { identity, needsPicker, choose } = identityState;
-  const { setSignup, pendingFieldId } = useRotaSignup(rota, identity, refresh);
+  const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmChange, setConfirmChange] = useState(null);
@@ -59,7 +64,7 @@ function MyCommitmentsPage() {
       setConfirmChange({ session, newStatus });
       return;
     }
-    setSignup(session.fieldId, newStatus);
+    setSignup(session, newStatus);
   };
 
   if (loading) {
@@ -145,7 +150,7 @@ function MyCommitmentsPage() {
                       session={session}
                       myStatus={myStatusFor(session, identity.scoutid)}
                       onSignupChange={handleSignupChange}
-                      signupPending={Boolean(session.fieldId) && pendingFieldId === session.fieldId}
+                      signupPending={Boolean(session.fieldId) && pendingKey === session.key}
                     />
                   ))}
                 </div>
@@ -167,7 +172,7 @@ function MyCommitmentsPage() {
         cancelText="Stay signed up"
         confirmVariant="warning"
         onConfirm={() => {
-          setSignup(confirmChange.session.fieldId, confirmChange.newStatus);
+          setSignup(confirmChange.session, confirmChange.newStatus);
           setConfirmChange(null);
         }}
         onCancel={() => setConfirmChange(null)}
