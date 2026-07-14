@@ -9,6 +9,7 @@ import {
   encodeSignup,
   mergeLwwConfig,
   mergeSessionColumn,
+  parseConfigCell,
   parseSessionCell,
   parseSessionColumnName,
 } from '../rotaEncoding.js';
@@ -30,9 +31,13 @@ const CONFIG = {
   at: '2026-06-01T09:00:00Z',
   by: 'Simon Clark',
   cfg: {
+    sid: '49097',
+    sname: 'Cubs',
+    act: 'Kayaking',
+    st: '18:15',
+    en: '19:30',
     start: '2026-06-01',
     end: '2026-08-31',
-    sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
   },
 };
 
@@ -182,8 +187,14 @@ describe('encodeConfig', () => {
     expect(mergeLwwConfig([raw])).toEqual(CONFIG);
   });
 
-  it('rejects config without sections', () => {
-    expect(() => encodeConfig({ ...CONFIG, cfg: { start: '2026-06-01', end: '2026-08-31' } })).toThrow();
+  it('rejects config missing the required sid', () => {
+    const { sid: _sid, ...rest } = CONFIG.cfg;
+    expect(() => encodeConfig({ ...CONFIG, cfg: rest })).toThrow();
+  });
+
+  it('rejects config missing the required act', () => {
+    const { act: _act, ...rest } = CONFIG.cfg;
+    expect(() => encodeConfig({ ...CONFIG, cfg: rest })).toThrow();
   });
 
   it('round-trips a per-session overrides map', () => {
@@ -198,25 +209,23 @@ describe('encodeConfig', () => {
     expect(decoded.cfg.sessions.S_20260714_49097).toEqual({ act: 'Powerboats', st: '18:00', en: '19:00' });
   });
 
-  it('round-trips per-section regulars (scoutids)', () => {
-    const cfg = {
-      ...CONFIG,
-      cfg: {
-        ...CONFIG.cfg,
-        sections: [{ ...CONFIG.cfg.sections[0], regulars: ['10', '11'] }],
-      },
-    };
-    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg.sections[0].regulars).toEqual(['10', '11']);
+  it('round-trips regulars (scoutids)', () => {
+    const cfg = { ...CONFIG, cfg: { ...CONFIG.cfg, regulars: ['10', '11'] } };
+    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg.regulars).toEqual(['10', '11']);
   });
 
-  it('accepts optional per-section kids/permits defaults', () => {
-    const cfg = {
-      ...CONFIG,
-      cfg: {
-        ...CONFIG.cfg,
-        sections: [{ ...CONFIG.cfg.sections[0], k: 22, p: 2 }],
-      },
-    };
-    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg.sections[0]).toMatchObject({ k: 22, p: 2 });
+  it('accepts optional kids/permits defaults', () => {
+    const cfg = { ...CONFIG, cfg: { ...CONFIG.cfg, k: 22, p: 2 } };
+    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg).toMatchObject({ k: 22, p: 2 });
+  });
+
+  it('keeps unknown fields for forward-compatibility', () => {
+    const cfg = { ...CONFIG, cfg: { ...CONFIG.cfg, futureField: 'x' } };
+    expect(mergeLwwConfig([encodeConfig(cfg)]).cfg).toMatchObject({ futureField: 'x' });
+  });
+
+  it('treats a corrupt config cell as empty', () => {
+    expect(mergeLwwConfig(['{not json'])).toBeNull();
+    expect(parseConfigCell('not json')).toBeNull();
   });
 });

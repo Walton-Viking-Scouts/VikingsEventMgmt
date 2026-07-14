@@ -79,6 +79,8 @@ describe('createOrCompleteRota', () => {
     const { section, template, termId } = createOrCompleteFlexiRecord.mock.calls[0][0];
     expect(section).toBe(HOST_SECTION);
     expect(termId).toBe('T1');
+    // STOPGAP naming (pre-WP3, see createOrCompleteRota's JSDoc): still the
+    // plain year-based literal, not the new per-section buildRotaRecordName.
     expect(template.name).toBe('Viking Water Rota 2026');
     expect(template.fields).toEqual(['RotaConfig', 'S_20260602_49097', 'S_20260605_49099']);
   });
@@ -110,9 +112,9 @@ describe('writeRotaConfig', () => {
     updateFlexiRecord.mockResolvedValue({ ok: true });
 
     const cfg = {
+      sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
       start: '2026-06-01',
       end: '2026-08-31',
-      sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
     };
 
     await writeRotaConfig({
@@ -160,9 +162,9 @@ describe('syncRotaWithProgramme', () => {
     termId: 'T1',
     config: {
       cfg: {
+        sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
         start: '2026-06-01',
         end: '2026-08-31',
-        sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
       },
     },
     sessions: [

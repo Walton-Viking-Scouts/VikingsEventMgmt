@@ -24,14 +24,20 @@ import {
   buildSessionColumnName,
   parseSessionColumnName,
 } from './rotaEncoding.js';
-import { ROTA_CREATE_OPTIONS, buildRotaRecordName } from './rotaTemplates.js';
+import { ROTA_CREATE_OPTIONS, ROTA_RECORD_NAME_PREFIX } from './rotaTemplates.js';
 import { loadRota, prefillRegulars, writeConfig, writeSessionMeta } from './rotaService.js';
 import { fetchProgrammeMeetings } from './programmeService.js';
 import { generateSessionsFromProgramme } from '../utils/rotaDates.js';
-import { mergeSectionConfig } from '../utils/rotaSetupPlan.js';
 
 /**
  * Create or complete the rota record for a year on the host section.
+ *
+ * STOPGAP (pre-WP3): the per-section-record model's `buildRotaRecordName`
+ * needs a record identity ({sectionName, seasonBucket, sectionId, termId},
+ * PRD §2.1) that this whole-year, multi-section function has no way to
+ * supply, so this still names the record with the plain year-based literal
+ * rather than the new builder. WP3 replaces this whole function with the
+ * per-section create flow (PRD §4.2).
  *
  * @param {Object} params
  * @param {Object} params.hostSection - Host section ({sectionid, sectionname, section})
@@ -43,7 +49,7 @@ import { mergeSectionConfig } from '../utils/rotaSetupPlan.js';
  */
 export async function createOrCompleteRota({ hostSection, year, termId, sessions, token }) {
   const template = {
-    name: buildRotaRecordName(year),
+    name: `${ROTA_RECORD_NAME_PREFIX} ${year}`,
     fields: [
       ROTA_CONFIG_COLUMN,
       ...sessions.map((session) => buildSessionColumnName(session.date, session.sectionId)),
@@ -57,7 +63,8 @@ export async function createOrCompleteRota({ hostSection, year, termId, sessions
 /**
  * Write the initial (or updated) plan config after the record exists.
  * Reads the structure fresh to resolve the RotaConfig column id, then
- * delegates to the standard LWW config write.
+ * delegates to the standard LWW config write (a plain replace — a
+ * single-section record has nothing to merge).
  *
  * @param {Object} params
  * @param {Object} params.hostSection - Host section
@@ -65,13 +72,12 @@ export async function createOrCompleteRota({ hostSection, year, termId, sessions
  * @param {string|number} params.termId - Term id
  * @param {string|number} params.scoutid - The editor's member row id in the host section
  * @param {string} params.by - Editor display name
- * @param {Object} params.cfg - Plan config. A full config for the initial write, or one section's slice when mergeSections is set ({start, end, sections, sessions})
- * @param {boolean} [params.mergeSections] - Merge `cfg`'s sections into the live shared config instead of replacing it, so a per-section setup never deletes other leaders' sections and the date range grows (union) to cover it
+ * @param {Object} params.cfg - This record's plan config
  * @param {string} params.token - OSM authentication token
  * @returns {Promise<void>}
  * @throws {Error} When the RotaConfig column cannot be found
  */
-export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, token, mergeSections = false }) {
+export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, by, cfg, token }) {
   const structureData = await getFlexiStructure(recordId, hostSection.sectionid, termId, token, true);
   const configFieldId = findConfigFieldId(structureData);
   if (!configFieldId) {
@@ -83,9 +89,7 @@ export async function writeRotaConfig({ hostSection, recordId, termId, scoutid, 
     configFieldId,
     scoutid,
     by,
-    ...(mergeSections
-      ? { transformCfg: (live) => mergeSectionConfig(live, cfg) }
-      : { cfg }),
+    cfg,
     token,
   });
 }
@@ -117,10 +121,16 @@ export function diffSessions(existingColumns, descriptors) {
 }
 
 /**
- * Sync an existing rota with each section's programme: appends columns for
- * newly added meeting dates and reports sessions whose programme meeting
- * has vanished (candidates to mark not-on-water — never deleted, since OSM
- * has no column delete).
+ * Sync an existing rota with its (single) section's programme: appends
+ * columns for newly added meeting dates and reports sessions whose programme
+ * meeting has vanished (candidates to mark not-on-water — never deleted,
+ * since OSM has no column delete).
+ *
+ * STOPGAP (pre-WP3): still resolves the section's *current active* term via
+ * {@link CurrentActiveTermsService} rather than the record's own planning
+ * `termId` (PRD §4.4) — LoadedRota doesn't thread a planning termid through
+ * this call site yet. `uncheckedSections`/`failedSections` are single-section
+ * results (0 or 1 entries), kept as arrays for now to minimize caller churn.
  *
  * @param {Object} params
  * @param {import('./rotaService.js').LoadedRota} params.rota - Loaded rota with config
@@ -128,9 +138,9 @@ export function diffSessions(existingColumns, descriptors) {
  * @param {string|number} [params.scoutid] - Editor's host-section row id, to attribute the title backfill config write
  * @param {string} [params.by] - Editor display name for the title backfill config write
  * @returns {Promise<{added: number, orphaned: Array, errors: Array, titlesUpdated: number, titleWriteFailed: boolean, titlesSkippedNoIdentity: boolean, uncheckedSections: string[], failedSections: string[]}>}
- *   Sync outcome. `uncheckedSections` = sections with no active term (benign,
- *   nothing to sync); `failedSections` = sections whose programme fetch threw
- *   (a real error, e.g. expired token) — both are excluded from `orphaned`.
+ *   Sync outcome. `uncheckedSections` = no active term found (benign, nothing
+ *   to sync); `failedSections` = the programme fetch threw (a real error,
+ *   e.g. expired token) — both are excluded from `orphaned`.
  * @throws {Error} When the rota has no config to sync against
  */
 export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
@@ -141,30 +151,28 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
 
   const range = { start: cfg.start, end: cfg.end };
   const descriptors = [];
-  // Sections we couldn't read this run. We must NOT treat their existing
-  // sessions as orphaned — we don't know their programme, so leave them
-  // untouched. Split by cause so the caller can tell a benign "no active term"
-  // apart from a real fetch failure (e.g. an expired token failing every
-  // section) and message accordingly.
+  // Set when the section's programme couldn't be read this run. We must NOT
+  // treat its existing sessions as orphaned — we don't know its programme, so
+  // leave them untouched. Split by cause so the caller can tell a benign "no
+  // active term" apart from a real fetch failure (e.g. an expired token) and
+  // message accordingly.
   const unchecked = new Set();
   const failed = new Set();
 
-  for (const section of cfg.sections ?? []) {
-    try {
-      const term = await CurrentActiveTermsService.getCurrentActiveTerm(section.sid);
-      if (!term?.currentTermId) {
-        unchecked.add(String(section.sid));
-        continue;
-      }
-      const meetings = await fetchProgrammeMeetings(section.sid, term.currentTermId, token);
-      descriptors.push(...generateSessionsFromProgramme(meetings, section, range));
-    } catch (error) {
-      failed.add(String(section.sid));
-      logger.warn('Programme sync: section fetch failed', {
-        sectionId: section.sid,
-        error: error.message,
-      }, LOG_CATEGORIES.API);
+  try {
+    const term = await CurrentActiveTermsService.getCurrentActiveTerm(cfg.sid);
+    if (!term?.currentTermId) {
+      unchecked.add(String(cfg.sid));
+    } else {
+      const meetings = await fetchProgrammeMeetings(cfg.sid, term.currentTermId, token);
+      descriptors.push(...generateSessionsFromProgramme(meetings, cfg, range));
     }
+  } catch (error) {
+    failed.add(String(cfg.sid));
+    logger.warn('Programme sync: section fetch failed', {
+      sectionId: cfg.sid,
+      error: error.message,
+    }, LOG_CATEGORIES.API);
   }
 
   if (failed.size > 0) {
@@ -196,11 +204,9 @@ export async function syncRotaWithProgramme({ rota, token, scoutid, by }) {
     });
     errors = result.errors ?? [];
 
-    // Pre-fill each section's regulars onto the NEW sessions only — never
+    // Pre-fill the section's regulars onto the NEW sessions only — never
     // re-touch existing sessions, which would undo people's withdrawals.
-    const regularsBySection = Object.fromEntries(
-      (cfg.sections ?? []).map((section) => [String(section.sid), section.regulars ?? []]),
-    );
+    const regularsBySection = { [String(cfg.sid)]: cfg.regulars ?? [] };
     if (Object.values(regularsBySection).some((list) => list.length > 0)) {
       const reloaded = await loadRota(rota.year, token);
       const addedNames = new Set(toAdd.map((d) => buildSessionColumnName(d.date, d.sectionId)));

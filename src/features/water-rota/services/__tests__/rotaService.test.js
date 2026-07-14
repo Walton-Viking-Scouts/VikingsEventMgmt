@@ -62,9 +62,9 @@ const CONFIG_CELL = JSON.stringify({
   at: '2026-06-01T09:00:00Z',
   by: 'Simon Clark',
   cfg: {
+    sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
     start: '2026-06-01',
     end: '2026-08-31',
-    sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
   },
 });
 
@@ -225,8 +225,8 @@ describe('loadRota', () => {
     const configWithOff = JSON.stringify({
       v: 1, at: '2026-06-01T09:00:00Z', by: 'Simon Clark',
       cfg: {
+        sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30',
         start: '2026-06-01', end: '2026-08-31',
-        sections: [{ sid: '49097', sname: 'Cubs', act: 'Kayaking', st: '18:15', en: '19:30' }],
         sessions: { S_20260721_49097: { c: 1 } },
       },
     });

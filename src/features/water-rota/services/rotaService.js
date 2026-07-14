@@ -39,7 +39,7 @@ import {
   mergeSessionColumn,
   parseSessionColumnName,
 } from './rotaEncoding.js';
-import { buildRotaRecordName } from './rotaTemplates.js';
+import { ROTA_RECORD_NAME_PREFIX } from './rotaTemplates.js';
 import { validateWaterRotaStructure } from './vikingWaterRotaValidation.js';
 
 let writeLock = Promise.resolve();
@@ -79,7 +79,7 @@ function withWriteLock(fn) {
  * @returns {Promise<{hostSection: Object, recordId: string|number}|null>} Discovery result, or null when no rota exists
  */
 export async function discoverRotaRecord(year, token, priority = 0) {
-  const recordName = buildRotaRecordName(year);
+  const recordName = `${ROTA_RECORD_NAME_PREFIX} ${year}`;
   const sections = (await databaseService.getSections()) || [];
 
   for (const section of sections) {
