@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import MemberAvatar from '../../../shared/components/ui/MemberAvatar.jsx';
 import { COVER_STATUS, coverStatusTintClass, sectionChipClass } from '../utils/rotaDisplay.js';
 
-const MAX_AVATARS = 4;
+const MAX_AVATARS = 8;
 
 /**
  * Compact tappable board tile for one session: section chip and activity,
@@ -67,7 +67,7 @@ function SessionMiniCard({ session, onSelect }) {
       </span>
 
       {people.length > 0 && (
-        <span className="mt-1.5 flex -space-x-3" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
+        <span className="mt-1.5 flex flex-wrap gap-y-1 -space-x-3" aria-label={`Signed up: ${people.map((p) => p.name).join(', ')}`}>
           {people.slice(0, visibleCount).map((person) => (
             <span
               key={person.scoutid}
