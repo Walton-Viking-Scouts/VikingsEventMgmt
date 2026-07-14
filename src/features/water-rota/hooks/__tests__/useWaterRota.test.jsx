@@ -167,6 +167,33 @@ describe('useWaterRota', () => {
     expect(discoverRotaRecords).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the requested ?season= bucket on a cold-cache deep link (buckets not yet discovered), and loads it once reference data is ready', async () => {
+    dataLoadingService.getLoadingStatus.mockReturnValue({ isLoadingAll: true });
+    discoverRotaRecords.mockResolvedValueOnce([]);
+    loadRotaGroup.mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useWaterRota('Summer 2025'));
+
+    // Cold cache: discovery finds no records yet, but the requested bucket
+    // must still drive the load (not the unresolvable default) — this is
+    // the defended path at useWaterRota.js ~123-125.
+    await waitFor(() => expect(loadRotaGroup).toHaveBeenCalledWith('Summer 2025', 'test-token', { priority: 5 }));
+    expect(result.current.loading).toBe(true);
+    expect(result.current.rota).toBeNull();
+
+    discoverRotaRecords.mockResolvedValueOnce([{ seasonBucket: 'Summer 2025' }]);
+    loadRotaGroup.mockResolvedValueOnce(GROUP);
+    await act(async () => {
+      markReferenceDataReady();
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rota).toBe(GROUP);
+    // Still the requested bucket, not re-derived from the newly discovered
+    // buckets list.
+    expect(loadRotaGroup).toHaveBeenLastCalledWith('Summer 2025', 'test-token', { priority: 5 });
+  });
+
   it('recovers to an empty board when the bootstrap settles without reference ever becoming ready (reference load failed)', async () => {
     const settled = deferred();
     dataLoadingService.getLoadingStatus.mockReturnValue({ isLoadingAll: true });

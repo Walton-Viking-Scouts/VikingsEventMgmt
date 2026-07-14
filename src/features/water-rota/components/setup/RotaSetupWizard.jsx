@@ -72,11 +72,13 @@ function sessionsForPlan(section, plan, range) {
 }
 
 /**
- * Sections that never plan their own rota: waiting lists (no programme) and
- * the Adults host itself (it only ever hosts other sections' records).
+ * Waiting-list sections never plan their own rota (no programme to build one
+ * from) — detected by name/type matching /waiting/i. The Adults host section
+ * is excluded separately by each call site (comparing against
+ * findHostSection's id), not by this check.
  *
  * @param {Object} section - Cached section
- * @returns {boolean} True when the section is a waiting list
+ * @returns {boolean} True when the section looks like a waiting list
  */
 function isWaitingList(section) {
   return /waiting/i.test(`${section.section ?? ''} ${section.sectiontype ?? ''} ${section.sectionname ?? ''}`);
@@ -107,47 +109,63 @@ function RotaSetupWizard() {
   const [sectionId, setSectionId] = useState(null);
   const [range, setRange] = useState({ start: '', end: '' });
   const [terms, setTerms] = useState(null);
+  const [termsError, setTermsError] = useState(null);
+  const [termsRetryCount, setTermsRetryCount] = useState(0);
   const [selectedTermId, setSelectedTermId] = useState('');
   const [plan, setPlan] = useState(defaultPlan());
   const [loadingProgramme, setLoadingProgramme] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creationErrors, setCreationErrors] = useState([]);
+  const [initError, setInitError] = useState(null);
+  const [initAttempt, setInitAttempt] = useState(0);
+  const [seedError, setSeedError] = useState(null);
+  const [seedRetryCount, setSeedRetryCount] = useState(0);
   const seededKeyRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     async function init() {
-      const cached = (await databaseService.getSections()) || [];
-      const discovered = await discoverRotaRecords(token).catch((error) => {
-        logger.warn('Setup: could not check for existing rota records', {
+      setInitError(null);
+      try {
+        const cached = (await databaseService.getSections()) || [];
+        const discovered = await discoverRotaRecords(token);
+        if (cancelled) {
+          return;
+        }
+        setSections(cached);
+        setDescriptors(discovered);
+        const host = findHostSection(cached);
+        // A hand-crafted ?section= naming the host (Adults) or a waiting-list
+        // section must not pre-select an invalid planning section — only a
+        // real youth section is eligible, same filter as the default below.
+        const requestedSectionId = searchParams.get('section');
+        const requested = requestedSectionId
+          && cached.find((section) =>
+            String(section.sectionid) === requestedSectionId
+            && (!host || section.sectionid !== host.sectionid)
+            && !isWaitingList(section));
+        if (requested) {
+          setSectionId(String(requested.sectionid));
+          return;
+        }
+        const firstYouth = cached.find(
+          (section) => (!host || section.sectionid !== host.sectionid) && !isWaitingList(section),
+        );
+        if (firstYouth) {
+          setSectionId(String(firstYouth.sectionid));
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        // Either read (sections or the existing-rota discovery) can fail —
+        // both leave the wizard unable to proceed safely: a swallowed
+        // discovery failure would read as "no existing rota" and a later
+        // save would overwrite the section's real config with defaults.
+        logger.error('Setup: failed to load sections or existing rota records', {
           error: error.message,
         }, LOG_CATEGORIES.APP);
-        return [];
-      });
-      if (cancelled) {
-        return;
-      }
-      setSections(cached);
-      setDescriptors(discovered);
-      const host = findHostSection(cached);
-      // A hand-crafted ?section= naming the host (Adults) or a waiting-list
-      // section must not pre-select an invalid planning section — only a
-      // real youth section is eligible, same filter as the default below.
-      const requestedSectionId = searchParams.get('section');
-      const requested = requestedSectionId
-        && cached.find((section) =>
-          String(section.sectionid) === requestedSectionId
-          && (!host || section.sectionid !== host.sectionid)
-          && !isWaitingList(section));
-      if (requested) {
-        setSectionId(String(requested.sectionid));
-        return;
-      }
-      const firstYouth = cached.find(
-        (section) => (!host || section.sectionid !== host.sectionid) && !isWaitingList(section),
-      );
-      if (firstYouth) {
-        setSectionId(String(firstYouth.sectionid));
+        setInitError(error.message || 'Something went wrong loading setup data');
       }
     }
     init();
@@ -155,7 +173,7 @@ function RotaSetupWizard() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initAttempt]);
 
   const hostSection = useMemo(() => findHostSection(sections ?? []), [sections]);
 
@@ -174,6 +192,9 @@ function RotaSetupWizard() {
 
   // Load the planning section's own terms, defaulting the selection + range
   // to its current active term. Switching sections re-picks from scratch.
+  // Terms are mandatory under the term model (a record's identity pins a
+  // term), so a fetch failure here must be visible and retryable rather than
+  // silently leaving "Next: review programme" disabled with no explanation.
   useEffect(() => {
     let cancelled = false;
     async function loadTermsForSection() {
@@ -182,6 +203,8 @@ function RotaSetupWizard() {
       }
       setSelectedTermId('');
       setRange({ start: '', end: '' });
+      setTerms(null);
+      setTermsError(null);
       seededKeyRef.current = null;
       let list = [];
       try {
@@ -189,8 +212,17 @@ function RotaSetupWizard() {
         list = (all?.[sectionId] ?? [])
           .filter((term) => term.startdate && term.enddate)
           .sort((a, b) => a.startdate.localeCompare(b.startdate));
-      } catch {
-        /* offline or fetch failed — the leader can still type dates below */
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        logger.error('Setup: failed to load terms for section', {
+          sectionId,
+          error: error.message,
+        }, LOG_CATEGORIES.APP);
+        setTerms([]);
+        setTermsError(error.message || 'Could not load terms');
+        return;
       }
       if (cancelled) {
         return;
@@ -217,20 +249,26 @@ function RotaSetupWizard() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionId]);
+  }, [sectionId, termsRetryCount]);
 
   // Re-edit: seed the wizard from the existing record's config when the
   // chosen (section, term) already has one, so prior choices aren't lost.
+  // This effect only ever runs when a record already exists, so any failure
+  // here is a real load failure, not "no existing rota" — proceeding to
+  // create() on defaultPlan() would write replace:true defaults over the
+  // section's real plan, so the create path stays blocked until it succeeds.
   useEffect(() => {
     let cancelled = false;
     async function seedFromExisting() {
       if (!existingDescriptor) {
+        setSeedError(null);
         return;
       }
       const seedKey = `${existingDescriptor.sectionId}.${existingDescriptor.termId}`;
       if (seededKeyRef.current === seedKey) {
         return;
       }
+      setSeedError(null);
       try {
         const existing = await loadRota(existingDescriptor, token);
         const cfg = existing?.config?.cfg;
@@ -266,16 +304,23 @@ function RotaSetupWizard() {
           excluded,
         }));
       } catch (error) {
-        logger.warn('Setup: no existing rota to seed from', {
+        if (cancelled) {
+          return;
+        }
+        logger.error('Setup: failed to load existing rota to seed the wizard', {
+          sectionId: existingDescriptor.sectionId,
+          termId: existingDescriptor.termId,
           error: error.message,
         }, LOG_CATEGORIES.APP);
+        notifyError('Couldn\'t load this section\'s existing plan — retry before editing');
+        setSeedError(error.message || 'Could not load the existing plan');
       }
     }
     seedFromExisting();
     return () => {
       cancelled = true;
     };
-  }, [existingDescriptor, token]);
+  }, [existingDescriptor, token, seedRetryCount]);
 
   const { counts: ypCounts } = useSectionYPCounts(sectionId ? [sectionId] : []);
   const { candidates: leaderCandidates } = useSectionLeaders(
@@ -324,15 +369,20 @@ function RotaSetupWizard() {
         ? { ...heuristicExcluded, ...(plan.excluded ?? {}) }
         : heuristicExcluded;
       setPlan((previous) => ({ ...previous, k: previous.k ?? ypCount ?? null, meetings, excluded }));
+      setStep(2);
     } catch (error) {
-      logger.warn('Programme fetch failed during setup', {
+      // A fetch failure is not the same as a genuinely-empty programme: it
+      // must not fall through to the "no programme — using a weekly slot"
+      // fallback, since that shapes an immutable record (OSM has no column
+      // delete) from data that was never actually read.
+      logger.error('Programme fetch failed during setup', {
         sectionId,
         error: error.message,
       }, LOG_CATEGORIES.API);
-      setPlan((previous) => ({ ...previous, k: previous.k ?? ypCount ?? null, meetings: [] }));
+      notifyError('Couldn\'t read the programme — try again');
+    } finally {
+      setLoadingProgramme(false);
     }
-    setLoadingProgramme(false);
-    setStep(2);
   };
 
   const updatePlan = (patch) => {
@@ -354,6 +404,13 @@ function RotaSetupWizard() {
   };
 
   const handleCreate = async () => {
+    if (seedError) {
+      // Defense in depth alongside the disabled Create button below: the
+      // existing plan failed to load, so defaultPlan() is not the section's
+      // real config and must never be written with replace:true.
+      setCreationErrors([{ field: '_meta', error: 'Couldn\'t load this section\'s existing plan — retry before creating' }]);
+      return;
+    }
     setCreating(true);
     setCreationErrors([]);
     try {
@@ -364,7 +421,20 @@ function RotaSetupWizard() {
         return;
       }
 
-      const record = { sectionId: section.sid, sectionName: section.sname, termId: selectedTermId, seasonBucket };
+      // On re-edit, the record's identity must match the ORIGINAL record's
+      // name (sectionName/seasonBucket parsed from it by the descriptor) —
+      // sourcing them from the live section/range instead would build a
+      // different name if the section was renamed in OSM or the date range
+      // was nudged across a season boundary, missing createOrCompleteRota's
+      // exact-name match and creating a duplicate orphan record.
+      const record = existingDescriptor
+        ? {
+          sectionId: section.sid,
+          sectionName: existingDescriptor.sectionName,
+          termId: selectedTermId,
+          seasonBucket: existingDescriptor.seasonBucket,
+        }
+        : { sectionId: section.sid, sectionName: section.sname, termId: selectedTermId, seasonBucket };
       const result = await createOrCompleteRota({
         hostSection,
         hostTermId,
@@ -454,6 +524,24 @@ function RotaSetupWizard() {
     }
   };
 
+  if (initError) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-5">
+        <h1 className="text-lg font-semibold text-gray-900">Set up the water rota</h1>
+        <p className="mt-3 rounded-lg border border-scout-red bg-scout-red/5 p-3 text-sm text-scout-red">
+          Couldn&apos;t load setup data — {initError}
+        </p>
+        <button
+          type="button"
+          onClick={() => setInitAttempt((n) => n + 1)}
+          className="mt-3 px-4 py-2 rounded-md bg-scout-blue text-white text-sm font-medium hover:bg-scout-blue-dark"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   if (!sections) {
     return <LoadingScreen message="Loading sections..." />;
   }
@@ -514,36 +602,67 @@ function RotaSetupWizard() {
                 </option>
               ))}
             </select>
-            {existingDescriptor && (
+            {existingDescriptor && !seedError && (
               <p className="mt-1.5 text-xs text-scout-blue">
                 This section already has a rota for this term — continuing will edit it.
               </p>
             )}
+            {seedError && (
+              <div className="mt-1.5 rounded-md border border-scout-red bg-scout-red/5 p-2 text-xs text-scout-red">
+                <p>Couldn&apos;t load this section&apos;s existing plan — retry before editing.</p>
+                <button
+                  type="button"
+                  onClick={() => setSeedRetryCount((n) => n + 1)}
+                  className="mt-1 font-medium underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
 
-          {terms && terms.length > 0 && (
+          {sectionId && terms !== null && (
             <div>
               <label className="block text-sm font-medium text-gray-700" htmlFor="rota-term">Term</label>
-              <select
-                id="rota-term"
-                value={selectedTermId}
-                onChange={(event) => {
-                  const id = event.target.value;
-                  setSelectedTermId(id);
-                  const term = terms.find((entry) => String(entry.termid) === id);
-                  if (term) {
-                    setRange({ start: term.startdate.slice(0, 10), end: term.enddate.slice(0, 10) });
-                  }
-                }}
-                className="mt-1.5 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
-              >
-                {terms.map((term) => (
-                  <option key={term.termid} value={term.termid}>
-                    {term.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-gray-500">Picks the weeks below — fine-tune them if the rota runs a shorter span.</p>
+              {termsError ? (
+                <div className="mt-1.5 rounded-md border border-scout-red bg-scout-red/5 p-2 text-xs text-scout-red">
+                  <p>Couldn&apos;t load terms for this section — {termsError}</p>
+                  <button
+                    type="button"
+                    onClick={() => setTermsRetryCount((n) => n + 1)}
+                    className="mt-1 font-medium underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : terms.length === 0 ? (
+                <p className="mt-1.5 text-xs text-gray-500">
+                  This section has no terms set up in OSM yet — add one there before setting up its rota.
+                </p>
+              ) : (
+                <>
+                  <select
+                    id="rota-term"
+                    value={selectedTermId}
+                    onChange={(event) => {
+                      const id = event.target.value;
+                      setSelectedTermId(id);
+                      const term = terms.find((entry) => String(entry.termid) === id);
+                      if (term) {
+                        setRange({ start: term.startdate.slice(0, 10), end: term.enddate.slice(0, 10) });
+                      }
+                    }}
+                    className="mt-1.5 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-scout-blue focus:outline-none"
+                  >
+                    {terms.map((term) => (
+                      <option key={term.termid} value={term.termid}>
+                        {term.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Picks the weeks below — fine-tune them if the rota runs a shorter span.</p>
+                </>
+              )}
             </div>
           )}
 
@@ -830,6 +949,21 @@ function RotaSetupWizard() {
             </div>
           )}
 
+          {seedError && (
+            <div className="rounded-lg border border-scout-red bg-scout-red/5 p-3 text-sm">
+              <p className="font-medium text-scout-red">
+                Couldn&apos;t load this section&apos;s existing plan — creating is blocked until that succeeds.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSeedRetryCount((n) => n + 1)}
+                className="mt-1 text-xs font-medium text-scout-red underline"
+              >
+                Retry loading the existing plan
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               type="button"
@@ -841,7 +975,7 @@ function RotaSetupWizard() {
             </button>
             <button
               type="button"
-              disabled={creating}
+              disabled={creating || Boolean(seedError)}
               onClick={handleCreate}
               className="flex-1 py-2.5 rounded-md bg-scout-blue text-white text-sm font-semibold hover:bg-scout-blue-dark disabled:opacity-50"
             >

@@ -123,6 +123,17 @@ describe('useRotaIdentity', () => {
     expect(screen.getByTestId('picker')).toHaveTextContent('false');
   });
 
+  it('falls through to name-matching when the stored scoutid is no longer in members (not kept dead)', async () => {
+    safeGetSessionItem.mockReturnValue({ firstname: 'Simon', lastname: 'Clark' });
+    // A member who left the roster since the choice was stored.
+    localStorage.setItem('viking_rota_identity_555', '999');
+
+    render(<Harness rota={ROTA_GROUP} />);
+
+    await waitFor(() => expect(screen.getByTestId('identity')).toHaveTextContent('Simon Clark'));
+    expect(screen.getByTestId('picker')).toHaveTextContent('false');
+  });
+
   it('clear() drops the stored choice and re-opens the picker', async () => {
     safeGetSessionItem.mockReturnValue({ firstname: 'Simon', lastname: 'Clark' });
 

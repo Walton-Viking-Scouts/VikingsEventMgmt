@@ -18,6 +18,7 @@ import { useSectionYPCounts } from '../hooks/useSectionYPCounts.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { syncRotaWithProgramme } from '../services/rotaSetupService.js';
 import { getToken } from '../../../shared/services/auth/tokenService.js';
+import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { notifyError, notifyInfo, notifySuccess } from '../../../shared/utils/notifications.js';
 import { copyToClipboard, shareOrigin } from '../../../shared/utils/clipboard.js';
 import SessionMiniCard from './SessionMiniCard.jsx';
@@ -272,6 +273,7 @@ function RotaBoardPage() {
       let titlesUpdated = 0;
       let titleWriteFailed = false;
       let titlesSkippedNoIdentity = false;
+      let prefillErrorsCount = 0;
       const uncheckedSections = [];
       const failedSections = [];
       const sectionSyncErrors = [];
@@ -287,12 +289,17 @@ function RotaBoardPage() {
           titlesUpdated += result.titlesUpdated;
           titleWriteFailed = titleWriteFailed || result.titleWriteFailed;
           titlesSkippedNoIdentity = titlesSkippedNoIdentity || result.titlesSkippedNoIdentity;
+          prefillErrorsCount += result.prefillErrors?.length ?? 0;
           uncheckedSections.push(...result.uncheckedSections);
           failedSections.push(...result.failedSections);
           if (result.errors.length > 0) {
             sectionSyncErrors.push({ sectionLabel, errors: result.errors });
           }
         } catch (error) {
+          logger.error('Programme sync: section failed', {
+            sectionId: record.sectionId,
+            error: error.message,
+          }, LOG_CATEGORIES.API);
           sectionSyncErrors.push({ sectionLabel, errors: [{ error: error.message }] });
         }
       }
@@ -303,7 +310,8 @@ function RotaBoardPage() {
       } else if (
         added === 0 && orphaned === 0 && titlesUpdated === 0 &&
         !titleWriteFailed && !titlesSkippedNoIdentity &&
-        uncheckedSections.length === 0 && failedSections.length === 0
+        uncheckedSections.length === 0 && failedSections.length === 0 &&
+        prefillErrorsCount === 0
       ) {
         notifyInfo('Rota already matches the programmes.');
       } else if (added > 0) {
@@ -320,6 +328,13 @@ function RotaBoardPage() {
       if (orphaned > 0) {
         notifyInfo(
           `${orphaned} session${orphaned === 1 ? ' is' : 's are'} no longer on the programme — mark them not on water if needed.`,
+        );
+      }
+      // A pre-fill write failure on a newly added session must not read as
+      // sync success — the session exists but its regulars weren't added.
+      if (prefillErrorsCount > 0) {
+        notifyInfo(
+          `Regulars couldn't be pre-filled for ${prefillErrorsCount} session${prefillErrorsCount === 1 ? '' : 's'} — open them to add manually.`,
         );
       }
       // A real fetch failure (e.g. an expired token) is an error, not the benign

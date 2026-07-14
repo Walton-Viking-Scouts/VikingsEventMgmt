@@ -231,8 +231,32 @@ describe('SessionDetailModal', () => {
       by: IDENTITY.name,
       metaPatch: { st: '19:00' },
       token: 'tok',
+      base: { act: 'Kayaking', st: '18:15', en: '19:30', k: 24, p: 3, n: '', c: 0 },
     });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('passes the session\'s config-derived values as the merge base on a notes-only edit (virgin column)', async () => {
+    const refresh = vi.fn(async () => undefined);
+    render(
+      <SessionDetailModal
+        {...baseProps}
+        // hasMeta: false — activity/times/kids/needed here come from the
+        // section's config defaults, not from any saved meta.
+        session={makeSession({ hasMeta: false, activity: 'Sailing', startTime: '17:00', endTime: '18:30', kids: 12, needed: 2 })}
+        refresh={refresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Edit session'));
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Bring lifejackets' } });
+    fireEvent.click(screen.getByText('Save session'));
+
+    await waitFor(() => expect(writeSessionMeta).toHaveBeenCalledTimes(1));
+    expect(writeSessionMeta).toHaveBeenCalledWith(expect.objectContaining({
+      metaPatch: { n: 'Bring lifejackets' },
+      base: { act: 'Sailing', st: '17:00', en: '18:30', k: 12, p: 2, n: '', c: 0 },
+    }));
   });
 
   it('skips the write entirely when the editor saves without changing anything', async () => {

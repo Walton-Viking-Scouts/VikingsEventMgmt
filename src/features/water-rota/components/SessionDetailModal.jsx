@@ -100,6 +100,11 @@ function SessionDetailModal({
         by: identity.name,
         metaPatch,
         token: getToken(),
+        // Resolved effective values (config-derived when the column has no
+        // meta yet) — the merge base for a virgin column, so a first write
+        // (e.g. notes-only) doesn't reset activity/times/permits to global
+        // defaults.
+        base: currentFields,
       });
       notifySuccess(successText ?? 'Session updated');
       setEditing(false);
