@@ -24,6 +24,7 @@ vi.mock('../../../../shared/services/data/dataLoadingService.js', () => ({
   },
 }));
 
+import logger from '../../../../shared/services/utils/logger.js';
 import { discoverRotaRecords, loadRotaGroup } from '../../services/rotaService.js';
 import dataLoadingService from '../../../../shared/services/data/dataLoadingService.js';
 import {
@@ -269,5 +270,33 @@ describe('useWaterRota', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.rota).toBeNull();
+    expect(result.current.needsAuth).toBe(false);
+  });
+
+  it('classifies a missing-token error as needsAuth, logged at info (not error, to avoid spamming Sentry)', async () => {
+    const authError = new Error('No authentication token');
+    authError.code = 'NO_TOKEN';
+    discoverRotaRecords.mockRejectedValue(authError);
+
+    const { result } = renderHook(() => useWaterRota());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.needsAuth).toBe(true);
+    expect(result.current.error).toBe(authError);
+    expect(result.current.rota).toBeNull();
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalled();
+  });
+
+  it('classifies an expired-token error as needsAuth', async () => {
+    const authError = new Error('Cannot call testRead - authentication token has expired');
+    authError.isTokenExpired = true;
+    discoverRotaRecords.mockRejectedValue(authError);
+
+    const { result } = renderHook(() => useWaterRota());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.needsAuth).toBe(true);
+    expect(logger.error).not.toHaveBeenCalled();
   });
 });

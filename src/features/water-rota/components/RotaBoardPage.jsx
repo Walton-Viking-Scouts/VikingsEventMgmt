@@ -5,6 +5,7 @@ import SectionFilter from '../../../shared/components/ui/SectionFilter.jsx';
 import ConfirmModal from '../../../shared/components/ui/ConfirmModal.jsx';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import { useWaterRota } from '../hooks/useWaterRota.js';
+import { useAuth } from '../../auth/hooks/useAuth.jsx';
 import { useRotaIdentity } from '../hooks/useRotaIdentity.js';
 import { useRotaSignup } from '../hooks/useRotaSignup.js';
 import {
@@ -54,7 +55,8 @@ function RotaBoardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const seasonParam = searchParams.get('season');
-  const { loading, rota, error, refresh, seasonBucket, buckets } = useWaterRota(seasonParam || undefined);
+  const { loading, rota, error, refresh, seasonBucket, buckets, needsAuth } = useWaterRota(seasonParam || undefined);
+  const { login } = useAuth();
   const identityState = useRotaIdentity(rota);
   const { identity, needsPicker, choose, clear } = identityState;
   const { setSignup, pendingKey } = useRotaSignup(rota, identity, refresh);
@@ -403,6 +405,24 @@ function RotaBoardPage() {
 
   if (loading) {
     return <LoadingScreen message="Loading water rota..." />;
+  }
+
+  if (needsAuth) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 text-center">
+        <p className="text-gray-700 font-medium">Sign in to see the water rota</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Your OSM session has expired or you&apos;re not signed in. Sign in to load the rota.
+        </p>
+        <button
+          type="button"
+          onClick={login}
+          className="mt-4 px-4 py-2 rounded-md bg-scout-blue text-white text-sm font-medium hover:bg-scout-blue-dark"
+        >
+          Sign in to OSM
+        </button>
+      </div>
+    );
   }
 
   if (error) {

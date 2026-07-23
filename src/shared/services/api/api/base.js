@@ -352,10 +352,30 @@ export async function osmRequest(apiName, path, opts = {}) {
     return unavailable('authentication failed this session');
   }
 
-  validateTokenBeforeAPICall(token, apiName);
-
   if (write) {
+    validateTokenBeforeAPICall(token, apiName);
     checkWritePermission();
+  } else {
+    const tokenValidation = validateTokenBeforeAPICall(token, apiName, { allowMissingToken: true });
+    if (!tokenValidation.isValid) {
+      if (cacheRead) {
+        try {
+          const cached = await cacheRead();
+          if (cached !== null && cached !== undefined) return cached;
+        } catch (cacheError) {
+          logger.debug(`${apiName}: cache read failed`, { error: cacheError.message }, LOG_CATEGORIES.API);
+        }
+      }
+      // Deliberately not emptyValue here: an empty flexi list would make rota
+      // discovery falsely report "no rota set up" to a signed-out user.
+      if (tokenValidation.reason === 'TOKEN_EXPIRED') {
+        throw new TokenExpiredError(`Cannot call ${apiName} - authentication token has expired`);
+      }
+      const err = new Error('No authentication token');
+      err.status = 401;
+      err.code = 'NO_TOKEN';
+      throw err;
+    }
   }
 
   try {
