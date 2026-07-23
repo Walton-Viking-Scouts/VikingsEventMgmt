@@ -39,6 +39,7 @@ vi.mock('../../../utils/sentry.js', () => ({
 
 import { osmRequest } from '../base.js';
 import { authHandler } from '../../../auth/authHandler.js';
+import { isTokenExpired } from '../../../auth/tokenService.js';
 
 function okResponse(body) {
   return {
@@ -54,6 +55,7 @@ beforeEach(() => {
   demoMock.enabled = false;
   localStorage.removeItem('osm_blocked');
   authHandler.shouldMakeAPICall.mockReturnValue(true);
+  isTokenExpired.mockReturnValue(false);
   global.fetch = vi.fn(async () => okResponse({ items: [1, 2] }));
 });
 
@@ -171,5 +173,57 @@ describe('osmRequest reads', () => {
     const result = await osmRequest('testRead', '/read', { token: 'tok' });
     expect(result._rateLimitInfo).toBeUndefined();
     expect(result.items).toEqual([1]);
+  });
+});
+
+describe('osmRequest token handling (issue #233)', () => {
+  it('read with a missing token falls back to cache instead of throwing', async () => {
+    const cacheRead = vi.fn(async () => ({ items: ['cached'] }));
+    const result = await osmRequest('testRead', '/read', { token: null, cacheRead });
+    expect(result.items).toEqual(['cached']);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('read with a missing token and no cache rejects with code NO_TOKEN (not emptyValue)', async () => {
+    await expect(
+      osmRequest('testRead', '/read', { token: null, emptyValue: { items: [] } }),
+    ).rejects.toMatchObject({ code: 'NO_TOKEN' });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('read with an expired token falls back to cache', async () => {
+    isTokenExpired.mockReturnValue(true);
+    const cacheRead = vi.fn(async () => ({ items: ['cached'] }));
+    const result = await osmRequest('testRead', '/read', { token: 'expired-tok', cacheRead });
+    expect(result.items).toEqual(['cached']);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('write with a missing token still rejects (unchanged behavior)', async () => {
+    const cacheRead = vi.fn(async () => ({ items: ['cached'] }));
+    await expect(
+      osmRequest('testWrite', '/write', {
+        token: null, method: 'POST', write: true, body: { a: 1 }, cacheRead,
+      }),
+    ).rejects.toMatchObject({ code: 'NO_TOKEN' });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('read with an expired token and no cache rejects with a TokenExpiredError shape', async () => {
+    isTokenExpired.mockReturnValue(true);
+    await expect(
+      osmRequest('testRead', '/read', { token: 'expired-tok', emptyValue: { items: [] } }),
+    ).rejects.toMatchObject({ isTokenExpired: true, status: 401 });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('write with an expired token still rejects (unchanged behavior)', async () => {
+    isTokenExpired.mockReturnValue(true);
+    await expect(
+      osmRequest('testWrite', '/write', {
+        token: 'expired-tok', method: 'POST', write: true, body: { a: 1 },
+      }),
+    ).rejects.toMatchObject({ isTokenExpired: true });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

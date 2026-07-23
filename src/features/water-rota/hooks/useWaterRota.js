@@ -93,11 +93,11 @@ export function defaultSeasonBucket(buckets, todayISO = format(new Date(), 'yyyy
  * planning section's record in that bucket.
  *
  * @param {string} [seasonBucket] - Season bucket to load, e.g. "Summer 2026"; defaults to {@link defaultSeasonBucket}
- * @returns {{loading: boolean, rota: import('../services/rotaService.js').RotaGroup|null, error: Error|null, refresh: Function, seasonBucket: string|null, buckets: string[]}} Rota state
+ * @returns {{loading: boolean, rota: import('../services/rotaService.js').RotaGroup|null, error: Error|null, refresh: Function, seasonBucket: string|null, buckets: string[], needsAuth: boolean}} Rota state
  */
 export function useWaterRota(seasonBucket) {
   const [state, setState] = useState({
-    loading: true, rota: null, error: null, seasonBucket: null, buckets: [],
+    loading: true, rota: null, error: null, seasonBucket: null, buckets: [], needsAuth: false,
   });
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
@@ -156,16 +156,29 @@ export function useWaterRota(seasonBucket) {
         });
         return;
       }
-      setState({ loading: false, rota, error: null, seasonBucket: activeBucket, buckets });
+      setState({ loading: false, rota, error: null, seasonBucket: activeBucket, buckets, needsAuth: false });
     } catch (error) {
       if (!isCurrent()) {
+        return;
+      }
+      const isAuthError = error?.code === 'NO_TOKEN' || error?.isTokenExpired === true || error?.status === 401;
+      if (isAuthError) {
+        // Expected signed-out/expired state, not a real failure — logging at
+        // error would spam Sentry every time a session lapses. status 401
+        // covers a locally-valid token the server rejected, which must not
+        // fall through to the generic error (or worse, an empty "no rota").
+        logger.info('Water rota load needs sign-in', {
+          seasonBucket,
+          error: error.message,
+        }, LOG_CATEGORIES.AUTH);
+        setState({ loading: false, rota: null, error, seasonBucket: null, buckets: [], needsAuth: true });
         return;
       }
       logger.error('Water rota load failed', {
         seasonBucket,
         error: error.message,
       }, LOG_CATEGORIES.ERROR);
-      setState({ loading: false, rota: null, error, seasonBucket: null, buckets: [] });
+      setState({ loading: false, rota: null, error, seasonBucket: null, buckets: [], needsAuth: false });
     }
   }, [seasonBucket]);
 

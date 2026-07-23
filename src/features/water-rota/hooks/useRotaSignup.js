@@ -57,8 +57,12 @@ export function useRotaSignup(rota, identity, refresh) {
         notifySuccess(successMessage(status));
         await refresh();
       } catch (error) {
-        if (error?.code === 'WRITE_UNAVAILABLE') {
-          notifyError('You\'re offline — connect to change your signup.');
+        if (error?.code === 'NO_TOKEN' || error?.isTokenExpired === true) {
+          notifyError('Your session has expired — sign in again to change your signup.');
+        } else if (error?.code === 'WRITE_UNAVAILABLE') {
+          notifyError(/blocked/i.test(error.message)
+            ? 'OSM has temporarily blocked the app — try again later.'
+            : 'You\'re offline — connect to change your signup.');
         } else {
           notifyError(`Signup failed: ${error.message}`);
         }
