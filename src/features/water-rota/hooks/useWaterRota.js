@@ -161,14 +161,16 @@ export function useWaterRota(seasonBucket) {
       if (!isCurrent()) {
         return;
       }
-      const isAuthError = error?.code === 'NO_TOKEN' || error?.isTokenExpired === true;
+      const isAuthError = error?.code === 'NO_TOKEN' || error?.isTokenExpired === true || error?.status === 401;
       if (isAuthError) {
         // Expected signed-out/expired state, not a real failure — logging at
-        // error would spam Sentry every time a session lapses.
+        // error would spam Sentry every time a session lapses. status 401
+        // covers a locally-valid token the server rejected, which must not
+        // fall through to the generic error (or worse, an empty "no rota").
         logger.info('Water rota load needs sign-in', {
           seasonBucket,
           error: error.message,
-        }, LOG_CATEGORIES.ERROR);
+        }, LOG_CATEGORIES.AUTH);
         setState({ loading: false, rota: null, error, seasonBucket: null, buckets: [], needsAuth: true });
         return;
       }

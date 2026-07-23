@@ -299,4 +299,17 @@ describe('useWaterRota', () => {
     expect(result.current.needsAuth).toBe(true);
     expect(logger.error).not.toHaveBeenCalled();
   });
+
+  it('classifies a server-rejected token (401) as needsAuth, not a false empty board', async () => {
+    const authError = new Error('Authentication failed');
+    authError.status = 401;
+    discoverRotaRecords.mockRejectedValue(authError);
+
+    const { result } = renderHook(() => useWaterRota());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.needsAuth).toBe(true);
+    expect(result.current.rota).toBeNull();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
 });

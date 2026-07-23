@@ -363,7 +363,10 @@ export async function osmRequest(apiName, path, opts = {}) {
           const cached = await cacheRead();
           if (cached !== null && cached !== undefined) return cached;
         } catch (cacheError) {
-          logger.debug(`${apiName}: cache read failed`, { error: cacheError.message }, LOG_CATEGORIES.API);
+          // warn, not debug: a cache failure here changes the user-visible
+          // outcome (sign-in wall instead of cached data), so storage
+          // problems must stay findable.
+          logger.warn(`${apiName}: cache read failed`, { error: cacheError.message }, LOG_CATEGORIES.API);
         }
       }
       // Deliberately not emptyValue here: an empty flexi list would make rota

@@ -208,4 +208,22 @@ describe('osmRequest token handling (issue #233)', () => {
     ).rejects.toMatchObject({ code: 'NO_TOKEN' });
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  it('read with an expired token and no cache rejects with a TokenExpiredError shape', async () => {
+    isTokenExpired.mockReturnValue(true);
+    await expect(
+      osmRequest('testRead', '/read', { token: 'expired-tok', emptyValue: { items: [] } }),
+    ).rejects.toMatchObject({ isTokenExpired: true, status: 401 });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('write with an expired token still rejects (unchanged behavior)', async () => {
+    isTokenExpired.mockReturnValue(true);
+    await expect(
+      osmRequest('testWrite', '/write', {
+        token: 'expired-tok', method: 'POST', write: true, body: { a: 1 },
+      }),
+    ).rejects.toMatchObject({ isTokenExpired: true });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });
