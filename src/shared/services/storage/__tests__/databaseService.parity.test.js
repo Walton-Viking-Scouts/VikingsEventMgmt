@@ -462,3 +462,63 @@ describe('DatabaseService — Cross-backend parity for flexi data', () => {
     }
   });
 });
+
+describe('Cross-backend parity — sections', () => {
+  afterEach(() => {
+    if (activeDb) {
+      activeDb.close();
+      activeDb = null;
+    }
+  });
+
+  /**
+   * Drop storage-only bookkeeping columns. SQLite SELECT * returns
+   * created_at/updated_at; IndexedDB stamps its own updated_at. Neither is
+   * part of the consumer-facing section shape.
+   */
+  function normalizeSection(section) {
+    const { created_at: _c, updated_at: _u, ...rest } = section;
+    return rest;
+  }
+
+  async function runSectionRoundTrip(mode, sections) {
+    const ds = await loadService(mode);
+    await ds.initialize();
+    await ds.saveSections(sections);
+    const out = await ds.getSections();
+    if (activeDb) {
+      activeDb.close();
+      activeDb = null;
+    }
+    return out.map(normalizeSection);
+  }
+
+  const SECTION_WITH_PERMISSIONS = {
+    sectionid: 5,
+    sectionname: 'Beavers Mon',
+    sectiontype: 'beavers',
+    permissions: { finance: 100, events: 20, member: 10 },
+  };
+
+  const SECTION_WITHOUT_PERMISSIONS = {
+    sectionid: 6,
+    sectionname: 'Cubs Tue',
+    sectiontype: 'cubs',
+  };
+
+  it('a section with permissions produces identical output on both backends', async () => {
+    const sqliteOut = await runSectionRoundTrip('native', [SECTION_WITH_PERMISSIONS]);
+    const idbOut = await runSectionRoundTrip('web', [SECTION_WITH_PERMISSIONS]);
+
+    expect(sqliteOut).toEqual(idbOut);
+    expect(sqliteOut[0].permissions).toEqual({ finance: 100, events: 20, member: 10 });
+  });
+
+  it('a section without permissions produces identical output on both backends', async () => {
+    const sqliteOut = await runSectionRoundTrip('native', [SECTION_WITHOUT_PERMISSIONS]);
+    const idbOut = await runSectionRoundTrip('web', [SECTION_WITHOUT_PERMISSIONS]);
+
+    expect(sqliteOut).toEqual(idbOut);
+    expect(sqliteOut[0]).not.toHaveProperty('permissions');
+  });
+});

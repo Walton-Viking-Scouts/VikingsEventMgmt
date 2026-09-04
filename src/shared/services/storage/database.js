@@ -357,10 +357,15 @@ class DatabaseService {
 
       for (const section of sections) {
         const insert = `
-          INSERT OR REPLACE INTO sections (sectionid, sectionname, sectiontype)
-          VALUES (?, ?, ?)
+          INSERT OR REPLACE INTO sections (sectionid, sectionname, sectiontype, permissions)
+          VALUES (?, ?, ?, ?)
         `;
-        await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype], false);
+        await this.db.run(insert, [
+          section.sectionid,
+          section.sectionname,
+          section.sectiontype,
+          section.permissions ? JSON.stringify(section.permissions) : null,
+        ], false);
       }
     });
   }
@@ -378,6 +383,7 @@ class DatabaseService {
    * @returns {number} returns[].sectionid - Unique section identifier
    * @returns {string} returns[].sectionname - Display name
    * @returns {string} [returns[].sectiontype] - Section type
+   * @returns {Object} [returns[].permissions] - OSM permission levels keyed by area
    * 
    * @example
    * // Get all available sections
@@ -409,7 +415,15 @@ class DatabaseService {
 
     const query = 'SELECT * FROM sections ORDER BY sectionname';
     const result = await this.db.query(query);
-    return result.values || [];
+    return (result.values || []).map((row) => {
+      const { permissions, ...rest } = row;
+      if (permissions === null || permissions === undefined) return rest;
+      try {
+        return { ...rest, permissions: JSON.parse(permissions) };
+      } catch {
+        return rest;
+      }
+    });
   }
 
   /**

@@ -38,6 +38,12 @@ export {
   getListOfMembers,
 } from './members.js';
 
+// Payments exports
+export {
+  getPaymentSchemes,
+  getPaymentStatus,
+} from './payments.js';
+
 // Programme exports
 export {
   getProgramme,

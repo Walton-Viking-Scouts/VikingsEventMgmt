@@ -808,4 +808,56 @@ describe('DatabaseService — SQLite (iOS code path)', () => {
       expect(sectionIds).toEqual([5, 7]);
     });
   });
+  describe('Sections permissions round-trip (migration 005)', () => {
+    it('saveSections + getSections preserves the permissions map', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      await databaseService.saveSections([
+        {
+          sectionid: 5,
+          sectionname: 'Beavers Mon',
+          sectiontype: 'beavers',
+          permissions: { finance: 100, events: 20, member: 10 },
+        },
+      ]);
+
+      const sections = await databaseService.getSections();
+
+      expect(sections.length).toBe(1);
+      expect(sections[0].permissions).toEqual({ finance: 100, events: 20, member: 10 });
+    });
+
+    it('omits permissions entirely for a section saved without them', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      await databaseService.saveSections([
+        { sectionid: 6, sectionname: 'Cubs Tue', sectiontype: 'cubs' },
+      ]);
+
+      const sections = await databaseService.getSections();
+
+      expect(sections.length).toBe(1);
+      expect(sections[0]).not.toHaveProperty('permissions');
+    });
+
+    it('adds the permissions column to a pre-migration sections table', async () => {
+      activeDb.exec(`
+        CREATE TABLE sections (
+          sectionid INTEGER PRIMARY KEY,
+          sectionname TEXT NOT NULL,
+          sectiontype TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      const cols = new Set(activeDb.prepare('PRAGMA table_info(sections)').all().map(c => c.name));
+      expect(cols.has('permissions')).toBe(true);
+    });
+  });
 });

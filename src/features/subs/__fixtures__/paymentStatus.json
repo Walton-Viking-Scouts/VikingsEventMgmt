@@ -1,0 +1,1723 @@
+{
+  "status": true,
+  "error": null,
+  "data": {
+    "members": [
+      {
+        "975153": {
+          "status": [
+            {
+              "statusid": "49593943",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-08 11:58:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49476480",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-07 11:02:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49344368",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-02 16:28:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49259537",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-01 11:23:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [
+            {
+              "statusid": "55337756",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-13 11:53:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55258199",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-10 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55119495",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-07 16:30:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "54952170",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-04 11:20:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58340452",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-23 11:39:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58287785",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-22 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58196568",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-19 16:39:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58100128",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-16 10:51:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62785328",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62742133",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-20 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62625908",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 16:26:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62566449",
+              "scoutid": "900001",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-14 11:54:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900001",
+        "firstname": "Forename1",
+        "lastname": "Member2",
+        "patrolid": "119078",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "2",
+        "photo_guid": "00000000-0000-4000-8000-000000000001",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [
+            {
+              "statusid": "49593938",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-08 11:58:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49476488",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-07 11:02:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49338662",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-02 16:27:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49259539",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-01 11:23:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [
+            {
+              "statusid": "55337735",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-13 11:53:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55258164",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-10 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55120251",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-07 16:30:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "54952171",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-04 11:20:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58340468",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-23 11:39:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58287778",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-22 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58196481",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-19 16:39:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58100129",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-16 10:51:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62785433",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62742138",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-20 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62625912",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 16:26:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62566450",
+              "scoutid": "900002",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-14 11:54:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900002",
+        "firstname": "Forename4",
+        "lastname": "Member2",
+        "patrolid": "119076",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "2",
+        "photo_guid": "00000000-0000-4000-8000-000000000002",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "63646584",
+              "scoutid": "900003",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-06-11 11:40:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "63600720",
+              "scoutid": "900003",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-06-10 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "63405457",
+              "scoutid": "900003",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-06-05 16:27:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "63196272",
+              "scoutid": "900003",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-06-02 19:14:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800001",
+              "firstname": "Author7"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900003",
+        "firstname": "Forename5",
+        "lastname": "Member6",
+        "patrolid": "119077",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "1",
+        "photo_guid": "00000000-0000-4000-8000-000000000003",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [
+            {
+              "statusid": "50190799",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-01 11:46:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "50090713",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-30 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49955591",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-25 16:18:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "49910514",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-24 07:14:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800002",
+              "firstname": "Author10"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [
+            {
+              "statusid": "55337736",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-13 11:53:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55258167",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-10 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55119510",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-07 16:30:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "54952176",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-04 11:20:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58340464",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-23 11:39:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58287798",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-22 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58196621",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-19 16:39:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58100132",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-16 10:51:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62785327",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62742212",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-20 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62624180",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 16:25:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62552310",
+              "scoutid": "900004",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-14 09:22:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800002",
+              "firstname": "Author10"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900004",
+        "firstname": "Forename8",
+        "lastname": "Member9",
+        "patrolid": "119076",
+        "startdate": "2024-09-01",
+        "directdebit": "Inactive",
+        "dob": "2015-01-01",
+        "patrolleader": "0",
+        "photo_guid": "00000000-0000-4000-8000-000000000004",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [
+            {
+              "statusid": "51165667",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-27 11:40:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "51102748",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-23 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "51015570",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-20 16:44:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "50887094",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-16 08:38:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800003",
+              "firstname": "Author13"
+            },
+            {
+              "statusid": "50886977",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-05-16 08:21:00",
+              "status": "Payment required",
+              "details": "",
+              "editable": "1",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800004",
+              "firstname": "Author14"
+            },
+            {
+              "statusid": "49909010",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "975153",
+              "statustimestamp": "2025-04-23 21:42:00",
+              "status": "Payment not required",
+              "details": "",
+              "editable": "1",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800004",
+              "firstname": "Author14"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [
+            {
+              "statusid": "55337738",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-13 11:53:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55258266",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-10 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "55119537",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-07 16:30:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "54952177",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1064815",
+              "statustimestamp": "2025-10-04 11:20:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58340456",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-23 11:39:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58287772",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-22 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58196637",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-19 16:39:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58100135",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-16 10:51:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62785329",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62742134",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-20 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62625926",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 16:26:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62566453",
+              "scoutid": "900005",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-14 11:54:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900005",
+        "firstname": "Forename11",
+        "lastname": "Member12",
+        "patrolid": "119077",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "0",
+        "photo_guid": "00000000-0000-4000-8000-000000000005",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58185304",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-19 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58103051",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-16 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58010375",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-13 16:28:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "57857021",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-09 11:53:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800005",
+              "firstname": "Author17"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62821348",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-22 11:52:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62771375",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62683281",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-18 16:48:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62585201",
+              "scoutid": "900006",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 09:03:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800005",
+              "firstname": "Author17"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900006",
+        "firstname": "Forename15",
+        "lastname": "Member16",
+        "patrolid": "119076",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "0",
+        "photo_guid": "00000000-0000-4000-8000-000000000006",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [
+            {
+              "statusid": "58466568",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-28 11:39:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58420126",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-27 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58309721",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-22 16:37:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "58208762",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1127253",
+              "statustimestamp": "2026-01-20 07:46:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800006",
+              "firstname": "Author20"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62785434",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-21 11:48:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62742213",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-20 11:03:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62626125",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-15 16:26:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62566451",
+              "scoutid": "900007",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-14 11:54:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900007",
+        "firstname": "Forename18",
+        "lastname": "Member19",
+        "patrolid": "119078",
+        "startdate": "2024-09-01",
+        "directdebit": "Active",
+        "dob": "2015-01-01",
+        "patrolleader": "0",
+        "photo_guid": "00000000-0000-4000-8000-000000000007",
+        "can_remove": true
+      },
+      {
+        "975153": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-04-01",
+          "defaulton": true
+        },
+        "1064815": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2025-10-04",
+          "defaulton": true
+        },
+        "1127253": {
+          "status": [],
+          "active": false,
+          "amount": "26.00",
+          "date": "2026-01-16",
+          "defaulton": true
+        },
+        "1138365": {
+          "status": [
+            {
+              "statusid": "62713832",
+              "scoutid": "900008",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-19 11:49:00",
+              "status": "Received",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "1",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62655727",
+              "scoutid": "900008",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-18 11:01:00",
+              "status": "Paid",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62542752",
+              "scoutid": "900008",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-13 16:51:00",
+              "status": "Submitted",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "0",
+              "firstname": "Author3"
+            },
+            {
+              "statusid": "62440626",
+              "scoutid": "900008",
+              "schemeid": "60603",
+              "paymentid": "1138365",
+              "statustimestamp": "2026-05-11 17:13:00",
+              "status": "Initiated",
+              "details": "",
+              "editable": "0",
+              "prevent_automatic_billing": "0",
+              "latest": "0",
+              "who": "800007",
+              "firstname": "Author23"
+            }
+          ],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-05-14",
+          "defaulton": true
+        },
+        "1259480": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2026-09-15",
+          "defaulton": true
+        },
+        "1259481": {
+          "status": [],
+          "active": true,
+          "amount": "26.00",
+          "date": "2027-01-15",
+          "defaulton": true
+        },
+        "scoutid": "900008",
+        "firstname": "Forename21",
+        "lastname": "Member22",
+        "patrolid": "119075",
+        "startdate": "2024-09-01",
+        "directdebit": "Inactive",
+        "dob": "2015-01-01",
+        "patrolleader": "0",
+        "photo_guid": "00000000-0000-4000-8000-000000000008",
+        "can_remove": true
+      }
+    ]
+  },
+  "meta": []
+}
