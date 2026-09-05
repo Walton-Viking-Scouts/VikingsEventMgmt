@@ -332,6 +332,27 @@ class DatabaseService {
     return false;
   }
 
+  /**
+   * Replaces the cached Scout sections on whichever backend is active.
+   *
+   * Web/IndexedDB: sections are zod-validated and stored as whole objects.
+   * Native/SQLite: each section is written to the `sections` table, with the
+   * OSM `permissions` map serialized to JSON in the `permissions` TEXT column
+   * (added by migration 005) so both backends return the same shape from
+   * getSections. A section with no permissions stores SQL NULL.
+   *
+   * An empty payload is ignored when a non-empty cache already exists, so a
+   * flaky API response cannot wipe offline data.
+   *
+   * @async
+   * @param {Array<Object>} sections - Sections to persist
+   * @param {number|string} sections[].sectionid - Unique section identifier
+   * @param {string} sections[].sectionname - Display name
+   * @param {string} [sections[].sectiontype] - Section type
+   * @param {Object<string, number>} [sections[].permissions] - OSM permission
+   *   levels keyed by area (e.g. `{ finance: 100 }`)
+   * @returns {Promise<void>}
+   */
   async saveSections(sections) {
     await this.initialize();
 
@@ -357,10 +378,15 @@ class DatabaseService {
 
       for (const section of sections) {
         const insert = `
-          INSERT OR REPLACE INTO sections (sectionid, sectionname, sectiontype)
-          VALUES (?, ?, ?)
+          INSERT OR REPLACE INTO sections (sectionid, sectionname, sectiontype, permissions)
+          VALUES (?, ?, ?, ?)
         `;
-        await this.db.run(insert, [section.sectionid, section.sectionname, section.sectiontype], false);
+        await this.db.run(insert, [
+          section.sectionid,
+          section.sectionname,
+          section.sectiontype,
+          section.permissions ? JSON.stringify(section.permissions) : null,
+        ], false);
       }
     });
   }
@@ -378,6 +404,7 @@ class DatabaseService {
    * @returns {number} returns[].sectionid - Unique section identifier
    * @returns {string} returns[].sectionname - Display name
    * @returns {string} [returns[].sectiontype] - Section type
+   * @returns {Object} [returns[].permissions] - OSM permission levels keyed by area
    * 
    * @example
    * // Get all available sections
@@ -409,7 +436,20 @@ class DatabaseService {
 
     const query = 'SELECT * FROM sections ORDER BY sectionname';
     const result = await this.db.query(query);
-    return result.values || [];
+    return (result.values || []).map((row) => {
+      const { permissions, ...rest } = row;
+      if (permissions === null || permissions === undefined) return rest;
+      try {
+        return { ...rest, permissions: JSON.parse(permissions) };
+      } catch (error) {
+        logger.error('Failed to parse cached section permissions', {
+          sectionid: rest.sectionid,
+          rawPermissions: permissions,
+          error: error.message,
+        }, LOG_CATEGORIES.DATABASE);
+        return rest;
+      }
+    });
   }
 
   /**

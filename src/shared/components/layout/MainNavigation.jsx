@@ -12,6 +12,7 @@ function MainNavigation({ onNavigateToSectionMovements }) {
     if (path.startsWith('/movers')) return 'movers';
     if (path.startsWith('/young-leaders')) return 'young-leaders';
     if (path.startsWith('/water-rota')) return 'water-rota';
+    if (path.startsWith('/subs')) return 'subs';
     return 'events'; // default
   };
 
@@ -88,6 +89,22 @@ function MainNavigation({ onNavigateToSectionMovements }) {
               aria-label="Switch to Water Rota view"
             >
               🛶 Rota
+            </Link>
+
+            {/* Subs Tab */}
+            <Link
+              to="/subs"
+              className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                currentPage === 'subs'
+                  ? 'border-scout-blue text-scout-blue'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+              role="tab"
+              aria-selected={currentPage === 'subs'}
+              aria-controls="subs-panel"
+              aria-label="Switch to Subs view"
+            >
+              💷 Subs
             </Link>
 
             {/* Movers Button */}

@@ -1,0 +1,129 @@
+{
+  "identifier": "schemeid",
+  "label": "name",
+  "has_accounts": true,
+  "items": [
+    {
+      "schemeid": "31715",
+      "accountid": 11507,
+      "name": "Camps and Activities",
+      "currency": "GBP",
+      "require_all": 0,
+      "one_off_payments": false,
+      "amount_overdue": "0.00"
+    },
+    {
+      "schemeid": "60603",
+      "accountid": 11507,
+      "name": "Leaders Subs",
+      "currency": "GBP",
+      "require_all": 1,
+      "one_off_payments": false,
+      "amount_overdue": "0.00"
+    },
+    {
+      "schemeid": "60604",
+      "accountid": 11507,
+      "name": "Beavers Subs",
+      "currency": "GBP",
+      "require_all": 1,
+      "one_off_payments": false,
+      "amount_overdue": "0.00"
+    }
+  ],
+  "bank_accounts": [
+    {
+      "name": "Account1",
+      "accountid": "11507",
+      "gateway": "gocardless"
+    }
+  ],
+  "config": {
+    "subscription_level": 3,
+    "subscription_expires": "2026-09-08",
+    "section_type": "beavers",
+    "sectionType": "beavers",
+    "parentSectionId": "0",
+    "meeting_day": "Thu",
+    "subscription_active": "braintree",
+    "portal": {
+      "events": 1,
+      "details": 1,
+      "programme": 1,
+      "badges": 1,
+      "emailbolton": 1,
+      "payments": 1,
+      "easyfundraising": "https://example.invalid/cause",
+      "emailAddress": "leaders@example.invalid",
+      "emailAddressCopy": "",
+      "charityName": "EXAMPLE SCOUT GROUP",
+      "usedGiftAid": "2025-03-17",
+      "autoGiftAid": "1",
+      "paymentRemindFrequency": "10",
+      "paymentRemindCount": "3",
+      "badgesPartial": "1",
+      "badgesEmail": "1",
+      "badgesShowRequirements": true,
+      "badgesHomework": "badge",
+      "chat": 0,
+      "disabledContacts": [],
+      "invitesRequired": false,
+      "photos": true,
+      "showPatrol": true,
+      "eventRemindFrequency": "10",
+      "eventRemindCount": "3",
+      "eventIcs": 1,
+      "eventRotaFrequency": 3,
+      "eventRotaNotes": true,
+      "programmeAllowInformedAbsence": "1",
+      "programmeSummary": "1",
+      "programmeTimes": "1",
+      "programmeShowBadges": "1",
+      "programmeDownloadButton": "1",
+      "programmeShow": "-1",
+      "date_of_birth": "editable",
+      "badgesShowAll": "1",
+      "programmeShowLeaderInCharge": "1",
+      "programmeIcs": "1",
+      "ai": 0,
+      "personalDetailsHeader": "Example header text.",
+      "personalDetailsConfirmationRequiresData": true,
+      "tasks": 0,
+      "eventPersonalDetailsConfirmation": 185,
+      "at_home": 1,
+      "disableLeaderEventPayments": "1"
+    },
+    "portalExpires": {
+      "events": "2026-09-08",
+      "eventsA": 2,
+      "details": "2026-09-08",
+      "detailsA": 2,
+      "programme": "2026-09-08",
+      "programmeA": 2,
+      "badges": "2026-09-08",
+      "badgesA": 2,
+      "emailbolton": "2026-09-08",
+      "emailboltonA": 2,
+      "chat": "2021-09-11",
+      "chatA": 0,
+      "ai": "2025-10-16",
+      "aiA": 0,
+      "tasks": "2025-12-17",
+      "tasksA": 0,
+      "at_home": "2027-02-06",
+      "at_homeA": 2
+    },
+    "subscription_lastExpires": "2025-09-07",
+    "config_subscriptions_checked": "2026-09-04",
+    "hasUsedBadgeRecords": true,
+    "gocardless": "true",
+    "hierarchy_lowest_level": false,
+    "hierarchy_operating_level": "level_0",
+    "extraRecords": [
+      {
+        "name": "Viking Event Mgmt",
+        "extraid": 72758
+      }
+    ]
+  }
+}
