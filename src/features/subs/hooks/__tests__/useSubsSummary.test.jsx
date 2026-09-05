@@ -18,7 +18,7 @@ vi.mock('../../services/subsService.js', () => ({
 import { hasFinanceScope } from '../../../../shared/services/auth/tokenScopes.js';
 import { getSubsSections, loadSectionSubs } from '../../services/subsService.js';
 import { useSubsSummary } from '../useSubsSummary.js';
-import { makeSummary, SECTIONS, MIXED_SECTIONS } from '../../__tests__/fixtures.js';
+import { makeSummary, SECTIONS, MIXED_SECTIONS, MIXED_VIEWABLE_SECTIONS } from '../../__tests__/fixtures.js';
 
 /** Manually-resolvable promise for ordering-sensitive tests. */
 function deferred() {
@@ -82,8 +82,30 @@ describe('useSubsSummary', () => {
     expect(loadSectionSubs.mock.calls.map((call) => call[0])).toEqual(['49097', '49098']);
   });
 
-  it('stops the whole load on the first error', async () => {
-    loadSectionSubs.mockRejectedValueOnce(new Error('OSM said no'));
+  it('continues past a local, pre-network error', async () => {
+    getSubsSections.mockResolvedValue(MIXED_VIEWABLE_SECTIONS);
+    const err = new Error('No current term is cached for Adults');
+    err.code = 'NO_CURRENT_TERM';
+    err.localOnly = true;
+    loadSectionSubs.mockRejectedValueOnce(err);
+
+    const { result } = renderHook(() => useSubsSummary());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(loadSectionSubs).toHaveBeenCalledTimes(3);
+    expect(loadSectionSubs.mock.calls.map((call) => call[0])).toEqual(['49097', '49098', '49100']);
+    expect(result.current.sectionErrors['49097']).toEqual({
+      code: 'NO_CURRENT_TERM',
+      message: 'No current term is cached for Adults',
+    });
+    expect(result.current.error).toBeNull();
+    expect(Object.keys(result.current.summaries)).toEqual(['49098', '49100']);
+  });
+
+  it('stops the whole load on a network error', async () => {
+    const err = new Error('OSM said no');
+    err.code = 'LOAD_FAILED';
+    loadSectionSubs.mockRejectedValueOnce(err);
 
     const { result } = renderHook(() => useSubsSummary());
 
@@ -91,6 +113,7 @@ describe('useSubsSummary', () => {
     expect(result.current.error.message).toBe('OSM said no');
     expect(loadSectionSubs).toHaveBeenCalledTimes(1);
     expect(result.current.needsAuth).toBe(false);
+    expect(result.current.sectionErrors).toEqual({});
   });
 
   it('exposes needsAuth from an auth failure', async () => {

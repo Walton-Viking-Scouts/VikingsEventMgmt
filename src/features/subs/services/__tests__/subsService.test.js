@@ -103,11 +103,17 @@ describe('loadSectionSubs', () => {
     expect(getPaymentStatus).toHaveBeenCalledTimes(1);
   });
 
+  it('marks a network failure as not localOnly', async () => {
+    getPaymentSchemes.mockRejectedValue(new Error('boom'));
+    await expect(loadSectionSubs('49097', { token: 'tok' }))
+      .rejects.toMatchObject({ code: 'LOAD_FAILED', localOnly: false });
+  });
+
   it('flags needsAuth for an expired token', async () => {
     const authError = Object.assign(new Error('expired'), { isTokenExpired: true, status: 401 });
     getPaymentSchemes.mockRejectedValue(authError);
     await expect(loadSectionSubs('49097', { token: 'tok' }))
-      .rejects.toMatchObject({ needsAuth: true, status: 401 });
+      .rejects.toMatchObject({ needsAuth: true, status: 401, code: 'NEEDS_AUTH', localOnly: false });
     expect(getPaymentStatus).not.toHaveBeenCalled();
   });
 
@@ -131,27 +137,42 @@ describe('loadSectionSubs', () => {
 
   it('refuses to load a section without finance access', async () => {
     await expect(loadSectionSubs('49099', { token: 'tok' }))
-      .rejects.toThrow('No finance access for Scouts');
+      .rejects.toMatchObject({ code: 'NO_ACCESS', localOnly: true, message: 'No finance access for Scouts' });
     expect(getPaymentSchemes).not.toHaveBeenCalled();
   });
 
   it('refuses to load a section that is not cached', async () => {
     await expect(loadSectionSubs('99999', { token: 'tok' }))
-      .rejects.toThrow('Unknown section 99999');
+      .rejects.toMatchObject({ code: 'UNKNOWN_SECTION', localOnly: true });
     expect(getPaymentSchemes).not.toHaveBeenCalled();
   });
 
   it('reports demo mode rather than an empty result', async () => {
     getPaymentSchemes.mockResolvedValue(null);
     await expect(loadSectionSubs('49097', { token: 'tok' }))
-      .rejects.toThrow('Subs are not available in demo mode');
+      .rejects.toMatchObject({ code: 'DEMO_MODE', localOnly: true });
     expect(getPaymentStatus).not.toHaveBeenCalled();
   });
 
-  it('refuses to load without a cached current term', async () => {
+  it('reports a dormant section as NO_CURRENT_TERM before any network call', async () => {
+    databaseService.getTerms.mockResolvedValue([
+      { termid: 'old', name: 'Autumn 2013', startdate: '2013-09-01', enddate: '2013-12-20' },
+    ]);
+    await expect(loadSectionSubs('49097', { token: 'tok' })).rejects.toMatchObject({
+      code: 'NO_CURRENT_TERM',
+      localOnly: true,
+      message: 'No current term for Thursday Beavers (last term ended 2013-12-20)',
+    });
+    expect(getPaymentSchemes).not.toHaveBeenCalled();
+  });
+
+  it('reports a section with no cached terms at all', async () => {
     databaseService.getTerms.mockResolvedValue([]);
-    await expect(loadSectionSubs('49097', { token: 'tok' }))
-      .rejects.toThrow('No current term is cached');
+    await expect(loadSectionSubs('49097', { token: 'tok' })).rejects.toMatchObject({
+      code: 'NO_CURRENT_TERM',
+      localOnly: true,
+      message: 'No terms cached for Thursday Beavers',
+    });
     expect(getPaymentSchemes).not.toHaveBeenCalled();
   });
 });

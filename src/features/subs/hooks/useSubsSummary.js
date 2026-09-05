@@ -2,7 +2,9 @@
  * Loads the subs summary for every section the user may view, strictly one
  * section at a time so OSM sees a single in-flight payment call, stopping the
  * whole load on the first failure. Sections without finance access are kept in
- * the list but never requested. No polling, no retry, no background
+ * the list but never requested. Errors the service raises before any network
+ * call (err.localOnly) mark just that section and the loop continues; only a
+ * failed network call stops the whole run. No polling, no retry, no background
  * refresh: only mount and an explicit refresh() trigger a load.
  *
  * @module useSubsSummary
@@ -21,6 +23,7 @@ import { getSubsSections, loadSectionSubs } from '../services/subsService.js';
  *   summaries: Record<string, object>,
  *   loadingSectionId: string|null,
  *   failedSectionId: string|null,
+ *   sectionErrors: Record<string, {code: string, message: string}>,
  *   loading: boolean,
  *   error: Error|null,
  *   needsAuth: boolean,
@@ -37,6 +40,7 @@ export function useSubsSummary() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [needsFinanceScope, setNeedsFinanceScope] = useState(false);
   const [failedSectionId, setFailedSectionId] = useState(null);
+  const [sectionErrors, setSectionErrors] = useState({});
   const runIdRef = useRef(0);
 
   const load = useCallback(async (forceRefresh) => {
@@ -47,6 +51,7 @@ export function useSubsSummary() {
     setError(null);
     setNeedsAuth(false);
     setFailedSectionId(null);
+    setSectionErrors({});
 
     const token = getToken();
     if (!hasFinanceScope(token)) {
@@ -84,6 +89,14 @@ export function useSubsSummary() {
         setSummaries((previous) => ({ ...previous, [section.sectionId]: summary }));
       } catch (err) {
         if (runIdRef.current !== runId) return;
+        if (err?.localOnly) {
+          setSectionErrors((previous) => ({
+            ...previous,
+            [section.sectionId]: { code: err.code, message: err.message },
+          }));
+          setLoadingSectionId(null);
+          continue;
+        }
         setError(err);
         setNeedsAuth(Boolean(err?.needsAuth));
         setFailedSectionId(section.sectionId);
@@ -109,6 +122,7 @@ export function useSubsSummary() {
     summaries,
     loadingSectionId,
     failedSectionId,
+    sectionErrors,
     loading,
     error,
     needsAuth,

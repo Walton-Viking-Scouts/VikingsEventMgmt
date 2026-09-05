@@ -13,7 +13,7 @@
 import { getPaymentSchemes, getPaymentStatus } from '../../../shared/services/api/api/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
-import { buildSectionSubsSummary, deriveTerms } from './subsModel.js';
+import { buildSectionSubsSummary, deriveTerms, mostRecentTerm } from './subsModel.js';
 
 const MIN_FINANCE_PERMISSION = 10;
 
@@ -32,6 +32,23 @@ function todayISO(now = new Date()) {
 }
 
 /**
+ * Builds an error for a condition detected locally, before any network call.
+ * `localOnly` lets the summary page skip the section and carry on rather
+ * than treating it as an OSM failure that must stop the whole run.
+ *
+ * @param {'UNKNOWN_SECTION'|'NO_ACCESS'|'NO_CURRENT_TERM'|'DEMO_MODE'} code - Failure kind
+ * @param {string} message - Readable message
+ * @returns {Error} The error to throw
+ */
+function localError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  error.localOnly = true;
+  error.needsAuth = false;
+  return error;
+}
+
+/**
  * Wraps a load failure in the error shape the pages expect: `needsAuth` for
  * 401 / expired-token conditions, a readable Error otherwise.
  *
@@ -46,6 +63,8 @@ function loadError(error, message) {
   const wrapped = new Error(`${message}: ${error?.message ?? 'unknown error'}`);
   wrapped.cause = error;
   wrapped.needsAuth = isAuthError;
+  wrapped.code = isAuthError ? 'NEEDS_AUTH' : 'LOAD_FAILED';
+  wrapped.localOnly = false;
   if (isAuthError) {
     wrapped.status = 401;
   }
@@ -116,17 +135,23 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
   const sections = (await databaseService.getSections()) ?? [];
   const section = sections.find((s) => String(s.sectionid) === String(sectionId));
   if (!section) {
-    throw new Error(`Unknown section ${sectionId} — refresh the app data first`);
+    throw localError('UNKNOWN_SECTION', `Unknown section ${sectionId} — refresh the app data first`);
   }
   const sectionName = section.sectionname ?? `Section ${sectionId}`;
   if (Number(section.permissions?.finance ?? 0) < MIN_FINANCE_PERMISSION) {
-    throw new Error(`No finance access for ${sectionName}`);
+    throw localError('NO_ACCESS', `No finance access for ${sectionName}`);
   }
 
   const sectionTerms = (await databaseService.getTerms(sectionId)) ?? [];
   const terms = deriveTerms(sectionTerms, today);
   if (!terms.current) {
-    throw new Error(`No current term is cached for ${sectionName} — refresh the app data first`);
+    const latest = mostRecentTerm(sectionTerms);
+    throw localError(
+      'NO_CURRENT_TERM',
+      latest
+        ? `No current term for ${sectionName} (last term ended ${latest.endDate})`
+        : `No terms cached for ${sectionName}`,
+    );
   }
 
   const members = (await databaseService.getMembers([Number(sectionId)])) ?? [];
@@ -143,7 +168,7 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
   }
 
   if (!schemesResponse) {
-    throw new Error('Subs are not available in demo mode');
+    throw localError('DEMO_MODE', 'Subs are not available in demo mode');
   }
 
   const subsSchemes = (schemesResponse.items ?? []).filter((scheme) => Number(scheme.require_all) === 1);

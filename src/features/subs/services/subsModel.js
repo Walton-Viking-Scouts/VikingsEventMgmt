@@ -12,6 +12,8 @@
 
 import { findMostRecentTerm } from '../../../shared/utils/termUtils.js';
 
+export const RECENT_TERM_GRACE_DAYS = 120;
+
 const PAID_STATUSES = new Set(['Paid', 'Received', 'Paid manually']);
 const IN_PROGRESS_STATUSES = new Set(['Initiated', 'Submitted']);
 const NOT_REQUIRED_STATUS = 'Payment not required';
@@ -114,12 +116,38 @@ function normaliseTerm(term) {
 /**
  * Derives the previous / current / next term buckets from a section's cached
  * terms. Current is the term containing today, falling back to the most
- * recent term by end date.
+ * recently ended term when that was within the last
+ * {@link RECENT_TERM_GRACE_DAYS} days; otherwise there is no current term.
  *
  * @param {Array<Object>} sectionTerms - Cached terms for the section
  * @param {string} today - Today's date (yyyy-mm-dd)
  * @returns {{previous: SubsTerm|null, current: SubsTerm|null, next: SubsTerm|null}} The three buckets
  */
+/**
+ * Whole days between two yyyy-mm-dd dates.
+ *
+ * @param {string} from - Earlier date
+ * @param {string} to - Later date
+ * @returns {number} Days from `from` to `to`
+ */
+export function daysBetween(from, to) {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+}
+
+/**
+ * The term with the latest end date, normalised.
+ *
+ * @param {Array<Object>} sectionTerms - Cached terms for the section
+ * @returns {SubsTerm|null} The most recent term, or null when there are none
+ */
+export function mostRecentTerm(sectionTerms) {
+  const usable = (Array.isArray(sectionTerms) ? sectionTerms : []).filter((term) => term?.enddate);
+  if (usable.length === 0) {
+    return null;
+  }
+  return normaliseTerm(findMostRecentTerm(usable));
+}
+
 export function deriveTerms(sectionTerms, today) {
   const terms = (Array.isArray(sectionTerms) ? sectionTerms : [])
     .map(normaliseTerm)
@@ -130,8 +158,15 @@ export function deriveTerms(sectionTerms, today) {
     return { previous: null, current: null, next: null };
   }
 
-  const current = terms.find((term) => today >= term.startDate && today <= term.endDate)
-    ?? normaliseTerm(findMostRecentTerm(sectionTerms.filter((t) => t?.enddate)));
+  // Between terms (school holidays) the most recently ended term still
+  // describes the subs that are live, but a term that ended years ago does
+  // not: a dormant section must resolve to no current term rather than
+  // reporting stale coverage.
+  const containing = terms.find((term) => today >= term.startDate && today <= term.endDate);
+  const recentlyEnded = terms
+    .filter((term) => term.endDate < today && daysBetween(term.endDate, today) <= RECENT_TERM_GRACE_DAYS)
+    .reduce((latest, term) => (!latest || term.endDate > latest.endDate ? term : latest), null);
+  const current = containing ?? recentlyEnded;
 
   if (!current) {
     return { previous: null, current: null, next: null };

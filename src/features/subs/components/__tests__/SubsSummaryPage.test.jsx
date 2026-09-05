@@ -98,6 +98,20 @@ describe('SubsSummaryPage', () => {
     );
   });
 
+  it('marks a section with a local error and still loads the rest', async () => {
+    const err = new Error('No current term for Adults (last term ended 2013-05-23)');
+    err.code = 'NO_CURRENT_TERM';
+    err.localOnly = true;
+    loadSectionSubs.mockRejectedValueOnce(err);
+
+    renderPage();
+
+    expect(await screen.findByText('No current term for Adults (last term ended 2013-05-23)')).toBeInTheDocument();
+    await waitFor(() => expect(loadSectionSubs).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByText('Beavers Subs 2 / Leaders Subs 0')).toHaveLength(1);
+    expect(screen.queryByText(/Loading stopped/)).not.toBeInTheDocument();
+  });
+
   it('notes when no section has finance access', async () => {
     getSubsSections.mockResolvedValue([
       { sectionId: '49099', sectionName: 'Saturday Scouts', financePermission: 0, canView: false },

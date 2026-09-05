@@ -79,11 +79,15 @@ describe('deriveTerms', () => {
     expect(result.next.termId).toBe('3');
   });
 
-  it('falls back to the most recent term when today is in no term', () => {
-    const result = deriveTerms(terms, '2027-06-01');
-    expect(result.current.termId).toBe('3');
-    expect(result.previous.termId).toBe('2');
-    expect(result.next).toBeNull();
+  it('falls back to the term that just ended during the holidays', () => {
+    const result = deriveTerms(terms, '2026-08-10');
+    expect(result.current.termId).toBe('2');
+    expect(result.previous.termId).toBe('1');
+    expect(result.next.termId).toBe('3');
+  });
+
+  it('has no current term when the last term ended long ago', () => {
+    expect(deriveTerms(terms, '2028-09-01')).toEqual({ previous: null, current: null, next: null });
   });
 
   it('picks the previous term by latest end date, not by start date', () => {

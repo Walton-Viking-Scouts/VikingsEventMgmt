@@ -13,9 +13,19 @@ import { formatPounds } from './formatPounds.js';
  * @param {{sectionId: string, sectionName: string, canView: boolean}} props.section - The section
  * @param {object} [props.summary] - Loaded SectionSubsSummary, when available
  * @param {boolean} props.isLoading - Whether this section is currently loading
+ * @param {{code: string, message: string}} [props.sectionError] - A local, pre-network failure for this section
  * @returns {JSX.Element} A section card linking to its drill-down
  */
-function SectionCard({ section, summary, isLoading }) {
+function SectionCard({ section, summary, isLoading, sectionError }) {
+  if (sectionError) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
+        <h2 className="m-0 text-base font-semibold text-gray-500">{section.sectionName}</h2>
+        <p className="m-0 mt-2 text-sm text-gray-500">{sectionError.message}</p>
+      </div>
+    );
+  }
+
   if (!section.canView) {
     return (
       <div
@@ -100,6 +110,7 @@ function SubsSummaryPage() {
     summaries,
     loadingSectionId,
     failedSectionId,
+    sectionErrors,
     loading,
     error,
     needsAuth,
@@ -148,6 +159,7 @@ function SubsSummaryPage() {
             section={section}
             summary={summaries[section.sectionId]}
             isLoading={loadingSectionId === section.sectionId}
+            sectionError={sectionErrors[section.sectionId]}
           />
         ))}
       </div>

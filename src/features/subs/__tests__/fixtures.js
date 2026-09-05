@@ -122,3 +122,10 @@ export const MIXED_SECTIONS = [
   { sectionId: '49099', sectionName: 'Saturday Scouts', financePermission: 0, canView: false },
   { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true },
 ];
+
+/** Three viewable sections, for ordering and continue-on-error tests. */
+export const MIXED_VIEWABLE_SECTIONS = [
+  { sectionId: '49097', sectionName: 'Adults', financePermission: 20, canView: true },
+  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true },
+  { sectionId: '49100', sectionName: 'Monday Beavers', financePermission: 10, canView: true },
+];

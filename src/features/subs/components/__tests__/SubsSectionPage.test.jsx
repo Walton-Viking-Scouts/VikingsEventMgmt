@@ -81,6 +81,17 @@ describe('SubsSectionPage', () => {
     expect(await screen.findByText('No finance access for this section')).toBeInTheDocument();
   });
 
+  it('shows a local, pre-network error message', async () => {
+    const err = new Error('No current term is cached for Adults');
+    err.code = 'NO_CURRENT_TERM';
+    err.localOnly = true;
+    loadSectionSubs.mockRejectedValue(err);
+
+    renderPage();
+
+    expect(await screen.findByText('No current term is cached for Adults')).toBeInTheDocument();
+  });
+
   it('shows the sign-in card without the finance scope', async () => {
     hasFinanceScope.mockReturnValue(false);
 

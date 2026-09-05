@@ -79,8 +79,11 @@ export async function getSubsSections(): Promise<Array<{ sectionId: string, sect
 /**
  * Loads one section: schemes, then one status call per subs scheme for the
  * current term, sequentially. Stops on the first failure. Uses the cache
- * unless forceRefresh. Throws on failure with err.needsAuth === true for
- * 401/expired-token, otherwise a plain Error with a readable message.
+ * unless forceRefresh. Throws on failure. Every thrown error carries
+ * err.code ('UNKNOWN_SECTION' | 'NO_ACCESS' | 'NO_CURRENT_TERM' |
+ * 'DEMO_MODE' | 'NEEDS_AUTH' | 'LOAD_FAILED'), a readable err.message,
+ * err.localOnly === true when it was raised before any network call (the
+ * first four), and err.needsAuth === true for 401/expired-token.
  */
 export async function loadSectionSubs(sectionId, { token, forceRefresh = false }): Promise<SectionSubsSummary>
 ```
@@ -156,6 +159,9 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   banner. Columns: YP count, per-subs-scheme YP count (scheme name as the
   header, e.g. "Beavers Subs 19 / Leaders Subs 4"), YP not set up, previous /
   current / next term set-up ticks, unpaid (members and £), OSM overdue £.
+  A section whose error is `localOnly` (nothing was asked of OSM) is marked in
+  place with its message and the loop moves on to the next section; only a
+  failed network call stops the run and raises the banner.
   A Refresh button reloads with `forceRefresh`. Sections with `canView` false
   are rendered as greyed, non-linking cards showing only the section name and
   "No finance access" (no spinner, no figures) and are never loaded; when no
