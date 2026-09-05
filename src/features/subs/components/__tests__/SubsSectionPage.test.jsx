@@ -96,17 +96,22 @@ describe('SubsSectionPage', () => {
     expect(currentCell.querySelector('span span').className).toContain('text-scout-red');
   });
 
-  it('colours every Payment required badge red, whatever its date', async () => {
+  it('colours Payment required red once due and amber while not yet due', async () => {
     const { container } = renderPage();
 
     await screen.findByText(/Ben Brown/);
-    const required = [...container.querySelectorAll('td span span')]
-      .filter((node) => node.textContent === 'Payment required');
-    expect(required.length).toBeGreaterThan(0);
-    required.forEach((node) => {
-      expect(node.className).toContain('text-scout-red');
-      expect(node.className).not.toContain('amber');
-    });
+    const cells = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
+
+    const due = cells[4].querySelector('span span');
+    expect(due.textContent).toBe('Payment required');
+    expect(due.className).toContain('text-scout-red');
+
+    const notYetDue = [...cells[5].querySelectorAll('span span')].at(-1);
+    expect(notYetDue.textContent).toBe('Payment required');
+    expect(notYetDue.className).toContain('amber');
+    expect(notYetDue.className).not.toContain('text-scout-red');
+
+    expect(container.querySelectorAll('.text-scout-red').length).toBeGreaterThan(0);
   });
 
   it('renders one column per future payment date, in order', async () => {

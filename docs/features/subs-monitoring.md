@@ -265,9 +265,11 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   future payment a single column headed "Next" over "Not scheduled" is shown
   instead. Every payment cell shows OSM's own status text verbatim ("Payment
   required", "Received", "Paid manually", ...), coloured by our state
-  category (paid green, in progress blue, required and not started red, not
-  required slate, anything else neutral — no date logic in the colouring)
-  with the date and £ in the badge title. An applicable payment with an empty
+  category (paid green, in progress blue, not required slate, anything else
+  neutral) with the date and £ in the badge title. The required and
+  not-started states are the one place the date matters: red
+  (`bg-red-50 text-scout-red`) once `isDue` is true, amber while the payment
+  is still in the future — the label stays "Payment required" either way. An applicable payment with an empty
   history reads "Payment required", which is what OSM's own grid shows for an
   untouched active payment; `not-applicable` shows a muted "N/A"; a cell with
   no payment for that column, and a payment with no OSM status whose state is

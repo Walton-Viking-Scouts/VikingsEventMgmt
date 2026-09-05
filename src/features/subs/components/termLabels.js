@@ -9,10 +9,12 @@ const UNPAID_STATES = new Set(['required', 'not-started']);
 const STATE_CLASSES = {
   'paid': 'bg-green-100 text-green-800 border-green-200',
   'in-progress': 'bg-blue-100 text-blue-800 border-blue-200',
-  'required': 'bg-red-50 text-scout-red border-red-200',
-  'not-started': 'bg-red-50 text-scout-red border-red-200',
   'not-required': 'bg-slate-100 text-slate-600 border-slate-200',
 };
+
+const DUE_CLASS = 'bg-red-50 text-scout-red border-red-200';
+
+const NOT_YET_DUE_CLASS = 'bg-amber-100 text-amber-800 border-amber-200';
 
 const NOT_APPLICABLE_BADGE = { label: 'N/A', className: 'bg-slate-100 text-slate-500 border-slate-200' };
 
@@ -62,7 +64,8 @@ export function isOverdue(entry) {
  * The badge for one member's payment, showing OSM's own status text so
  * leaders read the wording they already know, coloured by our state category.
  * An applicable payment with an empty history reads "Payment required", which
- * is what OSM's own grid shows for an untouched active payment.
+ * is what OSM's own grid shows for an untouched active payment; that label is
+ * red once the payment is due and amber while it is still in the future.
  *
  * @param {object} entry - A payment entry from members[].buckets.*
  * @returns {{label: string, className: string}|null} Badge, or null when there is no OSM status text and the state is not required or not-started
@@ -76,6 +79,10 @@ export function paymentBadge(entry) {
   const label = entry?.latestStatus || (UNPAID_STATES.has(state) ? 'Payment required' : '');
   if (!label) {
     return null;
+  }
+
+  if (UNPAID_STATES.has(state)) {
+    return { label, className: entry.isDue ? DUE_CLASS : NOT_YET_DUE_CLASS };
   }
 
   return {
