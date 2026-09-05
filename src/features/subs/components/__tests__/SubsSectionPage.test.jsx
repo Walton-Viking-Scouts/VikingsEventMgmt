@@ -83,7 +83,7 @@ describe('SubsSectionPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Next · Not scheduled')).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Next · Not scheduled' })).toBeInTheDocument();
   });
 
   it('lists the young people not set up', async () => {

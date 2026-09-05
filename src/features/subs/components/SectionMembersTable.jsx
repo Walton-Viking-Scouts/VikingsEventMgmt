@@ -5,6 +5,26 @@ import { formatPounds } from './formatPounds.js';
 import { BUCKET_LABELS, BUCKETS, hasUnpaid, bucketHeader } from './termLabels.js';
 
 /**
+ * Two-line column heading: the bucket label over the term name (or a detail
+ * such as "Not scheduled"), so the header stays narrow.
+ *
+ * @param {object} props - Component props
+ * @param {'previous'|'current'|'next'} props.bucket - Term bucket
+ * @param {object} [props.terms] - SectionSubsSummary.terms
+ * @param {string} [props.detail] - Text shown instead of the term name
+ * @returns {JSX.Element} Stacked heading text
+ */
+function BucketHeading({ bucket, terms, detail }) {
+  const second = detail ?? terms?.[bucket]?.name;
+  return (
+    <span className="inline-flex flex-col leading-tight">
+      <span>{BUCKET_LABELS[bucket]}</span>
+      {second ? <span className="text-xs font-normal text-gray-500 whitespace-nowrap">{second}</span> : null}
+    </span>
+  );
+}
+
+/**
  * The payment badges for one member in one term bucket, or a muted dash when
  * the bucket holds no payments.
  *
@@ -52,14 +72,18 @@ function SectionMembersTable({ members, terms, termTotals }) {
               <th scope="col" className="px-4 py-2 font-medium">YP</th>
               <th scope="col" className="px-4 py-2 font-medium">Scheme</th>
               <th scope="col" className="px-4 py-2 font-medium">DD</th>
-              <th scope="col" className="px-4 py-2 font-medium whitespace-nowrap">
-                {bucketHeader('previous', terms)}
+              <th scope="col" className="px-4 py-2 font-medium align-bottom" aria-label={bucketHeader('previous', terms)}>
+                <BucketHeading bucket="previous" terms={terms} />
               </th>
-              <th scope="col" className="px-4 py-2 font-medium whitespace-nowrap">
-                {bucketHeader('current', terms)}
+              <th scope="col" className="px-4 py-2 font-medium align-bottom" aria-label={bucketHeader('current', terms)}>
+                <BucketHeading bucket="current" terms={terms} />
               </th>
-              <th scope="col" className="px-4 py-2 font-medium whitespace-nowrap">
-                {nextScheduled ? bucketHeader('next', terms) : 'Next · Not scheduled'}
+              <th
+                scope="col"
+                className="px-4 py-2 font-medium align-bottom"
+                aria-label={nextScheduled ? bucketHeader('next', terms) : 'Next · Not scheduled'}
+              >
+                <BucketHeading bucket="next" terms={terms} detail={nextScheduled ? undefined : 'Not scheduled'} />
               </th>
             </tr>
           </thead>
