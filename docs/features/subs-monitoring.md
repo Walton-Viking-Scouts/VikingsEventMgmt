@@ -37,12 +37,17 @@ Response shapes are documented in the backend's `docs/api/osm-proxy.md`.
   (see `src/features/water-rota/hooks/useSectionYPCounts.js` for the
   membership lookup). Members in the status response are matched to cached
   members by `scoutid`.
-- **Term buckets**: previous / current / next are taken from the section's
-  cached terms: current is the term containing today (fallback: the most
-  recent term, via `src/shared/utils/termUtils.js` and
-  `currentActiveTermsService`), previous is the latest term ending before it,
-  next is the earliest term starting after it. A payment belongs to a bucket
-  when its `date` falls inside that term's `startdate`..`enddate`.
+- **Term buckets**: previous / current / next come from the shared terms
+  helpers, never from the per-section `terms` store (its `sectionid` index is
+  number-typed and misses string lookups). The section's term list is
+  `getTerms(token)[String(sectionId)]` (one shared fetch per summary run);
+  current is `CurrentActiveTermsService.getCurrentActiveTerm(sectionId)` when
+  a record exists, else the term containing today, else the most recently
+  ended term if it ended within 120 days, else none (the section is reported
+  as having no current term and is skipped). Previous is the term with the
+  latest end date before current's start, next the earliest starting after
+  current's end. A payment belongs to a bucket when its `date` falls inside
+  that term's `startdate`..`enddate`.
 - **Scheme covers a term** when it has at least one payment in that bucket.
   **Section subs coverage** for a bucket is true when any subs scheme covers it.
 - **Per-payment state** for a member, from the per-payment object in the

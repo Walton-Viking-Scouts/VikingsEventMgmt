@@ -5,12 +5,16 @@ import statusFixture from '../../__fixtures__/paymentStatus.json';
 vi.mock('../../../../shared/services/api/api/index.js', () => ({
   getPaymentSchemes: vi.fn(),
   getPaymentStatus: vi.fn(),
+  getTerms: vi.fn(),
+}));
+
+vi.mock('../../../../shared/services/storage/currentActiveTermsService.js', () => ({
+  CurrentActiveTermsService: { getCurrentActiveTerm: vi.fn() },
 }));
 
 vi.mock('../../../../shared/services/storage/database.js', () => ({
   default: {
     getSections: vi.fn(),
-    getTerms: vi.fn(),
     getMembers: vi.fn(),
   },
 }));
@@ -20,9 +24,10 @@ vi.mock('../../../../shared/services/utils/logger.js', () => ({
   LOG_CATEGORIES: { ERROR: 'error' },
 }));
 
-import { getPaymentSchemes, getPaymentStatus } from '../../../../shared/services/api/api/index.js';
+import { getPaymentSchemes, getPaymentStatus, getTerms } from '../../../../shared/services/api/api/index.js';
 import databaseService from '../../../../shared/services/storage/database.js';
-import { getSubsSections, loadSectionSubs } from '../subsService.js';
+import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
+import { getSubsSections, loadSectionSubs, resetTermsCache } from '../subsService.js';
 
 const SECTIONS = [
   { sectionid: 49097, sectionname: 'Thursday Beavers', permissions: { finance: 20 } },
@@ -41,7 +46,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-09-20T09:00:00'));
   databaseService.getSections.mockResolvedValue(SECTIONS);
-  databaseService.getTerms.mockResolvedValue(TERMS);
+  resetTermsCache();
+  getTerms.mockResolvedValue({ 49097: TERMS, 49098: TERMS });
+  CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue(null);
   databaseService.getMembers.mockResolvedValue([]);
   getPaymentSchemes.mockResolvedValue(schemesFixture);
   getPaymentStatus.mockResolvedValue(statusFixture);
@@ -147,6 +154,40 @@ describe('loadSectionSubs', () => {
     expect(getPaymentSchemes).not.toHaveBeenCalled();
   });
 
+  it('finds terms keyed by section id string and fetches the payload once per run', async () => {
+    const first = await loadSectionSubs('49097', { token: 'tok' });
+    const second = await loadSectionSubs('49098', { token: 'tok' });
+    expect(first.terms.current.termId).toBe('965353');
+    expect(second.terms.current.termId).toBe('965353');
+    expect(getTerms).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports NO_CURRENT_TERM when the terms payload is unavailable', async () => {
+    getTerms.mockResolvedValue(null);
+    await expect(loadSectionSubs('49097', { token: 'tok' })).rejects.toMatchObject({
+      code: 'NO_CURRENT_TERM',
+      localOnly: true,
+      message: 'No terms cached for Thursday Beavers — refresh the app data first',
+    });
+    expect(getPaymentSchemes).not.toHaveBeenCalled();
+  });
+
+  it('uses the current-active-term record even when today falls outside it', async () => {
+    CurrentActiveTermsService.getCurrentActiveTerm.mockResolvedValue({
+      currentTermId: '965352', termName: 'Summer', startDate: '2026-04-01', endDate: '2026-07-20',
+    });
+    const result = await loadSectionSubs('49097', { token: 'tok' });
+    expect(result.terms.current.termId).toBe('965352');
+    expect(result.terms.next.termId).toBe('965353');
+    expect(getPaymentStatus).toHaveBeenCalledWith('49097', '60603', '965352', 'tok', { forceRefresh: false });
+  });
+
+  it('falls back to the date-based derivation when there is no record', async () => {
+    const result = await loadSectionSubs('49097', { token: 'tok' });
+    expect(result.terms.current.termId).toBe('965353');
+    expect(result.terms.previous.termId).toBe('965352');
+  });
+
   it('reports demo mode rather than an empty result', async () => {
     getPaymentSchemes.mockResolvedValue(null);
     await expect(loadSectionSubs('49097', { token: 'tok' }))
@@ -154,10 +195,10 @@ describe('loadSectionSubs', () => {
     expect(getPaymentStatus).not.toHaveBeenCalled();
   });
 
-  it('reports a dormant section as NO_CURRENT_TERM before any network call', async () => {
-    databaseService.getTerms.mockResolvedValue([
+  it('reports a dormant section as NO_CURRENT_TERM before any payment call', async () => {
+    getTerms.mockResolvedValue({ 49097: [
       { termid: 'old', name: 'Autumn 2013', startdate: '2013-09-01', enddate: '2013-12-20' },
-    ]);
+    ] });
     await expect(loadSectionSubs('49097', { token: 'tok' })).rejects.toMatchObject({
       code: 'NO_CURRENT_TERM',
       localOnly: true,
@@ -167,7 +208,7 @@ describe('loadSectionSubs', () => {
   });
 
   it('reports a section with no cached terms at all', async () => {
-    databaseService.getTerms.mockResolvedValue([]);
+    getTerms.mockResolvedValue({});
     await expect(loadSectionSubs('49097', { token: 'tok' })).rejects.toMatchObject({
       code: 'NO_CURRENT_TERM',
       localOnly: true,

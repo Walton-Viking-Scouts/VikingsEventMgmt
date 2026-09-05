@@ -10,14 +10,92 @@
  * @module subsService
  */
 
-import { getPaymentSchemes, getPaymentStatus } from '../../../shared/services/api/api/index.js';
+import { getPaymentSchemes, getPaymentStatus, getTerms } from '../../../shared/services/api/api/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
+import { CurrentActiveTermsService } from '../../../shared/services/storage/currentActiveTermsService.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { buildSectionSubsSummary, deriveTerms, mostRecentTerm } from './subsModel.js';
 
 const MIN_FINANCE_PERMISSION = 10;
 
 const inFlight = new Map();
+
+const TERMS_TTL = 30 * 60 * 1000;
+
+let termsCache = null;
+
+/**
+ * Discards the shared terms payload, so the next load fetches it again.
+ * Used on sign-out and by tests.
+ *
+ * @returns {void}
+ */
+export function resetTermsCache() {
+  termsCache = null;
+}
+
+/**
+ * The full terms payload, keyed by section id string. getTerms itself has no
+ * cache and always hits the network, so a summary run (one call per section)
+ * shares a single fetch here; forceRefresh discards it.
+ *
+ * @param {string} token - OSM authentication token
+ * @param {boolean} forceRefresh - Discard the shared payload first
+ * @returns {Promise<Object|null>} Terms keyed by section id, or null when unavailable
+ */
+function loadAllTerms(token, forceRefresh) {
+  if (forceRefresh || (termsCache && Date.now() - termsCache.at > TERMS_TTL)) {
+    termsCache = null;
+  }
+  if (!termsCache) {
+    const promise = getTerms(token, forceRefresh)
+      .catch((error) => {
+        termsCache = null;
+        logger.warn('Subs: terms load failed, falling back to no terms', {
+          error: error.message,
+        }, LOG_CATEGORIES.ERROR);
+        return null;
+      });
+    termsCache = { at: Date.now(), promise };
+  }
+  return termsCache.promise;
+}
+
+/**
+ * Resolves the section's current term, preferring the app's own per-section
+ * current-active-term record over date arithmetic.
+ *
+ * @param {string} sectionId - Section id
+ * @param {Array<Object>} sectionTerms - The section's cached terms
+ * @param {string} today - Today's date (yyyy-mm-dd)
+ * @returns {Promise<{previous: Object|null, current: Object|null, next: Object|null}>} Term buckets
+ */
+async function resolveTerms(sectionId, sectionTerms, today) {
+  let activeRecord = null;
+  try {
+    activeRecord = await CurrentActiveTermsService.getCurrentActiveTerm(String(sectionId));
+  } catch (error) {
+    logger.warn('Subs: current active term lookup failed', {
+      sectionId,
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+  }
+
+  const currentTermId = activeRecord?.currentTermId;
+  if (!currentTermId) {
+    return deriveTerms(sectionTerms, today);
+  }
+
+  const match = sectionTerms.find((term) => String(term?.termid) === String(currentTermId));
+  const pinned = match ?? {
+    termid: currentTermId,
+    name: activeRecord.termName,
+    startdate: activeRecord.startDate,
+    enddate: activeRecord.endDate,
+  };
+  const others = sectionTerms.filter((term) => String(term?.termid) !== String(currentTermId));
+  return deriveTerms([pinned, ...others], pinned.startdate);
+}
 
 /**
  * Today's date as yyyy-mm-dd in local time.
@@ -142,8 +220,12 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
     throw localError('NO_ACCESS', `No finance access for ${sectionName}`);
   }
 
-  const sectionTerms = (await databaseService.getTerms(sectionId)) ?? [];
-  const terms = deriveTerms(sectionTerms, today);
+  const allTerms = await loadAllTerms(token, forceRefresh);
+  if (!allTerms) {
+    throw localError('NO_CURRENT_TERM', `No terms cached for ${sectionName} — refresh the app data first`);
+  }
+  const sectionTerms = allTerms[String(sectionId)] ?? [];
+  const terms = await resolveTerms(sectionId, sectionTerms, today);
   if (!terms.current) {
     const latest = mostRecentTerm(sectionTerms);
     throw localError(
