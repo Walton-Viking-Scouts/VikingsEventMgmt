@@ -192,8 +192,8 @@ function SectionMembersTable({ members, terms, termTotals }) {
           return (
             <span key={bucket}>
               {index > 0 ? ' · ' : ''}
-              {BUCKET_LABELS[bucket]}: {stats?.due?.members ?? 0} due · {stats?.unpaid?.members ?? 0} unpaid
-              {' · '}{stats?.overdue?.members ?? 0} overdue ({formatPounds(stats?.overdue?.amount)})
+              {BUCKET_LABELS[bucket]}: {stats?.due?.members ?? 0} due · {stats?.paid?.members ?? 0} paid
+              {' · '}{stats?.unpaid?.members ?? 0} unpaid ({formatPounds(stats?.unpaid?.amount)} unpaid)
             </span>
           );
         })}

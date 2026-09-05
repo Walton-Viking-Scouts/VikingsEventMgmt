@@ -214,8 +214,8 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   at a time in order, with a per-row spinner while loading and a stop-on-first-error
   banner for a failed network call). Columns: Section, then a "Young people"
   group of Total (`ypCount`), Leaders subs, Section subs and Not set up, then
-  for each of Previous / Current / Next a group of three columns Due, Unpaid,
-  Overdue showing members with £ underneath (from `termTotals`), the term
+  for each of Previous / Current / Next a group of three columns Due, Paid,
+  Unpaid showing members with £ underneath (from `termTotals`), the term
   name in the group header, and "Not scheduled" in the group header when
   nothing is scheduled. Rows are links to the section page. Local errors and
   no-access sections render as muted rows with their message spanning the
@@ -258,7 +258,8 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   ("15 Jan 2027"). A cell shows that row's payment for the date through the
   same badge logic, or a dash when that scheme has no payment then. When no
   row has a future payment, a single column headed "Next" over "Not
-  scheduled" is shown instead. A footer line gives the section's `termTotals`. Other
+  scheduled" is shown instead. A footer line gives the section's `termTotals` per bucket, as
+  "Previous: N due · N paid · N unpaid (£X unpaid)". Other
   schemes are listed by name only.
 
 Style: Tailwind, `scout-blue` theme, existing `LoadingScreen`, `ErrorState`,

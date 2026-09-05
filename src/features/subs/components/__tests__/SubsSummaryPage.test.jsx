@@ -103,13 +103,19 @@ describe('SubsSummaryPage', () => {
     expect([...cells].slice(1, 5).map((cell) => cell.textContent)).toEqual(['24', '–', '2', '1']);
   });
 
-  it('highlights a non-zero overdue figure in scout-red', async () => {
+  it('shows Due, Paid and Unpaid per term group and no overdue highlight', async () => {
     const { container } = renderPage();
 
     await screen.findByRole('link', { name: 'Friday Cubs' });
-    const highlighted = [...container.querySelectorAll('.text-scout-red')];
-    expect(highlighted).toHaveLength(4);
-    expect(highlighted.map((node) => node.textContent)).toEqual(['1£24', '1£26', '1£24', '1£26']);
+    const headers = [...screen.getAllByRole('columnheader')].map((cell) => cell.textContent);
+    expect(headers.filter((text) => text === 'due')).toHaveLength(3);
+    expect(headers.filter((text) => text === 'paid')).toHaveLength(3);
+    expect(headers.filter((text) => text === 'unpaid')).toHaveLength(3);
+    expect(headers).not.toContain('overdue');
+    expect(container.querySelectorAll('.text-scout-red')).toHaveLength(0);
+
+    const cells = screen.getAllByRole('row')[2].querySelectorAll('td');
+    expect([...cells].slice(5, 8).map((cell) => cell.textContent)).toEqual(['3£72', '2£48', '1£24']);
   });
 
   it('shows Not scheduled instead of figures for an unscheduled bucket', async () => {

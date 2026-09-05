@@ -5,27 +5,23 @@ import SubsSignInCard from './SubsSignInCard.jsx';
 import { formatPounds } from './formatPounds.js';
 import { BUCKETS, bucketHeader, ypBySchemeKind } from './termLabels.js';
 
-const FIGURE_COLUMNS = ['due', 'unpaid', 'overdue'];
+const FIGURE_COLUMNS = ['due', 'paid', 'unpaid'];
 
 const YP_COLUMNS = ['total', 'leaders', 'section', 'not set up'];
 
 const DATA_COLUMN_COUNT = 1 + YP_COLUMNS.length + BUCKETS.length * FIGURE_COLUMNS.length;
 
 /**
- * A members count with its amount underneath, highlighted when it is a
- * non-zero overdue figure.
+ * A members count with its amount underneath.
  *
  * @param {object} props - Component props
  * @param {{members: number, amount: number}} [props.figure] - The figure to show
- * @param {boolean} [props.highlight] - Whether to colour it scout-red
  * @returns {JSX.Element} A stacked members/amount cell body
  */
-function Figure({ figure, highlight }) {
-  const members = figure?.members ?? 0;
-  const emphasise = highlight && members > 0;
+function Figure({ figure }) {
   return (
-    <span className={emphasise ? 'text-scout-red font-medium' : ''}>
-      <span className="block">{members}</span>
+    <span>
+      <span className="block">{figure?.members ?? 0}</span>
       <span className="block text-xs text-gray-400">{formatPounds(figure?.amount)}</span>
     </span>
   );
@@ -81,7 +77,7 @@ function RowCells({ summary, isLoading, message }) {
         }
         return FIGURE_COLUMNS.map((column) => (
           <td key={`${bucket}-${column}`} className="px-3 py-2 text-gray-900">
-            <Figure figure={stats[column]} highlight={column === 'overdue'} />
+            <Figure figure={stats[column]} />
           </td>
         ));
       })}
