@@ -73,11 +73,34 @@ describe('SubsSummaryPage', () => {
 
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(4);
+    expect(screen.getByText('Young people')).toBeInTheDocument();
     expect(screen.getByText('Previous · Summer 2025')).toBeInTheDocument();
     expect(screen.getByText('Current · Autumn 2025')).toBeInTheDocument();
     expect(screen.getByText('Next · Spring 2026')).toBeInTheDocument();
     expect(screen.getAllByText('24').length).toBeGreaterThan(0);
     expect(screen.getAllByText('£24').length).toBeGreaterThan(0);
+  });
+
+  it('splits the YP figure between leaders and section subs', async () => {
+    renderPage();
+
+    await screen.findByRole('link', { name: 'Thursday Beavers' });
+    const cells = screen.getAllByRole('row')[2].querySelectorAll('td');
+    expect([...cells].slice(1, 5).map((cell) => cell.textContent)).toEqual(['24', '0', '2', '1']);
+  });
+
+  it('dashes the leaders column when the section has no leaders scheme', async () => {
+    loadSectionSubs.mockImplementation(() =>
+      Promise.resolve(makeSummary({
+        schemes: makeSummary().schemes.filter((scheme) => scheme.name !== 'Leaders Subs'),
+      })),
+    );
+
+    renderPage();
+
+    await screen.findByRole('link', { name: 'Thursday Beavers' });
+    const cells = screen.getAllByRole('row')[2].querySelectorAll('td');
+    expect([...cells].slice(1, 5).map((cell) => cell.textContent)).toEqual(['24', '–', '2', '1']);
   });
 
   it('highlights a non-zero overdue figure in scout-red', async () => {

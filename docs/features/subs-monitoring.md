@@ -203,13 +203,18 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
 
 - **Summary** (`/subs`): ONE table, one row per section (loaded one section
   at a time in order, with a per-row spinner while loading and a stop-on-first-error
-  banner for a failed network call). Columns: Section, YP, YP not set up, then
+  banner for a failed network call). Columns: Section, then a "Young people"
+  group of Total (`ypCount`), Leaders subs, Section subs and Not set up, then
   for each of Previous / Current / Next a group of three columns Due, Unpaid,
   Overdue showing members with £ underneath (from `termTotals`), the term
   name in the group header, and "Not scheduled" in the group header when
   nothing is scheduled. Rows are links to the section page. Local errors and
   no-access sections render as muted rows with their message spanning the
-  columns. The older description below still applies for behaviour:
+  columns. A subs scheme is a *leaders* scheme when its name matches
+  `/leader/i` (the discounted scheme for leaders' children); every other subs
+  scheme is *section subs*. Both figures sum `schemes[].ypCount` over their
+  group, so a YP in both counts in both; the leaders cell shows a dash rather
+  than 0 when the section has no leaders scheme. The older description below still applies for behaviour:
   one row/card per viewable section, loaded one section
   at a time in order, with a per-section spinner and a stop-on-first-error
   banner. Columns: YP count, per-subs-scheme YP count (scheme name as the

@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import useSubsSummary from '../hooks/useSubsSummary.js';
 import SubsSignInCard from './SubsSignInCard.jsx';
 import { formatPounds } from './formatPounds.js';
-import { BUCKETS, bucketHeader } from './termLabels.js';
+import { BUCKETS, bucketHeader, ypBySchemeKind } from './termLabels.js';
 
 const FIGURE_COLUMNS = ['due', 'unpaid', 'overdue'];
 
-const DATA_COLUMN_COUNT = 3 + BUCKETS.length * FIGURE_COLUMNS.length;
+const YP_COLUMNS = ['total', 'leaders', 'section', 'not set up'];
+
+const DATA_COLUMN_COUNT = 1 + YP_COLUMNS.length + BUCKETS.length * FIGURE_COLUMNS.length;
 
 /**
  * A members count with its amount underneath, highlighted when it is a
@@ -63,6 +65,10 @@ function RowCells({ summary, isLoading, message }) {
   return (
     <>
       <td className="px-3 py-2 text-gray-900">{summary.ypCount ?? 0}</td>
+      <td className="px-3 py-2 text-gray-900">
+        {ypBySchemeKind(summary.schemes).leaders ?? <span className="text-gray-300">–</span>}
+      </td>
+      <td className="px-3 py-2 text-gray-900">{ypBySchemeKind(summary.schemes).section}</td>
       <td className="px-3 py-2 text-gray-900">{summary.ypNotInSubs?.length ?? 0}</td>
       {BUCKETS.map((bucket) => {
         const stats = summary.termTotals?.[bucket];
@@ -144,8 +150,13 @@ function SubsSummaryPage() {
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
               <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom">Section</th>
-              <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom">YP</th>
-              <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom whitespace-nowrap">YP not set up</th>
+              <th
+                scope="colgroup"
+                colSpan={YP_COLUMNS.length}
+                className="border-l border-gray-200 px-3 py-2 font-medium whitespace-nowrap"
+              >
+                Young people
+              </th>
               {BUCKETS.map((bucket) => (
                 <th
                   key={bucket}
@@ -158,6 +169,15 @@ function SubsSummaryPage() {
               ))}
             </tr>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
+              {YP_COLUMNS.map((column, index) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className={`px-3 pb-2 font-medium whitespace-nowrap ${index === 0 ? 'border-l border-gray-200' : ''}`}
+                >
+                  {column}
+                </th>
+              ))}
               {BUCKETS.map((bucket) =>
                 FIGURE_COLUMNS.map((column, index) => (
                   <th

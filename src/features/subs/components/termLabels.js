@@ -35,3 +35,33 @@ export function bucketHeader(bucket, terms) {
   const name = terms?.[bucket]?.name;
   return name ? `${BUCKET_LABELS[bucket]} · ${name}` : BUCKET_LABELS[bucket];
 }
+
+/**
+ * Whether a subs scheme is a leaders' scheme (the discounted scheme for
+ * leaders' children), identified by "leader" in its name.
+ *
+ * @param {{name: string}} scheme - A SectionSubsSummary.schemes entry
+ * @returns {boolean} True for a leaders' scheme
+ */
+export function isLeadersScheme(scheme) {
+  return /leader/i.test(scheme?.name ?? '');
+}
+
+/**
+ * Young-people counts split between leaders' schemes and the rest.
+ *
+ * @param {Array<object>} [schemes] - SectionSubsSummary.schemes
+ * @returns {{leaders: number|null, section: number}} Counts, leaders null when there is no leaders' scheme
+ */
+export function ypBySchemeKind(schemes) {
+  const all = schemes ?? [];
+  const leaderSchemes = all.filter(isLeadersScheme);
+  return {
+    leaders: leaderSchemes.length === 0
+      ? null
+      : leaderSchemes.reduce((total, scheme) => total + (Number(scheme.ypCount) || 0), 0),
+    section: all
+      .filter((scheme) => !isLeadersScheme(scheme))
+      .reduce((total, scheme) => total + (Number(scheme.ypCount) || 0), 0),
+  };
+}
