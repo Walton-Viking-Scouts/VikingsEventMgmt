@@ -62,6 +62,46 @@ describe('bucketPaymentDate', () => {
     expect(bucketPaymentDate('2027-01-15', TERMS)).toBe('next');
     expect(bucketPaymentDate('2025-04-01', TERMS)).toBeNull();
     expect(bucketPaymentDate(null, TERMS)).toBeNull();
+    expect(bucketPaymentDate('2026-09-15', { current: null })).toBeNull();
+  });
+
+  it('is contiguous around the current term: gaps belong to the following bucket', () => {
+    expect(bucketPaymentDate('2026-08-31', TERMS)).toBe('previous');
+    expect(bucketPaymentDate('2026-12-28', TERMS)).toBe('next');
+  });
+
+  it('accepts any later date when there is no next term', () => {
+    const open = { ...TERMS, next: null };
+    expect(bucketPaymentDate('2027-01-15', open)).toBe('next');
+    expect(bucketPaymentDate('2030-01-15', open)).toBe('next');
+    expect(bucketPaymentDate('2030-01-15', TERMS)).toBeNull();
+  });
+});
+
+describe('inferred neighbour terms', () => {
+  const noNext = {
+    previous: TERMS.previous,
+    current: { termId: 'c', name: 'Autumn 2026', startDate: '2026-09-01', endDate: '2026-12-31' },
+    next: null,
+  };
+
+  it('infers a next term from the earliest later payment', () => {
+    const result = summary('2026-09-20', { terms: noNext });
+    expect(result.terms.next).toEqual({
+      termId: null, name: 'from 15 Jan 2027', startDate: '2027-01-15', endDate: null, inferred: true,
+    });
+    expect(result.schemes[0].termStats.next.scheduled).toBe(true);
+    expect(result.schemes[0].payments.at(-1).bucket).toBe('next');
+  });
+
+  it('leaves a real next term untouched', () => {
+    const result = summary('2026-09-20');
+    expect(result.terms.next).toEqual(TERMS.next);
+  });
+
+  it('infers a previous term when OSM has none', () => {
+    const result = summary('2026-09-20', { terms: { ...noNext, previous: null } });
+    expect(result.terms.previous).toMatchObject({ termId: null, name: 'to 14 May 2026', inferred: true });
   });
 });
 
@@ -133,7 +173,11 @@ describe('next-term readiness and section rows', () => {
 
   it('reports not-scheduled for a scheme with no next-term payment', () => {
     const result = summary('2026-09-20', {
-      terms: { ...TERMS, next: { termId: 'n', name: 'Far future', startDate: '2030-01-01', endDate: '2030-04-01' } },
+      terms: {
+        ...TERMS,
+        current: { termId: 'c', name: 'Long term', startDate: '2026-09-01', endDate: '2027-12-31' },
+        next: null,
+      },
     });
     expect(result.schemes[0].termStats.next).toMatchObject({
       scheduled: false, paymentIds: [], readyMembers: 0, due: { members: 0, amount: 0 },
@@ -160,6 +204,13 @@ describe('next-term readiness and section rows', () => {
     expect(row.nextSetUp).toBe('paid');
   });
 
+  it('marks a scheduled but not-yet-due payment as not due', () => {
+    const row = summary('2026-09-10').members[0];
+    expect(row.buckets.current[0]).toMatchObject({ date: '2026-09-15', state: 'not-started', isDue: false });
+    const scheme = summary('2026-09-10').schemes[0];
+    expect(scheme.members[0].payments[scheme.termStats.current.paymentIds[0]].isDue).toBe(false);
+  });
+
   it('builds one row per member and scheme, sorted and bucketed', () => {
     const result = summary('2026-09-20');
     expect(result.members).toHaveLength(8);
@@ -168,7 +219,8 @@ describe('next-term readiness and section rows', () => {
     const row = result.members[0];
     expect(row.schemeName).toBe('Leaders Subs');
     expect(row.buckets.current).toHaveLength(1);
-    expect(row.buckets.current[0]).toMatchObject({ date: '2026-09-15', amount: 26, state: 'not-started' });
+    expect(row.buckets.current[0]).toMatchObject({ date: '2026-09-15', amount: 26, state: 'not-started', isDue: true });
+    expect(row.buckets.next[0].isDue).toBe(false);
     expect(row.buckets.previous[0]).toMatchObject({ date: '2026-05-14', state: 'paid', latestStatus: 'Received' });
     expect(row.buckets.next[0]).toMatchObject({ date: '2027-01-15' });
   });

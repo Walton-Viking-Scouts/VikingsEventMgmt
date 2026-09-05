@@ -1,8 +1,7 @@
 import React from 'react';
-import StateBadge from './StateBadge.jsx';
 import NextSetUpBadge from './NextSetUpBadge.jsx';
 import { formatPounds } from './formatPounds.js';
-import { BUCKET_LABELS, BUCKETS, hasUnpaid, bucketHeader } from './termLabels.js';
+import { BUCKET_LABELS, BUCKETS, hasOverdue, bucketHeader, paymentBadge } from './termLabels.js';
 
 /**
  * Two-line column heading: the bucket label over the term name (or a detail
@@ -30,20 +29,28 @@ function BucketHeading({ bucket, terms, detail }) {
  *
  * @param {object} props - Component props
  * @param {Array<object>} [props.payments] - Payments in this bucket
+ * @param {string} [props.directDebit] - The member's direct debit status
  * @returns {JSX.Element} Badges or an empty marker
  */
-function BucketCell({ payments }) {
+function BucketCell({ payments, directDebit }) {
   if (!payments || payments.length === 0) {
     return <span className="text-gray-300">–</span>;
   }
 
   return (
     <span className="flex flex-wrap gap-1">
-      {payments.map((payment) => (
-        <span key={payment.paymentId} title={`${payment.date} ${formatPounds(payment.amount)} ${payment.latestStatus || payment.state}`}>
-          <StateBadge state={payment.state} latestStatus={payment.latestStatus} />
-        </span>
-      ))}
+      {payments.map((payment) => {
+        const badge = paymentBadge(payment, directDebit);
+        return (
+          <span
+            key={payment.paymentId}
+            title={`${payment.date} ${formatPounds(payment.amount)} ${payment.latestStatus || payment.state}`}
+            className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-xs font-medium ${badge.className}`}
+          >
+            {badge.label}
+          </span>
+        );
+      })}
     </span>
   );
 }
@@ -91,7 +98,7 @@ function SectionMembersTable({ members, terms, termTotals }) {
             {rows.map((row) => (
               <tr
                 key={`${row.scoutId}-${row.schemeId}`}
-                className={hasUnpaid(row) ? 'border-l-4 border-scout-red' : 'border-l-4 border-transparent'}
+                className={hasOverdue(row) ? 'border-l-4 border-scout-red' : 'border-l-4 border-transparent'}
               >
                 <td className="px-4 py-2 whitespace-nowrap text-gray-900">
                   {row.firstName} {row.lastName}
@@ -115,8 +122,8 @@ function SectionMembersTable({ members, terms, termTotals }) {
                     {row.directDebit === 'Active' ? 'Direct debit' : 'No direct debit'}
                   </span>
                 </td>
-                <td className="px-4 py-2"><BucketCell payments={row.buckets?.previous} /></td>
-                <td className="px-4 py-2"><BucketCell payments={row.buckets?.current} /></td>
+                <td className="px-4 py-2"><BucketCell payments={row.buckets?.previous} directDebit={row.directDebit} /></td>
+                <td className="px-4 py-2"><BucketCell payments={row.buckets?.current} directDebit={row.directDebit} /></td>
                 <td className="px-4 py-2"><NextSetUpBadge nextSetUp={row.nextSetUp} /></td>
               </tr>
             ))}

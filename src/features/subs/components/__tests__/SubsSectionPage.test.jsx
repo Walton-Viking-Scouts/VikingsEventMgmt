@@ -56,13 +56,51 @@ describe('SubsSectionPage', () => {
     expect(screen.getByText('Camps and Activities')).toBeInTheDocument();
   });
 
-  it('flags rows with an unpaid previous or current payment', async () => {
+  it('flags only rows with an overdue payment, not merely scheduled ones', async () => {
     renderPage();
 
     await screen.findByText(/Ben Brown/);
-    const flagged = screen.getByText(/Ben Brown/).closest('tr');
-    expect(flagged.className).toContain('border-scout-red');
+    expect(screen.getByText(/Ben Brown/).closest('tr').className).toContain('border-scout-red');
     expect(screen.getByText(/Ann Adams/).closest('tr').className).toContain('border-transparent');
+  });
+
+  it('badges a due unpaid payment as Overdue', async () => {
+    renderPage();
+
+    await screen.findByText(/Ben Brown/);
+    const cells = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
+    expect(cells[4].textContent).toBe('Overdue');
+    expect(cells[4].querySelector('span span').className).toContain('text-scout-red');
+  });
+
+  it('badges a not-yet-due payment as Scheduled with an active mandate', async () => {
+    renderPage();
+
+    await screen.findByText(/Ann Adams/);
+    const cells = screen.getByText(/Ann Adams/).closest('tr').querySelectorAll('td');
+    expect(cells[5].textContent).toBe('PaidScheduled');
+  });
+
+  it('badges a not-yet-due payment as No DD without an active mandate', async () => {
+    renderPage();
+
+    await screen.findByText(/Ben Brown/);
+    const cells = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
+    expect(cells[5].textContent).toBe('OverdueNo DD');
+  });
+
+  it('shows an inferred term name in the column header', async () => {
+    loadSectionSubs.mockResolvedValue(makeSummary({
+      terms: {
+        ...makeSummary().terms,
+        next: { termId: null, name: 'from 15 Jan 2027', startDate: '2027-01-15', endDate: null, inferred: true },
+      },
+    }));
+
+    renderPage();
+
+    expect(await screen.findByLabelText('Next · from 15 Jan 2027')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Next · Not scheduled')).not.toBeInTheDocument();
   });
 
   it('renders each nextSetUp variant as a badge', async () => {
@@ -70,7 +108,7 @@ describe('SubsSectionPage', () => {
 
     await screen.findByText(/Ann Adams/);
     expect(screen.getByText('Ready')).toBeInTheDocument();
-    expect(screen.getByText('No DD')).toBeInTheDocument();
+    expect(screen.getAllByText('No DD').length).toBeGreaterThan(0);
     expect(screen.getByText('N/A')).toBeInTheDocument();
     expect(screen.getAllByText('Not scheduled').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);

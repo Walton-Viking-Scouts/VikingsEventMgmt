@@ -47,7 +47,16 @@ Response shapes are documented in the backend's `docs/api/osm-proxy.md`.
   as having no current term and is skipped). Previous is the term with the
   latest end date before current's start, next the earliest starting after
   current's end. A payment belongs to a bucket when its `date` falls inside
-  that term's `startdate`..`enddate`.
+  that term's `startdate`..`enddate`. Bucketing is contiguous around the
+  current term rather than limited to the terms' own ranges: anything before
+  current's start is `previous` (bounded below by previous's start when it
+  exists), anything after current's end is `next` (bounded above by next's end
+  when it exists), so payments falling in a gap between terms belong to the
+  following bucket. When OSM has not created the neighbouring term yet but a
+  payment falls in that bucket, the term is inferred from the payment dates —
+  `{ termId: null, name: 'from 15 Jan 2027', startDate, endDate: null,
+  inferred: true }` for next, `'to <date>'` for previous — so a scheduled
+  payment is never reported as "not scheduled".
 - **Scheme covers a term** when it has at least one payment in that bucket.
   **Section subs coverage** for a bucket is true when any subs scheme covers it.
 - **Per-payment state** for a member, from the per-payment object in the
@@ -109,11 +118,11 @@ export function hasFinanceScope(token): boolean            // includes 'section:
   sectionName: 'Thursday Beavers',
   loadedAt: 1757030400000,                 // ms epoch of the newest response used
   fromCache: false,
-  terms: {                                  // each null when unknown
-    previous: { termId, name, startDate, endDate } | null,
-    current:  { termId, name, startDate, endDate } | null,
-    next:     { termId, name, startDate, endDate } | null,
-  },
+  terms: {                                  // each null when unknown; previous/next may be
+    previous: { termId, name, startDate, endDate } | null,   // an INFERRED entry when OSM has no
+    current:  { termId, name, startDate, endDate } | null,   // such term yet: { termId: null,
+    next:     { termId, name, startDate, endDate } | null,   // name: 'from 15 Jan 2027', endDate: null,
+  },                                        // inferred: true } — no term name is invented
   ypCount: 24,                              // cached YP in the section
   subsCoverage: { previous: true, current: true, next: false },
   schemes: [                                // subs schemes only, in OSM order
@@ -139,7 +148,7 @@ export function hasFinanceScope(token): boolean            // includes 'section:
           isYP: true | false | null,        // null when not in cached members
           directDebit: 'Active' | 'Inactive' | string,
           payments: {
-            '1259480': { state: 'paid', latestStatus: 'Received', latestAt: '2025-04-08 11:58:00', amount: 26, date: '2026-09-15', bucket: 'current' },
+            '1259480': { state: 'paid', latestStatus: 'Received', latestAt: '2025-04-08 11:58:00', amount: 26, date: '2026-09-15', isDue: true, bucket: 'current' },
           },
         },
       ],
@@ -157,7 +166,7 @@ export function hasFinanceScope(token): boolean            // includes 'section:
       directDebit: 'Active',
       schemeId: '60604', schemeName: 'Beavers Subs',
       buckets: {                            // payments of this scheme in each term bucket, sorted by date
-        previous: [ { paymentId, date, amount, state, latestStatus, latestAt } ],
+        previous: [ { paymentId, date, amount, isDue, state, latestStatus, latestAt } ],
         current:  [ ... ],
         next:     [ ... ],
       },

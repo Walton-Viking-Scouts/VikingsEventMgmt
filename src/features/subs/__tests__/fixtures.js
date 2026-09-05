@@ -73,9 +73,9 @@ export function makeSummary(overrides = {}) {
         ypCount: 2,
         noDirectDebitCount: 1,
         payments: [
-          { paymentId: '1138365', date: '2025-05-15', amount: 24, bucket: 'previous' },
-          { paymentId: '1259480', date: '2025-09-15', amount: 26, bucket: 'current' },
-          { paymentId: '1259481', date: '2026-01-15', amount: 26, bucket: 'next' },
+          { paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, bucket: 'previous' },
+          { paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, bucket: 'current' },
+          { paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, bucket: 'next' },
         ],
         coverage: { previous: true, current: true, next: true },
         termStats: {
@@ -105,7 +105,7 @@ export function makeSummary(overrides = {}) {
         ypCount: 0,
         noDirectDebitCount: 0,
         payments: [
-          { paymentId: '1259999', date: '2025-09-20', amount: 10, bucket: 'current' },
+          { paymentId: '1259999', date: '2025-09-20', amount: 10, isDue: true, bucket: 'current' },
         ],
         coverage: { previous: false, current: true, next: false },
         termStats: {
@@ -144,9 +144,12 @@ export function makeSummary(overrides = {}) {
         scoutId: '1', firstName: 'Ann', lastName: 'Adams', isYP: true,
         schemeId: '60604', schemeName: 'Beavers Subs',
         buckets: {
-          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, state: 'paid', latestStatus: 'Received', latestAt: '2025-05-16 10:00:00' }],
-          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-16 10:00:00' }],
-          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, state: 'not-started', latestStatus: '', latestAt: null }],
+          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-05-16 10:00:00' }],
+          current: [
+            { paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-16 10:00:00' },
+            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null },
+          ],
+          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null }],
         },
         nextSetUp: 'ready',
       }),
@@ -155,9 +158,12 @@ export function makeSummary(overrides = {}) {
         directDebit: 'Inactive',
         schemeId: '60604', schemeName: 'Beavers Subs',
         buckets: {
-          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, state: 'required', latestStatus: 'Payment required', latestAt: '2025-05-16 10:00:00' }],
-          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, state: 'required', latestStatus: 'Payment required', latestAt: '2025-09-16 10:00:00' }],
-          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, state: 'not-started', latestStatus: '', latestAt: null }],
+          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'required', latestStatus: 'Payment required', latestAt: '2025-05-16 10:00:00' }],
+          current: [
+            { paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'required', latestStatus: 'Payment required', latestAt: '2025-09-16 10:00:00' },
+            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null },
+          ],
+          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null }],
         },
         nextSetUp: 'no-direct-debit',
       }),
@@ -166,8 +172,8 @@ export function makeSummary(overrides = {}) {
         patrolId: '119079',
         schemeId: '60604', schemeName: 'Beavers Subs',
         buckets: {
-          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, state: 'paid', latestStatus: 'Paid', latestAt: '2025-05-16 10:00:00' }],
-          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, state: 'paid', latestStatus: 'Paid', latestAt: '2025-09-16 10:00:00' }],
+          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'paid', latestStatus: 'Paid', latestAt: '2025-05-16 10:00:00' }],
+          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'paid', latestStatus: 'Paid', latestAt: '2025-09-16 10:00:00' }],
           next: [],
         },
         nextSetUp: 'not-applicable',
@@ -178,7 +184,7 @@ export function makeSummary(overrides = {}) {
         schemeId: '60605', schemeName: 'Leaders Subs',
         buckets: {
           previous: [],
-          current: [{ paymentId: '1259999', date: '2025-09-20', amount: 10, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-21 10:00:00' }],
+          current: [{ paymentId: '1259999', date: '2025-09-20', amount: 10, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-21 10:00:00' }],
           next: [],
         },
         nextSetUp: 'not-scheduled',
@@ -187,9 +193,9 @@ export function makeSummary(overrides = {}) {
         scoutId: '5', firstName: 'Fay', lastName: 'Foster', isYP: true,
         schemeId: '60604', schemeName: 'Beavers Subs',
         buckets: {
-          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, state: 'paid', latestStatus: 'Received', latestAt: '2025-05-16 10:00:00' }],
-          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-16 10:00:00' }],
-          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, state: 'paid', latestStatus: 'Received', latestAt: '2025-12-01 10:00:00' }],
+          previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-05-16 10:00:00' }],
+          current: [{ paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-16 10:00:00' }],
+          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'paid', latestStatus: 'Received', latestAt: '2025-12-01 10:00:00' }],
         },
         nextSetUp: 'paid',
       }),

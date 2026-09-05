@@ -83,16 +83,80 @@ export function classifyPaymentState(paymentObj) {
  * @returns {'previous'|'current'|'next'|null} The bucket, or null when the date is outside all three
  */
 export function bucketPaymentDate(date, terms) {
-  if (!date) {
+  const current = terms?.current;
+  if (!date || !current) {
     return null;
   }
-  for (const bucket of ['previous', 'current', 'next']) {
-    const term = terms?.[bucket];
-    if (term && date >= term.startDate && date <= term.endDate) {
-      return bucket;
+  if (date >= current.startDate && date <= current.endDate) {
+    return 'current';
+  }
+  if (date < current.startDate) {
+    const previous = terms.previous;
+    return !previous || date >= previous.startDate ? 'previous' : null;
+  }
+  const next = terms.next;
+  return !next || !next.endDate || date <= next.endDate ? 'next' : null;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Formats a yyyy-mm-dd date as "15 Jan 2027" for an inferred term label.
+ *
+ * @param {string} date - Date to format
+ * @returns {string} Human-readable date
+ */
+function formatDate(date) {
+  const [year, month, day] = date.split('-');
+  return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
+}
+
+/**
+ * Fills in a missing previous/next term from the payment dates that fall in
+ * that bucket. OSM often has payments scheduled for a term it has not created
+ * yet; without this the page would report "not scheduled" for a payment it
+ * can plainly see. Inferred entries carry `termId: null` and `inferred: true`
+ * and are never given an invented term name.
+ *
+ * @param {{previous: SubsTerm|null, current: SubsTerm|null, next: SubsTerm|null}} terms - Derived buckets
+ * @param {string[]} paymentDates - Every subs payment date in the section
+ * @returns {{previous: Object|null, current: SubsTerm|null, next: Object|null}} Terms with inferred neighbours
+ */
+export function inferMissingTerms(terms, paymentDates) {
+  const current = terms?.current;
+  if (!current) {
+    return { previous: terms?.previous ?? null, current: null, next: terms?.next ?? null };
+  }
+  const result = { ...terms };
+
+  if (!result.next) {
+    const later = paymentDates.filter((date) => date > current.endDate).sort();
+    if (later.length > 0) {
+      result.next = {
+        termId: null,
+        name: `from ${formatDate(later[0])}`,
+        startDate: later[0],
+        endDate: null,
+        inferred: true,
+      };
     }
   }
-  return null;
+
+  if (!result.previous) {
+    const earlier = paymentDates.filter((date) => date < current.startDate).sort();
+    if (earlier.length > 0) {
+      const latest = earlier.at(-1);
+      result.previous = {
+        termId: null,
+        name: `to ${formatDate(latest)}`,
+        startDate: earlier[0],
+        endDate: latest,
+        inferred: true,
+      };
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -366,6 +430,7 @@ function buildScheme(scheme, statusResponse, { terms, cachedById, today }) {
         latestAt: latest?.statustimestamp ?? null,
         amount: Number(raw.amount ?? payment.amount),
         date: raw.date ?? payment.date,
+        isDue: Boolean(raw.date ?? payment.date) && (raw.date ?? payment.date) <= today,
         bucket: payment.bucket,
       };
     }
@@ -452,11 +517,19 @@ export function buildSectionSubsSummary({
     }));
 
   const cachedById = indexCachedMembers(members, sectionId);
+  const paymentDates = subsSchemes.flatMap((scheme) => {
+    const rows = statusResponses[String(scheme.schemeid)]?.data?.members ?? [];
+    return rows.flatMap((row) => paymentKeys(row).map((paymentId) => row[paymentId]?.date).filter(Boolean));
+  });
+  const effectiveTerms = inferMissingTerms(terms, paymentDates);
+
   const ypById = new Map(
     [...cachedById.entries()].filter(([, entry]) => entry.isYP).map(([scoutId, entry]) => [scoutId, entry.member]),
   );
   const schemes = subsSchemes.map((scheme) =>
-    buildScheme(scheme, statusResponses[String(scheme.schemeid)] ?? null, { terms, cachedById, today }));
+    buildScheme(scheme, statusResponses[String(scheme.schemeid)] ?? null, {
+      terms: effectiveTerms, cachedById, today,
+    }));
 
   const ypInSubs = new Set();
   for (const scheme of schemes) {
@@ -490,6 +563,7 @@ export function buildSectionSubsSummary({
                 paymentId,
                 date: entry.date,
                 amount: entry.amount,
+                isDue: entry.isDue,
                 state: entry.state,
                 latestStatus: entry.latestStatus,
                 latestAt: entry.latestAt,
@@ -547,9 +621,9 @@ export function buildSectionSubsSummary({
     loadedAt,
     fromCache,
     terms: {
-      previous: terms?.previous ?? null,
-      current: terms?.current ?? null,
-      next: terms?.next ?? null,
+      previous: effectiveTerms.previous ?? null,
+      current: effectiveTerms.current ?? null,
+      next: effectiveTerms.next ?? null,
     },
     ypCount: ypById.size,
     subsCoverage: {
