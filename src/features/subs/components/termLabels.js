@@ -113,3 +113,35 @@ export function ypBySchemeKind(schemes) {
       .reduce((total, scheme) => total + (Number(scheme.ypCount) || 0), 0),
   };
 }
+
+/**
+ * Formats a payment due date for a column header.
+ *
+ * @param {string} date - ISO date, e.g. "2027-01-15"
+ * @returns {string} Day month year, e.g. "15 Jan 2027", or the input when unparseable
+ */
+export function formatDueDate(date) {
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return String(date ?? '');
+  }
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
+}
+
+/**
+ * The distinct future payment dates across every member row, sorted.
+ *
+ * @param {Array<object>} [members] - SectionSubsSummary.members rows
+ * @returns {string[]} Sorted distinct dates of next-bucket payments
+ */
+export function futurePaymentDates(members) {
+  const dates = new Set();
+  (members ?? []).forEach((row) => {
+    (row?.buckets?.next ?? []).forEach((payment) => {
+      if (payment?.date) {
+        dates.add(payment.date);
+      }
+    });
+  });
+  return [...dates].sort();
+}

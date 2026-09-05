@@ -1,7 +1,14 @@
 import React from 'react';
-import NextSetUpBadge from './NextSetUpBadge.jsx';
 import { formatPounds } from './formatPounds.js';
-import { BUCKET_LABELS, BUCKETS, hasOverdue, bucketHeader, paymentBadge } from './termLabels.js';
+import {
+  BUCKET_LABELS,
+  BUCKETS,
+  hasOverdue,
+  bucketHeader,
+  paymentBadge,
+  formatDueDate,
+  futurePaymentDates,
+} from './termLabels.js';
 
 /**
  * Two-line column heading: the bucket label over the term name (or a detail
@@ -73,7 +80,7 @@ function BucketCell({ payments }) {
  */
 function SectionMembersTable({ members, terms, termTotals }) {
   const rows = members ?? [];
-  const nextScheduled = Boolean(termTotals?.next?.scheduled);
+  const futureDates = futurePaymentDates(rows);
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -81,23 +88,55 @@ function SectionMembersTable({ members, terms, termTotals }) {
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-              <th scope="col" className="px-4 py-2 font-medium">Name</th>
-              <th scope="col" className="px-4 py-2 font-medium">YP</th>
-              <th scope="col" className="px-4 py-2 font-medium">Scheme</th>
-              <th scope="col" className="px-4 py-2 font-medium">DD</th>
-              <th scope="col" className="px-4 py-2 font-medium align-bottom" aria-label={bucketHeader('previous', terms)}>
+              <th scope="col" rowSpan={2} className="px-4 py-2 font-medium align-bottom">Name</th>
+              <th scope="col" rowSpan={2} className="px-4 py-2 font-medium align-bottom">YP</th>
+              <th scope="col" rowSpan={2} className="px-4 py-2 font-medium align-bottom">Scheme</th>
+              <th scope="col" rowSpan={2} className="px-4 py-2 font-medium align-bottom">DD</th>
+              <th
+                scope="col"
+                rowSpan={2}
+                className="px-4 py-2 font-medium align-bottom"
+                aria-label={bucketHeader('previous', terms)}
+              >
                 <BucketHeading bucket="previous" terms={terms} />
-              </th>
-              <th scope="col" className="px-4 py-2 font-medium align-bottom" aria-label={bucketHeader('current', terms)}>
-                <BucketHeading bucket="current" terms={terms} />
               </th>
               <th
                 scope="col"
+                rowSpan={2}
                 className="px-4 py-2 font-medium align-bottom"
-                aria-label={nextScheduled ? bucketHeader('next', terms) : 'Next · Not scheduled'}
+                aria-label={bucketHeader('current', terms)}
               >
-                <BucketHeading bucket="next" terms={terms} detail={nextScheduled ? undefined : 'Not scheduled'} />
+                <BucketHeading bucket="current" terms={terms} />
               </th>
+              {futureDates.length === 0 ? (
+                <th
+                  scope="col"
+                  rowSpan={2}
+                  className="border-l border-gray-200 px-4 py-2 font-medium align-bottom"
+                  aria-label="Next · Not scheduled"
+                >
+                  <BucketHeading bucket="next" terms={terms} detail="Not scheduled" />
+                </th>
+              ) : (
+                <th
+                  scope="colgroup"
+                  colSpan={futureDates.length}
+                  className="border-l border-gray-200 px-4 py-2 font-medium whitespace-nowrap"
+                >
+                  Future
+                </th>
+              )}
+            </tr>
+            <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
+              {futureDates.map((date, index) => (
+                <th
+                  key={date}
+                  scope="col"
+                  className={`px-4 pb-2 font-medium whitespace-nowrap ${index === 0 ? 'border-l border-gray-200' : ''}`}
+                >
+                  {formatDueDate(date)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -130,13 +169,17 @@ function SectionMembersTable({ members, terms, termTotals }) {
                 </td>
                 <td className="px-4 py-2"><BucketCell payments={row.buckets?.previous} /></td>
                 <td className="px-4 py-2"><BucketCell payments={row.buckets?.current} /></td>
-                <td className="px-4 py-2">
-                  {(row.buckets?.next ?? []).some((payment) => payment.latestStatus) ? (
-                    <BucketCell payments={row.buckets.next} />
-                  ) : (
-                    <NextSetUpBadge nextSetUp={row.nextSetUp} />
-                  )}
-                </td>
+                {futureDates.length === 0 ? (
+                  <td className="px-4 py-2"><BucketCell payments={[]} /></td>
+                ) : (
+                  futureDates.map((date) => (
+                    <td key={date} className="px-4 py-2">
+                      <BucketCell
+                        payments={(row.buckets?.next ?? []).filter((payment) => payment.date === date)}
+                      />
+                    </td>
+                  ))
+                )}
               </tr>
             ))}
           </tbody>

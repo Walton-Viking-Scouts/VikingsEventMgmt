@@ -252,11 +252,13 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   active payment; `not-applicable` shows a muted "N/A"; only a payment with
   neither a state nor a status shows a dash. Rows with an
   overdue payment (due and unpaid) carry a scout-red left border, so a merely
-  scheduled payment does not flag the row. The Next cell shows OSM's status
-  the same way when there is one, and falls back to the derived `nextSetUp`
-  badge otherwise: ready (green), no direct debit (amber), not applicable
-  (muted), not scheduled (grey, and the column header says "Not scheduled"
-  when no scheme has a next-term payment). A footer line gives the section's `termTotals`. Other
+  scheduled payment does not flag the row. Future payments get ONE COLUMN PER
+  DATE: the distinct `date` values across every row's `buckets.next`, sorted,
+  under a "Future" group header with each column headed by the formatted date
+  ("15 Jan 2027"). A cell shows that row's payment for the date through the
+  same badge logic, or a dash when that scheme has no payment then. When no
+  row has a future payment, a single column headed "Next" over "Not
+  scheduled" is shown instead. A footer line gives the section's `termTotals`. Other
   schemes are listed by name only.
 
 Style: Tailwind, `scout-blue` theme, existing `LoadingScreen`, `ErrorState`,

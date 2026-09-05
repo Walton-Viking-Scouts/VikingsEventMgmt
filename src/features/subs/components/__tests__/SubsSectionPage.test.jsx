@@ -109,52 +109,44 @@ describe('SubsSectionPage', () => {
     });
   });
 
-  it('shows the OSM status in the Next cell when there is one', async () => {
+  it('renders one column per future payment date, in order', async () => {
+    renderPage();
+
+    await screen.findByText(/Ann Adams/);
+    expect(screen.getByText('Future')).toBeInTheDocument();
+    const headers = [...screen.getAllByRole('columnheader')].map((cell) => cell.textContent);
+    expect(headers).toContain('15 Jan 2026');
+    expect(headers).toContain('20 Apr 2027');
+    expect(headers.indexOf('15 Jan 2026')).toBeLessThan(headers.indexOf('20 Apr 2027'));
+  });
+
+  it('shows each future payment badge and dashes where the scheme has none', async () => {
     renderPage();
 
     await screen.findByText(/Ben Brown/);
-    const nextCell = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td')[6];
-    expect(nextCell.textContent).toBe('Initiated');
+    const ben = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
+    expect(ben[6].textContent).toBe('Initiated');
+    expect(ben[7].textContent).toBe('Received');
+
+    const dan = screen.getByText(/Dan Davies/).closest('tr').querySelectorAll('td');
+    expect(dan[6].textContent).toBe('–');
+    expect(dan[7].textContent).toBe('–');
   });
 
-  it('falls back to the set-up badge when OSM has no next-term status', async () => {
-    renderPage();
-
-    await screen.findByText(/Dan Davies/);
-    const nextCell = screen.getByText(/Dan Davies/).closest('tr').querySelectorAll('td')[6];
-    expect(nextCell.textContent).toBe('Not scheduled');
-  });
-
-  it('shows an inferred term name in the column header', async () => {
+  it('shows a single Not scheduled column when there are no future payments', async () => {
+    const base = makeSummary();
     loadSectionSubs.mockResolvedValue(makeSummary({
-      terms: {
-        ...makeSummary().terms,
-        next: { termId: null, name: 'from 15 Jan 2027', startDate: '2027-01-15', endDate: null, inferred: true },
-      },
+      members: base.members.map((row) => ({ ...row, buckets: { ...row.buckets, next: [] } })),
     }));
 
     renderPage();
 
-    expect(await screen.findByLabelText('Next · from 15 Jan 2027')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Next · Not scheduled')).not.toBeInTheDocument();
-  });
-
-  it('renders the derived set-up badges when OSM has no next-term status', async () => {
-    renderPage();
-
-    await screen.findByText(/Cara Clark/);
-    expect(screen.getByText('N/A')).toBeInTheDocument();
-    expect(screen.getAllByText('Not scheduled').length).toBeGreaterThan(0);
-  });
-
-  it('reads Not scheduled in the Next header when nothing is scheduled', async () => {
-    loadSectionSubs.mockResolvedValue(makeSummary({
-      termTotals: { ...makeSummary().termTotals, next: { ...makeSummary().termTotals.next, scheduled: false } },
-    }));
-
-    renderPage();
-
-    expect(await screen.findByRole('columnheader', { name: 'Next · Not scheduled' })).toBeInTheDocument();
+    await screen.findByText(/Ann Adams/);
+    expect(await screen.findByLabelText('Next · Not scheduled')).toBeInTheDocument();
+    expect(screen.queryByText('Future')).not.toBeInTheDocument();
+    const cells = screen.getByText(/Ann Adams/).closest('tr').querySelectorAll('td');
+    expect(cells).toHaveLength(7);
+    expect(cells[6].textContent).toBe('–');
   });
 
   it('lists the young people not set up', async () => {
