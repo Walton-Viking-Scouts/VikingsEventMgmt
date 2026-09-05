@@ -64,29 +64,52 @@ describe('SubsSectionPage', () => {
     expect(screen.getByText(/Ann Adams/).closest('tr').className).toContain('border-transparent');
   });
 
-  it('badges a due unpaid payment as Overdue', async () => {
+  it('shows OSM status text verbatim on the badges', async () => {
     renderPage();
 
     await screen.findByText(/Ben Brown/);
     const cells = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
-    expect(cells[4].textContent).toBe('Overdue');
-    expect(cells[4].querySelector('span span').className).toContain('text-scout-red');
+    expect(cells[4].textContent).toBe('Payment required');
+    expect(cells[5].textContent).toBe('Payment requiredPayment required');
+    expect(screen.getAllByText('Received').length).toBeGreaterThan(0);
   });
 
-  it('badges a not-yet-due payment as Scheduled with an active mandate', async () => {
+  it('shows a dash when OSM has no status for a payment', async () => {
+    const base = makeSummary();
+    loadSectionSubs.mockResolvedValue(makeSummary({
+      members: base.members.map((row, index) => (index === 0
+        ? {
+          ...row,
+          buckets: {
+            ...row.buckets,
+            current: [{ paymentId: '1259483', date: '2025-09-15', amount: 26, isDue: true, state: 'not-started', latestStatus: '', latestAt: null }],
+          },
+        }
+        : row)),
+    }));
+
     renderPage();
 
     await screen.findByText(/Ann Adams/);
-    const cells = screen.getByText(/Ann Adams/).closest('tr').querySelectorAll('td');
-    expect(cells[5].textContent).toBe('PaidScheduled');
+    const currentCell = screen.getByText(/Ann Adams/).closest('tr').querySelectorAll('td')[5];
+    expect(currentCell.textContent).toBe('–');
+    expect(currentCell.querySelector('[title="No status from OSM yet"]')).toBeTruthy();
   });
 
-  it('badges a not-yet-due payment as No DD without an active mandate', async () => {
+  it('shows the OSM status in the Next cell when there is one', async () => {
     renderPage();
 
     await screen.findByText(/Ben Brown/);
-    const cells = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td');
-    expect(cells[5].textContent).toBe('OverdueNo DD');
+    const nextCell = screen.getByText(/Ben Brown/).closest('tr').querySelectorAll('td')[6];
+    expect(nextCell.textContent).toBe('Initiated');
+  });
+
+  it('falls back to the set-up badge when OSM has no next-term status', async () => {
+    renderPage();
+
+    await screen.findByText(/Dan Davies/);
+    const nextCell = screen.getByText(/Dan Davies/).closest('tr').querySelectorAll('td')[6];
+    expect(nextCell.textContent).toBe('Not scheduled');
   });
 
   it('shows an inferred term name in the column header', async () => {
@@ -103,15 +126,12 @@ describe('SubsSectionPage', () => {
     expect(screen.queryByLabelText('Next · Not scheduled')).not.toBeInTheDocument();
   });
 
-  it('renders each nextSetUp variant as a badge', async () => {
+  it('renders the derived set-up badges when OSM has no next-term status', async () => {
     renderPage();
 
-    await screen.findByText(/Ann Adams/);
-    expect(screen.getByText('Ready')).toBeInTheDocument();
-    expect(screen.getAllByText('No DD').length).toBeGreaterThan(0);
+    await screen.findByText(/Cara Clark/);
     expect(screen.getByText('N/A')).toBeInTheDocument();
     expect(screen.getAllByText('Not scheduled').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
   });
 
   it('reads Not scheduled in the Next header when nothing is scheduled', async () => {

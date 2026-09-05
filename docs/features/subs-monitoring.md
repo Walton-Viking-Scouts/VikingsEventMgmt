@@ -243,11 +243,17 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   section built from `members`: columns Name, YP marker, Scheme (e.g.
   "Leaders Subs" / "Beavers Subs"), DD (direct debit badge), Previous,
   Current, Next. Previous and Current cells show a state badge per payment in
-  that bucket (date and £ in the badge title), so unpaid previous-term
-  members stand out. The Next cell shows `nextSetUp` as a badge: ready
-  (green), no direct debit (amber), not applicable (muted), not scheduled
-  (grey, and the column header says "Not scheduled" when no scheme has a
-  next-term payment). A footer line gives the section's `termTotals`. Other
+  that bucket showing OSM's own status text verbatim ("Payment required",
+  "Received", "Paid manually", ...), coloured by our state category (paid
+  green, in progress blue, required amber, not required slate, anything else
+  neutral) with the date and £ in the badge title; `not-applicable` shows a
+  muted "N/A" and a payment OSM has no status for shows a dash. Rows with an
+  overdue payment (due and unpaid) carry a scout-red left border, so a merely
+  scheduled payment does not flag the row. The Next cell shows OSM's status
+  the same way when there is one, and falls back to the derived `nextSetUp`
+  badge otherwise: ready (green), no direct debit (amber), not applicable
+  (muted), not scheduled (grey, and the column header says "Not scheduled"
+  when no scheme has a next-term payment). A footer line gives the section's `termTotals`. Other
   schemes are listed by name only.
 
 Style: Tailwind, `scout-blue` theme, existing `LoadingScreen`, `ErrorState`,

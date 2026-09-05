@@ -29,10 +29,9 @@ function BucketHeading({ bucket, terms, detail }) {
  *
  * @param {object} props - Component props
  * @param {Array<object>} [props.payments] - Payments in this bucket
- * @param {string} [props.directDebit] - The member's direct debit status
  * @returns {JSX.Element} Badges or an empty marker
  */
-function BucketCell({ payments, directDebit }) {
+function BucketCell({ payments }) {
   if (!payments || payments.length === 0) {
     return <span className="text-gray-300">–</span>;
   }
@@ -40,7 +39,14 @@ function BucketCell({ payments, directDebit }) {
   return (
     <span className="flex flex-wrap gap-1">
       {payments.map((payment) => {
-        const badge = paymentBadge(payment, directDebit);
+        const badge = paymentBadge(payment);
+        if (!badge) {
+          return (
+            <span key={payment.paymentId} title="No status from OSM yet" className="text-gray-300">
+              –
+            </span>
+          );
+        }
         return (
           <span
             key={payment.paymentId}
@@ -122,9 +128,15 @@ function SectionMembersTable({ members, terms, termTotals }) {
                     {row.directDebit === 'Active' ? 'Direct debit' : 'No direct debit'}
                   </span>
                 </td>
-                <td className="px-4 py-2"><BucketCell payments={row.buckets?.previous} directDebit={row.directDebit} /></td>
-                <td className="px-4 py-2"><BucketCell payments={row.buckets?.current} directDebit={row.directDebit} /></td>
-                <td className="px-4 py-2"><NextSetUpBadge nextSetUp={row.nextSetUp} /></td>
+                <td className="px-4 py-2"><BucketCell payments={row.buckets?.previous} /></td>
+                <td className="px-4 py-2"><BucketCell payments={row.buckets?.current} /></td>
+                <td className="px-4 py-2">
+                  {(row.buckets?.next ?? []).some((payment) => payment.latestStatus) ? (
+                    <BucketCell payments={row.buckets.next} />
+                  ) : (
+                    <NextSetUpBadge nextSetUp={row.nextSetUp} />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

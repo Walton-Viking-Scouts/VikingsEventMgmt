@@ -147,7 +147,7 @@ export function makeSummary(overrides = {}) {
           previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-05-16 10:00:00' }],
           current: [
             { paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'paid', latestStatus: 'Received', latestAt: '2025-09-16 10:00:00' },
-            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null },
+            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'required', latestStatus: 'Payment required', latestAt: '2026-09-01 10:00:00' },
           ],
           next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null }],
         },
@@ -161,9 +161,9 @@ export function makeSummary(overrides = {}) {
           previous: [{ paymentId: '1138365', date: '2025-05-15', amount: 24, isDue: true, state: 'required', latestStatus: 'Payment required', latestAt: '2025-05-16 10:00:00' }],
           current: [
             { paymentId: '1259480', date: '2025-09-15', amount: 26, isDue: true, state: 'required', latestStatus: 'Payment required', latestAt: '2025-09-16 10:00:00' },
-            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null },
+            { paymentId: '1259482', date: '2026-09-15', amount: 26, isDue: false, state: 'required', latestStatus: 'Payment required', latestAt: '2026-09-01 10:00:00' },
           ],
-          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'not-started', latestStatus: '', latestAt: null }],
+          next: [{ paymentId: '1259481', date: '2026-01-15', amount: 26, isDue: false, state: 'in-progress', latestStatus: 'Initiated', latestAt: '2026-01-02 10:00:00' }],
         },
         nextSetUp: 'no-direct-debit',
       }),

@@ -1,7 +1,6 @@
 import React from 'react';
 
 const SET_UP_STYLES = {
-  'paid': { label: 'Paid', className: 'bg-green-100 text-green-800 border-green-200' },
   'ready': { label: 'Ready', className: 'bg-green-100 text-green-800 border-green-200' },
   'no-direct-debit': { label: 'No DD', className: 'bg-amber-100 text-amber-800 border-amber-200' },
   'not-applicable': { label: 'N/A', className: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -9,7 +8,6 @@ const SET_UP_STYLES = {
 };
 
 const TITLES = {
-  'paid': 'Next term has already been paid',
   'ready': 'Next term will be collected by direct debit',
   'no-direct-debit': 'Next term is scheduled but there is no active direct debit',
   'not-applicable': 'Next term’s payment does not apply to this member',
@@ -20,7 +18,7 @@ const TITLES = {
  * Badge summarising whether next term's subs will be collected for a member.
  *
  * @param {object} props - Component props
- * @param {string} [props.nextSetUp] - One of paid, ready, no-direct-debit, not-applicable, not-scheduled
+ * @param {string} [props.nextSetUp] - One of ready, no-direct-debit, not-applicable, not-scheduled
  * @returns {JSX.Element} A coloured next-term badge
  */
 function NextSetUpBadge({ nextSetUp }) {

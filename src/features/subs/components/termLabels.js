@@ -6,52 +6,15 @@
 
 const UNPAID_STATES = new Set(['required', 'not-started']);
 
-const SETTLED_BADGES = {
-  'paid': { label: 'Paid', className: 'bg-green-100 text-green-800 border-green-200' },
-  'not-required': { label: 'Not required', className: 'bg-slate-100 text-slate-600 border-slate-200' },
-  'in-progress': { label: 'In progress', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-  'not-applicable': { label: 'N/A', className: 'bg-slate-100 text-slate-500 border-slate-200' },
+const STATE_CLASSES = {
+  'paid': 'bg-green-100 text-green-800 border-green-200',
+  'in-progress': 'bg-blue-100 text-blue-800 border-blue-200',
+  'required': 'bg-amber-100 text-amber-800 border-amber-200',
+  'not-started': 'bg-amber-100 text-amber-800 border-amber-200',
+  'not-required': 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
-/**
- * Whether a payment entry is unpaid and already due, i.e. genuinely overdue
- * rather than merely scheduled.
- *
- * @param {object} entry - A payment entry from members[].buckets.*
- * @returns {boolean} True when the payment is due and unpaid
- */
-export function isOverdue(entry) {
-  return Boolean(entry?.isDue) && UNPAID_STATES.has(entry?.state);
-}
-
-/**
- * The badge for one member's payment, distinguishing a payment that is merely
- * scheduled from one that is genuinely overdue.
- *
- * @param {object} entry - A payment entry from members[].buckets.*
- * @param {string} [directDebit] - The member's direct debit status
- * @returns {{label: string, className: string}} Badge label and Tailwind classes
- */
-export function paymentBadge(entry, directDebit) {
-  const settled = SETTLED_BADGES[entry?.state];
-  if (settled) {
-    return settled;
-  }
-
-  if (UNPAID_STATES.has(entry?.state)) {
-    if (entry.isDue) {
-      return { label: 'Overdue', className: 'bg-red-50 text-scout-red border-red-200' };
-    }
-    return directDebit === 'Active'
-      ? { label: 'Scheduled', className: 'bg-sky-50 text-sky-700 border-sky-200' }
-      : { label: 'No DD', className: 'bg-amber-100 text-amber-800 border-amber-200' };
-  }
-
-  return {
-    label: entry?.latestStatus || entry?.state || 'Unknown',
-    className: 'bg-neutral-100 text-neutral-700 border-neutral-300',
-  };
-}
+const NOT_APPLICABLE_BADGE = { label: 'N/A', className: 'bg-slate-100 text-slate-500 border-slate-200' };
 
 /** Display labels for the three term buckets. */
 export const BUCKET_LABELS = { previous: 'Previous', current: 'Current', next: 'Next' };
@@ -82,6 +45,40 @@ export function hasOverdue(row) {
 export function bucketHeader(bucket, terms) {
   const name = terms?.[bucket]?.name;
   return name ? `${BUCKET_LABELS[bucket]} · ${name}` : BUCKET_LABELS[bucket];
+}
+
+/**
+ * Whether a payment entry is unpaid and already due, i.e. genuinely overdue
+ * rather than merely scheduled.
+ *
+ * @param {object} entry - A payment entry from members[].buckets.*
+ * @returns {boolean} True when the payment is due and unpaid
+ */
+export function isOverdue(entry) {
+  return Boolean(entry?.isDue) && UNPAID_STATES.has(entry?.state);
+}
+
+/**
+ * The badge for one member's payment, showing OSM's own status text so
+ * leaders read the wording they already know, coloured by our state category.
+ *
+ * @param {object} entry - A payment entry from members[].buckets.*
+ * @returns {{label: string, className: string}|null} Badge, or null when OSM has no status yet
+ */
+export function paymentBadge(entry) {
+  if (entry?.state === 'not-applicable') {
+    return NOT_APPLICABLE_BADGE;
+  }
+
+  const label = entry?.latestStatus;
+  if (!label) {
+    return null;
+  }
+
+  return {
+    label,
+    className: STATE_CLASSES[entry?.state] ?? 'bg-neutral-100 text-neutral-700 border-neutral-300',
+  };
 }
 
 /**
