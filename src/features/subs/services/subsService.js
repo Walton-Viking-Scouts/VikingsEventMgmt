@@ -13,6 +13,8 @@
 import { getPaymentSchemes, getPaymentStatus, getTerms } from '../../../shared/services/api/api/index.js';
 import databaseService from '../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../shared/services/storage/currentActiveTermsService.js';
+import { authHandler } from '../../../shared/services/auth/authHandler.js';
+import { isDemoMode } from '../../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { buildSectionSubsSummary, deriveTerms, mostRecentTerm } from './subsModel.js';
 
@@ -25,8 +27,8 @@ const TERMS_TTL = 30 * 60 * 1000;
 let termsCache = null;
 
 /**
- * Discards the shared terms payload, so the next load fetches it again.
- * Used on sign-out and by tests.
+ * Discards the shared terms payload so the next load fetches it again. Only
+ * `forceRefresh` and the tests use this; nothing wires it to sign-out.
  *
  * @returns {void}
  */
@@ -35,50 +37,54 @@ export function resetTermsCache() {
 }
 
 /**
- * The full terms payload, keyed by section id string. getTerms itself has no
- * cache and always hits the network, so a summary run (one call per section)
- * shares a single fetch here; forceRefresh discards it.
+ * The full terms payload, keyed by section id string. getTerms has no cache
+ * of its own and always hits the network, so every section in a summary run
+ * shares one fetch. A rejection is shared too — the same rejected promise is
+ * handed to the remaining sections, so a failing run calls getTerms exactly
+ * once instead of retrying per section; only forceRefresh or
+ * {@link resetTermsCache} clears it.
  *
  * @param {string} token - OSM authentication token
  * @param {boolean} forceRefresh - Discard the shared payload first
- * @returns {Promise<Object|null>} Terms keyed by section id, or null when unavailable
+ * @returns {Promise<Object>} Terms keyed by section id
+ * @throws {Error} Whatever getTerms threw, unchanged
  */
 function loadAllTerms(token, forceRefresh) {
   if (forceRefresh || (termsCache && Date.now() - termsCache.at > TERMS_TTL)) {
     termsCache = null;
   }
   if (!termsCache) {
-    const promise = getTerms(token, forceRefresh)
-      .catch((error) => {
-        termsCache = null;
-        logger.warn('Subs: terms load failed, falling back to no terms', {
-          error: error.message,
-        }, LOG_CATEGORIES.ERROR);
-        return null;
-      });
+    const promise = getTerms(token, forceRefresh);
+    promise.catch(() => undefined);
     termsCache = { at: Date.now(), promise };
   }
   return termsCache.promise;
 }
 
 /**
- * Resolves the section's current term, preferring the app's own per-section
- * current-active-term record over date arithmetic.
+ * Resolves the section's term buckets. The app's own current-active-term
+ * record wins outright when present: it IS the current term, even if another
+ * cached term overlaps today or the record's own dates, and previous/next are
+ * then derived around it. A term missing from the cached list is rebuilt from
+ * the record's own fields. Without a record, the date-based derivation in
+ * {@link deriveTerms} decides.
  *
  * @param {string} sectionId - Section id
+ * @param {string} sectionName - Section display name, for error messages
  * @param {Array<Object>} sectionTerms - The section's cached terms
  * @param {string} today - Today's date (yyyy-mm-dd)
  * @returns {Promise<{previous: Object|null, current: Object|null, next: Object|null}>} Term buckets
+ * @throws {Error} localOnly NO_CURRENT_TERM when the record cannot be read
  */
-async function resolveTerms(sectionId, sectionTerms, today) {
+async function resolveTerms(sectionId, sectionName, sectionTerms, today) {
   let activeRecord = null;
   try {
     activeRecord = await CurrentActiveTermsService.getCurrentActiveTerm(String(sectionId));
   } catch (error) {
-    logger.warn('Subs: current active term lookup failed', {
-      sectionId,
-      error: error.message,
-    }, LOG_CATEGORIES.ERROR);
+    throw localError(
+      'NO_CURRENT_TERM',
+      `Could not read the current term for ${sectionName}: ${error.message}`,
+    );
   }
 
   const currentTermId = activeRecord?.currentTermId;
@@ -94,7 +100,31 @@ async function resolveTerms(sectionId, sectionTerms, today) {
     enddate: activeRecord.endDate,
   };
   const others = sectionTerms.filter((term) => String(term?.termid) !== String(currentTermId));
-  return deriveTerms([pinned, ...others], pinned.startdate);
+  const derived = deriveTerms([pinned, ...others], pinned.startdate);
+  const current = normalisePinnedTerm(pinned) ?? derived.current;
+  return {
+    previous: derived.previous?.termId === current?.termId ? null : derived.previous,
+    current,
+    next: derived.next?.termId === current?.termId ? null : derived.next,
+  };
+}
+
+/**
+ * The pinned current-active term in SubsTerm shape.
+ *
+ * @param {Object} term - OSM term row
+ * @returns {{termId: string, name: string, startDate: string, endDate: string}|null} Normalised term
+ */
+function normalisePinnedTerm(term) {
+  if (!term?.startdate || !term?.enddate) {
+    return null;
+  }
+  return {
+    termId: String(term.termid),
+    name: term.name ?? '',
+    startDate: String(term.startdate),
+    endDate: String(term.enddate),
+  };
 }
 
 /**
@@ -137,7 +167,8 @@ function localError(code, message) {
 function loadError(error, message) {
   const isAuthError = error?.code === 'NO_TOKEN'
     || error?.isTokenExpired === true
-    || error?.status === 401;
+    || error?.status === 401
+    || authHandler.hasAuthFailed();
   const wrapped = new Error(`${message}: ${error?.message ?? 'unknown error'}`);
   wrapped.cause = error;
   wrapped.needsAuth = isAuthError;
@@ -155,17 +186,24 @@ function loadError(error, message) {
  * are still returned so the summary page can list them greyed out; they are
  * never loaded.
  *
- * @returns {Promise<Array<{sectionId: string, sectionName: string, financePermission: number, canView: boolean}>>} All cached sections
+ * A section whose cached row carries no permissions map at all has not had
+ * its permissions synced (an old row, or a dropped parse); it reports
+ * `permissionsSynced: false` so the page can ask for a data refresh rather
+ * than claiming the user has no finance access.
+ *
+ * @returns {Promise<Array<{sectionId: string, sectionName: string, financePermission: number, canView: boolean, permissionsSynced: boolean}>>} All cached sections
  */
 export async function getSubsSections() {
   const sections = (await databaseService.getSections()) ?? [];
   return sections.map((section) => {
-    const financePermission = Number(section.permissions?.finance ?? 0);
+    const permissionsSynced = Boolean(section.permissions) && typeof section.permissions === 'object';
+    const financePermission = permissionsSynced ? Number(section.permissions.finance ?? 0) : 0;
     return {
       sectionId: String(section.sectionid),
       sectionName: section.sectionname ?? `Section ${section.sectionid}`,
       financePermission,
-      canView: financePermission >= MIN_FINANCE_PERMISSION,
+      canView: permissionsSynced && financePermission >= MIN_FINANCE_PERMISSION,
+      permissionsSynced,
     };
   });
 }
@@ -173,19 +211,24 @@ export async function getSubsSections() {
 /**
  * Loads one section's subs summary: the scheme list, then one payment-status
  * call per subs scheme (`require_all === 1`) for the section's current term,
- * one at a time. Stops on the first failure.
+ * one at a time. Stops on the first failure, with no stale-cache fallback.
+ *
+ * Concurrent calls for the same section and forceRefresh share one load, so
+ * a StrictMode double mount sends a single burst of payment calls.
  *
  * @param {string|number} sectionId - Section to load
  * @param {Object} options - Load options
  * @param {string} options.token - OSM authentication token
  * @param {boolean} [options.forceRefresh=false] - Bypass the 30 minute cache
  * @returns {Promise<Object>} SectionSubsSummary
- * @throws {Error} With `needsAuth === true` for 401/expired-token failures,
- *   otherwise a plain Error with a readable message
+ * @throws {Error} Always carrying `code` ('UNKNOWN_SECTION', 'NO_ACCESS',
+ *   'NO_CURRENT_TERM', 'DEMO_MODE', 'NEEDS_AUTH' or 'LOAD_FAILED'),
+ *   `localOnly` (true when detected before any network call, so the caller
+ *   may skip this section and continue) and `needsAuth` (true only for
+ *   'NEEDS_AUTH', which also sets `status` 401). Network failures carry the
+ *   originating error as `cause`.
  */
 export function loadSectionSubs(sectionId, { token, forceRefresh = false } = {}) {
-  // React StrictMode mounts hooks twice: without this, one page mount sends
-  // two identical bursts of payment calls at OSM.
   const key = `${sectionId}|${forceRefresh ? '1' : '0'}`;
   const existing = inFlight.get(key);
   if (existing) {
@@ -210,6 +253,9 @@ export function loadSectionSubs(sectionId, { token, forceRefresh = false } = {})
  */
 async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
   const today = todayISO();
+  if (isDemoMode()) {
+    throw localError('DEMO_MODE', 'Subs are not available in demo mode');
+  }
   const sections = (await databaseService.getSections()) ?? [];
   const section = sections.find((s) => String(s.sectionid) === String(sectionId));
   if (!section) {
@@ -220,12 +266,21 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
     throw localError('NO_ACCESS', `No finance access for ${sectionName}`);
   }
 
-  const allTerms = await loadAllTerms(token, forceRefresh);
-  if (!allTerms) {
+  let allTerms;
+  try {
+    allTerms = await loadAllTerms(token, forceRefresh);
+  } catch (error) {
+    logger.error('Subs: terms load failed', {
+      sectionId,
+      error: error.message,
+    }, LOG_CATEGORIES.ERROR);
+    throw loadError(error, `Could not load terms for ${sectionName}`);
+  }
+  const sectionTerms = allTerms?.[String(sectionId)] ?? [];
+  if (sectionTerms.length === 0) {
     throw localError('NO_CURRENT_TERM', `No terms cached for ${sectionName} — refresh the app data first`);
   }
-  const sectionTerms = allTerms[String(sectionId)] ?? [];
-  const terms = await resolveTerms(sectionId, sectionTerms, today);
+  const terms = await resolveTerms(sectionId, sectionName, sectionTerms, today);
   if (!terms.current) {
     const latest = mostRecentTerm(sectionTerms);
     throw localError(
@@ -247,10 +302,6 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
       error: error.message,
     }, LOG_CATEGORIES.ERROR);
     throw loadError(error, `Could not load payment schemes for ${sectionName}`);
-  }
-
-  if (!schemesResponse) {
-    throw localError('DEMO_MODE', 'Subs are not available in demo mode');
   }
 
   const subsSchemes = (schemesResponse.items ?? []).filter((scheme) => Number(scheme.require_all) === 1);
@@ -299,6 +350,7 @@ async function runSectionSubsLoad(sectionId, { token, forceRefresh }) {
     schemesResponse,
     statusResponses,
     members,
+    cachedMemberCount: members.length,
     terms,
     today,
     loadedAt,

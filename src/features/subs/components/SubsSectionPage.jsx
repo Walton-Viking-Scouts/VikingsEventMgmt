@@ -4,11 +4,13 @@ import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import useSectionSubs from '../hooks/useSectionSubs.js';
 import CoverageTicks from './CoverageTicks.jsx';
 import SectionMembersTable from './SectionMembersTable.jsx';
+import { formatLoadedAt } from './formatLoadedAt.js';
 import SubsSignInCard from './SubsSignInCard.jsx';
 
 /**
  * Drill-down page for one section: term coverage, the young people with no
- * subs scheme, and a table per subs scheme.
+ * subs scheme, one members table for the whole section, and the other
+ * (non-subs) schemes by name.
  *
  * @returns {JSX.Element} The section subs page
  */
@@ -24,6 +26,7 @@ function SubsSectionPage() {
     return <LoadingScreen message="Loading subs..." />;
   }
 
+  const freshness = formatLoadedAt(summary?.loadedAt, summary?.fromCache);
   const termNames = summary
     ? ['previous', 'current', 'next']
       .map((bucket) => summary.terms?.[bucket]?.name)
@@ -43,6 +46,7 @@ function SubsSectionPage() {
             {summary?.sectionName ?? 'Section'}
           </h1>
           {termNames ? <p className="m-0 mt-0.5 text-xs text-gray-500">{termNames}</p> : null}
+          {freshness ? <p className="m-0 mt-0.5 text-xs text-gray-400">{freshness}</p> : null}
         </div>
         <div className="flex items-center gap-3">
           {summary ? <CoverageTicks coverage={summary.subsCoverage} terms={summary.terms} /> : null}
@@ -68,7 +72,11 @@ function SubsSectionPage() {
         <>
           <section className="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <h2 className="m-0 text-base font-semibold text-gray-900">YP not set up</h2>
-            {(summary.ypNotInSubs ?? []).length === 0 ? (
+            {summary.cachedMemberCount === 0 ? (
+              <p className="m-0 mt-1 text-sm text-gray-400">
+                No members cached for this section — refresh the app data
+              </p>
+            ) : (summary.ypNotInSubs ?? []).length === 0 ? (
               <p className="m-0 mt-1 text-sm text-gray-500">All young people are in a subs scheme</p>
             ) : (
               <ul className="m-0 mt-2 list-disc pl-5 text-sm text-gray-800">

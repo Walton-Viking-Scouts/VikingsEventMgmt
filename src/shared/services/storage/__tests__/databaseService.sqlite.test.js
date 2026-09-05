@@ -859,5 +859,53 @@ describe('DatabaseService — SQLite (iOS code path)', () => {
       const cols = new Set(activeDb.prepare('PRAGMA table_info(sections)').all().map(c => c.name));
       expect(cols.has('permissions')).toBe(true);
     });
+    it('logs and drops permissions when the stored JSON is malformed', async () => {
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      const { default: logger } = await import('../../utils/logger.js');
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+      activeDb
+        .prepare('INSERT INTO sections (sectionid, sectionname, sectiontype, permissions) VALUES (?, ?, ?, ?)')
+        .run(9, 'Corrupt Section', 'scouts', '{not json');
+
+      const sections = await databaseService.getSections();
+
+      expect(sections.length).toBe(1);
+      expect(sections[0]).not.toHaveProperty('permissions');
+      expect(sections[0].sectionname).toBe('Corrupt Section');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to parse cached section permissions',
+        expect.objectContaining({ sectionid: 9, rawPermissions: '{not json' }),
+        expect.anything(),
+      );
+
+      errorSpy.mockRestore();
+    });
+
+    it('a row written before migration 005 reads back without a permissions key', async () => {
+      activeDb.exec(`
+        CREATE TABLE sections (
+          sectionid INTEGER PRIMARY KEY,
+          sectionname TEXT NOT NULL,
+          sectiontype TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      activeDb
+        .prepare('INSERT INTO sections (sectionid, sectionname, sectiontype) VALUES (?, ?, ?)')
+        .run(8, 'Legacy Beavers', 'beavers');
+
+      const databaseService = await loadFreshDatabaseService();
+      await databaseService.initialize();
+
+      const sections = await databaseService.getSections();
+
+      expect(sections.length).toBe(1);
+      expect(sections[0].sectionname).toBe('Legacy Beavers');
+      expect(sections[0]).not.toHaveProperty('permissions');
+    });
   });
 });

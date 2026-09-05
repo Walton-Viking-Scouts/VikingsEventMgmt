@@ -122,6 +122,9 @@ function anonymiseSchemes(raw) {
 function anonymiseStatus(raw) {
   const result = structuredClone(raw);
   const members = result.data?.members ?? [];
+  if (members.length === 0) {
+    throw new Error('No members found in the capture — refusing to write an empty fixture');
+  }
   members.forEach((member, index) => {
     member.scoutid = fakeScoutId(member.scoutid);
     member.startdate = '2024-09-01';
@@ -146,6 +149,22 @@ function anonymiseStatus(raw) {
   return result;
 }
 
+/**
+ * Verifies every member row was actually anonymised, so a change to the
+ * capture's shape cannot silently write real names into the fixtures.
+ *
+ * @param {Object} status - Anonymised paymentStatus response
+ * @returns {void}
+ * @throws {Error} When any member still carries an un-anonymised field
+ */
+function assertAnonymised(status) {
+  for (const member of status.data?.members ?? []) {
+    if (member.dob !== '2015-01-01' || !/^Forename\d+$/.test(member.firstname ?? '')) {
+      throw new Error(`Member ${member.scoutid} was not anonymised (dob "${member.dob}", firstname "${member.firstname}")`);
+    }
+  }
+}
+
 const [schemesArg, statusArg] = process.argv.slice(2);
 const schemesPath = schemesArg ? resolve(schemesArg) : resolve(defaultRawDir, 'getSchemes');
 const statusPath = statusArg ? resolve(statusArg) : resolve(defaultRawDir, 'paymentStatus');
@@ -154,6 +173,8 @@ mkdirSync(outDir, { recursive: true });
 
 const schemes = anonymiseSchemes(JSON.parse(readFileSync(schemesPath, 'utf8')));
 const status = anonymiseStatus(JSON.parse(readFileSync(statusPath, 'utf8')));
+
+assertAnonymised(status);
 
 writeFileSync(resolve(outDir, 'getSchemes.json'), `${JSON.stringify(schemes, null, 2)}\n`);
 writeFileSync(resolve(outDir, 'paymentStatus.json'), `${JSON.stringify(status, null, 2)}\n`);

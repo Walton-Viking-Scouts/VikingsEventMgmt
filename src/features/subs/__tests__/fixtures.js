@@ -55,8 +55,9 @@ export function makeSummary(overrides = {}) {
   return {
     sectionId: '49097',
     sectionName: 'Thursday Beavers',
-    loadedAt: 1757030400000,
+    loadedAt: new Date('2026-09-05T14:05:00Z').getTime(),
     fromCache: false,
+    cachedMemberCount: 24,
     terms: {
       previous: { termId: '1', name: 'Summer 2025', startDate: '2025-04-01', endDate: '2025-08-31' },
       current: { termId: '2', name: 'Autumn 2025', startDate: '2025-09-01', endDate: '2025-12-31' },
@@ -212,20 +213,20 @@ export function makeSummary(overrides = {}) {
 
 /** Two viewable sections, as getSubsSections returns them. */
 export const SECTIONS = [
-  { sectionId: '49097', sectionName: 'Thursday Beavers', financePermission: 20, canView: true },
-  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true },
+  { sectionId: '49097', sectionName: 'Thursday Beavers', financePermission: 20, canView: true, permissionsSynced: true },
+  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true, permissionsSynced: true },
 ];
 
 /** Sections including one the user has no finance access to. */
 export const MIXED_SECTIONS = [
-  { sectionId: '49097', sectionName: 'Thursday Beavers', financePermission: 20, canView: true },
-  { sectionId: '49099', sectionName: 'Saturday Scouts', financePermission: 0, canView: false },
-  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true },
+  { sectionId: '49097', sectionName: 'Thursday Beavers', financePermission: 20, canView: true, permissionsSynced: true },
+  { sectionId: '49099', sectionName: 'Saturday Scouts', financePermission: 0, canView: false, permissionsSynced: true },
+  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true, permissionsSynced: true },
 ];
 
 /** Three viewable sections, for ordering and continue-on-error tests. */
 export const MIXED_VIEWABLE_SECTIONS = [
-  { sectionId: '49097', sectionName: 'Adults', financePermission: 20, canView: true },
-  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true },
-  { sectionId: '49100', sectionName: 'Monday Beavers', financePermission: 10, canView: true },
+  { sectionId: '49097', sectionName: 'Adults', financePermission: 20, canView: true, permissionsSynced: true },
+  { sectionId: '49098', sectionName: 'Friday Cubs', financePermission: 10, canView: true, permissionsSynced: true },
+  { sectionId: '49100', sectionName: 'Monday Beavers', financePermission: 10, canView: true, permissionsSynced: true },
 ];

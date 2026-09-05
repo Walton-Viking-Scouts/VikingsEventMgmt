@@ -70,7 +70,8 @@ function BucketCell({ payments }) {
 
 /**
  * One table for the whole section: a row per member and subs scheme, with a
- * column per term bucket so unpaid previous-term members stand out.
+ * previous and a current column plus one column per future payment date, so
+ * unpaid previous-term members stand out.
  *
  * @param {object} props - Component props
  * @param {Array<object>} props.members - SectionSubsSummary.members rows

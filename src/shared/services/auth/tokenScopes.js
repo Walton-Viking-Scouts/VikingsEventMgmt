@@ -14,7 +14,9 @@
 export const FINANCE_SCOPE = 'section:finance:read';
 
 /**
- * Decodes the base64url JWT payload and returns its `scopes` array.
+ * Decodes the base64url JWT payload and returns its scopes. OSM issues
+ * `scopes` either as an array or as a single space-separated string; both are
+ * normalised to an array here.
  *
  * @param {string|null|undefined} token - OSM access token
  * @returns {string[]} The token's scopes, or [] when the token is missing,

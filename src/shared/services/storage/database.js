@@ -332,6 +332,27 @@ class DatabaseService {
     return false;
   }
 
+  /**
+   * Replaces the cached Scout sections on whichever backend is active.
+   *
+   * Web/IndexedDB: sections are zod-validated and stored as whole objects.
+   * Native/SQLite: each section is written to the `sections` table, with the
+   * OSM `permissions` map serialized to JSON in the `permissions` TEXT column
+   * (added by migration 005) so both backends return the same shape from
+   * getSections. A section with no permissions stores SQL NULL.
+   *
+   * An empty payload is ignored when a non-empty cache already exists, so a
+   * flaky API response cannot wipe offline data.
+   *
+   * @async
+   * @param {Array<Object>} sections - Sections to persist
+   * @param {number|string} sections[].sectionid - Unique section identifier
+   * @param {string} sections[].sectionname - Display name
+   * @param {string} [sections[].sectiontype] - Section type
+   * @param {Object<string, number>} [sections[].permissions] - OSM permission
+   *   levels keyed by area (e.g. `{ finance: 100 }`)
+   * @returns {Promise<void>}
+   */
   async saveSections(sections) {
     await this.initialize();
 
@@ -420,7 +441,12 @@ class DatabaseService {
       if (permissions === null || permissions === undefined) return rest;
       try {
         return { ...rest, permissions: JSON.parse(permissions) };
-      } catch {
+      } catch (error) {
+        logger.error('Failed to parse cached section permissions', {
+          sectionid: rest.sectionid,
+          rawPermissions: permissions,
+          error: error.message,
+        }, LOG_CATEGORIES.DATABASE);
         return rest;
       }
     });

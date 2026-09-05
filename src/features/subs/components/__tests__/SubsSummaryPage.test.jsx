@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
@@ -74,9 +74,10 @@ describe('SubsSummaryPage', () => {
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(4);
     expect(screen.getByText('Young people')).toBeInTheDocument();
-    expect(screen.getByText('Previous · Summer 2025')).toBeInTheDocument();
-    expect(screen.getByText('Current · Autumn 2025')).toBeInTheDocument();
-    expect(screen.getByText('Next · Spring 2026')).toBeInTheDocument();
+    expect(screen.getByText('Previous')).toBeInTheDocument();
+    expect(screen.getByText('Current')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.queryByText(/Summer 2025/)).not.toBeInTheDocument();
     expect(screen.getAllByText('24').length).toBeGreaterThan(0);
     expect(screen.getAllByText('£24').length).toBeGreaterThan(0);
   });
@@ -142,7 +143,56 @@ describe('SubsSummaryPage', () => {
 
     expect(await screen.findByLabelText('Loading section')).toBeInTheDocument();
     expect(screen.getAllByText('–').length).toBeGreaterThan(0);
-    resolveFirst(makeSummary());
+
+    await act(async () => {
+      resolveFirst(makeSummary());
+      await Promise.resolve();
+    });
+  });
+
+  it('shows the loaded time per row', async () => {
+    renderPage();
+
+    await screen.findByRole('link', { name: 'Thursday Beavers' });
+    expect(screen.getAllByText(/^Loaded \d{2}:\d{2}$/).length).toBe(2);
+  });
+
+  it('marks a section whose permissions are not synced', async () => {
+    getSubsSections.mockResolvedValue([
+      { sectionId: '49097', sectionName: 'Thursday Beavers', financePermission: 0, canView: false, permissionsSynced: false },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Permissions not synced — refresh the app data')).toBeInTheDocument();
+    expect(screen.queryByText('No finance access')).not.toBeInTheDocument();
+    expect(loadSectionSubs).not.toHaveBeenCalled();
+  });
+
+  it('dashes the YP cells when the section has no cached members', async () => {
+    loadSectionSubs.mockImplementation(() => Promise.resolve(makeSummary({ cachedMemberCount: 0 })));
+
+    renderPage();
+
+    await screen.findByRole('link', { name: 'Thursday Beavers' });
+    const cells = screen.getAllByRole('row')[2].querySelectorAll('td');
+    expect([...cells].slice(1, 5).map((cell) => cell.textContent)).toEqual(['–', '–', '–', '–']);
+    expect(cells[1].getAttribute('title')).toBe('No members cached for this section — refresh the app data');
+  });
+
+  it('dashes and unlinks later rows when a network error stops the run', async () => {
+    const err = new Error('OSM said no');
+    err.code = 'LOAD_FAILED';
+    loadSectionSubs.mockRejectedValueOnce(err);
+
+    renderPage();
+
+    expect(await screen.findByText(/Couldn't load Thursday Beavers/)).toBeInTheDocument();
+    expect(screen.getByText(/Loading stopped/)).toBeInTheDocument();
+    expect(loadSectionSubs).toHaveBeenCalledTimes(1);
+    const laterRow = screen.getAllByRole('row')[3];
+    expect(laterRow.querySelectorAll('td')[1].textContent).toBe('–');
+    expect(screen.getByRole('link', { name: 'Friday Cubs' })).toBeInTheDocument();
   });
 
   it('greys out a section with no finance access', async () => {

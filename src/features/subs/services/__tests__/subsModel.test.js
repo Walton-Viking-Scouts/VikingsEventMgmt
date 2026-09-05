@@ -8,6 +8,8 @@ import {
   deriveTerms,
 } from '../subsModel.js';
 
+const round2 = (value) => Math.round(value * 100) / 100;
+
 const TERMS = {
   previous: { termId: 'p', name: 'Summer 2026', startDate: '2026-04-01', endDate: '2026-08-31' },
   current: { termId: 'c', name: 'Autumn 2026', startDate: '2026-09-01', endDate: '2026-12-20' },
@@ -211,6 +213,31 @@ describe('next-term readiness and section rows', () => {
     expect(scheme.members[0].payments[scheme.termStats.current.paymentIds[0]].isDue).toBe(false);
   });
 
+  it('excludes Payment not required from due, paid and unpaid', () => {
+    const patched = JSON.parse(JSON.stringify(statusFixture));
+    const target = patched.data.members[0];
+    target['1138365'].status = [{
+      statusid: '1', status: 'Payment not required', latest: '1', statustimestamp: '2026-05-15 09:00:00',
+    }];
+    const stats = summary('2026-09-20', { statusResponses: { 60603: patched } })
+      .schemes[0].termStats.previous;
+    expect(stats.due).toEqual({ members: 7, amount: 182 });
+    expect(stats.paid).toEqual({ members: 7, amount: 182 });
+    expect(stats.unpaid).toEqual({ members: 0, amount: 0 });
+  });
+
+  it('keeps due equal to paid plus pending plus unpaid in every bucket', () => {
+    const result = summary('2026-09-20');
+    for (const source of [result.schemes[0].termStats, result.termTotals]) {
+      for (const bucket of ['previous', 'current', 'next']) {
+        const stats = source[bucket];
+        expect(stats.due.amount).toBe(
+          round2(stats.paid.amount + stats.pending.amount + stats.unpaid.amount),
+        );
+      }
+    }
+  });
+
   it('builds one row per member and scheme, sorted and bucketed', () => {
     const result = summary('2026-09-20');
     expect(result.members).toHaveLength(8);
@@ -368,6 +395,6 @@ describe('buildSectionSubsSummary with the real capture', () => {
     const scheme = result.schemes[0];
     expect(scheme.members.every((m) => m.payments[paymentId].state === 'not-required')).toBe(true);
     expect(scheme.termStats.current.unpaid).toEqual({ members: 0, amount: 0 });
-    expect(scheme.termStats.current.due).toEqual({ members: 8, amount: 208 });
+    expect(scheme.termStats.current.due).toEqual({ members: 0, amount: 0 });
   });
 });

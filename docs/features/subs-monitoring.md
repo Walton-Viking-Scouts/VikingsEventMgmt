@@ -69,14 +69,16 @@ Response shapes are documented in the backend's `docs/api/osm-proxy.md`.
   - `required`: latest status is `Payment required`
   - `not-started`: empty history
   - anything else: `unknown` (kept, surfaced as-is)
-- **Unpaid** (per scheme, current term): applicable payments dated on or
-  before today whose state is `required` or `not-started`. Count members and
-  sum `amount`. `in-progress` is reported separately as *pending*.
+- **Unpaid** (per bucket): applicable payments whose state is `required` or
+  `not-started`, any date. **Overdue**: the unpaid subset dated on or before
+  today. Count members (once per bucket) and sum `amount`. `in-progress` is
+  reported separately as *pending*.
 - **YP not set up**: YP not present in any subs scheme's member list for the
   current term. Reported separately: members present but with
   `directdebit !== 'Active'` (*no direct debit*).
-- `amount_overdue` from `/get-payment-schemes` is shown as OSM's own overdue
-  figure per scheme; it is not recomputed.
+- `amount_overdue` from `/get-payment-schemes` is carried through as the
+  scheme's `amountOverdue`; it is not recomputed, and the pages do not
+  currently render it.
 
 ## Data contract
 
@@ -85,10 +87,17 @@ Response shapes are documented in the backend's `docs/api/osm-proxy.md`.
 ```js
 /**
  * Every cached section in store order, flagged with whether the user may view
- * its finance data (permissions.finance >= 10). It does not filter; callers
- * must skip canView === false rather than calling loadSectionSubs for it.
+ * its finance data (permissions.finance >= 10 AND permissionsSynced). It does
+ * not filter; callers must skip canView === false rather than calling
+ * loadSectionSubs for it. permissionsSynced is false when the cached row has
+ * no permissions map at all (saved before the permissions migration, or a
+ * dropped parse): show "Permissions not synced — refresh app data" for those,
+ * not "No finance access".
  */
-export async function getSubsSections(): Promise<Array<{ sectionId: string, sectionName: string, financePermission: number, canView: boolean }>>
+export async function getSubsSections(): Promise<Array<{
+  sectionId: string, sectionName: string, financePermission: number,
+  canView: boolean, permissionsSynced: boolean,
+}>>
 
 /**
  * Loads one section: schemes, then one status call per subs scheme for the
@@ -97,7 +106,11 @@ export async function getSubsSections(): Promise<Array<{ sectionId: string, sect
  * err.code ('UNKNOWN_SECTION' | 'NO_ACCESS' | 'NO_CURRENT_TERM' |
  * 'DEMO_MODE' | 'NEEDS_AUTH' | 'LOAD_FAILED'), a readable err.message,
  * err.localOnly === true when it was raised before any network call (the
- * first four), and err.needsAuth === true for 401/expired-token.
+ * first four), and err.needsAuth === true for 401/expired-token. There is no
+ * stale-cache fallback: a failed request throws rather than returning old
+ * figures. A failed terms fetch is NOT local — it surfaces as NEEDS_AUTH or
+ * LOAD_FAILED and stops the run, and getTerms is called at most once per run;
+ * NO_CURRENT_TERM means the terms loaded but this section has none.
  */
 export async function loadSectionSubs(sectionId, { token, forceRefresh = false }): Promise<SectionSubsSummary>
 ```
@@ -124,6 +137,8 @@ export function hasFinanceScope(token): boolean            // includes 'section:
     next:     { termId, name, startDate, endDate } | null,   // name: 'from 15 Jan 2027', endDate: null,
   },                                        // inferred: true } — no term name is invented
   ypCount: 24,                              // cached YP in the section
+  cachedMemberCount: 31,                    // cached members of any kind; 0 means the member cache is empty,
+                                            // so ypNotInSubs being empty proves nothing
   subsCoverage: { previous: true, current: true, next: false },
   schemes: [                                // subs schemes only, in OSM order
     {
@@ -170,7 +185,7 @@ export function hasFinanceScope(token): boolean            // includes 'section:
         current:  [ ... ],
         next:     [ ... ],
       },
-      nextSetUp: 'ready' | 'no-direct-debit' | 'not-applicable' | 'not-scheduled',
+      nextSetUp: 'paid' | 'ready' | 'no-direct-debit' | 'not-applicable' | 'not-scheduled',
     },
   ],
 }
@@ -183,7 +198,7 @@ with several payments in the bucket, amounts sum the payments):
 {
   paymentIds: ['1259480'],
   scheduled: true,                          // the scheme has at least one payment in this bucket
-  due:     { members: 20, amount: 520 },    // applicable payments (active && defaulton), any date
+  due:     { members: 20, amount: 520 },    // applicable payments (active && defaulton), any date, excluding Payment not required
   paid:    { members: 16, amount: 416 },    // state paid (not-required is settled but not counted here)
   unpaid:  { members: 4, amount: 104 },     // applicable, state required or not-started, ANY date
   overdue: { members: 3, amount: 78 },      // the unpaid subset whose date is on or before today
@@ -203,68 +218,69 @@ has a next-term payment, it applies to the member (`active` and `defaulton`)
 and `directDebit === 'Active'`; `no-direct-debit` when the payment applies but
 there is no active mandate; `not-applicable` when the payment does not apply
 to the member; `not-scheduled` when the scheme has no next-term payment at
-all. `readyMembers` in `TermBucketStats` includes the `paid` ones. `unpaid` for the previous bucket uses the same rule as current
-(due on or before today, state `required` or `not-started`).
+all. `readyMembers` in `TermBucketStats` includes the `paid` ones.
 
 ## Pages
 
 Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
 
-- **Summary** (`/subs`): ONE table, one row per section (loaded one section
-  at a time in order, with a per-row spinner while loading and a stop-on-first-error
-  banner for a failed network call). Columns: Section, then a "Young people"
-  group of Total (`ypCount`), Leaders subs, Section subs and Not set up, then
-  for each of Previous / Current / Next a group of three columns Due, Paid,
-  Unpaid showing members with £ underneath (from `termTotals`), the term
-  name in the group header, and "Not scheduled" in the group header when
-  nothing is scheduled. Rows are links to the section page. Local errors and
-  no-access sections render as muted rows with their message spanning the
-  columns. A subs scheme is a *leaders* scheme when its name matches
-  `/leader/i` (the discounted scheme for leaders' children); every other subs
-  scheme is *section subs*. Both figures sum `schemes[].ypCount` over their
-  group, so a YP in both counts in both; the leaders cell shows a dash rather
-  than 0 when the section has no leaders scheme. The older description below still applies for behaviour:
-  one row/card per viewable section, loaded one section
-  at a time in order, with a per-section spinner and a stop-on-first-error
-  banner. Columns: YP count, per-subs-scheme YP count (scheme name as the
-  header, e.g. "Beavers Subs 19 / Leaders Subs 4"), YP not set up, previous /
-  current / next term set-up ticks, unpaid (members and £), OSM overdue £.
-  A section whose error is `localOnly` (nothing was asked of OSM) is marked in
-  place with its message and the loop moves on to the next section; only a
-  failed network call stops the run and raises the banner.
-  A Refresh button reloads with `forceRefresh`. Sections with `canView` false
-  are rendered as greyed, non-linking cards showing only the section name and
-  "No finance access" (no spinner, no figures) and are never loaded; when no
-  section is viewable the page shows "No sections with finance access". If the token lacks the finance
-  scope, the page shows the sign-in card (copy the water rota `needsAuth`
-  card in `RotaBoardPage.jsx`) and loads nothing.
-- **Section** (`/subs/:sectionId`): header with the term names and coverage
-  ticks; a list "YP not set up" with names; then ONE table for the whole
-  section built from `members`: columns Name, YP marker, Scheme (e.g.
-  "Leaders Subs" / "Beavers Subs"), DD (direct debit badge), Previous,
-  Current, Next. Previous and Current cells show a state badge per payment in
-  that bucket showing OSM's own status text verbatim ("Payment required",
-  "Received", "Paid manually", ...), coloured by our state category (paid
-  green, in progress blue, required and not started red, not required slate,
-  anything else neutral — no date logic in the colouring) with the date and £
-  in the badge title. An applicable payment with an empty history reads
-  "Payment required", which is what OSM's own grid shows for an untouched
-  active payment; `not-applicable` shows a muted "N/A"; only a payment with
-  neither a state nor a status shows a dash. Rows with an
-  overdue payment (due and unpaid) carry a scout-red left border, so a merely
-  scheduled payment does not flag the row. Future payments get ONE COLUMN PER
-  DATE: the distinct `date` values across every row's `buckets.next`, sorted,
-  under a "Future" group header with each column headed by the formatted date
-  ("15 Jan 2027"). A cell shows that row's payment for the date through the
-  same badge logic, or a dash when that scheme has no payment then. When no
-  row has a future payment, a single column headed "Next" over "Not
-  scheduled" is shown instead. A footer line gives the section's `termTotals` per bucket, as
-  "Previous: N due · N paid · N unpaid (£X unpaid)". Other
-  schemes are listed by name only.
+- **Summary** (`/subs`): ONE table, one row per section, loaded one section at
+  a time in order. Columns: Section (a link to the section page, with a
+  spinner while that row loads and a small muted `loadedAt` marker — "Loaded
+  HH:MM", or "Cached HH:MM" when `fromCache`), then a "Young people" group of
+  Total (`ypCount`), Leaders subs, Section subs and Not set up, then for each
+  of Previous / Current / Next a group of three columns Due, Paid, Unpaid
+  from `termTotals`, showing members with £ underneath. Group headers are
+  plain "Previous / Current / Next": sections have different terms, so term
+  names belong on the section page. A row whose `termTotals.<bucket>.scheduled`
+  is false shows "Not scheduled" spanning that group's three cells. A subs
+  scheme is a *leaders* scheme when its name matches `/leader/i` (the
+  discounted scheme for leaders' children); every other subs scheme is
+  *section subs*. Both figures sum `schemes[].ypCount` over their group, so a
+  YP in both counts in both, and the leaders cell shows a dash rather than 0
+  when the section has no leaders scheme. When `cachedMemberCount` is 0 the
+  four Young people cells show a dash titled "No members cached for this
+  section — refresh the app data". Rows that cannot be loaded are muted, not
+  linked, and carry their message across the remaining columns: sections with
+  `permissionsSynced` false read "Permissions not synced — refresh the app
+  data", sections with `canView` false read "No finance access" (and are
+  never requested), and a section whose error is `localOnly` (nothing was
+  asked of OSM) shows its message while the loop moves on to the next
+  section. Only a failed network call stops the run, raising a banner naming
+  the section and saying loading stopped; rows after it stay dashed. A
+  Refresh button reloads with `forceRefresh`. When no section is viewable the
+  page shows "No sections with finance access", and if the token lacks the
+  finance scope the page shows the sign-in card (copy the water rota
+  `needsAuth` card in `RotaBoardPage.jsx`) and loads nothing.
+- **Section** (`/subs/:sectionId`): header with the section name, its term
+  names, the `loadedAt` marker and coverage ticks; a list "YP not set up" with
+  names — or "All young people are in a subs scheme", or, when
+  `cachedMemberCount` is 0, the muted "No members cached for this section —
+  refresh the app data"; then ONE table for the whole section built from
+  `members`. Its columns are Name, YP marker, Scheme (e.g. "Leaders Subs" /
+  "Beavers Subs"), DD (direct debit badge), Previous, Current, and then one
+  column per future payment date — the distinct `date` values across every
+  row's `buckets.next`, sorted, under a "Future" group header with each
+  column headed by the formatted date ("15 Jan 2027"); when no row has a
+  future payment a single column headed "Next" over "Not scheduled" is shown
+  instead. Every payment cell shows OSM's own status text verbatim ("Payment
+  required", "Received", "Paid manually", ...), coloured by our state
+  category (paid green, in progress blue, required and not started red, not
+  required slate, anything else neutral — no date logic in the colouring)
+  with the date and £ in the badge title. An applicable payment with an empty
+  history reads "Payment required", which is what OSM's own grid shows for an
+  untouched active payment; `not-applicable` shows a muted "N/A"; a cell with
+  no payment for that column, and a payment with no OSM status whose state is
+  neither required nor not-started, shows a dash. Rows with an overdue
+  payment (due and unpaid) carry a scout-red left border, so a merely
+  scheduled payment does not flag the row. A footer line gives the section's
+  `termTotals` per bucket, as "Previous: N due · N paid · N unpaid (£X
+  unpaid)". Other schemes are listed by name only. A failed refresh keeps the
+  previous figures on screen with the error above them and the `loadedAt`
+  marker showing their staleness.
 
-Style: Tailwind, `scout-blue` theme, existing `LoadingScreen`, `ErrorState`,
-`Alert`, `SectionFilter` conventions. Mobile first; tables scroll inside
-`overflow-x-auto`.
+Style: Tailwind, `scout-blue` theme, the existing `LoadingScreen`
+convention. Mobile first; tables scroll inside `overflow-x-auto`.
 
 ## Work split
 

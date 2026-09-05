@@ -114,6 +114,26 @@ describe('useSubsSummary', () => {
     expect(loadSectionSubs).toHaveBeenCalledTimes(1);
     expect(result.current.needsAuth).toBe(false);
     expect(result.current.sectionErrors).toEqual({});
+    expect(result.current.failedSectionId).toBe('49097');
+    expect(result.current.loadingSectionId).toBeNull();
+  });
+
+  it('clears loadingSectionId at the start of every run', async () => {
+    const err = new Error('OSM said no');
+    loadSectionSubs.mockRejectedValueOnce(err);
+
+    const { result } = renderHook(() => useSubsSummary());
+
+    await waitFor(() => expect(result.current.failedSectionId).toBe('49097'));
+
+    loadSectionSubs.mockResolvedValue(makeSummary());
+    const pending = act(async () => {
+      await result.current.refresh();
+    });
+    await pending;
+
+    expect(result.current.failedSectionId).toBeNull();
+    expect(result.current.loadingSectionId).toBeNull();
   });
 
   it('exposes needsAuth from an auth failure', async () => {

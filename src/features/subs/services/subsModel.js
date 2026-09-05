@@ -14,6 +14,46 @@ import { findMostRecentTerm } from '../../../shared/utils/termUtils.js';
 
 export const RECENT_TERM_GRACE_DAYS = 120;
 
+/**
+ * Per-term-bucket figures, the same shape for every bucket. Members are
+ * counted once each however many payments they have in the bucket; amounts
+ * sum the payments. See docs/features/subs-monitoring.md for the definitions.
+ *
+ * @typedef {Object} TermBucketStats
+ * @property {string[]} paymentIds - Payments in the bucket
+ * @property {boolean} scheduled - The scheme has at least one payment here
+ * @property {{members: number, amount: number}} due - Applicable payments (excluding Payment not required), any date
+ * @property {{members: number, amount: number}} paid - State paid
+ * @property {{members: number, amount: number}} unpaid - Applicable, state required or not-started, any date
+ * @property {{members: number, amount: number}} overdue - The unpaid subset dated on or before today
+ * @property {{members: number, amount: number}} pending - State in-progress
+ * @property {number} readyMembers - Members set up to pay (includes those already paid)
+ * @property {number} noDirectDebitMembers - Applicable members with no active mandate
+ * @property {number} notApplicableMembers - Members the bucket's payments do not apply to
+ */
+
+/**
+ * One section's complete subs picture, the output of
+ * {@link buildSectionSubsSummary}. The full field list is the Data contract
+ * in docs/features/subs-monitoring.md.
+ *
+ * @typedef {Object} SectionSubsSummary
+ * @property {string} sectionId - Section id
+ * @property {string} sectionName - Section display name
+ * @property {number} loadedAt - ms epoch of the newest response used
+ * @property {boolean} fromCache - Whether any response came from the cache
+ * @property {Object} terms - previous/current/next buckets, each possibly inferred or null
+ * @property {number} ypCount - Cached Young People in the section
+ * @property {number} cachedMemberCount - Cached members of any kind in the section
+ * @property {Object} subsCoverage - Whether any subs scheme covers each bucket
+ * @property {Array<Object>} schemes - Subs schemes in OSM order
+ * @property {Array<Object>} otherSchemes - Schemes with require_all 0
+ * @property {number} ypInSubsCount - YP present in at least one subs scheme
+ * @property {Array<Object>} ypNotInSubs - YP in no subs scheme
+ * @property {{previous: TermBucketStats, current: TermBucketStats, next: TermBucketStats}} termTotals - Section totals, members deduplicated
+ * @property {Array<Object>} members - One row per member and subs scheme
+ */
+
 const PAID_STATUSES = new Set(['Paid', 'Received', 'Paid manually']);
 const IN_PROGRESS_STATUSES = new Set(['Initiated', 'Submitted']);
 const NOT_REQUIRED_STATUS = 'Payment not required';
@@ -76,11 +116,16 @@ export function classifyPaymentState(paymentObj) {
 }
 
 /**
- * Which term bucket a payment date falls into.
+ * Which term bucket a payment date falls into. Bucketing is contiguous around
+ * the current term rather than confined to the terms' own ranges, so a
+ * payment in a gap between terms belongs to the following bucket. The result
+ * is null only when there is no current term, when the date precedes
+ * previous's start, or when it follows next's end; the side with no
+ * neighbouring term is unbounded.
  *
  * @param {string|null|undefined} date - Payment date (yyyy-mm-dd)
  * @param {{previous: SubsTerm|null, current: SubsTerm|null, next: SubsTerm|null}} terms - Term buckets
- * @returns {'previous'|'current'|'next'|null} The bucket, or null when the date is outside all three
+ * @returns {'previous'|'current'|'next'|null} The bucket, or null when the date is in none
  */
 export function bucketPaymentDate(date, terms) {
   const current = terms?.current;
@@ -178,16 +223,6 @@ function normaliseTerm(term) {
 }
 
 /**
- * Derives the previous / current / next term buckets from a section's cached
- * terms. Current is the term containing today, falling back to the most
- * recently ended term when that was within the last
- * {@link RECENT_TERM_GRACE_DAYS} days; otherwise there is no current term.
- *
- * @param {Array<Object>} sectionTerms - Cached terms for the section
- * @param {string} today - Today's date (yyyy-mm-dd)
- * @returns {{previous: SubsTerm|null, current: SubsTerm|null, next: SubsTerm|null}} The three buckets
- */
-/**
  * Whole days between two yyyy-mm-dd dates.
  *
  * @param {string} from - Earlier date
@@ -212,6 +247,19 @@ export function mostRecentTerm(sectionTerms) {
   return normaliseTerm(findMostRecentTerm(usable));
 }
 
+/**
+ * Derives the previous / current / next term buckets from a section's cached
+ * terms. Current is the term containing today; between terms (school
+ * holidays) it falls back to the most recently ended term, but only when that
+ * ended within the last {@link RECENT_TERM_GRACE_DAYS} days, so a dormant
+ * section reports no current term instead of stale coverage. Previous is the
+ * term with the latest end date before current's start, next the earliest
+ * starting after current's end.
+ *
+ * @param {Array<Object>} sectionTerms - Cached terms for the section
+ * @param {string} today - Today's date (yyyy-mm-dd)
+ * @returns {{previous: SubsTerm|null, current: SubsTerm|null, next: SubsTerm|null}} The three buckets
+ */
 export function deriveTerms(sectionTerms, today) {
   const terms = (Array.isArray(sectionTerms) ? sectionTerms : [])
     .map(normaliseTerm)
@@ -222,10 +270,6 @@ export function deriveTerms(sectionTerms, today) {
     return { previous: null, current: null, next: null };
   }
 
-  // Between terms (school holidays) the most recently ended term still
-  // describes the subs that are live, but a term that ended years ago does
-  // not: a dormant section must resolve to no current term rather than
-  // reporting stale coverage.
   const containing = terms.find((term) => today >= term.startDate && today <= term.endDate);
   const recentlyEnded = terms
     .filter((term) => term.endDate < today && daysBetween(term.endDate, today) <= RECENT_TERM_GRACE_DAYS)
@@ -346,7 +390,7 @@ function bucketStats(rows, paymentIds, today) {
   for (const row of rows) {
     setUp[row.setUp] += 1;
     for (const entry of row.entries) {
-      if (entry.state === 'not-applicable') {
+      if (entry.state === 'not-applicable' || entry.state === 'not-required') {
         continue;
       }
       record('due', row.scoutId, entry.amount);
@@ -493,7 +537,8 @@ function round2(value) {
  * @param {string} input.today - Today's date (yyyy-mm-dd)
  * @param {number} input.loadedAt - ms epoch of the newest response used
  * @param {boolean} input.fromCache - Whether any response came from the cache
- * @returns {Object} SectionSubsSummary
+ * @param {number} [input.cachedMemberCount] - Cached members for the section; defaults to `members.length`
+ * @returns {SectionSubsSummary} The section's summary
  */
 export function buildSectionSubsSummary({
   sectionId,
@@ -505,6 +550,7 @@ export function buildSectionSubsSummary({
   today,
   loadedAt,
   fromCache = false,
+  cachedMemberCount,
 }) {
   const allSchemes = schemesResponse?.items ?? [];
   const subsSchemes = allSchemes.filter((scheme) => Number(scheme.require_all) === 1);
@@ -626,6 +672,7 @@ export function buildSectionSubsSummary({
       next: effectiveTerms.next ?? null,
     },
     ypCount: ypById.size,
+    cachedMemberCount: cachedMemberCount ?? (members ?? []).length,
     subsCoverage: {
       previous: schemes.some((scheme) => scheme.coverage.previous),
       current: schemes.some((scheme) => scheme.coverage.current),

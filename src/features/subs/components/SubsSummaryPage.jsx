@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import useSubsSummary from '../hooks/useSubsSummary.js';
 import SubsSignInCard from './SubsSignInCard.jsx';
 import { formatPounds } from './formatPounds.js';
-import { BUCKETS, bucketHeader, ypBySchemeKind } from './termLabels.js';
+import { BUCKET_LABELS, BUCKETS, ypBySchemeKind } from './termLabels.js';
+import { formatLoadedAt } from './formatLoadedAt.js';
 
 const FIGURE_COLUMNS = ['due', 'paid', 'unpaid'];
 
 const YP_COLUMNS = ['total', 'leaders', 'section', 'not set up'];
+
+/** Shown when the section has no cached members to derive YP figures from. */
+export const NO_MEMBERS_MESSAGE = 'No members cached for this section — refresh the app data';
 
 const DATA_COLUMN_COUNT = 1 + YP_COLUMNS.length + BUCKETS.length * FIGURE_COLUMNS.length;
 
@@ -28,8 +32,9 @@ function Figure({ figure }) {
 }
 
 /**
- * Cells for one section row: either its figures, dashes while pending or
- * loading, or a single message cell for a section that cannot be loaded.
+ * Cells for one section row: its figures once loaded, blank while this
+ * section is loading, dashes while it is still pending, or a single message
+ * cell for a section that cannot be loaded.
  *
  * @param {object} props - Component props
  * @param {object} [props.summary] - Loaded SectionSubsSummary
@@ -60,12 +65,22 @@ function RowCells({ summary, isLoading, message }) {
 
   return (
     <>
-      <td className="px-3 py-2 text-gray-900">{summary.ypCount ?? 0}</td>
-      <td className="px-3 py-2 text-gray-900">
-        {ypBySchemeKind(summary.schemes).leaders ?? <span className="text-gray-300">–</span>}
-      </td>
-      <td className="px-3 py-2 text-gray-900">{ypBySchemeKind(summary.schemes).section}</td>
-      <td className="px-3 py-2 text-gray-900">{summary.ypNotInSubs?.length ?? 0}</td>
+      {summary.cachedMemberCount === 0 ? (
+        Array.from({ length: YP_COLUMNS.length }, (_, index) => (
+          <td key={index} className="px-3 py-2 text-gray-300" title={NO_MEMBERS_MESSAGE}>
+            –
+          </td>
+        ))
+      ) : (
+        <>
+          <td className="px-3 py-2 text-gray-900">{summary.ypCount ?? 0}</td>
+          <td className="px-3 py-2 text-gray-900">
+            {ypBySchemeKind(summary.schemes).leaders ?? <span className="text-gray-300">–</span>}
+          </td>
+          <td className="px-3 py-2 text-gray-900">{ypBySchemeKind(summary.schemes).section}</td>
+          <td className="px-3 py-2 text-gray-900">{summary.ypNotInSubs?.length ?? 0}</td>
+        </>
+      )}
       {BUCKETS.map((bucket) => {
         const stats = summary.termTotals?.[bucket];
         if (!stats?.scheduled) {
@@ -109,10 +124,6 @@ function SubsSummaryPage() {
   }
 
   const failedSection = sections.find((section) => section.sectionId === failedSectionId);
-  const headerTerms = sections
-    .map((section) => summaries[section.sectionId]?.terms)
-    .find(Boolean);
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-4">
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -160,7 +171,7 @@ function SubsSummaryPage() {
                   colSpan={FIGURE_COLUMNS.length}
                   className="border-l border-gray-200 px-3 py-2 font-medium whitespace-nowrap"
                 >
-                  {bucketHeader(bucket, headerTerms)}
+                  {BUCKET_LABELS[bucket]}
                 </th>
               ))}
             </tr>
@@ -191,9 +202,12 @@ function SubsSummaryPage() {
             {sections.map((section) => {
               const summary = summaries[section.sectionId];
               const isLoading = loadingSectionId === section.sectionId;
-              const message = !section.canView
-                ? 'No finance access'
-                : sectionErrors[section.sectionId]?.message;
+              const message = section.permissionsSynced === false
+                ? 'Permissions not synced — refresh the app data'
+                : !section.canView
+                  ? 'No finance access'
+                  : sectionErrors[section.sectionId]?.message;
+              const freshness = formatLoadedAt(summary?.loadedAt, summary?.fromCache);
 
               return (
                 <tr key={section.sectionId} className={message ? 'bg-gray-50' : ''}>
@@ -211,6 +225,9 @@ function SubsSummaryPage() {
                         aria-label="Loading section"
                         className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-b-2 border-scout-blue align-middle"
                       />
+                    ) : null}
+                    {freshness ? (
+                      <span className="block text-xs font-normal text-gray-400">{freshness}</span>
                     ) : null}
                   </td>
                   <RowCells summary={summary} isLoading={isLoading} message={message} />

@@ -1,6 +1,8 @@
 /**
  * Loads one section's subs summary for the drill-down page. One load per user
- * action: mount and refresh() only, with no retry or polling.
+ * action: mount, a change of sectionId, and refresh() only, with no retry or
+ * polling. A failed refresh keeps the previous summary on screen, with the
+ * error shown above it and the loadedAt marker revealing its staleness.
  *
  * @module useSectionSubs
  */

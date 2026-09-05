@@ -65,7 +65,7 @@ export function isOverdue(entry) {
  * is what OSM's own grid shows for an untouched active payment.
  *
  * @param {object} entry - A payment entry from members[].buckets.*
- * @returns {{label: string, className: string}|null} Badge, or null when the payment has neither a state nor a status
+ * @returns {{label: string, className: string}|null} Badge, or null when there is no OSM status text and the state is not required or not-started
  */
 export function paymentBadge(entry) {
   if (entry?.state === 'not-applicable') {

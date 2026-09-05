@@ -106,10 +106,67 @@ describe('getPaymentSchemes', () => {
     networkMock.online = false;
     await expect(getPaymentSchemes(49097, 'tok')).rejects.toThrow('no cached data available');
   });
+
+  it('rejects a malformed body instead of caching it', async () => {
+    global.fetch = vi.fn(async () => okResponse({ nope: true }));
+    await expect(getPaymentSchemes(49097, 'tok')).rejects.toThrow('unexpected response shape');
+    expect(cacheMock.store.size).toBe(0);
+  });
+
+  it('rejects an empty body', async () => {
+    global.fetch = vi.fn(async () => okResponse(null));
+    await expect(getPaymentSchemes(49097, 'tok')).rejects.toThrow('empty response from OSM');
+  });
+
+  it('rejects a body flagging an OSM error, naming the section', async () => {
+    global.fetch = vi.fn(async () => okResponse({ status: false, error: 'no access' }));
+    await expect(getPaymentSchemes(49097, 'tok'))
+      .rejects.toThrow('Payment schemes for section 49097: OSM reported "no access"');
+  });
+});
+
+describe('no stale-cache fallback', () => {
+  const stale = { items: [{ schemeid: '1' }], _cacheTimestamp: Date.now() - (31 * 60 * 1000) };
+
+  it('throws rather than serving a stale cache when the request fails', async () => {
+    cacheMock.store.set('viking_payment_schemes_49097', stale);
+    global.fetch = vi.fn(async () => ({
+      ok: false, status: 500, url: 'https://test/endpoint', json: async () => ({ error: 'boom' }),
+    }));
+    await expect(getPaymentSchemes(49097, 'tok')).rejects.toThrow();
+  });
+
+  it('throws TokenExpiredError rather than serving a stale cache', async () => {
+    cacheMock.store.set('viking_payment_schemes_49097', stale);
+    isTokenExpired.mockReturnValue(true);
+    await expect(getPaymentSchemes(49097, 'tok'))
+      .rejects.toMatchObject({ isTokenExpired: true, status: 401 });
+  });
+
+  it('throws rather than serving a stale cache when offline', async () => {
+    cacheMock.store.set('viking_payment_schemes_49097', stale);
+    networkMock.online = false;
+    await expect(getPaymentSchemes(49097, 'tok')).rejects.toThrow('no cached data available');
+  });
+
+  it('still serves a fresh cache, timestamp intact, without fetching', async () => {
+    const fresh = { items: [{ schemeid: '1' }], _cacheTimestamp: Date.now() - 1000 };
+    cacheMock.store.set('viking_payment_schemes_49097', fresh);
+    const result = await getPaymentSchemes(49097, 'tok');
+    expect(result._cacheTimestamp).toBe(fresh._cacheTimestamp);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('ignores even a fresh cache under forceRefresh', async () => {
+    cacheMock.store.set('viking_payment_schemes_49097', { items: [{ schemeid: '1' }], _cacheTimestamp: Date.now() });
+    await getPaymentSchemes(49097, 'tok', { forceRefresh: true });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('getPaymentStatus', () => {
   it('sends sectionid, schemeid, termid and payload=1', async () => {
+    global.fetch = vi.fn(async () => okResponse({ status: true, data: { members: [] } }));
     await getPaymentStatus(49097, 60603, 965353, 'tok');
     expect(lastUrl()).toContain(
       '/get-payment-status?sectionid=49097&schemeid=60603&termid=965353&payload=1',
@@ -117,12 +174,14 @@ describe('getPaymentStatus', () => {
   });
 
   it('caches under the section/scheme/term key', async () => {
+    global.fetch = vi.fn(async () => okResponse({ status: true, data: { members: [] } }));
     await getPaymentStatus(49097, 60603, 965353, 'tok');
     expect(cacheMock.store.has('viking_payment_status_49097_60603_965353')).toBe(true);
   });
 
   it('bypasses the cache with forceRefresh', async () => {
-    cacheMock.store.set('viking_payment_status_49097_60603_965353', { data: {}, _cacheTimestamp: Date.now() });
+    global.fetch = vi.fn(async () => okResponse({ status: true, data: { members: [] } }));
+    cacheMock.store.set('viking_payment_status_49097_60603_965353', { data: { members: [] }, _cacheTimestamp: Date.now() });
     await getPaymentStatus(49097, 60603, 965353, 'tok', { forceRefresh: true });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -132,6 +191,12 @@ describe('getPaymentStatus', () => {
     await expect(getPaymentStatus(49097, 60603, 965353, 'tok'))
       .rejects.toMatchObject({ isTokenExpired: true, status: 401 });
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a status body without a members array', async () => {
+    global.fetch = vi.fn(async () => okResponse({ status: true, data: {} }));
+    await expect(getPaymentStatus(49097, 60603, 965353, 'tok'))
+      .rejects.toThrow('Payment status for scheme 60603 in section 49097: unexpected response shape');
   });
 
   it('surfaces a server 401 as a 401 error', async () => {

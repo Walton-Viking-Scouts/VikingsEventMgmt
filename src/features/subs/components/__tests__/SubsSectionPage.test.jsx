@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import React from 'react';
 
@@ -154,6 +154,37 @@ describe('SubsSectionPage', () => {
 
     expect(await screen.findByText('YP not set up')).toBeInTheDocument();
     expect(screen.getByText('Eve Evans')).toBeInTheDocument();
+  });
+
+  it('warns when the section has no cached members', async () => {
+    loadSectionSubs.mockResolvedValue(makeSummary({ cachedMemberCount: 0, ypNotInSubs: [] }));
+
+    renderPage();
+
+    expect(await screen.findByText('No members cached for this section — refresh the app data')).toBeInTheDocument();
+    expect(screen.queryByText('All young people are in a subs scheme')).not.toBeInTheDocument();
+  });
+
+  it('shows when the figures were loaded', async () => {
+    renderPage();
+
+    await screen.findByText(/Ann Adams/);
+    expect(screen.getByText(/^Loaded \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
+  it('keeps the previous summary visible when a refresh fails', async () => {
+    renderPage();
+
+    await screen.findByText(/Ann Adams/);
+    loadSectionSubs.mockRejectedValue(new Error('OSM said no'));
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Refresh' }).click();
+    });
+
+    expect(await screen.findByText('OSM said no')).toBeInTheDocument();
+    expect(screen.getByText(/Ann Adams/)).toBeInTheDocument();
+    expect(screen.getByText(/^Loaded \d{2}:\d{2}$/)).toBeInTheDocument();
   });
 
   it('says so when every young person is in a scheme', async () => {

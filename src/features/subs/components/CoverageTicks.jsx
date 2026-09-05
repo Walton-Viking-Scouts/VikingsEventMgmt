@@ -14,7 +14,7 @@ const LABELS = {
  * @param {object} props - Component props
  * @param {{previous: boolean, current: boolean, next: boolean}} [props.coverage] - Per-bucket coverage
  * @param {{previous: object|null, current: object|null, next: object|null}} [props.terms] - Term buckets, for tooltips
- * @returns {JSX.Element} A row of labelled tick/cross markers
+ * @returns {JSX.Element} A row of labelled markers, ✓ when set up and – when not
  */
 function CoverageTicks({ coverage, terms }) {
   return (

@@ -1,11 +1,10 @@
 /**
- * Loads the subs summary for every section the user may view, strictly one
- * section at a time so OSM sees a single in-flight payment call, stopping the
- * whole load on the first failure. Sections without finance access are kept in
- * the list but never requested. Errors the service raises before any network
- * call (err.localOnly) mark just that section and the loop continues; only a
- * failed network call stops the whole run. No polling, no retry, no background
- * refresh: only mount and an explicit refresh() trigger a load.
+ * Loads the subs summary for every section the user may view, one section at a
+ * time so OSM sees a single in-flight payment call. Sections without finance
+ * access are kept in the list but never requested; a section rejected before
+ * any network call (err.localOnly) is marked and skipped; the first failed
+ * network call stops the run. No polling, no retry, no background refresh:
+ * only mount and an explicit refresh() trigger a load.
  *
  * @module useSubsSummary
  */
@@ -52,6 +51,7 @@ export function useSubsSummary() {
     setNeedsAuth(false);
     setFailedSectionId(null);
     setSectionErrors({});
+    setLoadingSectionId(null);
 
     const token = getToken();
     if (!hasFinanceScope(token)) {

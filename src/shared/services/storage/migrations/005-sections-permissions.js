@@ -13,6 +13,14 @@
  * Idempotent: checks PRAGMA table_info first so it's safe to re-run.
  */
 
+/**
+ * Reads the column names currently declared on a table, so the migration can
+ * skip its ALTER when the column already exists (fresh installs, re-runs).
+ *
+ * @param {Object} db - Capacitor SQLite connection
+ * @param {string} tableName - Table to inspect
+ * @returns {Promise<Set<string>>} Set of column names
+ */
 async function getColumnSet(db, tableName) {
   const info = await db.query(`PRAGMA table_info(${tableName})`);
   return new Set((info.values || []).map(row => row.name));
