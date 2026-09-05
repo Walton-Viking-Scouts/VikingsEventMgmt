@@ -9,8 +9,8 @@ const UNPAID_STATES = new Set(['required', 'not-started']);
 const STATE_CLASSES = {
   'paid': 'bg-green-100 text-green-800 border-green-200',
   'in-progress': 'bg-blue-100 text-blue-800 border-blue-200',
-  'required': 'bg-amber-100 text-amber-800 border-amber-200',
-  'not-started': 'bg-amber-100 text-amber-800 border-amber-200',
+  'required': 'bg-red-50 text-scout-red border-red-200',
+  'not-started': 'bg-red-50 text-scout-red border-red-200',
   'not-required': 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
@@ -61,23 +61,26 @@ export function isOverdue(entry) {
 /**
  * The badge for one member's payment, showing OSM's own status text so
  * leaders read the wording they already know, coloured by our state category.
+ * An applicable payment with an empty history reads "Payment required", which
+ * is what OSM's own grid shows for an untouched active payment.
  *
  * @param {object} entry - A payment entry from members[].buckets.*
- * @returns {{label: string, className: string}|null} Badge, or null when OSM has no status yet
+ * @returns {{label: string, className: string}|null} Badge, or null when the payment has neither a state nor a status
  */
 export function paymentBadge(entry) {
   if (entry?.state === 'not-applicable') {
     return NOT_APPLICABLE_BADGE;
   }
 
-  const label = entry?.latestStatus;
+  const state = entry?.state;
+  const label = entry?.latestStatus || (UNPAID_STATES.has(state) ? 'Payment required' : '');
   if (!label) {
     return null;
   }
 
   return {
     label,
-    className: STATE_CLASSES[entry?.state] ?? 'bg-neutral-100 text-neutral-700 border-neutral-300',
+    className: STATE_CLASSES[state] ?? 'bg-neutral-100 text-neutral-700 border-neutral-300',
   };
 }
 

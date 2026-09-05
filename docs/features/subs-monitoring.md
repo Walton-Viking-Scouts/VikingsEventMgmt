@@ -245,9 +245,12 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   Current, Next. Previous and Current cells show a state badge per payment in
   that bucket showing OSM's own status text verbatim ("Payment required",
   "Received", "Paid manually", ...), coloured by our state category (paid
-  green, in progress blue, required amber, not required slate, anything else
-  neutral) with the date and £ in the badge title; `not-applicable` shows a
-  muted "N/A" and a payment OSM has no status for shows a dash. Rows with an
+  green, in progress blue, required and not started red, not required slate,
+  anything else neutral — no date logic in the colouring) with the date and £
+  in the badge title. An applicable payment with an empty history reads
+  "Payment required", which is what OSM's own grid shows for an untouched
+  active payment; `not-applicable` shows a muted "N/A"; only a payment with
+  neither a state nor a status shows a dash. Rows with an
   overdue payment (due and unpaid) carry a scout-red left border, so a merely
   scheduled payment does not flag the row. The Next cell shows OSM's status
   the same way when there is one, and falls back to the derived `nextSetUp`

@@ -74,7 +74,7 @@ describe('SubsSectionPage', () => {
     expect(screen.getAllByText('Received').length).toBeGreaterThan(0);
   });
 
-  it('shows a dash when OSM has no status for a payment', async () => {
+  it('reads Payment required for an applicable payment with an empty history', async () => {
     const base = makeSummary();
     loadSectionSubs.mockResolvedValue(makeSummary({
       members: base.members.map((row, index) => (index === 0
@@ -92,8 +92,21 @@ describe('SubsSectionPage', () => {
 
     await screen.findByText(/Ann Adams/);
     const currentCell = screen.getByText(/Ann Adams/).closest('tr').querySelectorAll('td')[5];
-    expect(currentCell.textContent).toBe('–');
-    expect(currentCell.querySelector('[title="No status from OSM yet"]')).toBeTruthy();
+    expect(currentCell.textContent).toBe('Payment required');
+    expect(currentCell.querySelector('span span').className).toContain('text-scout-red');
+  });
+
+  it('colours every Payment required badge red, whatever its date', async () => {
+    const { container } = renderPage();
+
+    await screen.findByText(/Ben Brown/);
+    const required = [...container.querySelectorAll('td span span')]
+      .filter((node) => node.textContent === 'Payment required');
+    expect(required.length).toBeGreaterThan(0);
+    required.forEach((node) => {
+      expect(node.className).toContain('text-scout-red');
+      expect(node.className).not.toContain('amber');
+    });
   });
 
   it('shows the OSM status in the Next cell when there is one', async () => {
