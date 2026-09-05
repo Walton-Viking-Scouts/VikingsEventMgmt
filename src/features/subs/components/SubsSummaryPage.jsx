@@ -1,106 +1,90 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useSubsSummary from '../hooks/useSubsSummary.js';
-import CoverageTicks from './CoverageTicks.jsx';
 import SubsSignInCard from './SubsSignInCard.jsx';
 import { formatPounds } from './formatPounds.js';
+import { BUCKETS, bucketHeader } from './termLabels.js';
+
+const FIGURE_COLUMNS = ['due', 'unpaid', 'overdue'];
+
+const DATA_COLUMN_COUNT = 3 + BUCKETS.length * FIGURE_COLUMNS.length;
 
 /**
- * One section's row on the summary page: either its loaded figures, a spinner
- * while it is the section being loaded, or a pending placeholder.
+ * A members count with its amount underneath, highlighted when it is a
+ * non-zero overdue figure.
  *
  * @param {object} props - Component props
- * @param {{sectionId: string, sectionName: string, canView: boolean}} props.section - The section
- * @param {object} [props.summary] - Loaded SectionSubsSummary, when available
- * @param {boolean} props.isLoading - Whether this section is currently loading
- * @param {{code: string, message: string}} [props.sectionError] - A local, pre-network failure for this section
- * @returns {JSX.Element} A section card linking to its drill-down
+ * @param {{members: number, amount: number}} [props.figure] - The figure to show
+ * @param {boolean} [props.highlight] - Whether to colour it scout-red
+ * @returns {JSX.Element} A stacked members/amount cell body
  */
-function SectionCard({ section, summary, isLoading, sectionError }) {
-  if (sectionError) {
-    return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
-        <h2 className="m-0 text-base font-semibold text-gray-500">{section.sectionName}</h2>
-        <p className="m-0 mt-2 text-sm text-gray-500">{sectionError.message}</p>
-      </div>
-    );
-  }
-
-  if (!section.canView) {
-    return (
-      <div
-        aria-disabled="true"
-        className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-400 shadow-sm"
-      >
-        <h2 className="m-0 text-base font-semibold">{section.sectionName}</h2>
-        <p className="m-0 mt-2 text-sm">No finance access</p>
-      </div>
-    );
-  }
-
+function Figure({ figure, highlight }) {
+  const members = figure?.members ?? 0;
+  const emphasise = highlight && members > 0;
   return (
-    <Link
-      to={`/subs/${section.sectionId}`}
-      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:border-scout-blue"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="m-0 text-base font-semibold text-gray-900">{section.sectionName}</h2>
-        {summary ? <CoverageTicks coverage={summary.subsCoverage} terms={summary.terms} /> : null}
-      </div>
-
-      {isLoading && !summary ? (
-        <p className="mt-2 flex items-center gap-2 text-sm text-gray-500">
-          <span
-            role="status"
-            aria-label="Loading section"
-            className="inline-block h-4 w-4 animate-spin rounded-full border-b-2 border-scout-blue"
-          />
-          Loading…
-        </p>
-      ) : null}
-
-      {!isLoading && !summary ? (
-        <p className="mt-2 text-sm text-gray-400">Pending</p>
-      ) : null}
-
-      {summary ? (
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Young people</dt>
-            <dd className="m-0 text-gray-900">{summary.ypCount}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">YP not set up</dt>
-            <dd className="m-0 text-gray-900">{summary.ypNotInSubs?.length ?? 0}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Unpaid</dt>
-            <dd className="m-0 text-gray-900">
-              {summary.unpaidTotal?.members ?? 0} ({formatPounds(summary.unpaidTotal?.amount)})
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">OSM overdue</dt>
-            <dd className="m-0 text-gray-900">
-              {formatPounds((summary.schemes ?? []).reduce((total, scheme) => total + (Number(scheme.amountOverdue) || 0), 0))}
-            </dd>
-          </div>
-          <div className="col-span-2 sm:col-span-4">
-            <dt className="text-xs uppercase tracking-wide text-gray-500">Schemes</dt>
-            <dd className="m-0 text-gray-900">
-              {(summary.schemes ?? []).length === 0
-                ? 'No subs schemes'
-                : (summary.schemes ?? []).map((scheme) => `${scheme.name} ${scheme.ypCount}`).join(' / ')}
-            </dd>
-          </div>
-        </dl>
-      ) : null}
-    </Link>
+    <span className={emphasise ? 'text-scout-red font-medium' : ''}>
+      <span className="block">{members}</span>
+      <span className="block text-xs text-gray-400">{formatPounds(figure?.amount)}</span>
+    </span>
   );
 }
 
 /**
- * Subs summary page: one card per viewable section, loaded one at a time.
+ * Cells for one section row: either its figures, dashes while pending or
+ * loading, or a single message cell for a section that cannot be loaded.
+ *
+ * @param {object} props - Component props
+ * @param {object} [props.summary] - Loaded SectionSubsSummary
+ * @param {boolean} props.isLoading - Whether this section is currently loading
+ * @param {string} [props.message] - No-access or local-error message
+ * @returns {JSX.Element} The row's data cells
+ */
+function RowCells({ summary, isLoading, message }) {
+  if (message) {
+    return (
+      <td colSpan={DATA_COLUMN_COUNT - 1} className="px-3 py-2 text-sm text-gray-500">
+        {message}
+      </td>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <>
+        {Array.from({ length: DATA_COLUMN_COUNT - 1 }, (_, index) => (
+          <td key={index} className="px-3 py-2 text-gray-300">
+            {isLoading ? '' : '–'}
+          </td>
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <td className="px-3 py-2 text-gray-900">{summary.ypCount ?? 0}</td>
+      <td className="px-3 py-2 text-gray-900">{summary.ypNotInSubs?.length ?? 0}</td>
+      {BUCKETS.map((bucket) => {
+        const stats = summary.termTotals?.[bucket];
+        if (!stats?.scheduled) {
+          return (
+            <td key={bucket} colSpan={FIGURE_COLUMNS.length} className="px-3 py-2 text-sm text-gray-400">
+              Not scheduled
+            </td>
+          );
+        }
+        return FIGURE_COLUMNS.map((column) => (
+          <td key={`${bucket}-${column}`} className="px-3 py-2 text-gray-900">
+            <Figure figure={stats[column]} highlight={column === 'overdue'} />
+          </td>
+        ));
+      })}
+    </>
+  );
+}
+
+/**
+ * Subs summary page: one table row per section, loaded one at a time.
  *
  * @returns {JSX.Element} The summary page
  */
@@ -123,9 +107,12 @@ function SubsSummaryPage() {
   }
 
   const failedSection = sections.find((section) => section.sectionId === failedSectionId);
+  const headerTerms = sections
+    .map((section) => summaries[section.sectionId]?.terms)
+    .find(Boolean);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-4">
+    <div className="max-w-6xl mx-auto px-4 py-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <h1 className="m-0 text-lg font-semibold text-gray-900">Subs</h1>
         <button
@@ -152,16 +139,70 @@ function SubsSummaryPage() {
         <p className="text-sm text-gray-500">No sections with finance access</p>
       ) : null}
 
-      <div className="space-y-3">
-        {sections.map((section) => (
-          <SectionCard
-            key={section.sectionId}
-            section={section}
-            summary={summaries[section.sectionId]}
-            isLoading={loadingSectionId === section.sectionId}
-            sectionError={sectionErrors[section.sectionId]}
-          />
-        ))}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+              <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom">Section</th>
+              <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom">YP</th>
+              <th scope="col" rowSpan={2} className="px-3 py-2 font-medium align-bottom whitespace-nowrap">YP not set up</th>
+              {BUCKETS.map((bucket) => (
+                <th
+                  key={bucket}
+                  scope="colgroup"
+                  colSpan={FIGURE_COLUMNS.length}
+                  className="border-l border-gray-200 px-3 py-2 font-medium whitespace-nowrap"
+                >
+                  {bucketHeader(bucket, headerTerms)}
+                </th>
+              ))}
+            </tr>
+            <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
+              {BUCKETS.map((bucket) =>
+                FIGURE_COLUMNS.map((column, index) => (
+                  <th
+                    key={`${bucket}-${column}`}
+                    scope="col"
+                    className={`px-3 pb-2 font-medium ${index === 0 ? 'border-l border-gray-200' : ''}`}
+                  >
+                    {column}
+                  </th>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {sections.map((section) => {
+              const summary = summaries[section.sectionId];
+              const isLoading = loadingSectionId === section.sectionId;
+              const message = !section.canView
+                ? 'No finance access'
+                : sectionErrors[section.sectionId]?.message;
+
+              return (
+                <tr key={section.sectionId} className={message ? 'bg-gray-50' : ''}>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {message ? (
+                      <span className="font-medium text-gray-500">{section.sectionName}</span>
+                    ) : (
+                      <Link to={`/subs/${section.sectionId}`} className="font-medium text-scout-blue hover:underline">
+                        {section.sectionName}
+                      </Link>
+                    )}
+                    {isLoading ? (
+                      <span
+                        role="status"
+                        aria-label="Loading section"
+                        className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-b-2 border-scout-blue align-middle"
+                      />
+                    ) : null}
+                  </td>
+                  <RowCells summary={summary} isLoading={isLoading} message={message} />
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

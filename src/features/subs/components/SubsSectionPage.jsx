@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import LoadingScreen from '../../../shared/components/LoadingScreen.jsx';
 import useSectionSubs from '../hooks/useSectionSubs.js';
 import CoverageTicks from './CoverageTicks.jsx';
-import SchemeTable from './SchemeTable.jsx';
+import SectionMembersTable from './SectionMembersTable.jsx';
 import SubsSignInCard from './SubsSignInCard.jsx';
 
 /**
@@ -79,11 +79,11 @@ function SubsSectionPage() {
             )}
           </section>
 
-          <div className="space-y-4">
-            {(summary.schemes ?? []).map((scheme) => (
-              <SchemeTable key={scheme.schemeId} scheme={scheme} terms={summary.terms} />
-            ))}
-          </div>
+          <SectionMembersTable
+            members={summary.members}
+            terms={summary.terms}
+            termTotals={summary.termTotals}
+          />
 
           {(summary.otherSchemes ?? []).length > 0 ? (
             <section className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">

@@ -44,18 +44,46 @@ beforeEach(() => {
 });
 
 describe('SubsSectionPage', () => {
-  it('renders one table per subs scheme with member rows', async () => {
+  it('renders one table for the section with a row per member and scheme', async () => {
     renderPage();
 
     expect(await screen.findByText('Thursday Beavers')).toBeInTheDocument();
-    expect(screen.getByText('Beavers Subs')).toBeInTheDocument();
-    expect(screen.getByText('Leaders Subs')).toBeInTheDocument();
-    expect(screen.getAllByRole('table')).toHaveLength(2);
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.getAllByText('Beavers Subs')).toHaveLength(4);
+    expect(screen.getAllByText('Leaders Subs')).toHaveLength(1);
     expect(screen.getByText(/Ann Adams/)).toBeInTheDocument();
     expect(screen.getByLabelText('Not in cached members')).toBeInTheDocument();
-    expect(screen.getAllByText('YP')).toHaveLength(2);
-    expect(screen.getByText('Required')).toBeInTheDocument();
     expect(screen.getByText('Camps and Activities')).toBeInTheDocument();
+  });
+
+  it('flags rows with an unpaid previous or current payment', async () => {
+    renderPage();
+
+    await screen.findByText(/Ben Brown/);
+    const flagged = screen.getByText(/Ben Brown/).closest('tr');
+    expect(flagged.className).toContain('border-scout-red');
+    expect(screen.getByText(/Ann Adams/).closest('tr').className).toContain('border-transparent');
+  });
+
+  it('renders each nextSetUp variant as a badge', async () => {
+    renderPage();
+
+    await screen.findByText(/Ann Adams/);
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.getByText('No DD')).toBeInTheDocument();
+    expect(screen.getByText('N/A')).toBeInTheDocument();
+    expect(screen.getAllByText('Not scheduled').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+  });
+
+  it('reads Not scheduled in the Next header when nothing is scheduled', async () => {
+    loadSectionSubs.mockResolvedValue(makeSummary({
+      termTotals: { ...makeSummary().termTotals, next: { ...makeSummary().termTotals.next, scheduled: false } },
+    }));
+
+    renderPage();
+
+    expect(await screen.findByText('Next · Not scheduled')).toBeInTheDocument();
   });
 
   it('lists the young people not set up', async () => {

@@ -128,11 +128,8 @@ export function hasFinanceScope(token): boolean            // includes 'section:
         { paymentId: '1259480', date: '2026-09-15', amount: 26, bucket: 'current' | 'previous' | 'next' | null },
       ],
       coverage: { previous: true, current: true, next: false },
-      currentTerm: {
-        paymentIds: ['1259480'],
-        unpaid: { members: 3, amount: 78 },
-        pending: { members: 1, amount: 26 },
-        paidMembers: 16,
+      termStats: {                          // per term bucket; payments in that bucket only; SAME shape for all three
+        previous: TermBucketStats, current: TermBucketStats, next: TermBucketStats,
       },
       members: [                            // for drill-down, sorted by lastName, firstName
         {
@@ -151,15 +148,69 @@ export function hasFinanceScope(token): boolean            // includes 'section:
   otherSchemes: [ { schemeId: '31715', name: 'Camps and Activities', amountOverdue: 0 } ],
   ypInSubsCount: 22,                        // YP present in at least one subs scheme
   ypNotInSubs: [ { scoutId, firstName, lastName, patrolId } ],   // YP in no subs scheme
-  unpaidTotal: { members: 3, amount: 78 }, // across subs schemes, current term (members deduplicated)
+  termTotals: {                             // across subs schemes, members deduplicated; same TermBucketStats shape
+    previous: TermBucketStats, current: TermBucketStats, next: TermBucketStats,
+  },
+  members: [                                // one row per (member, subs scheme), sorted by lastName, firstName, schemeName
+    {
+      scoutId: '2111171', firstName: 'A', lastName: 'B', patrolId: '119078', isYP: true,
+      directDebit: 'Active',
+      schemeId: '60604', schemeName: 'Beavers Subs',
+      buckets: {                            // payments of this scheme in each term bucket, sorted by date
+        previous: [ { paymentId, date, amount, state, latestStatus, latestAt } ],
+        current:  [ ... ],
+        next:     [ ... ],
+      },
+      nextSetUp: 'ready' | 'no-direct-debit' | 'not-applicable' | 'not-scheduled',
+    },
+  ],
 }
 ```
+
+`TermBucketStats` (one shape for every bucket; members are counted once even
+with several payments in the bucket, amounts sum the payments):
+
+```js
+{
+  paymentIds: ['1259480'],
+  scheduled: true,                          // the scheme has at least one payment in this bucket
+  due:     { members: 20, amount: 520 },    // applicable payments (active && defaulton), any date
+  paid:    { members: 16, amount: 416 },    // state paid (not-required is settled but not counted here)
+  unpaid:  { members: 4, amount: 104 },     // applicable, state required or not-started, ANY date
+  overdue: { members: 3, amount: 78 },      // the unpaid subset whose date is on or before today
+  pending: { members: 1, amount: 26 },      // state in-progress
+  readyMembers: 17, noDirectDebitMembers: 2, notApplicableMembers: 1,   // set-up view (see nextSetUp)
+}
+```
+
+So for the next term `due` is what is scheduled, `paid` counts parents who have
+paid early, `unpaid` is the rest, and `overdue` stays 0 until the due date;
+for the previous term `unpaid` and `overdue` normally coincide.
+
+`nextSetUp` answers "will next term's subs be collected for this member":
+`paid` when the member's next-term payment is already paid (parents can pay
+early; this counts as set up regardless of mandate); `ready` when the scheme
+has a next-term payment, it applies to the member (`active` and `defaulton`)
+and `directDebit === 'Active'`; `no-direct-debit` when the payment applies but
+there is no active mandate; `not-applicable` when the payment does not apply
+to the member; `not-scheduled` when the scheme has no next-term payment at
+all. `readyMembers` in `TermBucketStats` includes the `paid` ones. `unpaid` for the previous bucket uses the same rule as current
+(due on or before today, state `required` or `not-started`).
 
 ## Pages
 
 Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
 
-- **Summary** (`/subs`): one row/card per viewable section, loaded one section
+- **Summary** (`/subs`): ONE table, one row per section (loaded one section
+  at a time in order, with a per-row spinner while loading and a stop-on-first-error
+  banner for a failed network call). Columns: Section, YP, YP not set up, then
+  for each of Previous / Current / Next a group of three columns Due, Unpaid,
+  Overdue showing members with £ underneath (from `termTotals`), the term
+  name in the group header, and "Not scheduled" in the group header when
+  nothing is scheduled. Rows are links to the section page. Local errors and
+  no-access sections render as muted rows with their message spanning the
+  columns. The older description below still applies for behaviour:
+  one row/card per viewable section, loaded one section
   at a time in order, with a per-section spinner and a stop-on-first-error
   banner. Columns: YP count, per-subs-scheme YP count (scheme name as the
   header, e.g. "Beavers Subs 19 / Leaders Subs 4"), YP not set up, previous /
@@ -174,10 +225,16 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   scope, the page shows the sign-in card (copy the water rota `needsAuth`
   card in `RotaBoardPage.jsx`) and loads nothing.
 - **Section** (`/subs/:sectionId`): header with the term names and coverage
-  ticks; a list "YP not set up" with names; then one table per subs scheme:
-  member name, YP/adult marker, direct debit badge, one column per
-  current-term payment (date and £) with a state badge, plus a compact
-  previous/next indicator. Other schemes are listed by name only.
+  ticks; a list "YP not set up" with names; then ONE table for the whole
+  section built from `members`: columns Name, YP marker, Scheme (e.g.
+  "Leaders Subs" / "Beavers Subs"), DD (direct debit badge), Previous,
+  Current, Next. Previous and Current cells show a state badge per payment in
+  that bucket (date and £ in the badge title), so unpaid previous-term
+  members stand out. The Next cell shows `nextSetUp` as a badge: ready
+  (green), no direct debit (amber), not applicable (muted), not scheduled
+  (grey, and the column header says "Not scheduled" when no scheme has a
+  next-term payment). A footer line gives the section's `termTotals`. Other
+  schemes are listed by name only.
 
 Style: Tailwind, `scout-blue` theme, existing `LoadingScreen`, `ErrorState`,
 `Alert`, `SectionFilter` conventions. Mobile first; tables scroll inside

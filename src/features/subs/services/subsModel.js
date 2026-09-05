@@ -214,6 +214,104 @@ function paymentKeys(member) {
   return Object.keys(member ?? {}).filter((key) => /^\d+$/.test(key));
 }
 
+const SET_UP_PRECEDENCE = ['not-scheduled', 'not-applicable', 'no-direct-debit', 'ready', 'paid'];
+
+/**
+ * Whether a member's subs for a bucket will be (or have been) collected.
+ * Parents can pay a term early, so `paid` outranks the mandate check.
+ *
+ * @param {Array<Object>} entries - The member's payment entries in the bucket
+ * @param {string} directDebit - The member's direct debit state
+ * @param {boolean} scheduled - Whether the scheme has any payment in the bucket
+ * @returns {'paid'|'ready'|'no-direct-debit'|'not-applicable'|'not-scheduled'} The set-up state
+ */
+function setUpState(entries, directDebit, scheduled) {
+  if (!scheduled) {
+    return 'not-scheduled';
+  }
+  const applicable = entries.filter((entry) => entry.state !== 'not-applicable');
+  if (applicable.length === 0) {
+    return 'not-applicable';
+  }
+  if (applicable.some((entry) => entry.state === 'paid')) {
+    return 'paid';
+  }
+  return directDebit === 'Active' ? 'ready' : 'no-direct-debit';
+}
+
+/**
+ * The member rows of one scheme reduced to a bucket: each member's payment
+ * entries in that bucket plus their set-up state.
+ *
+ * @param {Array<Object>} members - The scheme's member rows
+ * @param {string[]} paymentIds - Payment ids in the bucket
+ * @returns {Array<{scoutId: string, setUp: string, entries: Array<Object>}>} Bucket rows
+ */
+function bucketRows(members, paymentIds) {
+  const scheduled = paymentIds.length > 0;
+  return members.map((member) => {
+    const entries = paymentIds.map((paymentId) => member.payments[paymentId]).filter(Boolean);
+    return {
+      scoutId: member.scoutId,
+      setUp: setUpState(entries, member.directDebit, scheduled),
+      entries,
+    };
+  });
+}
+
+/**
+ * TermBucketStats for a set of bucket rows: members counted once each,
+ * amounts summed over their payments.
+ *
+ * @param {Array<{scoutId: string, setUp: string, entries: Array<Object>}>} rows - Bucket rows
+ * @param {string[]} paymentIds - Payment ids in the bucket
+ * @param {string} today - Today's date (yyyy-mm-dd)
+ * @returns {Object} TermBucketStats
+ */
+function bucketStats(rows, paymentIds, today) {
+  const groups = ['due', 'paid', 'unpaid', 'overdue', 'pending'];
+  const members = Object.fromEntries(groups.map((group) => [group, new Set()]));
+  const amounts = Object.fromEntries(groups.map((group) => [group, 0]));
+  const setUp = { paid: 0, ready: 0, 'no-direct-debit': 0, 'not-applicable': 0, 'not-scheduled': 0 };
+
+  const record = (group, scoutId, amount) => {
+    members[group].add(scoutId);
+    amounts[group] += amount;
+  };
+
+  for (const row of rows) {
+    setUp[row.setUp] += 1;
+    for (const entry of row.entries) {
+      if (entry.state === 'not-applicable') {
+        continue;
+      }
+      record('due', row.scoutId, entry.amount);
+      if (entry.state === 'paid') {
+        record('paid', row.scoutId, entry.amount);
+      } else if (entry.state === 'required' || entry.state === 'not-started') {
+        record('unpaid', row.scoutId, entry.amount);
+        if (entry.date && entry.date <= today) {
+          record('overdue', row.scoutId, entry.amount);
+        }
+      } else if (entry.state === 'in-progress') {
+        record('pending', row.scoutId, entry.amount);
+      }
+    }
+  }
+
+  const stats = {
+    paymentIds,
+    scheduled: paymentIds.length > 0,
+  };
+  for (const group of groups) {
+    stats[group] = { members: members[group].size, amount: round2(amounts[group]) };
+  }
+  stats.readyMembers = setUp.ready + setUp.paid;
+  stats.noDirectDebitMembers = setUp['no-direct-debit'];
+  stats.notApplicableMembers = setUp['not-applicable'];
+  return stats;
+}
+
 /**
  * Builds one scheme's summary from its status response.
  *
@@ -247,10 +345,11 @@ function buildScheme(scheme, statusResponse, { terms, cachedById, today }) {
   const payments = [...paymentsById.values()]
     .sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.paymentId.localeCompare(b.paymentId));
 
-  const currentPaymentIds = payments.filter((p) => p.bucket === 'current').map((p) => p.paymentId);
-  const duePaymentIds = payments
-    .filter((p) => p.bucket === 'current' && p.date && p.date <= today)
-    .map((p) => p.paymentId);
+  const bucketPaymentIds = {
+    previous: payments.filter((p) => p.bucket === 'previous').map((p) => p.paymentId),
+    current: payments.filter((p) => p.bucket === 'current').map((p) => p.paymentId),
+    next: payments.filter((p) => p.bucket === 'next').map((p) => p.paymentId),
+  };
 
   const members = rows.map((row) => {
     const scoutId = String(row.scoutid);
@@ -281,35 +380,10 @@ function buildScheme(scheme, statusResponse, { terms, cachedById, today }) {
     };
   }).sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
 
-  const unpaidMembers = new Set();
-  const pendingMembers = new Set();
-  const paidCandidates = new Set();
-  let unpaidAmount = 0;
-  let pendingAmount = 0;
-
-  for (const member of members) {
-    let hasApplicableDue = false;
-    let hasOutstanding = false;
-    for (const paymentId of duePaymentIds) {
-      const entry = member.payments[paymentId];
-      if (!entry || entry.state === 'not-applicable') {
-        continue;
-      }
-      hasApplicableDue = true;
-      if (entry.state === 'required' || entry.state === 'not-started') {
-        unpaidMembers.add(member.scoutId);
-        unpaidAmount += entry.amount;
-        hasOutstanding = true;
-      } else if (entry.state === 'in-progress') {
-        pendingMembers.add(member.scoutId);
-        pendingAmount += entry.amount;
-        hasOutstanding = true;
-      }
-    }
-    if (hasApplicableDue && !hasOutstanding) {
-      paidCandidates.add(member.scoutId);
-    }
-  }
+  const termStats = Object.fromEntries(['previous', 'current', 'next'].map((bucket) => [
+    bucket,
+    bucketStats(bucketRows(members, bucketPaymentIds[bucket]), bucketPaymentIds[bucket], today),
+  ]));
 
   const coverage = {
     previous: payments.some((p) => p.bucket === 'previous'),
@@ -326,12 +400,7 @@ function buildScheme(scheme, statusResponse, { terms, cachedById, today }) {
     noDirectDebitCount: members.filter((member) => member.directDebit !== 'Active').length,
     payments,
     coverage,
-    currentTerm: {
-      paymentIds: currentPaymentIds,
-      unpaid: { members: unpaidMembers.size, amount: round2(unpaidAmount) },
-      pending: { members: pendingMembers.size, amount: round2(pendingAmount) },
-      paidMembers: paidCandidates.size,
-    },
+    termStats,
     members,
   };
 }
@@ -408,22 +477,69 @@ export function buildSectionSubsSummary({
     }))
     .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
 
-  const unpaidScoutIds = new Set();
-  let unpaidAmount = 0;
+  const sectionMembers = [];
   for (const scheme of schemes) {
-    unpaidAmount += scheme.currentTerm.unpaid.amount;
     for (const member of scheme.members) {
-      for (const paymentId of scheme.currentTerm.paymentIds) {
-        const entry = member.payments[paymentId];
-        if (!entry || !entry.date || entry.date > today) {
+      const buckets = { previous: [], current: [], next: [] };
+      for (const bucket of ['previous', 'current', 'next']) {
+        buckets[bucket] = scheme.termStats[bucket].paymentIds
+          .map((paymentId) => {
+            const entry = member.payments[paymentId];
+            return entry
+              ? {
+                paymentId,
+                date: entry.date,
+                amount: entry.amount,
+                state: entry.state,
+                latestStatus: entry.latestStatus,
+                latestAt: entry.latestAt,
+              }
+              : null;
+          })
+          .filter(Boolean)
+          .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      }
+      sectionMembers.push({
+        scoutId: member.scoutId,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        patrolId: member.patrolId,
+        isYP: member.isYP,
+        directDebit: member.directDebit,
+        schemeId: scheme.schemeId,
+        schemeName: scheme.name,
+        buckets,
+        nextSetUp: setUpState(
+          buckets.next,
+          member.directDebit,
+          scheme.termStats.next.scheduled,
+        ),
+      });
+    }
+  }
+  sectionMembers.sort((a, b) =>
+    a.lastName.localeCompare(b.lastName)
+    || a.firstName.localeCompare(b.firstName)
+    || a.schemeName.localeCompare(b.schemeName));
+
+  const termTotals = Object.fromEntries(['previous', 'current', 'next'].map((bucket) => {
+    const paymentIds = schemes.flatMap((scheme) => scheme.termStats[bucket].paymentIds);
+    const byMember = new Map();
+    for (const scheme of schemes) {
+      for (const row of bucketRows(scheme.members, scheme.termStats[bucket].paymentIds)) {
+        const existing = byMember.get(row.scoutId);
+        if (!existing) {
+          byMember.set(row.scoutId, { ...row, entries: [...row.entries] });
           continue;
         }
-        if (entry.state === 'required' || entry.state === 'not-started') {
-          unpaidScoutIds.add(member.scoutId);
+        existing.entries.push(...row.entries);
+        if (SET_UP_PRECEDENCE.indexOf(row.setUp) > SET_UP_PRECEDENCE.indexOf(existing.setUp)) {
+          existing.setUp = row.setUp;
         }
       }
     }
-  }
+    return [bucket, bucketStats([...byMember.values()], paymentIds, today)];
+  }));
 
   return {
     sectionId: String(sectionId),
@@ -445,6 +561,7 @@ export function buildSectionSubsSummary({
     otherSchemes,
     ypInSubsCount: ypInSubs.size,
     ypNotInSubs,
-    unpaidTotal: { members: unpaidScoutIds.size, amount: round2(unpaidAmount) },
+    termTotals,
+    members: sectionMembers,
   };
 }

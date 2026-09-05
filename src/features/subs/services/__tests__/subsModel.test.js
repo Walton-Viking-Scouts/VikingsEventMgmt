@@ -9,9 +9,9 @@ import {
 } from '../subsModel.js';
 
 const TERMS = {
-  previous: { termId: 'p', name: 'Summer 2026', startDate: '2026-04-01', endDate: '2026-07-20' },
+  previous: { termId: 'p', name: 'Summer 2026', startDate: '2026-04-01', endDate: '2026-08-31' },
   current: { termId: 'c', name: 'Autumn 2026', startDate: '2026-09-01', endDate: '2026-12-20' },
-  next: { termId: 'n', name: 'Spring 2027', startDate: '2027-01-01', endDate: '2027-03-31' },
+  next: { termId: 'n', name: 'Spring 2027', startDate: '2027-01-01', endDate: '2027-04-01' },
 };
 
 function summary(today, overrides = {}) {
@@ -107,6 +107,95 @@ describe('deriveTerms', () => {
   });
 });
 
+describe('next-term readiness and section rows', () => {
+  it('reports next term scheduled, with ready and no-direct-debit members', () => {
+    const result = summary('2026-09-20');
+    const next = result.schemes[0].termStats.next;
+    expect(next.scheduled).toBe(true);
+    expect(next.paymentIds).toHaveLength(1);
+    expect(next.readyMembers).toBe(6);
+    expect(next.noDirectDebitMembers).toBe(2);
+    expect(next.notApplicableMembers).toBe(0);
+    expect(next.due).toEqual({ members: 8, amount: 208 });
+    expect(next.paid).toEqual({ members: 0, amount: 0 });
+    expect(next.overdue).toEqual({ members: 0, amount: 0 });
+    expect(result.termTotals.next).toMatchObject({ scheduled: true, readyMembers: 6, noDirectDebitMembers: 2 });
+  });
+
+  it('marks a member the next payment does not apply to as not-applicable', () => {
+    const patched = JSON.parse(JSON.stringify(statusFixture));
+    patched.data.members[0]['1259481'].active = false;
+    const result = summary('2026-09-20', { statusResponses: { 60603: patched } });
+    const row = result.members.find((m) => m.scoutId === patched.data.members[0].scoutid);
+    expect(row.nextSetUp).toBe('not-applicable');
+    expect(result.schemes[0].termStats.next.notApplicableMembers).toBe(1);
+  });
+
+  it('reports not-scheduled for a scheme with no next-term payment', () => {
+    const result = summary('2026-09-20', {
+      terms: { ...TERMS, next: { termId: 'n', name: 'Far future', startDate: '2030-01-01', endDate: '2030-04-01' } },
+    });
+    expect(result.schemes[0].termStats.next).toMatchObject({
+      scheduled: false, paymentIds: [], readyMembers: 0, due: { members: 0, amount: 0 },
+    });
+    expect(result.members.every((row) => row.nextSetUp === 'not-scheduled')).toBe(true);
+    expect(result.termTotals.next.scheduled).toBe(false);
+  });
+
+  it('counts an early payment for next term as paid and set up', () => {
+    const patched = JSON.parse(JSON.stringify(statusFixture));
+    const early = patched.data.members.find((m) => m.directdebit === 'Inactive');
+    early['1259481'].status = [{
+      statusid: '1', status: 'Received', latest: '1', statustimestamp: '2026-09-19 10:00:00',
+    }];
+    const result = summary('2026-09-20', { statusResponses: { 60603: patched } });
+    const next = result.schemes[0].termStats.next;
+    expect(next.paid).toEqual({ members: 1, amount: 26 });
+    expect(next.unpaid).toEqual({ members: 7, amount: 182 });
+    expect(next.overdue).toEqual({ members: 0, amount: 0 });
+    expect(next.readyMembers).toBe(7);
+    expect(next.noDirectDebitMembers).toBe(1);
+    const row = result.members.find((m) => m.scoutId === early.scoutid);
+    expect(row.directDebit).toBe('Inactive');
+    expect(row.nextSetUp).toBe('paid');
+  });
+
+  it('builds one row per member and scheme, sorted and bucketed', () => {
+    const result = summary('2026-09-20');
+    expect(result.members).toHaveLength(8);
+    const names = result.members.map((row) => `${row.lastName} ${row.firstName}`);
+    expect([...names]).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    const row = result.members[0];
+    expect(row.schemeName).toBe('Leaders Subs');
+    expect(row.buckets.current).toHaveLength(1);
+    expect(row.buckets.current[0]).toMatchObject({ date: '2026-09-15', amount: 26, state: 'not-started' });
+    expect(row.buckets.previous[0]).toMatchObject({ date: '2026-05-14', state: 'paid', latestStatus: 'Received' });
+    expect(row.buckets.next[0]).toMatchObject({ date: '2027-01-15' });
+  });
+
+  it('gives a member in two schemes two rows but counts them once in the totals', () => {
+    const second = JSON.parse(JSON.stringify(schemesFixture.items.find((s) => s.schemeid === '60604')));
+    const result = buildSectionSubsSummary({
+      sectionId: '49097',
+      sectionName: 'Thursday Beavers',
+      schemesResponse: { items: [schemesFixture.items[1], second] },
+      statusResponses: { 60603: statusFixture, 60604: statusFixture },
+      members: [],
+      terms: TERMS,
+      today: '2026-09-20',
+      loadedAt: 1,
+      fromCache: false,
+    });
+    expect(result.schemes).toHaveLength(2);
+    expect(result.members).toHaveLength(16);
+    const scoutId = statusFixture.data.members[0].scoutid;
+    expect(result.members.filter((row) => row.scoutId === scoutId)).toHaveLength(2);
+    expect(result.termTotals.current.unpaid).toEqual({ members: 8, amount: 416 });
+    expect(result.termTotals.current.due).toEqual({ members: 8, amount: 416 });
+    expect(result.termTotals.next.readyMembers).toBe(6);
+  });
+});
+
 describe('buildSectionSubsSummary with the real capture', () => {
   it('reads 8 members and 6 payments of £26 on the known dates', () => {
     const scheme = summary('2026-09-20').schemes[0];
@@ -138,16 +227,24 @@ describe('buildSectionSubsSummary with the real capture', () => {
 
   it('counts everyone unpaid for the due current-term payment', () => {
     const result = summary('2026-09-20');
-    expect(result.schemes[0].currentTerm.paymentIds).toHaveLength(1);
-    expect(result.schemes[0].currentTerm.unpaid).toEqual({ members: 8, amount: 208 });
-    expect(result.schemes[0].currentTerm.pending).toEqual({ members: 0, amount: 0 });
-    expect(result.unpaidTotal).toEqual({ members: 8, amount: 208 });
+    const stats = result.schemes[0].termStats;
+    expect(stats.current.paymentIds).toHaveLength(1);
+    expect(stats.current.unpaid).toEqual({ members: 8, amount: 208 });
+    expect(stats.current.pending).toEqual({ members: 0, amount: 0 });
+    expect(stats.current.overdue).toEqual({ members: 8, amount: 208 });
+    expect(stats.current.due).toEqual({ members: 8, amount: 208 });
+    expect(stats.previous.unpaid).toEqual({ members: 0, amount: 0 });
+    expect(stats.previous.paid).toEqual({ members: 8, amount: 208 });
+    expect(result.termTotals.current.unpaid).toEqual({ members: 8, amount: 208 });
+    expect(result.termTotals.previous.unpaid).toEqual({ members: 0, amount: 0 });
   });
 
-  it('counts nothing unpaid before the payment falls due', () => {
+  it('counts the payment unpaid but not overdue before its date', () => {
     const result = summary('2026-09-10');
-    expect(result.schemes[0].currentTerm.unpaid).toEqual({ members: 0, amount: 0 });
-    expect(result.unpaidTotal).toEqual({ members: 0, amount: 0 });
+    const stats = result.schemes[0].termStats.current;
+    expect(stats.unpaid).toEqual({ members: 8, amount: 208 });
+    expect(stats.overdue).toEqual({ members: 0, amount: 0 });
+    expect(result.termTotals.current.overdue).toEqual({ members: 0, amount: 0 });
   });
 
   it('ticks coverage per bucket from the payment dates', () => {
@@ -218,7 +315,7 @@ describe('buildSectionSubsSummary with the real capture', () => {
     const result = summary('2026-09-20', { statusResponses: { 60603: patched } });
     const scheme = result.schemes[0];
     expect(scheme.members.every((m) => m.payments[paymentId].state === 'not-required')).toBe(true);
-    expect(scheme.currentTerm.unpaid).toEqual({ members: 0, amount: 0 });
-    expect(scheme.currentTerm.paidMembers).toBe(8);
+    expect(scheme.termStats.current.unpaid).toEqual({ members: 0, amount: 0 });
+    expect(scheme.termStats.current.due).toEqual({ members: 8, amount: 208 });
   });
 });
