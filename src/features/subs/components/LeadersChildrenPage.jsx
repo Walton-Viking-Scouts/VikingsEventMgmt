@@ -147,6 +147,7 @@ function SectionCard({ section, summary, isLoading, unavailable }) {
 function LeadersChildrenPage() {
   const {
     sections,
+    hasCachedSections,
     summaries,
     loadingSectionId,
     failedSectionId,
@@ -203,11 +204,11 @@ function LeadersChildrenPage() {
         </div>
       ) : null}
 
-      {!loading && sections.length === 0 && !error ? (
+      {!loading && !hasCachedSections && !error ? (
         <p className="text-sm text-gray-500">No sections cached — refresh the app data</p>
       ) : null}
 
-      {!loading && sections.length > 0 && total === 0 ? (
+      {!loading && hasCachedSections && total === 0 ? (
         <p className="mb-4 text-sm text-gray-500">
           No young people found with a parent who is a leader
         </p>

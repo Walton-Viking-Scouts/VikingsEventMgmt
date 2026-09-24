@@ -21,6 +21,7 @@ import { getSubsSections, loadLeadersChildren, loadSectionSubs } from '../servic
  *
  * @returns {{
  *   sections: Array<{sectionId: string, sectionName: string, children: Array<Object>, canView: boolean, permissionsSynced: boolean}>,
+ *   hasCachedSections: boolean,
  *   summaries: Record<string, object>,
  *   loadingSectionId: string|null,
  *   failedSectionId: string|null,
@@ -34,6 +35,7 @@ import { getSubsSections, loadLeadersChildren, loadSectionSubs } from '../servic
  */
 export function useLeadersChildren() {
   const [sections, setSections] = useState([]);
+  const [hasCachedSections, setHasCachedSections] = useState(false);
   const [summaries, setSummaries] = useState({});
   const [loadingSectionId, setLoadingSectionId] = useState(null);
   const [failedSectionId, setFailedSectionId] = useState(null);
@@ -75,6 +77,7 @@ export function useLeadersChildren() {
       permissionsSynced: accessById.get(section.sectionId)?.permissionsSynced !== false,
     }));
     setSections(merged);
+    setHasCachedSections(access.length > 0);
 
     const token = getToken();
     if (!hasFinanceScope(token)) {
@@ -124,6 +127,7 @@ export function useLeadersChildren() {
 
   return {
     sections,
+    hasCachedSections,
     summaries,
     loadingSectionId,
     failedSectionId,

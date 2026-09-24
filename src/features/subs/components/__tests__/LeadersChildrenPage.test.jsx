@@ -125,6 +125,27 @@ describe('LeadersChildrenPage', () => {
     expect(within(cubs).getByText('No young people with a parent who is a leader')).toBeInTheDocument();
   });
 
+  it('does not report missing sections when only adults sections are cached', async () => {
+    loadLeadersChildren.mockResolvedValue([]);
+    getSubsSections.mockResolvedValue([
+      { sectionId: '9', sectionName: 'Adults', canView: true, permissionsSynced: true },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('No young people found with a parent who is a leader')).toBeInTheDocument();
+    expect(screen.queryByText(/No sections cached/)).not.toBeInTheDocument();
+  });
+
+  it('reports missing sections when nothing is cached', async () => {
+    loadLeadersChildren.mockResolvedValue([]);
+    getSubsSections.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText(/No sections cached/)).toBeInTheDocument();
+  });
+
   it('still lists matches without the finance scope', async () => {
     hasFinanceScope.mockReturnValue(false);
 
