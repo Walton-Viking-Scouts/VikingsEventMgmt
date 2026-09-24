@@ -280,6 +280,31 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   unpaid)". Other schemes are listed by name only. A failed refresh keeps the
   previous figures on screen with the error above them and the `loadedAt`
   marker showing their staleness.
+- **Leaders' children** (`/subs/leaders-children`, a tab beside Summary):
+  finds every Young Person, in every cached section, whose Primary contact 1
+  or 2 has the same name or the same email address as an adult leader. An adult leader is anyone whose
+  membership in any section is `Leaders`, or anyone in a section of type
+  `adults`; Young Leaders are not adults and never match. Names match on
+  first + last name after lower-casing and dropping accents, punctuation and
+  extra spaces (`leadersChildrenModel.js`). Emails match case-insensitively
+  between the contact's email 1 / email 2 and the leader's own addresses (the
+  member's `email` and their member contact group — never the leader's own
+  primary or emergency contacts, who are other people), which catches parents
+  whose names are spelt differently. A member never matches themselves. Matching reads only the local cache, so it works offline and
+  makes no OSM call. The page shows one card per non-adults section (a child
+  in two sections appears in both) with columns Young person, Parent (the
+  matching contact's name and which primary contact it is), Leader in (the
+  leader's sections, including "Adults"; when only the email matched, the
+  leader's own name is shown with an "email match" tag) and Subs group. Subs group needs the
+  section's subs summary: it reads **Leaders** when the child is in any
+  leaders scheme (name matches `/leader/i`), **Other** when they are only in
+  other subs schemes, and **Not set up** when they are in none, with the
+  scheme names underneath. Summaries are loaded one section at a time, and
+  only for viewable sections that have at least one match; the same
+  `localOnly` / stop-on-first-network-failure rules as the Summary apply.
+  Sections without finance access show "No finance access" in the Subs group
+  column, and without the finance scope the matches are still listed with a
+  banner asking the user to sign in again.
 
 Style: Tailwind, `scout-blue` theme, the existing `LoadingScreen`
 convention. Mobile first; tables scroll inside `overflow-x-auto`.

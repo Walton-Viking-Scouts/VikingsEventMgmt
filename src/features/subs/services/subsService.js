@@ -17,6 +17,7 @@ import { authHandler } from '../../../shared/services/auth/authHandler.js';
 import { isDemoMode } from '../../../config/demoMode.js';
 import logger, { LOG_CATEGORIES } from '../../../shared/services/utils/logger.js';
 import { buildSectionSubsSummary, deriveTerms, mostRecentTerm } from './subsModel.js';
+import { findLeadersChildren } from './leadersChildrenModel.js';
 
 const MIN_FINANCE_PERMISSION = 10;
 
@@ -206,6 +207,21 @@ export async function getSubsSections() {
       permissionsSynced,
     };
   });
+}
+
+/**
+ * The Leaders' children found in the cached sections and members: every
+ * non-adults section with the young people whose primary contacts match an
+ * adult leader by name. Reads the local cache only, so it makes no OSM calls
+ * and works offline.
+ *
+ * @returns {Promise<Array<{sectionId: string, sectionName: string, children: Array<Object>}>>} One entry per non-adults section
+ */
+export async function loadLeadersChildren() {
+  const sections = (await databaseService.getSections()) ?? [];
+  const sectionIds = sections.map((section) => Number(section.sectionid)).filter(Number.isFinite);
+  const members = sectionIds.length > 0 ? ((await databaseService.getMembers(sectionIds)) ?? []) : [];
+  return findLeadersChildren({ sections, members });
 }
 
 /**

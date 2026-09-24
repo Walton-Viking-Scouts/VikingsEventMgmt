@@ -37,7 +37,7 @@ import databaseService from '../../../../shared/services/storage/database.js';
 import { CurrentActiveTermsService } from '../../../../shared/services/storage/currentActiveTermsService.js';
 import { authHandler } from '../../../../shared/services/auth/authHandler.js';
 import { isDemoMode } from '../../../../config/demoMode.js';
-import { getSubsSections, loadSectionSubs, resetTermsCache } from '../subsService.js';
+import { getSubsSections, loadLeadersChildren, loadSectionSubs, resetTermsCache } from '../subsService.js';
 
 const SECTIONS = [
   { sectionid: 49097, sectionname: 'Thursday Beavers', permissions: { finance: 20 } },
@@ -83,6 +83,27 @@ describe('getSubsSections', () => {
   it('returns [] when nothing is cached', async () => {
     databaseService.getSections.mockResolvedValue(null);
     await expect(getSubsSections()).resolves.toEqual([]);
+  });
+});
+
+describe('loadLeadersChildren', () => {
+  it('reads every cached section and its members without calling OSM', async () => {
+    databaseService.getMembers.mockResolvedValue([
+      { scoutid: 1, firstname: 'Jane', lastname: 'Doe', sections: [{ sectionid: 49098, person_type: 'Leaders' }] },
+      {
+        scoutid: 2, firstname: 'Amy', lastname: 'Doe',
+        sections: [{ sectionid: 49097, person_type: 'Young People' }],
+        primary_contact_1__first_name: 'Jane', primary_contact_1__last_name: 'Doe',
+      },
+    ]);
+
+    const result = await loadLeadersChildren();
+
+    expect(databaseService.getMembers).toHaveBeenCalledWith([49097, 49098, 49099, 49100]);
+    expect(result.find((section) => section.sectionId === '49097').children.map((child) => child.scoutId))
+      .toEqual(['2']);
+    expect(getPaymentSchemes).not.toHaveBeenCalled();
+    expect(getTerms).not.toHaveBeenCalled();
   });
 });
 
