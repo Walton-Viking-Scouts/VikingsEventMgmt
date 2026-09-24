@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
@@ -18,12 +18,18 @@ vi.mock('../../services/subsService.js', () => ({
   loadLeadersChildren: vi.fn(),
 }));
 
+vi.mock('../../../../shared/utils/memberDataExtractor.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  downloadCSV: vi.fn(),
+}));
+
 vi.mock('../../../auth/hooks', () => ({
   useAuth: vi.fn(() => ({ login: vi.fn() })),
 }));
 
 import { hasFinanceScope } from '../../../../shared/services/auth/tokenScopes.js';
 import { getSubsSections, loadLeadersChildren, loadSectionSubs } from '../../services/subsService.js';
+import { downloadCSV } from '../../../../shared/utils/memberDataExtractor.js';
 import LeadersChildrenPage from '../LeadersChildrenPage.jsx';
 
 const leader = (scoutId, sectionName, matchedOn = ['name'], name = 'Jane Doe') => ({
@@ -144,6 +150,35 @@ describe('LeadersChildrenPage', () => {
     renderPage();
 
     expect(await screen.findByText(/No sections cached/)).toBeInTheDocument();
+  });
+
+  it('downloads every section\'s matches as one CSV once loading finishes', async () => {
+    renderPage();
+
+    const button = screen.getByRole('button', { name: 'Download CSV' });
+    expect(button).toBeDisabled();
+    await screen.findAllByText('Leaders Subs');
+    await vi.waitFor(() => expect(button).toBeEnabled());
+
+    fireEvent.click(button);
+
+    expect(downloadCSV).toHaveBeenCalledTimes(1);
+    const [rows, filename] = downloadCSV.mock.calls[0];
+    expect(filename).toMatch(/^leaders_children_\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(rows).toHaveLength(4);
+    expect(rows[1]).toContain('"Beavers","Amy","Doe"');
+    expect(rows[1]).toContain('"Leaders","Leaders Subs"');
+    expect(rows[3]).toContain('"Scouts","Cal","Roe"');
+    expect(rows[3]).toContain('"No finance access"');
+  });
+
+  it('disables the download when there are no matches', async () => {
+    loadLeadersChildren.mockResolvedValue([{ sectionId: '2', sectionName: 'Cubs', children: [] }]);
+
+    renderPage();
+
+    await screen.findByText('No young people found with a parent who is a leader');
+    expect(screen.getByRole('button', { name: 'Download CSV' })).toBeDisabled();
   });
 
   it('still lists matches without the finance scope', async () => {

@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useLeadersChildren from '../hooks/useLeadersChildren.js';
-import { subsGroupFor } from '../services/leadersChildrenModel.js';
+import { SUBS_GROUP_LABELS, subsGroupFor, subsUnavailableReason } from '../services/leadersChildrenModel.js';
+import { buildLeadersChildrenCsvRows, leadersChildrenCsvFilename } from '../services/leadersChildrenExport.js';
+import { downloadCSV } from '../../../shared/utils/memberDataExtractor.js';
 import SubsSignInCard from './SubsSignInCard.jsx';
 import SubsTabs from './SubsTabs.jsx';
 
-const GROUP_BADGES = {
-  leaders: { label: 'Leaders', className: 'bg-green-100 text-green-800 border-green-200' },
-  other: { label: 'Other', className: 'bg-amber-100 text-amber-800 border-amber-200' },
-  none: { label: 'Not set up', className: 'bg-red-50 text-scout-red border-red-200' },
+const GROUP_CLASSES = {
+  leaders: 'bg-green-100 text-green-800 border-green-200',
+  other: 'bg-amber-100 text-amber-800 border-amber-200',
+  none: 'bg-red-50 text-scout-red border-red-200',
 };
 
 /**
@@ -30,11 +32,10 @@ function SubsGroupCell({ summary, scoutId, unavailable, isLoading }) {
     return <span className="text-gray-300">{isLoading ? '' : '–'}</span>;
   }
   const { group, schemeNames } = subsGroupFor(summary, scoutId);
-  const badge = GROUP_BADGES[group];
   return (
     <span>
-      <span className={`inline-block rounded border px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>
-        {badge.label}
+      <span className={`inline-block rounded border px-1.5 py-0.5 text-xs font-medium ${GROUP_CLASSES[group]}`}>
+        {SUBS_GROUP_LABELS[group]}
       </span>
       {schemeNames.length > 0 ? (
         <span className="block text-xs text-gray-400">{schemeNames.join(', ')}</span>
@@ -140,7 +141,8 @@ function SectionCard({ section, summary, isLoading, unavailable }) {
  * Leaders' children page: for every section, the young people whose primary
  * contact shares a name or email with an adult leader in any section (or in adults),
  * which section(s) that leader is in, and, where the user has finance access,
- * whether the child is in a leaders' subs scheme or another one.
+ * whether the child is in a leaders' subs scheme or another one. Every
+ * section's matches can be downloaded together as one CSV.
  *
  * @returns {JSX.Element} The Leaders' children page
  */
@@ -165,6 +167,12 @@ function LeadersChildrenPage() {
 
   const failedSection = sections.find((section) => section.sectionId === failedSectionId);
   const total = sections.reduce((count, section) => count + section.children.length, 0);
+  const handleDownload = () => {
+    downloadCSV(
+      buildLeadersChildrenCsvRows(sections, summaries, { needsFinanceScope, sectionErrors }),
+      leadersChildrenCsvFilename(),
+    );
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4">
@@ -176,14 +184,24 @@ function LeadersChildrenPage() {
             Young people whose primary contact has the same name or email as an adult leader
           </p>
         </div>
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          className="rounded-md bg-scout-blue px-3 py-1.5 text-sm font-medium text-white hover:bg-scout-blue-dark disabled:opacity-50"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={loading || total === 0}
+            className="rounded-md border border-scout-blue px-3 py-1.5 text-sm font-medium text-scout-blue hover:bg-blue-50 disabled:opacity-50"
+          >
+            Download CSV
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="rounded-md bg-scout-blue px-3 py-1.5 text-sm font-medium text-white hover:bg-scout-blue-dark disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {needsFinanceScope ? (
@@ -215,13 +233,7 @@ function LeadersChildrenPage() {
       ) : null}
 
       {sections.map((section) => {
-        const unavailable = needsFinanceScope
-          ? 'Sign in to see'
-          : !section.permissionsSynced
-            ? 'Permissions not synced — refresh the app data'
-            : !section.canView
-              ? 'No finance access'
-              : sectionErrors[section.sectionId]?.message;
+        const unavailable = subsUnavailableReason(section, { needsFinanceScope, sectionErrors });
         return (
           <SectionCard
             key={section.sectionId}

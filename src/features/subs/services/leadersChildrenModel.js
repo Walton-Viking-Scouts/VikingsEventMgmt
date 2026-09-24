@@ -289,3 +289,28 @@ export function subsGroupFor(summary, scoutId) {
     schemeNames: schemes.map((scheme) => scheme.name),
   };
 }
+
+/** Display labels for the subs groups returned by {@link subsGroupFor}. */
+export const SUBS_GROUP_LABELS = { leaders: 'Leaders', other: 'Other', none: 'Not set up' };
+
+/**
+ * Why a section's subs group cannot be shown, or undefined when it can.
+ *
+ * @param {{sectionId: string, canView: boolean, permissionsSynced: boolean}} section - Section with its access
+ * @param {Object} context - Load state
+ * @param {boolean} context.needsFinanceScope - The token lacks the finance scope
+ * @param {Object<string, {message: string}>} context.sectionErrors - Local-only errors by section id
+ * @returns {string|undefined} Reason text
+ */
+export function subsUnavailableReason(section, { needsFinanceScope, sectionErrors }) {
+  if (needsFinanceScope) {
+    return 'Sign in to see';
+  }
+  if (!section.permissionsSynced) {
+    return 'Permissions not synced — refresh the app data';
+  }
+  if (!section.canView) {
+    return 'No finance access';
+  }
+  return sectionErrors?.[section.sectionId]?.message;
+}
