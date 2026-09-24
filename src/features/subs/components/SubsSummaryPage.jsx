@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import useSubsSummary from '../hooks/useSubsSummary.js';
 import SubsSignInCard from './SubsSignInCard.jsx';
+import SubsTabs from './SubsTabs.jsx';
 import { formatPounds } from './formatPounds.js';
 import { BUCKET_LABELS, BUCKETS, ypBySchemeKind } from './termLabels.js';
 import { formatLoadedAt } from './formatLoadedAt.js';
@@ -126,6 +127,7 @@ function SubsSummaryPage() {
   const failedSection = sections.find((section) => section.sectionId === failedSectionId);
   return (
     <div className="max-w-6xl mx-auto px-4 py-4">
+      <SubsTabs />
       <div className="mb-4 flex items-center justify-between gap-2">
         <h1 className="m-0 text-lg font-semibold text-gray-900">Subs</h1>
         <button
