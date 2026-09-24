@@ -26,8 +26,8 @@ import { hasFinanceScope } from '../../../../shared/services/auth/tokenScopes.js
 import { getSubsSections, loadLeadersChildren, loadSectionSubs } from '../../services/subsService.js';
 import LeadersChildrenPage from '../LeadersChildrenPage.jsx';
 
-const leader = (scoutId, sectionName) => ({
-  scoutId, name: 'Jane Doe', sections: [{ sectionId: '9', sectionName }],
+const leader = (scoutId, sectionName, matchedOn = ['name'], name = 'Jane Doe') => ({
+  scoutId, name, sections: [{ sectionId: '9', sectionName }], matchedOn,
 });
 
 const MATCHED = [
@@ -41,7 +41,10 @@ const MATCHED = [
       },
       {
         scoutId: '201', firstName: 'Ben', lastName: 'Doe',
-        parents: [{ contact: 'Primary contact 2', name: 'Jane Doe', leaders: [leader('100', 'Adults')] }],
+        parents: [{
+          contact: 'Primary contact 2', name: 'Jen Doe',
+          leaders: [leader('100', 'Adults', ['email'], 'Jennifer Doe')],
+        }],
       },
     ],
   },
@@ -96,8 +99,12 @@ describe('LeadersChildrenPage', () => {
     expect(await within(amyRow).findByText('Leaders')).toBeInTheDocument();
     expect(within(amyRow).getByText('Leaders Subs')).toBeInTheDocument();
 
+    expect(within(amyRow).queryByText('email match')).not.toBeInTheDocument();
+
     const benRow = within(beavers).getByText('Ben Doe').closest('tr');
     expect(within(benRow).getByText('Adults')).toBeInTheDocument();
+    expect(within(benRow).getByText(/Jennifer Doe/)).toBeInTheDocument();
+    expect(within(benRow).getByText('email match')).toBeInTheDocument();
     expect(within(benRow).getByText('Other')).toBeInTheDocument();
   });
 

@@ -107,6 +107,14 @@ function SectionCard({ section, summary, isLoading, unavailable }) {
                     {child.parents.flatMap((parent) => parent.leaders.map((leader) => (
                       <span key={`${parent.contact}-${leader.scoutId}`} className="block">
                         {leader.sections.map((entry) => entry.sectionName).join(', ')}
+                        {leader.matchedOn?.includes('name') ? null : (
+                          <span className="block text-xs text-gray-400">
+                            {leader.name}{' '}
+                            <span className="inline-block rounded border border-slate-200 bg-slate-100 px-1 text-slate-600">
+                              email match
+                            </span>
+                          </span>
+                        )}
                       </span>
                     )))}
                   </td>
@@ -130,7 +138,7 @@ function SectionCard({ section, summary, isLoading, unavailable }) {
 
 /**
  * Leaders' children page: for every section, the young people whose primary
- * contact shares a name with an adult leader in any section (or in adults),
+ * contact shares a name or email with an adult leader in any section (or in adults),
  * which section(s) that leader is in, and, where the user has finance access,
  * whether the child is in a leaders' subs scheme or another one.
  *
@@ -164,7 +172,7 @@ function LeadersChildrenPage() {
         <div>
           <h1 className="m-0 text-lg font-semibold text-gray-900">Leaders&apos; children</h1>
           <p className="m-0 mt-0.5 text-xs text-gray-500">
-            Young people whose primary contact has the same name as an adult leader
+            Young people whose primary contact has the same name or email as an adult leader
           </p>
         </div>
         <button

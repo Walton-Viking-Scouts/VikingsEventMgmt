@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   findLeadersChildren,
+  leaderEmails,
+  normaliseEmail,
   normaliseName,
   parentContacts,
   subsGroupFor,
@@ -56,9 +58,36 @@ describe('parentContacts', () => {
       nested: { primary_contact_2__first_name: 'John', primary_contact_2__last_name: 'Doe' },
     });
     expect(parentContacts(record)).toEqual([
-      { contact: 'Primary contact 1', name: 'Jane Doe' },
-      { contact: 'Primary contact 2', name: 'John Doe' },
+      { contact: 'Primary contact 1', name: 'Jane Doe', emails: [] },
+      { contact: 'Primary contact 2', name: 'John Doe', emails: [] },
     ]);
+  });
+
+  it('keeps a contact with only an email, with its addresses normalised', () => {
+    const record = {
+      scoutid: 10,
+      sections: [],
+      primary_contact_1__email_1: ' Jen@Example.com ',
+      primary_contact_1__email_2: 'jen@example.com',
+    };
+    expect(parentContacts(record)).toEqual([
+      { contact: 'Primary contact 1', name: '', emails: ['jen@example.com'] },
+    ]);
+  });
+});
+
+describe('leaderEmails', () => {
+  it('uses the leader\'s own addresses, not their contacts\'', () => {
+    const record = {
+      email: 'Lead@Example.com',
+      member_contact__email_1: 'work@example.com',
+      primary_contact_1__email_1: 'partner@example.com',
+    };
+    expect(leaderEmails(record)).toEqual(['lead@example.com', 'work@example.com']);
+  });
+
+  it('ignores values that are not addresses', () => {
+    expect(normaliseEmail('n/a')).toBe('');
   });
 });
 
@@ -92,7 +121,10 @@ describe('findLeadersChildren', () => {
       {
         contact: 'Primary contact 1',
         name: 'jane DOE',
-        leaders: [{ scoutId: '100', name: 'Jane Doe', sections: [{ sectionId: '2', sectionName: 'Cubs' }] }],
+        emails: [],
+        leaders: [{
+          scoutId: '100', name: 'Jane Doe', sections: [{ sectionId: '2', sectionName: 'Cubs' }], matchedOn: ['name'],
+        }],
       },
     ]);
     expect(cubs.children).toHaveLength(1);
@@ -100,6 +132,34 @@ describe('findLeadersChildren', () => {
       contact: 'Primary contact 2',
       leaders: [{ scoutId: '101', sections: [{ sectionId: '3', sectionName: 'Adults' }] }],
     });
+  });
+
+  it('matches on email when the names are spelt differently', () => {
+    const withEmails = [
+      { ...members[0], firstname: 'Jennifer', email: 'jen.doe@example.com' },
+      {
+        ...member({
+          scoutid: 400, firstname: 'Eve', lastname: 'Doe',
+          sections: [membership(1, 'Young People')], pc1: ['Jen', 'Doe'],
+        }),
+        primary_contact_1__email_1: 'JEN.DOE@example.com',
+      },
+    ];
+    const [beavers] = findLeadersChildren({ sections: SECTIONS, members: withEmails });
+    expect(beavers.children).toHaveLength(1);
+    expect(beavers.children[0].parents[0].leaders).toEqual([
+      expect.objectContaining({ scoutId: '100', name: 'Jennifer Doe', matchedOn: ['email'] }),
+    ]);
+  });
+
+  it('records both reasons when name and email match the same leader', () => {
+    const both = [
+      { ...members[0], email: 'jane@example.com' },
+      { ...members[3], primary_contact_1__email_1: 'jane@example.com' },
+    ];
+    const [beavers] = findLeadersChildren({ sections: SECTIONS, members: both });
+    expect(beavers.children[0].parents[0].leaders).toHaveLength(1);
+    expect(beavers.children[0].parents[0].leaders[0].matchedOn).toEqual(['name', 'email']);
   });
 
   it('does not treat Young Leaders as adult leaders', () => {
