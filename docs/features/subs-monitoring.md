@@ -305,6 +305,15 @@ Route `/subs` (tab "Subs" in `MainNavigation`, after Water Rota).
   Sections without finance access show "No finance access" in the Subs group
   column, and without the finance scope the matches are still listed with a
   banner asking the user to sign in again.
+  A **Download CSV** button (enabled once loading finishes and there is at
+  least one match) saves every section's matches in one file,
+  `leaders_children_<yyyy-mm-dd>.csv` (`leadersChildrenExport.js`), with one
+  row per child, matching parent contact and leader: Section, First name, Last
+  name, Parent contact, Parent name, Leader name, Leader sections, Matched on
+  (name / email / name and email), Subs group and Subs schemes. Where the
+  subs group is not available the Subs group column carries the same reason
+  the page shows ("No finance access", "Sign in to see", a local error, or
+  "Not loaded" if the run stopped before that section).
 
 Style: Tailwind, `scout-blue` theme, the existing `LoadingScreen`
 convention. Mobile first; tables scroll inside `overflow-x-auto`.
