@@ -17,21 +17,26 @@ import { hasFinanceScope } from '../../../shared/services/auth/tokenScopes.js';
 import { getSubsSections, loadLeadersChildren, loadSectionSubs } from '../services/subsService.js';
 
 /**
+ * State returned by {@link useLeadersChildren}.
+ *
+ * @typedef {Object} LeadersChildrenState
+ * @property {Array<Object>} sections - Non-adults sections with their matched children, canView and permissionsSynced
+ * @property {boolean} hasCachedSections - Whether any section at all is cached
+ * @property {Object<string, Object>} summaries - Loaded SectionSubsSummary by section id
+ * @property {?string} loadingSectionId - Section whose subs are loading
+ * @property {?string} failedSectionId - Section whose network load stopped the run
+ * @property {Object<string, Object>} sectionErrors - Local-only errors ({code, message}) by section id
+ * @property {boolean} loading - Whether a load is running
+ * @property {?Error} error - The error that stopped the run
+ * @property {boolean} needsAuth - Whether the user must sign in again
+ * @property {boolean} needsFinanceScope - Whether the token lacks the finance scope
+ * @property {Function} refresh - Reloads with forceRefresh
+ */
+
+/**
  * Loads the matched children and, where permitted, their sections' subs.
  *
- * @returns {{
- *   sections: Array<{sectionId: string, sectionName: string, children: Array<Object>, canView: boolean, permissionsSynced: boolean}>,
- *   hasCachedSections: boolean,
- *   summaries: Record<string, object>,
- *   loadingSectionId: string|null,
- *   failedSectionId: string|null,
- *   sectionErrors: Record<string, {code: string, message: string}>,
- *   loading: boolean,
- *   error: Error|null,
- *   needsAuth: boolean,
- *   needsFinanceScope: boolean,
- *   refresh: () => Promise<void>,
- * }} View state and an explicit refresh trigger
+ * @returns {LeadersChildrenState} View state and an explicit refresh trigger
  */
 export function useLeadersChildren() {
   const [sections, setSections] = useState([]);
